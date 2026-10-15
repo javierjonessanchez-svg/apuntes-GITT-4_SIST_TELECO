@@ -1,5 +1,8 @@
 ---
 // Portada provisional: se sustituye en la Tarea 4 (esqueleto) y la Tarea 6 (portada real).
+// Ya lee las asignaturas, así la construcción valida el contenido.
+import { asignaturasOrdenadas } from '../comun/datos';
+const asignaturas = await asignaturasOrdenadas();
 ---
 <html lang="es">
   <head>
@@ -9,5 +12,6 @@
   </head>
   <body>
     <p>En construcción.</p>
+    <ul>{asignaturas.map((a) => <li>{a.nombre}</li>)}</ul>
   </body>
 </html>
