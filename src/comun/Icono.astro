@@ -1,12 +1,16 @@
 ---
 // Iconos de Lucide (una sola familia en toda la web), en línea y con currentColor.
-interface Props { nombre: 'sol' | 'luna' | 'izquierda' | 'derecha' | 'buscar' }
+interface Props { nombre: 'sol' | 'luna' | 'izquierda' | 'derecha' | 'buscar' | 'reproducir' | 'pausa' | 'anterior' | 'siguiente' }
 const trazos: Record<Props['nombre'], string> = {
   sol: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32l1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>',
   luna: '<path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"/>',
   izquierda: '<path d="m12 19l-7-7l7-7m7 7H5"/>',
   derecha: '<path d="M5 12h14m-7-7l7 7l-7 7"/>',
   buscar: '<path d="m21 21l-4.34-4.34"/><circle cx="11" cy="11" r="8"/>',
+  reproducir: '<path d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z"/>',
+  pausa: '<rect fill="currentColor" width="5" height="18" x="14" y="3" rx="1"/><rect fill="currentColor" width="5" height="18" x="5" y="3" rx="1"/>',
+  anterior: '<path d="m15 18l-6-6l6-6"/>',
+  siguiente: '<path d="m9 18l6-6l-6-6"/>',
 };
 const { nombre } = Astro.props;
 ---

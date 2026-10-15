@@ -1,0 +1,26 @@
+---
+// Deslizador con su valor al lado, en formato español. Lanza el evento «input»
+// normal del <input type="range">, así que el widget que lo usa lo escucha.
+import './widgets.css';
+import { fmt } from './numeros';
+
+interface Props { id: string; etiqueta: string; min: number; max: number; paso?: number; valor: number; unidad?: string; decimales?: number }
+const { id, etiqueta, min, max, paso = 1, valor, unidad = '', decimales = 2 } = Astro.props;
+---
+<div class="deslizador" data-deslizador data-unidad={unidad} data-decimales={decimales}>
+  <label for={id}>{etiqueta}</label>
+  <input type="range" id={id} min={min} max={max} step={paso} value={valor} />
+  <output for={id} data-valor>{fmt(valor, decimales)}{unidad && ` ${unidad}`}</output>
+</div>
+<script>
+  import { fmt } from './numeros';
+
+  for (const caja of document.querySelectorAll<HTMLElement>('[data-deslizador]')) {
+    const entrada = caja.querySelector<HTMLInputElement>('input')!;
+    const salida = caja.querySelector<HTMLOutputElement>('[data-valor]')!;
+    const unidad = caja.dataset.unidad;
+    const pintar = () => { salida.textContent = fmt(Number(entrada.value), Number(caja.dataset.decimales)) + (unidad ? ` ${unidad}` : ''); };
+    entrada.addEventListener('input', pintar);
+    pintar();
+  }
+</script>

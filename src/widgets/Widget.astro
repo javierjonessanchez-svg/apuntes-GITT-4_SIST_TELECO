@@ -1,0 +1,19 @@
+---
+// Caja común de todos los widgets: tipo (entender, resolver, lo real), título,
+// la parte interactiva (ranura por defecto) y una versión estática (ranura
+// «estatico») que se ve sin JavaScript o si el script del widget falla.
+import './widgets.css';
+
+interface Props { titulo: string; tipo: 'entender' | 'resolver' | 'real' }
+const { titulo, tipo } = Astro.props;
+const ETIQUETA = { entender: 'Para entender', resolver: 'Para resolver', real: 'Lo real' };
+const estatico = Astro.slots.has('estatico');
+---
+<section class="widget" data-tipo={tipo} aria-label={titulo} data-con-estatico={estatico ? '' : undefined}>
+  <header class="widget-cabecera">
+    <span class="widget-tipo">{ETIQUETA[tipo]}</span>
+    <h3 class="widget-titulo">{titulo}</h3>
+  </header>
+  <div class="widget-vivo"><slot /></div>
+  {estatico && <div class="widget-estatico"><slot name="estatico" /></div>}
+</section>

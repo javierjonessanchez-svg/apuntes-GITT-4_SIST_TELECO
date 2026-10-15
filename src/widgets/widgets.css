@@ -1,0 +1,63 @@
+/* Piezas comunes de los widgets. Solo usan los tokens del esqueleto, así que
+   cada mundo les da su color sin tocar este archivo. */
+
+/* ---------- Caja ---------- */
+.widget {
+  margin: 28px 0; padding: 18px 20px 20px; border-radius: var(--radio);
+  background: var(--superficie); color: var(--texto); box-shadow: var(--sombra);
+}
+.widget-cabecera { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin-bottom: 14px; }
+.widget-tipo {
+  padding: 2px 10px; border-radius: 999px; font-size: .78rem; font-weight: 700; letter-spacing: .02em;
+  background: color-mix(in srgb, var(--primario) 14%, transparent); color: var(--texto);
+}
+.widget[data-tipo="resolver"] .widget-tipo { background: color-mix(in srgb, var(--resalte) 30%, transparent); }
+.widget[data-tipo="real"] .widget-tipo { background: color-mix(in srgb, var(--acento2) 18%, transparent); }
+.tema-articulo .widget-titulo, .widget-titulo { margin: 0; font-size: 1.15rem; }
+/* La versión estática se ve hasta que el script del widget arranca (o siempre, sin JavaScript) */
+.widget[data-con-estatico]:not([data-listo]) .widget-vivo { display: none; }
+.widget[data-listo] .widget-estatico { display: none; }
+
+/* Campos de las calculadoras */
+.widget-campos { display: flex; flex-wrap: wrap; gap: 12px 16px; align-items: end; }
+.widget-campo { display: grid; gap: 4px; font-size: .9rem; color: var(--suave); }
+.widget-campo input, .widget-campo select {
+  min-height: 44px; min-width: 7em; padding: 8px 12px; border: 0; border-radius: 10px;
+  background: var(--fondo); color: var(--texto); font: inherit; font-variant-numeric: tabular-nums;
+  box-shadow: inset 0 0 0 1.5px var(--suave);
+}
+.widget-resultado { margin: 14px 0 0; font-size: 1.1rem; font-variant-numeric: tabular-nums; }
+.widget-resultado b { font-size: 1.35rem; }
+.widget-aviso { margin: 10px 0 0; color: var(--acento2); font-weight: 600; }
+
+/* ---------- Desarrollo ---------- */
+.desarrollo { margin-top: 16px; }
+.desarrollo-titulo { margin: 0 0 6px; font-weight: 700; }
+.desarrollo ol { margin: 0; padding-left: 1.4em; }
+.desarrollo li { margin: 0 0 10px; }
+.desarrollo li p { margin: 0; }
+.desarrollo .katex-display { margin: 6px 0 0; overflow-x: auto; overflow-y: hidden; }
+
+/* ---------- Pistas ---------- */
+.pistas-lista { list-style: none; margin: 12px 0; padding: 0; display: grid; gap: 8px; }
+.pistas-lista li { padding: 10px 14px; border-radius: 10px; background: var(--fondo); }
+.pistas-lista li:focus-visible { outline-offset: 2px; }
+.pistas-solucion { box-shadow: inset 3px 0 0 var(--resalte); }
+/* Sin JavaScript se ven todas */
+.pistas:not([data-listo]) [data-pista][hidden] { display: block; }
+
+/* ---------- Paso a paso ---------- */
+.paso-a-paso { border-radius: 12px; }
+.paso-controles { display: flex; align-items: center; gap: 4px; margin-top: 12px; }
+.paso-controles[hidden] { display: none; }
+.paso-contador { margin-left: 8px; font-size: .9rem; color: var(--suave); font-variant-numeric: tabular-nums; }
+/* Un solo botón: el icono cambia con aria-pressed */
+[data-reproducir] > span { display: inline-flex; }
+[data-reproducir][aria-pressed="true"] .icono-reproducir,
+[data-reproducir]:not([aria-pressed="true"]) .icono-pausa { display: none; }
+
+/* ---------- Deslizador ---------- */
+.deslizador { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 2px 12px; }
+.deslizador label { grid-column: 1 / -1; font-size: .9rem; color: var(--suave); }
+.deslizador input { width: 100%; min-height: 44px; margin: 0; accent-color: var(--primario); }
+.deslizador output { min-width: 5ch; text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
