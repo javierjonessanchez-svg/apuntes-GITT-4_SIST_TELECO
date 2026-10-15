@@ -4,7 +4,218 @@ orden: 6
 bloque: "Tráfico"
 resumen: "Erlang B y C, colas y formulario"
 saber:
-  - "Cuándo se usa Erlang B y cuándo Erlang C"
+  - "Tráfico ofrecido A = λ/μ, en Erlang: el número medio de llamadas simultáneas si no se bloqueara ninguna"
+  - "Erlang B (M/M/N/N): sin cola, las llamadas que no encuentran canal se pierden; da la probabilidad de bloqueo"
+  - "Erlang C (M/M/N): con cola infinita; da la probabilidad de esperar y el retardo"
+  - "Engset (M/M/N/N/p): como Erlang B pero con un número finito p de usuarios"
+  - "M/M/1: un servidor y cola infinita; la fórmula de Little (λE[T] = E[n]) lo une todo"
+fuentes:
+  - "Formulario_RdC.pdf (Redes de Comunicaciones)"
 ---
 
-Tema en preparación.
+Aquí está la parte de la asignatura que se resuelve con números: cuántos canales hacen falta para un tráfico dado, qué bloqueo hay con los que tienes y qué retardo sufre un mensaje en una cola. El formulario es el de Redes de Comunicaciones.
+
+## Eligiendo el modelo
+
+| ¿Qué pasa con una llamada que no encuentra servidor libre? | ¿Cuántos usuarios? | Modelo |
+| --- | --- | --- |
+| Se pierde (bloqueo) | Muchos (infinitos) | **Erlang B**, M/M/N/N |
+| Se pierde (bloqueo) | Un número finito p | **Engset**, M/M/N/N/p |
+| Espera en una cola infinita | Muchos | **Erlang C**, M/M/N |
+| Espera, con un solo servidor | Muchos | **M/M/1** (M/D/1 y M/G/1 si el servicio no es exponencial) |
+| Espera, pero la cola tiene tope N | Muchos | **M/M/1/N** |
+
+*Notación de Kendall A/B/C/K: llegadas / servicio / servidores / capacidad total. M significa «sin memoria» (Poisson en llegadas, exponencial en servicio).*
+
+## Los ingredientes: Poisson y exponencial
+
+Las llamadas llegan según un **proceso de Poisson** de tasa $\alpha$ y duran un tiempo **exponencial**. Son los dos supuestos de todo lo que sigue.
+
+$$
+P_T(k) = \frac{(\alpha T)^k}{k!}\, e^{-\alpha T}
+$$
+
+Es la probabilidad de $k$ llegadas en un tiempo $T$.
+
+$$
+F_\tau(x) = 1 - e^{-\alpha x}, \qquad f_\tau(x) = \alpha\, e^{-\alpha x}
+$$
+
+Es la distribución del tiempo entre llegadas (o de la duración).
+
+**Tráfico:** si cada usuario hace $\lambda$ llamadas por unidad de tiempo y cada una dura $1/\mu$ de media, $A = \lambda/\mu$. Con $p$ usuarios, un intento cada 90 min y 2 min por llamada: $A = p \cdot (2/90)$ Erlang. Cuidado con las unidades: $\lambda$ y $1/\mu$ deben ir en la misma unidad de tiempo.
+
+## Erlang B y Engset (con pérdidas)
+
+$$
+P_n = \frac{A^n / n!}{\sum_{k=0}^{C} A^k / k!}
+$$
+
+$$
+P_B = P_C = \frac{A^C / C!}{\sum_{k=0}^{C} A^k / k!} = E_1(A, C)
+$$
+
+Es Erlang B, con $A = \lambda/\mu$ y $C = N$ canales.
+
+$$
+\gamma = \lambda (1 - P_B) = \mu E[n], \qquad E[n] = A (1 - P_B)
+$$
+
+Es el tráfico cursado.
+
+Con **p usuarios** (M/M/N/N/p, $p > N$) y $a = \lambda/\mu$ la tasa de *un* usuario:
+
+$$
+P_B = \frac{\binom{p}{N} a^N}{\sum_{k=0}^{N} \binom{p}{k} a^k}
+$$
+
+Es la probabilidad de que el sistema esté lleno.
+
+$$
+P_L(p) = P_B(p - 1)
+$$
+
+Es el bloqueo visto por una llamada: la de un usuario que no está ya en una.
+
+{/* widget: ErlangB */}
+
+> **Ojo.** Las tablas del formulario dan el bloqueo en % para A de 1,5 a 20 Erlang y N de 3 a 29, y otras para N grandes (24, 30, 90, 96… hasta 2016: son múltiplos de 30, los canales de una E1, o de 24, los de una T1). La calculadora usa la fórmula exacta, así que puede diferir en el último decimal de la tabla redondeada.
+
+## Erlang C (con cola)
+
+$$
+\rho = \frac{\lambda}{N\mu}, \qquad A = \rho N = \frac{\lambda}{\mu}, \qquad C = N
+$$
+
+$$
+P_D = \frac{1}{1-\rho} \cdot \frac{(N\rho)^N}{N!} \cdot P_0 = E_2(C, A)
+$$
+
+Es la probabilidad de espera.
+
+$$
+E[q] = \frac{\rho}{1-\rho}\, E_2(C, A), \qquad E[n] = A + E[q]
+$$
+
+$$
+E[W] = \frac{1}{\mu} \cdot \frac{E_2(C, A)}{C - A}, \qquad E[T] = \frac{1}{\mu} + E[W]
+$$
+
+Solo vale con $\rho < 1$, es decir $A < N$: si llega más tráfico del que los servidores pueden atender, la cola crece sin límite.
+
+{/* widget: ErlangC */}
+
+## Una cola: M/M/1, M/D/1 y M/G/1
+
+Para $\rho = \lambda/\mu < 1$:
+
+$$
+\text{M/M/1:} \quad P_n = (1-\rho)\rho^n, \qquad E[n] = \frac{\rho}{1-\rho}, \qquad E[T] = \frac{1/\mu}{1-\rho} = \frac{1}{\mu - \lambda}
+$$
+
+$$
+E[W] = \frac{\rho/\mu}{1-\rho}, \qquad E[q] = \frac{\rho^2}{1-\rho}
+$$
+
+$$
+\text{Little:} \quad \lambda E[T] = E[n], \qquad \lambda E[W] = E[q]
+$$
+
+$$
+\text{M/G/1:} \quad E[n] = \frac{\rho}{1-\rho}\left[1 - \frac{\rho}{2}\left(1 - \mu^2\sigma^2\right)\right]
+$$
+
+Aquí $\sigma^2$ es la varianza del servicio.
+
+$$
+\text{M/D/1 } (\sigma = 0)\text{:} \quad E[n] = \frac{\rho}{1-\rho}\left[1 - \frac{\rho}{2}\right], \qquad E[T] = \frac{1/\mu}{1-\rho}\left[1 - \frac{\rho}{2}\right]
+$$
+
+$$
+\text{M/M/1/N:} \quad P_n = \frac{(1-\rho)\rho^n}{1-\rho^{N+1}}, \qquad P_B = P_N = \frac{(1-\rho)\rho^N}{1-\rho^{N+1}}
+$$
+
+{/* widget: mm1 (calculadora M/M/1; no está en la v1) */}
+
+## Tamaños de mensajes de señalización
+
+El formulario también da los tamaños de los mensajes SS7, que hacen falta en los problemas de carga de señalización. Son los **valores tipo** que se usan salvo indicación contraria.
+
+### MTP3 y MTP2
+
+**MTP3:** SIO 8 b, DPC 14 b, OPC 14 b, SLS 4 b, datos de MTP3.
+
+**MTP2:** Flag 8 b, control 16 b, IL 8 b, CI (información), CRC 16 b, Flag 8 b.
+
+### ISUP
+
+| Mensaje | Tamaño |
+| --- | --- |
+| IAM | 16 octetos |
+| SAM | 10 |
+| ACM | 7 |
+| ANM | 5 |
+| REL | 10 |
+| RLC | 5 |
+
+### SCCP
+
+| Mensaje | Tamaño |
+| --- | --- |
+| Clase 1: U | 12 octetos |
+| Clase 2: CR | 10 |
+| CC | 9 |
+| D | 7 |
+| R | 9 |
+| RC | 7 |
+
+## Autoevaluación
+
+<details>
+<summary>¿Qué mide el Erlang y cómo se calcula el tráfico ofrecido?</summary>
+
+Es el número medio de llamadas simultáneas (ocupación media de un servidor continuo). $A = \lambda/\mu$, tasa de llegadas por duración media. Con unidades homogéneas.
+
+</details>
+
+<details>
+<summary>¿Cuándo uso Erlang B y cuándo Erlang C?</summary>
+
+Erlang B si las llamadas que no encuentran canal se pierden (bloqueo). Erlang C si esperan en una cola infinita (probabilidad de retardo).
+
+</details>
+
+<details>
+<summary>¿Por qué se usa Engset y qué cambia respecto a Erlang B?</summary>
+
+Cuando el número de usuarios $p$ es finito, porque los que ya están en llamada no generan nuevas. El bloqueo visto por una llamada es $P_L(p) = P_B(p-1)$, siempre algo menor que Erlang B para el mismo tráfico.
+
+</details>
+
+<details>
+<summary>Escribe la fórmula de Erlang B y su relación con el tráfico cursado.</summary>
+
+$P_B = \dfrac{A^C/C!}{\sum_{k=0}^{C} A^k/k!}$. El tráfico cursado es $A(1-P_B) = E[n]$.
+
+</details>
+
+<details>
+<summary>En M/M/1, ¿qué le pasa al retardo cuando ρ se acerca a 1?</summary>
+
+$E[T] = \dfrac{1/\mu}{1-\rho}$ tiende a infinito. Con $\rho = 0{,}9$ el retardo ya es 10 veces el tiempo de servicio.
+
+</details>
+
+<details>
+<summary>¿Qué condición debe cumplirse para que Erlang C tenga sentido?</summary>
+
+$A < N$ ($\rho < 1$): el tráfico ofrecido debe ser menor que el número de servidores.
+
+</details>
+
+<details>
+<summary>¿Qué es la fórmula de Little?</summary>
+
+$\lambda E[T] = E[n]$ y $\lambda E[W] = E[q]$: el número medio en el sistema es la tasa de llegadas por el tiempo medio de estancia. Vale para cualquier sistema estable.
+
+</details>

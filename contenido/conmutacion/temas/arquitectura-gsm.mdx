@@ -4,7 +4,108 @@ orden: 1
 bloque: "Red GSM"
 resumen: "MS, BSS, NSS, OSS, registros e interfaces"
 saber:
-  - "Qué elementos forman la red GSM y qué interfaz une cada par"
+  - "Cuatro subsistemas: RSS (el móvil), BSS (BTS, BSC, TRAU), NSS (MSC, HLR, VLR, AuC) y OSS (OMC, EIR)."
+  - "Interfaces: Um (aire), Abis (BTS–BSC), A (BSC–MSC), O (con el OSS) y B a H entre elementos del NSS."
+  - "Registros: el HLR guarda a todos los abonados, el VLR solo a los que están en su zona, el AuC las claves y el EIR los terminales."
+  - "Servicios: teleservicios (voz a 13 kbps, SMS…), portadores (datos hasta 9600 bps) y suplementarios (desvío, llamada en espera…)."
+fuentes:
+  - "Cx_IntroGSM.pdf"
 ---
 
-Tema en preparación.
+GSM es un sistema celular digital de segunda generación. Lo que más se pregunta es qué hace cada elemento, qué información guarda y por qué interfaz habla con los demás.
+
+## Qué ofrece GSM
+
+GSM (Global System for Mobile Communications, ETSI) es un sistema de comunicaciones digitales, radio, móvil y celular, con servicios integrados de voz y datos y con interoperabilidad con la RTC y la RDSI. Sus normas las mantiene 3GPP (serie 45 para el acceso radio, 23.002 para la arquitectura de red, 41.101 como lista completa). Frente a los sistemas analógicos aporta calidad (comunicación de datos), seguridad (autenticación y cifrado) y variedad de servicios.
+
+| Tipo | Ejemplos |
+| --- | --- |
+| **Teleservicios** | Telefonía a 13 kbps (6,5 kbps en half rate), llamada de emergencia, SMS, fax G3 |
+| **Servicios portadores** | Datos hasta 9600 bps (multi-link) |
+| **Servicios suplementarios** | Desvío, identificación del llamante, llamada en espera, grupo cerrado de usuarios, prohibición de llamadas |
+
+## Los cuatro subsistemas
+
+Antes de memorizar elementos, fíjate en el reparto: el **RSS** es el terminal, el **BSS** controla la radio, el **NSS** conmuta y guarda los registros y el **OSS** opera y mantiene la red.
+
+{/* widget: RedGSM */}
+
+## La SIM
+
+El móvil es el terminal físico (transmisor y receptor radio, codecs, pantalla, batería) más la **SIM** (Subscriber Identity Module), que identifica al abonado frente a la red. Puede ser tarjeta, formato plug-in o eSIM, y admite applets Java.
+
+### Información permanente
+
+- Tipo de tarjeta y nº de serie
+- Tabla de servicios
+- Identidad: el **IMSI**
+- PIN (4 dígitos) y PUK (8 dígitos)
+- Clave de autenticación **Ki**
+- Redes prohibidas
+
+### Información volátil
+
+- Identidad temporal: el **TMSI**
+- Área de localización (LA)
+- Información de la célula
+- Clave de cifrado **Kc**
+
+## El TRAU: pasar de la radio a la red fija
+
+La voz GSM va a 13 kbps (o 6,5 kbps) y la red terrestre usa 64 kbps. El **TRAU** (Transcoding and Rate Adaptation Unit) hace esa conversión: *transcodificación* para la voz y *adaptación de velocidad* para los datos. Puede estar junto a la BTS, junto a la BSC o junto al MSC, y esa decisión cambia cuánto ocupa cada enlace.
+
+{/* widget: trau (no está en la v1) */}
+
+## Interfaces
+
+| Interfaz | Une | Detalles |
+| --- | --- | --- |
+| **Um** | MS – BTS | Interfaz aérea (tema siguiente) |
+| **Abis** | BTS – BSC | Sistemas E1/T1 (30+2 canales de 64 kbps, G.732). La unidad básica es 64 kbps y admite sub-múltiplex de 4 llamadas por canal. Puede no existir si BTS y BSC están juntas, y a veces va por radioenlace. |
+| **A** | BSC – MSC | Basada en E1/T1 |
+| **O** | OSS – MSC y BSC | X.25 (o Frame Relay/IP) sobre canales de 64 kbps |
+| **B, C, D, E, F, G, H** | Entre elementos del NSS | Señalización SS7 con ISUP y MAP. Cada elemento se identifica por su dirección SS7 (point code). Según el dibujo de las diapositivas: B MSC–VLR, C GMSC–HLR, D VLR–HLR, E entre MSC, F MSC–EIR, G entre VLR, H HLR–AuC. |
+
+## Autoevaluación
+
+<details>
+<summary>¿Qué subsistema contiene la BSC y qué gestiona?</summary>
+
+El BSS. La BSC gestiona los recursos radio (espectro, asignación de canales y traspasos) de las decenas de BTS que controla.
+
+</details>
+
+<details>
+<summary>¿Qué diferencia hay entre HLR y VLR?</summary>
+
+El HLR es la base de datos de todos los abonados del sistema (identidades, servicios, autenticación, localización) y suele ser único. El VLR guarda solo a los abonados activos en el área de un MSC, y hay uno asociado a cada MSC.
+
+</details>
+
+<details>
+<summary>¿Para qué sirve el EIR y qué identidad guarda?</summary>
+
+Es una base de datos de equipos (terminales, no abonados). Guarda el IMEI y permite gestionar listas de equipos válidos, robados o dudosos.
+
+</details>
+
+<details>
+<summary>¿Qué hace el TRAU y por qué es necesario?</summary>
+
+Adapta la codificación de GSM (13 o 6,5 kbps) a los 64 kbps de la red terrestre: transcodificación para la voz y adaptación de velocidad para los datos.
+
+</details>
+
+<details>
+<summary>¿Qué lleva la SIM de permanente y qué de volátil?</summary>
+
+Permanente: IMSI, Ki, tabla de servicios, PIN/PUK, redes prohibidas. Volátil: TMSI, área de localización, información de la célula y la clave de cifrado Kc.
+
+</details>
+
+<details>
+<summary>¿Qué protocolos de señalización usan las interfaces del NSS?</summary>
+
+SS7 (MTP/SCCP) con TCAP y MAP entre los componentes (MSC, VLR, HLR, AuC) e ISUP para el establecimiento de llamadas.
+
+</details>
