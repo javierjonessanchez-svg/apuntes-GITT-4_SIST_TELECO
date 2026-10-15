@@ -14,6 +14,15 @@ describe('ratio', () => {
   });
 });
 
+describe('reglasContraste', () => {
+  test('el anillo de foco necesita 3:1 sobre el esmalte y, el del marco, sobre el marco', () => {
+    const fallos = reglasContraste({ foco: '#A87A2E', esmalte: '#D6DCD3', 'foco-marco': '#A87A2E', marco: '#2E4038' })
+      .filter((r) => !r.pasa).map((r) => r.par);
+    expect(fallos).toContain('foco/esmalte');
+    expect(fallos).toContain('foco-marco/marco');
+  });
+});
+
 describe('leerTokens', () => {
   const css = `
     html[data-asignatura="x"] { --fondo: #FFFFFF; --texto: #000000; --otra: 3px; }
@@ -50,7 +59,7 @@ describe.each(hojas)('%s', (hoja) => {
 
 test('Conmutación tiene su mundo con tokens propios', () => {
   const t = leerTokens(readFileSync('src/asignaturas/conmutacion/tema.css', 'utf8'));
-  for (const k of ['esmalte', 'placa', 'laton', 'lampara', 'cable', 'marco', 'sobre-marco']) {
+  for (const k of ['esmalte', 'placa', 'laton', 'lampara', 'cable', 'marco', 'sobre-marco', 'foco', 'foco-marco']) {
     expect(t.claro[k], k).toBeTruthy();
     expect(t.oscuro[k], k).toBeTruthy();
   }

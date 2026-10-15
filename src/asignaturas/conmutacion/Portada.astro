@@ -28,12 +28,12 @@ const herramientas = [
   <section class="cx-cuadro" aria-labelledby="cx-titulo">
     <div class="cx-cuadro-dentro">
       <header class="cx-cabecera">
-        <h1 id="cx-titulo">{a.nombre}</h1>
+        <h1 id="cx-titulo" tabindex="-1">{a.nombre}</h1>
         <p>{a.descripcion}</p>
       </header>
 
       <div class="cx-oferta" role="region" aria-label="Avance de la web anterior" data-oferta-cx hidden>
-        <p data-oferta-texto>Hemos encontrado tu avance de la web anterior. ¿Lo traemos?</p>
+        <p data-oferta-texto tabindex="-1">Hemos encontrado tu avance de la web anterior. ¿Lo traemos?</p>
         <div class="cx-oferta-botones" data-oferta-botones>
           <button type="button" class="boton" data-traer>Traer</button>
           <button type="button" class="boton boton-secundario" data-rechazar>No, gracias</button>
@@ -52,9 +52,11 @@ const herramientas = [
         </section>
       ))}
       </div>
-      <p class="cx-leyenda"><span class="cx-avance" data-nivel="0" aria-hidden="true"><span class="lampara"></span></span> sin empezar
-        <span class="cx-avance" data-nivel="1" aria-hidden="true"><span class="lampara"></span></span> leído o repasado
-        <span class="cx-avance" data-nivel="3" aria-hidden="true"><span class="lampara"></span></span> dominado</p>
+      <ul class="cx-leyenda" aria-label="Leyenda de las lámparas">
+        <li><span class="cx-avance" data-nivel="0" aria-hidden="true"><span class="lampara"></span></span> sin empezar</li>
+        <li><span class="cx-avance" data-nivel="1" aria-hidden="true"><span class="lampara"></span></span> leído o repasado</li>
+        <li><span class="cx-avance" data-nivel="3" aria-hidden="true"><span class="lampara"></span></span> dominado</li>
+      </ul>
       {a.nota && <p class="cx-nota">{a.nota}</p>}
     </div>
   </section>
@@ -116,10 +118,13 @@ const herramientas = [
       pintarAvance();
       botones.remove();
       texto.textContent = n === 1 ? 'Hecho: 1 tema traído.' : `Hecho: ${n} temas traídos.`;
+      // El botón pulsado ya no existe: el foco pasa al mensaje, que así se lee
+      texto.focus();
     });
     oferta.querySelector('[data-rechazar]')!.addEventListener('click', () => {
       progreso.rechazarCx();
       oferta.hidden = true;
+      document.getElementById('cx-titulo')!.focus();
     });
   }
 </script>

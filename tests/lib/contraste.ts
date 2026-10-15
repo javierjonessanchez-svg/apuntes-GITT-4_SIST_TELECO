@@ -58,6 +58,11 @@ const PARES_OPCIONALES: [string, string, number][] = [
   ['sobre-marco', 'marco', 4.5],
   ['texto', 'esmalte', 4.5],
   ['suave', 'esmalte', 4.5],
+  // anillo de foco (parte de la interfaz): --foco sobre las hojas, --foco-marco sobre el marco
+  ['foco', 'fondo', 3],
+  ['foco', 'superficie', 3],
+  ['foco', 'esmalte', 3],
+  ['foco-marco', 'marco', 3],
 ];
 
 /** Aplica las reglas de contraste a un juego de tokens. Un token que falta cuenta como fallo. */
