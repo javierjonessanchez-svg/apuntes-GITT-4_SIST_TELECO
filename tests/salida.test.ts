@@ -19,7 +19,8 @@ const pagina = (ruta: string) => {
 
 // Puntos "saber" de un tema, leídos de su front matter
 function saberDe(slug: string): string[] {
-  const mdx = readFileSync(`contenido/conmutacion/temas/${slug}.mdx`, 'utf8');
+  // En Windows, con core.autocrlf, los archivos llegan con \r\n
+  const mdx = readFileSync(`contenido/conmutacion/temas/${slug}.mdx`, 'utf8').replace(/\r\n/g, '\n');
   const bloque = mdx.split('\nsaber:\n')[1]?.split(/\n[a-z]+:|\n---/)[0] ?? '';
   return bloque.split('\n').filter((l) => /^\s+- /.test(l));
 }
