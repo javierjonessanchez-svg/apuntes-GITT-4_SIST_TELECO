@@ -1,5 +1,6 @@
 ---
 nombre: "Comunicaciones Ópticas"
+corto: Ópticas
 slug: comunicaciones-opticas
 estado: pendiente
 orden: 2

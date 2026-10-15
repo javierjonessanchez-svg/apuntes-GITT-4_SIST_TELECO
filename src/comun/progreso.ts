@@ -7,6 +7,7 @@
 //   gitt-<asig>-<tema>-saber   checklist "Lo que tienes que saber": JSON boolean[]
 //   gitt-<asig>-tarjetas       notas de las tarjetas: JSON { pregunta: 0|1|2 }
 //   gitt-importado-cx          '1' cuando ya se ofreció traer el avance antiguo
+//   gitt-tema                  'claro' u 'oscuro' (sin clave: lo que diga el sistema)
 //
 // Claves de la web antigua de Conmutación (mismo origen github.io). Se leen,
 // nunca se escriben ni se borran:
@@ -126,7 +127,17 @@ export function crearProgreso(almacen: Storage | null) {
     escribir('gitt-importado-cx', '1');
   }
 
-  return { disponible, nivel, marcar, checklist, marcarSaber, tarjetas, guardarTarjeta, cxPendiente, importarCx, rechazarCx };
+  /** Tema claro/oscuro elegido por el estudiante, o null para seguir al sistema. */
+  function tema(): 'claro' | 'oscuro' | null {
+    const t = leer('gitt-tema');
+    return t === 'claro' || t === 'oscuro' ? t : null;
+  }
+
+  function guardarTema(t: 'claro' | 'oscuro'): void {
+    escribir('gitt-tema', t);
+  }
+
+  return { disponible, nivel, marcar, checklist, marcarSaber, tarjetas, guardarTarjeta, cxPendiente, importarCx, rechazarCx, tema, guardarTema };
 }
 
 export type Progreso = ReturnType<typeof crearProgreso>;

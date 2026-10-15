@@ -1,0 +1,26 @@
+---
+// "Lo que tienes que saber": una casilla por punto, un anillo con el progreso y
+// el botón "Marcar como dominado" (se activa al marcar todas). Lógica en cliente/lista-saber.ts.
+interface Props { asignatura: string; tema: string; saber: string[] }
+const { asignatura, tema, saber } = Astro.props;
+---
+<aside class="saber panel" aria-labelledby="saber-titulo" data-lista-saber data-asig={asignatura} data-tema={tema}>
+  <h2 id="saber-titulo">Lo que tienes que saber</h2>
+  <div class="saber-progreso">
+    <svg class="anillo" viewBox="0 0 44 44" aria-hidden="true">
+      <circle class="anillo-fondo" cx="22" cy="22" r="18" />
+      <circle class="anillo-relleno" cx="22" cy="22" r="18" data-anillo />
+    </svg>
+    <p class="saber-cuenta" aria-live="polite" data-cuenta>0 de {saber.length}</p>
+  </div>
+  <ul class="saber-lista">
+    {saber.map((punto) => (
+      <li><label class="saber-punto"><input type="checkbox" /><span>{punto}</span></label></li>
+    ))}
+  </ul>
+  <button type="button" class="boton saber-boton" data-dominar disabled>Marcar como dominado</button>
+  <p class="saber-nota" role="status" data-nota hidden>Tu avance no se está guardando en este navegador.</p>
+</aside>
+<script>
+  import './cliente/lista-saber';
+</script>

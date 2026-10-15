@@ -1,0 +1,17 @@
+---
+// Barra superior: nombre de la web (vuelve a la portada), las cinco asignaturas,
+// búsqueda (Tarea 5) y el botón claro/oscuro.
+import { ruta } from './rutas';
+import SelectorAsignaturas from './SelectorAsignaturas.astro';
+import BotonTema from './BotonTema.astro';
+
+interface Props { asignatura: string }
+const { asignatura } = Astro.props;
+---
+<header class="barra">
+  <a class="marca" href={ruta()}>Apuntes GITT 4º</a>
+  <SelectorAsignaturas actual={asignatura} />
+  <div class="barra-acciones">
+    <BotonTema />
+  </div>
+</header>

@@ -1,0 +1,10 @@
+---
+// Avance del esqueleto: tres segmentos (leído, repasado, dominado).
+// El nivel lo pone cliente/avance.ts en data-nivel.
+interface Props { asignatura: string; tema: string }
+const { asignatura, tema } = Astro.props;
+---
+<span class="avance" data-avance data-asig={asignatura} data-tema={tema} data-nivel="0">
+  <i aria-hidden="true"></i><i aria-hidden="true"></i><i aria-hidden="true"></i>
+  <span class="sr" data-avance-texto>Sin empezar</span>
+</span>

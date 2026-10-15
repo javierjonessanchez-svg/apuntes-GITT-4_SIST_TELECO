@@ -1,0 +1,42 @@
+---
+// Plantilla de todas las páginas: idioma, tema claro/oscuro sin parpadeo,
+// barra superior y la decoración del mundo de la asignatura (detrás del contenido).
+import 'katex/dist/katex.min.css';
+import './esqueleto.css';
+import { mundoDe } from '../asignaturas/registro';
+import TopBar from './TopBar.astro';
+
+interface Props {
+  titulo: string;
+  asignatura?: string; // slug; "portada" para la página principal
+  descripcion?: string;
+}
+const { titulo, asignatura = 'portada', descripcion = 'Apuntes no oficiales de 4º de GITT (Sistemas de Telecomunicación), Universidad de Alcalá.' } = Astro.props;
+const { Decoracion } = mundoDe(asignatura);
+const tituloCompleto = asignatura === 'portada' ? titulo : `${titulo} · Apuntes GITT 4º`;
+---
+<html lang="es" data-asignatura={asignatura}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>{tituloCompleto}</title>
+    <meta name="description" content={descripcion} />
+    {/* Antes de pintar: aplica el tema elegido (si lo hay) para que no parpadee.
+        Es la única lectura del almacén fuera de progreso.ts, porque tiene que ir en línea. */}
+    <script is:inline>
+      try {
+        var t = localStorage.getItem('gitt-tema');
+        if (t === 'claro' || t === 'oscuro') document.documentElement.dataset.tema = t;
+      } catch (e) {}
+    </script>
+  </head>
+  <body>
+    <a class="saltar" href="#contenido">Saltar al contenido</a>
+    <Decoracion />
+    <TopBar asignatura={asignatura} />
+    <slot />
+    <script>
+      import './cliente/tema-oscuro';
+    </script>
+  </body>
+</html>

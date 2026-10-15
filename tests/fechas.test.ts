@@ -1,7 +1,7 @@
 // Fechas de las pruebas: siempre en hora local (en España, 'AAAA-MM-DD' como UTC
 // puede mover el día), y nunca una cuenta de días negativa.
 import { describe, expect, test } from 'vitest';
-import { diasHasta, leerFecha, proximaPrueba } from '../src/comun/fechas';
+import { diasHasta, leerFecha, proximaPrueba, textoDias } from '../src/comun/fechas';
 
 describe('leerFecha', () => {
   test('da la medianoche local del día indicado', () => {
@@ -40,5 +40,13 @@ describe('proximaPrueba', () => {
     const pruebas = ['2026-10-10', '2026-10-14', '2026-10-16', '2026-12-01'].map((fecha) => ({ fecha }));
     const p = proximaPrueba(pruebas, hoy);
     expect(diasHasta(p!.fecha, hoy)).toBeGreaterThanOrEqual(0);
+  });
+});
+
+describe('textoDias', () => {
+  test('hoy, mañana y en N días', () => {
+    expect(textoDias(0)).toBe('hoy');
+    expect(textoDias(1)).toBe('mañana');
+    expect(textoDias(5)).toBe('en 5 días');
   });
 });

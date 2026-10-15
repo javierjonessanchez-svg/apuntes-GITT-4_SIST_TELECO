@@ -1,5 +1,6 @@
 ---
 nombre: "Circuitos de Comunicación"
+corto: Circuitos
 slug: circuitos-comunicacion
 estado: pendiente
 orden: 4

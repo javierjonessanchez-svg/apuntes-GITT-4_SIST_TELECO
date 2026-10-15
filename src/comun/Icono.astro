@@ -1,0 +1,14 @@
+---
+// Iconos de Lucide (una sola familia en toda la web), en línea y con currentColor.
+interface Props { nombre: 'sol' | 'luna' | 'izquierda' | 'derecha' | 'buscar' }
+const trazos: Record<Props['nombre'], string> = {
+  sol: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32l1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>',
+  luna: '<path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"/>',
+  izquierda: '<path d="m12 19l-7-7l7-7m7 7H5"/>',
+  derecha: '<path d="M5 12h14m-7-7l7 7l-7 7"/>',
+  buscar: '<path d="m21 21l-4.34-4.34"/><circle cx="11" cy="11" r="8"/>',
+};
+const { nombre } = Astro.props;
+---
+<svg class={`icono icono-${nombre}`} viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"
+  fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" set:html={trazos[nombre]} />

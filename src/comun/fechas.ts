@@ -23,3 +23,10 @@ export function proximaPrueba<T extends { fecha: string }>(pruebas: T[], hoy: Da
     .sort((x, y) => x.fecha.localeCompare(y.fecha));
   return futuras[0] ?? null;
 }
+
+/** Texto corto para una cuenta de días ya no negativa: "hoy", "mañana", "en 5 días". */
+export function textoDias(n: number): string {
+  if (n === 0) return 'hoy';
+  if (n === 1) return 'mañana';
+  return `en ${n} días`;
+}

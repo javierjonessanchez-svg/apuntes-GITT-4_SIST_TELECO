@@ -5,3 +5,4 @@ dist/
 .astro/
 /conmutacion/
 /comunicaciones-opticas/
+.claude/

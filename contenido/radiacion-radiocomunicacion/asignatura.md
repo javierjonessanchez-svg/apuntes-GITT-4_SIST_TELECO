@@ -1,5 +1,6 @@
 ---
 nombre: "Radiación y Radiocomunicación"
+corto: Radiación
 slug: radiacion-radiocomunicacion
 estado: pendiente
 orden: 3

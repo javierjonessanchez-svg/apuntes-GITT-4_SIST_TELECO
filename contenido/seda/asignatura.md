@@ -1,5 +1,6 @@
 ---
 nombre: "Sistemas Electrónicos Digitales Avanzados (SEDA)"
+corto: SEDA
 slug: seda
 estado: pendiente
 orden: 5

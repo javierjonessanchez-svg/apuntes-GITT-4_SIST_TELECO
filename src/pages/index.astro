@@ -1,17 +1,17 @@
 ---
-// Portada provisional: se sustituye en la Tarea 4 (esqueleto) y la Tarea 6 (portada real).
-// Ya lee las asignaturas, así la construcción valida el contenido.
+// Portada mínima con el esqueleto; la Tarea 6 pone la línea de tiempo y las tarjetas.
+import BaseLayout from '../comun/BaseLayout.astro';
 import { asignaturasOrdenadas } from '../comun/datos';
+import { ruta } from '../comun/rutas';
 const asignaturas = await asignaturasOrdenadas();
 ---
-<html lang="es">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Apuntes GITT 4º</title>
-  </head>
-  <body>
-    <p>En construcción.</p>
-    <ul>{asignaturas.map((a) => <li>{a.nombre}</li>)}</ul>
-  </body>
-</html>
+<BaseLayout titulo="Apuntes GITT 4º">
+  <main id="contenido" class="envoltura">
+    <h1>Apuntes GITT 4º</h1>
+    <ul>
+      {asignaturas.map((a) => (
+        <li>{a.estado === 'activa' ? <a href={ruta(a.slug)}>{a.nombre}</a> : <span>{a.nombre} (en preparación)</span>}</li>
+      ))}
+    </ul>
+  </main>
+</BaseLayout>

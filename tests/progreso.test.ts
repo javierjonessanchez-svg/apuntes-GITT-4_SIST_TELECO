@@ -131,3 +131,18 @@ describe('almacén bloqueado', () => {
     expect(crearProgreso(null).disponible).toBe(false);
   });
 });
+
+describe('tema claro/oscuro', () => {
+  test('sin elección guardada: null (seguir al sistema)', () => {
+    expect(crearProgreso(almacenFalso()).tema()).toBeNull();
+  });
+  test('guardar y leer la elección en gitt-tema', () => {
+    const a = almacenFalso();
+    crearProgreso(a).guardarTema('oscuro');
+    expect(a.getItem('gitt-tema')).toBe('oscuro');
+    expect(crearProgreso(a).tema()).toBe('oscuro');
+  });
+  test('un valor desconocido se ignora', () => {
+    expect(crearProgreso(almacenFalso({ 'gitt-tema': 'rosa' })).tema()).toBeNull();
+  });
+});

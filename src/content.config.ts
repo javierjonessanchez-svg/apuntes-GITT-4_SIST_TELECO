@@ -9,6 +9,8 @@ const asignaturas = defineCollection({
   loader: glob({ base: './contenido', pattern: '*/asignatura.md' }),
   schema: z.object({
     nombre: z.string().min(1),
+    // nombre corto para el selector de la barra (cabe en un móvil)
+    corto: z.string().min(1),
     slug: z.string().regex(/^[a-z0-9-]+$/, 'solo minúsculas, cifras y guiones'),
     estado: z.enum(['activa', 'pendiente']),
     orden: z.number(),

@@ -1,5 +1,6 @@
 ---
 nombre: Conmutación
+corto: Conmutación
 slug: conmutacion
 estado: activa
 orden: 1
