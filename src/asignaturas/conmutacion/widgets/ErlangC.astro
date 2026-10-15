@@ -1,0 +1,53 @@
+---
+// Calculadora de Erlang C: canales y tráfico → probabilidad de esperar y, si se
+// da la duración media de una llamada, la espera media. Con sus pasos.
+import Widget from '../../../widgets/Widget.astro';
+import Desarrollo from '../../../widgets/Desarrollo.astro';
+import { fmt } from '../../../widgets/numeros';
+import { erlangC, pasosErlangC } from './erlang';
+
+interface Props { N?: number; A?: number; duracion?: number }
+const { N = 10, A = 7, duracion = 3 } = Astro.props;
+const c = erlangC(N, A);
+---
+<Widget titulo="Calculadora de Erlang C" tipo="resolver">
+  <div data-erlang-c>
+    <form class="widget-campos">
+      <label class="widget-campo">Servidores, N
+        <input name="n" inputmode="numeric" value={N} autocomplete="off" spellcheck="false" />
+      </label>
+      <label class="widget-campo">Tráfico ofrecido, A (Erlang)
+        <input name="a" inputmode="decimal" value={fmt(A)} autocomplete="off" spellcheck="false" />
+      </label>
+      <label class="widget-campo">Duración media, 1/μ (min, opcional)
+        <input name="d" inputmode="decimal" value={fmt(duracion)} autocomplete="off" spellcheck="false" />
+      </label>
+    </form>
+    <p class="widget-aviso" data-aviso role="status" hidden></p>
+    <p class="widget-resultado" data-resultado aria-live="polite"></p>
+    <Desarrollo />
+  </div>
+  <Fragment slot="estatico">
+    <p class="widget-resultado">Con N = {N} servidores y A = {fmt(A)} E: probabilidad de esperar <b>{fmt(c, 4)}</b> ({fmt(c * 100, 2)} %).</p>
+    <Desarrollo pasos={pasosErlangC(N, A, duracion)} />
+  </Fragment>
+</Widget>
+<script>
+  import { montar } from '../../../widgets/cliente';
+  import { calculadora } from '../../../widgets/calculadora';
+  import { fmt } from '../../../widgets/numeros';
+  import { erlangC, pasosErlangC } from './erlang';
+
+  montar('[data-erlang-c]', (caja) => calculadora(caja, [
+    { nombre: 'n', etiqueta: 'Servidores', reglas: { entero: true, min: 1, max: 1000 } },
+    { nombre: 'a', etiqueta: 'Tráfico ofrecido', reglas: { positivo: true, max: 1000 } },
+    { nombre: 'd', etiqueta: 'Duración media', reglas: { positivo: true }, opcional: true },
+  ], ({ n, a, d }) => {
+    const c = erlangC(n!, a!);
+    const resultado = a! >= n!
+      ? 'Con A ≥ N la cola crece sin límite: **toda llamada espera**'
+      : `Probabilidad de esperar: **${fmt(c, 4)}** (${fmt(c * 100, 2)} %)`
+        + (d === undefined ? '' : ` · espera media **${fmt((d * c) / (n! - a!), 3)} min**`);
+    return { resultado, pasos: pasosErlangC(n!, a!, d) };
+  }));
+</script>

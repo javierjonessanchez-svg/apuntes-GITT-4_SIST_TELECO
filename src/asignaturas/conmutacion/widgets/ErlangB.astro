@@ -1,0 +1,45 @@
+---
+// Calculadora de Erlang B: canales y tráfico ofrecido → probabilidad de bloqueo,
+// con la recurrencia paso a paso. Sin JavaScript se ve el ejemplo ya resuelto.
+import Widget from '../../../widgets/Widget.astro';
+import Desarrollo from '../../../widgets/Desarrollo.astro';
+import { fmt } from '../../../widgets/numeros';
+import { erlangB, pasosErlangB } from './erlang';
+
+interface Props { N?: number; A?: number }
+const { N = 10, A = 5 } = Astro.props;
+const b = erlangB(N, A);
+---
+<Widget titulo="Calculadora de Erlang B" tipo="resolver">
+  <div data-erlang-b>
+    <form class="widget-campos">
+      <label class="widget-campo">Canales, N
+        <input name="n" inputmode="numeric" value={N} autocomplete="off" spellcheck="false" />
+      </label>
+      <label class="widget-campo">Tráfico ofrecido, A (Erlang)
+        <input name="a" inputmode="decimal" value={fmt(A)} autocomplete="off" spellcheck="false" />
+      </label>
+    </form>
+    <p class="widget-aviso" data-aviso role="status" hidden></p>
+    <p class="widget-resultado" data-resultado aria-live="polite"></p>
+    <Desarrollo />
+  </div>
+  <Fragment slot="estatico">
+    <p class="widget-resultado">Con N = {N} canales y A = {fmt(A)} E: bloqueo <b>{fmt(b, 4)}</b> ({fmt(b * 100, 2)} %).</p>
+    <Desarrollo pasos={pasosErlangB(N, A)} />
+  </Fragment>
+</Widget>
+<script>
+  import { montar } from '../../../widgets/cliente';
+  import { calculadora } from '../../../widgets/calculadora';
+  import { fmt } from '../../../widgets/numeros';
+  import { erlangB, pasosErlangB } from './erlang';
+
+  montar('[data-erlang-b]', (caja) => calculadora(caja, [
+    { nombre: 'n', etiqueta: 'Canales', reglas: { entero: true, min: 1, max: 1000 } },
+    { nombre: 'a', etiqueta: 'Tráfico ofrecido', reglas: { positivo: true, max: 1000 } },
+  ], ({ n, a }) => {
+    const b = erlangB(n!, a!);
+    return { resultado: `Probabilidad de bloqueo: **${fmt(b, 4)}** (${fmt(b * 100, 2)} %)`, pasos: pasosErlangB(n!, a!) };
+  }));
+</script>

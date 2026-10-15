@@ -1,0 +1,120 @@
+---
+// Tarjetas de repaso de Conmutación: las preguntas de la «Autoevaluación» de
+// cada tema y los puntos de su lista «saber». Se ven de una en una, primero las
+// nunca vistas y luego las peor sabidas; la nota se guarda en este navegador.
+import Widget from '../../../widgets/Widget.astro';
+import { temasDe } from '../../../comun/datos';
+import { ruta } from '../../../comun/rutas';
+import { conMates } from '../../../widgets/mates';
+import { extraerPreguntas, textoTarjeta } from './tarjetas';
+
+const temas = await temasDe('conmutacion');
+const mazo = temas.flatMap((t) => [
+  ...extraerPreguntas(t.entrada.body ?? '').map((p) => ({ tema: t, ...p })),
+  ...t.saber.map((s) => ({ tema: t, pregunta: s, respuesta: '' })),
+]);
+---
+<Widget titulo="Tarjetas de repaso" tipo="resolver">
+  <div class="repaso" data-tarjetas>
+    <form class="widget-campos">
+      <label class="widget-campo">Tema
+        <select data-filtro>
+          <option value="">Todos los temas</option>
+          {temas.map((t) => <option value={t.slug}>{t.titulo}</option>)}
+        </select>
+      </label>
+    </form>
+    <p class="repaso-contador" data-contador aria-live="polite"></p>
+    <ul class="repaso-mazo">
+      {mazo.map((t) => (
+        <li class="repaso-tarjeta" data-tarjeta data-tema={t.tema.slug} data-pregunta={t.pregunta} hidden>
+          <p class="repaso-tema">{t.tema.titulo}{!t.respuesta && ' · ¿sabrías explicarlo?'}</p>
+          <p class="repaso-pregunta" set:html={conMates(textoTarjeta(t.pregunta))} />
+          {t.respuesta
+            ? <p class="repaso-respuesta" data-respuesta hidden set:html={conMates(textoTarjeta(t.respuesta))} />
+            : <p class="repaso-respuesta" data-respuesta hidden>Explícalo en voz alta y compáralo con <a href={ruta('conmutacion', t.tema.slug)}>el tema</a>.</p>}
+        </li>
+      ))}
+    </ul>
+    <div class="repaso-botones">
+      <button type="button" class="boton" data-ver>Ver la respuesta</button>
+      <div class="repaso-notas" data-notas role="group" aria-label="¿Cómo la sabías?" hidden>
+        <button type="button" class="boton boton-secundario" data-nota="0">No la sé</button>
+        <button type="button" class="boton boton-secundario" data-nota="1">Más o menos</button>
+        <button type="button" class="boton" data-nota="2">La sé</button>
+      </div>
+      <button type="button" class="boton boton-secundario" data-otra-vez hidden>Volver a empezar</button>
+    </div>
+  </div>
+  <p slot="estatico">Las tarjetas necesitan JavaScript. Las mismas preguntas están en la «Autoevaluación» de cada tema.</p>
+</Widget>
+<style>
+  .repaso-mazo { list-style: none; margin: 12px 0; padding: 0; }
+  .repaso-tarjeta { padding: 16px 18px; border-radius: 12px; background: var(--fondo); }
+  .repaso-tema { margin: 0 0 6px; font-size: .85rem; color: var(--suave); }
+  .repaso-pregunta { margin: 0; font-weight: 600; text-wrap: pretty; }
+  .repaso-respuesta { margin: 12px 0 0; padding-top: 12px; box-shadow: inset 0 1px 0 var(--linea); text-wrap: pretty; }
+  .repaso-contador { margin: 12px 0 0; font-size: .9rem; color: var(--suave); font-variant-numeric: tabular-nums; }
+  .repaso-botones, .repaso-notas { display: flex; flex-wrap: wrap; gap: 8px; }
+  [data-notas][hidden], [data-ver][hidden], [data-otra-vez][hidden] { display: none; }
+</style>
+<script>
+  import { montar } from '../../../widgets/cliente';
+  import progreso from '../../../comun/progreso';
+  import { ordenarMazo } from './tarjetas';
+
+  montar('[data-tarjetas]', (caja) => {
+    const todas = [...caja.querySelectorAll<HTMLElement>('[data-tarjeta]')]
+      .map((el) => ({ el, pregunta: el.dataset.pregunta!, tema: el.dataset.tema! }));
+    const filtro = caja.querySelector<HTMLSelectElement>('[data-filtro]')!;
+    const contador = caja.querySelector<HTMLElement>('[data-contador]')!;
+    const ver = caja.querySelector<HTMLButtonElement>('[data-ver]')!;
+    const notas = caja.querySelector<HTMLElement>('[data-notas]')!;
+    const otraVez = caja.querySelector<HTMLButtonElement>('[data-otra-vez]')!;
+    let cola: typeof todas = [];
+    let i = 0;
+
+    const mostrar = () => {
+      for (const t of todas) t.el.hidden = true;
+      notas.hidden = true;
+      const fin = i >= cola.length;
+      ver.hidden = fin;
+      otraVez.hidden = !fin;
+      if (fin) {
+        contador.textContent = `Has repasado las ${cola.length} tarjetas.`;
+        return;
+      }
+      const actual = cola[i];
+      actual.el.hidden = false;
+      actual.el.querySelector<HTMLElement>('[data-respuesta]')!.hidden = true;
+      const vistas = progreso.tarjetas('conmutacion');
+      const sinVer = cola.filter((t) => vistas[t.pregunta] === undefined).length;
+      contador.textContent = `Tarjeta ${i + 1} de ${cola.length} · ${sinVer} sin ver nunca`;
+    };
+    const empezar = () => {
+      const tema = filtro.value;
+      cola = ordenarMazo(todas.filter((t) => !tema || t.tema === tema), progreso.tarjetas('conmutacion'));
+      i = 0;
+      mostrar();
+    };
+
+    ver.addEventListener('click', () => {
+      cola[i].el.querySelector<HTMLElement>('[data-respuesta]')!.hidden = false;
+      ver.hidden = true;
+      notas.hidden = false;
+      notas.querySelector<HTMLButtonElement>('button')!.focus(); // el botón pulsado ya no se ve
+    });
+    for (const b of notas.querySelectorAll<HTMLButtonElement>('[data-nota]')) {
+      b.addEventListener('click', () => {
+        progreso.guardarTarjeta('conmutacion', cola[i].pregunta, Number(b.dataset.nota) as 0 | 1 | 2);
+        i++;
+        mostrar();
+        (i < cola.length ? ver : otraVez).focus();
+      });
+    }
+    otraVez.addEventListener('click', () => { empezar(); ver.focus(); });
+    filtro.addEventListener('change', empezar);
+    caja.querySelector('form')!.addEventListener('submit', (e) => e.preventDefault());
+    empezar();
+  });
+</script>

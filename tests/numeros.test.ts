@@ -1,7 +1,7 @@
 // Números de los widgets: leer lo que escribe el usuario (coma o punto decimal)
 // y mostrar resultados en formato español.
 import { describe, expect, test } from 'vitest';
-import { fmt, leerNumero } from '../src/widgets/numeros';
+import { fmt, leerNumero, validar } from '../src/widgets/numeros';
 
 describe('leerNumero', () => {
   test('acepta coma decimal', () => {
@@ -49,5 +49,24 @@ describe('conMates', async () => {
   });
   test('una fórmula mal escrita no rompe: se muestra como texto', () => {
     expect(conMates('$\\frac{1$')).toContain('\\frac{1');
+  });
+  test('**negrita** y *cursiva* como en Markdown, sin tocar las fórmulas', () => {
+    expect(conMates('son **21 grupos** de *paging*')).toBe('son <strong>21 grupos</strong> de <em>paging</em>');
+    expect(conMates('$a*b$')).toContain('class="katex"');
+  });
+});
+
+describe('validar', () => {
+  test('un número bien escrito pasa, con coma o punto', () => {
+    expect(validar('5,5', 'A')).toEqual({ valor: 5.5 });
+  });
+  test('lo que no es un número pide uno (no muestra NaN)', () => {
+    expect(validar('abc', 'Tráfico')).toEqual({ error: 'Escribe un número en «Tráfico».' });
+  });
+  test('enteros, positivos y rangos', () => {
+    expect(validar('2,5', 'N', { entero: true })).toEqual({ error: '«N» tiene que ser un número entero.' });
+    expect(validar('0', 'A', { positivo: true })).toEqual({ error: '«A» tiene que ser mayor que 0.' });
+    expect(validar('1500', 'N', { min: 1, max: 1000 })).toEqual({ error: '«N» tiene que estar entre 1 y 1000.' });
+    expect(validar('12', 'N', { entero: true, min: 1, max: 1000 })).toEqual({ valor: 12 });
   });
 });

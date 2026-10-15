@@ -13,6 +13,10 @@ fuentes:
   - "Formulario_RdC.pdf (Redes de Comunicaciones)"
 ---
 
+import ErlangB from '../../../src/asignaturas/conmutacion/widgets/ErlangB.astro';
+import ErlangC from '../../../src/asignaturas/conmutacion/widgets/ErlangC.astro';
+import Dimensionado from '../../../src/asignaturas/conmutacion/widgets/Dimensionado.astro';
+
 Aquí está la parte de la asignatura que se resuelve con números: cuántos canales hacen falta para un tráfico dado, qué bloqueo hay con los que tienes y qué retardo sufre un mensaje en una cola. El formulario es el de Redes de Comunicaciones.
 
 ## Eligiendo el modelo
@@ -77,7 +81,11 @@ $$
 
 Es el bloqueo visto por una llamada: la de un usuario que no está ya en una.
 
-{/* widget: ErlangB */}
+<ErlangB />
+
+Y al revés: con cuántos usuarios y cuánto tráfico hace cada uno, ¿cuántos canales hacen falta?
+
+<Dimensionado />
 
 > **Ojo.** Las tablas del formulario dan el bloqueo en % para A de 1,5 a 20 Erlang y N de 3 a 29, y otras para N grandes (24, 30, 90, 96… hasta 2016: son múltiplos de 30, los canales de una E1, o de 24, los de una T1). La calculadora usa la fórmula exacta, así que puede diferir en el último decimal de la tabla redondeada.
 
@@ -103,7 +111,7 @@ $$
 
 Solo vale con $\rho < 1$, es decir $A < N$: si llega más tráfico del que los servidores pueden atender, la cola crece sin límite.
 
-{/* widget: ErlangC */}
+<ErlangC />
 
 ## Una cola: M/M/1, M/D/1 y M/G/1
 

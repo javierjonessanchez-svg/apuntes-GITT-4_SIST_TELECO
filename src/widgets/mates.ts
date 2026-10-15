@@ -16,10 +16,15 @@ export function formula(tex: string, bloque = false): string {
   }
 }
 
-/** Texto con trozos $…$: devuelve HTML seguro. */
+/** **negrita** y *cursiva* de Markdown en un trozo de texto ya escapado. */
+function enfasis(html: string): string {
+  return html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/\*(.+?)\*/g, '<em>$1</em>');
+}
+
+/** Texto con trozos $…$ (y **negrita** o *cursiva* fuera de ellos): devuelve HTML seguro. */
 export function conMates(texto: string): string {
   return texto
     .split(/(\$[^$]+\$)/)
-    .map((trozo) => (/^\$[^$]+\$$/.test(trozo) ? formula(trozo.slice(1, -1)) : escapar(trozo)))
+    .map((trozo) => (/^\$[^$]+\$$/.test(trozo) ? formula(trozo.slice(1, -1)) : enfasis(escapar(trozo))))
     .join('');
 }
