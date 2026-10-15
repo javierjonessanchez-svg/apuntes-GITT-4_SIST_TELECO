@@ -3,30 +3,32 @@
     "slug": "conmutacion",
     "nombre": "Conmutación",
     "estado": "activa",
-    "descripcion": "Señalización GSM, GPRS, 3G y 4G, tráfico y telefonía IP"
+    "descripcion": "GSM: arquitectura, interfaz aérea, señalización y movilidad. Tráfico y colas, con problemas guiados.",
+    "nota": "GPRS, 3G/4G y SIP/IMS, en preparación."
   },
   {
     "slug": "comunicaciones-opticas",
     "nombre": "Comunicaciones Ópticas",
     "estado": "activa",
-    "descripcion": "Fibra óptica, emisores y detectores, WDM y diseño de enlaces"
+    "descripcion": "Emisores ópticos: LED, láser, Fabry-Pérot, láser monomodo, ruido y WDM, con un mapa de conexiones.",
+    "nota": "Fibra, detectores y diseño de enlaces, en preparación."
   },
   {
     "slug": "radiacion-radiocomunicacion",
     "nombre": "Radiación y Radiocomunicación",
     "estado": "pendiente",
-    "descripcion": "Propagación, antenas, desvanecimientos y radioenlaces"
+    "descripcion": "Propagación, antenas, desvanecimientos y radioenlaces, con funciones de MATLAB para resolver problemas."
   },
   {
     "slug": "circuitos-comunicacion",
     "nombre": "Circuitos de Comunicación",
     "estado": "pendiente",
-    "descripcion": "Receptores, ruido, PLL y modulación"
+    "descripcion": "Receptores, ruido, PLL y modulación, con problemas resueltos."
   },
   {
     "slug": "seda",
-    "nombre": "SEDA",
+    "nombre": "Sistemas Electrónicos Digitales Avanzados (SEDA)",
     "estado": "pendiente",
-    "descripcion": "Sistemas electrónicos digitales avanzados con microcontrolador"
+    "descripcion": "Microcontrolador LPC1768: periféricos, registros y conceptos que se usan en las prácticas."
   }
 ]

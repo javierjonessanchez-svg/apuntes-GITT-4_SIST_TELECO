@@ -37,6 +37,8 @@ try {
       if (typeof a?.[campo] !== 'string' || !a[campo].trim()) throw new Error(`${quien}: falta "${campo}"`);
     }
     if (a.estado !== 'activa' && a.estado !== 'pendiente') throw new Error(`${quien}: "estado" debe ser "activa" o "pendiente"`);
+    // "nota" (lo que está en preparación) es opcional, pero si está debe tener texto
+    if ('nota' in a && (typeof a.nota !== 'string' || !a.nota.trim())) throw new Error(`${quien}: "nota" debe ser un texto no vacío`);
     if (!/^[a-z0-9-]+$/.test(a.slug)) throw new Error(`${quien}: el slug solo admite minúsculas, cifras y guiones`);
     if (vistos.has(a.slug)) throw new Error(`${quien}: slug repetido`);
     vistos.add(a.slug);
