@@ -1,0 +1,185 @@
+/* Mundo de Conmutación: centralita manual de los años 60.
+   Esmalte verde, latón, lámparas ámbar y cordones rojos; Archivo de anchura variable. */
+html[data-asignatura="conmutacion"] {
+  --fondo: #EEF1EA;
+  --superficie: #F8FAF6;
+  --texto: #1A2420;
+  --suave: #53615A;
+  --linea: #C3CABF;
+  --primario: #2E4038;
+  --sobre-primario: #EEF1EA;
+  --resalte: #F2A72E;
+  --sobre-resalte: #2A1E04;
+  --acento: #A87A2E;
+  --acento2: #B3362B;
+  --marco: #2E4038;
+  --sobre-marco: #E6ECE4;
+  --esmalte: #D6DCD3;
+  --placa: #EEF1EA;
+  --laton: #A87A2E;
+  --lampara: #F2A72E;
+  --cable: #B3362B;
+}
+html[data-asignatura="conmutacion"][data-tema="oscuro"] {
+  --fondo: #141B18;
+  --superficie: #1C2521;
+  --texto: #E6ECE4;
+  --suave: #A3B0A8;
+  --linea: #34423B;
+  --primario: #9CC8B0;
+  --sobre-primario: #10201A;
+  --resalte: #F2A72E;
+  --sobre-resalte: #2A1E04;
+  --acento: #D9A94F;
+  --acento2: #E06A5C;
+  --marco: #0E1411;
+  --sobre-marco: #E6ECE4;
+  --esmalte: #26322C;
+  --placa: #1C2521;
+  --laton: #C9973F;
+  --lampara: #F2A72E;
+  --cable: #E06A5C;
+}
+@media (prefers-color-scheme: dark) {
+  html[data-asignatura="conmutacion"]:not([data-tema="claro"]) {
+    --fondo: #141B18;
+    --superficie: #1C2521;
+    --texto: #E6ECE4;
+    --suave: #A3B0A8;
+    --linea: #34423B;
+    --primario: #9CC8B0;
+    --sobre-primario: #10201A;
+    --resalte: #F2A72E;
+    --sobre-resalte: #2A1E04;
+    --acento: #D9A94F;
+    --acento2: #E06A5C;
+    --marco: #0E1411;
+    --sobre-marco: #E6ECE4;
+    --esmalte: #26322C;
+    --placa: #1C2521;
+    --laton: #C9973F;
+    --lampara: #F2A72E;
+    --cable: #E06A5C;
+  }
+}
+
+/* ---------- Tipografía: Archivo, más ancha en los títulos ---------- */
+html[data-asignatura="conmutacion"] {
+  --fuente-texto: 'Archivo Variable', system-ui, sans-serif;
+  --fuente-titulos: 'Archivo Variable', system-ui, sans-serif;
+}
+html[data-asignatura="conmutacion"] :is(h1, h2, h3, .marca) { font-stretch: 112%; }
+html[data-asignatura="conmutacion"] :is(h1, .marca) { font-stretch: 125%; font-weight: 800; }
+
+/* ---------- Portada: el cuadro sobre el marco verde ---------- */
+html[data-asignatura="conmutacion"]:has(.cx-portada) body { background: var(--marco); color: var(--sobre-marco); }
+html[data-asignatura="conmutacion"]:has(.cx-portada) :is(.marca, .barra .boton-icono) { color: var(--sobre-marco); }
+html[data-asignatura="conmutacion"]:has(.cx-portada) .chip[aria-current="page"] { background: var(--lampara); color: var(--sobre-resalte); }
+html[data-asignatura="conmutacion"]:has(.cx-portada) .chip.pendiente { color: var(--sobre-marco); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--sobre-marco) 45%, transparent); }
+
+.cx-cuadro { padding: 8px 16px 32px; }
+@media (min-width: 700px) { .cx-cuadro { padding-inline: 32px; } }
+.cx-cuadro-dentro {
+  max-width: 1180px; margin: 0 auto; padding: 24px clamp(14px, 2.5vw, 28px) 12px;
+  border-radius: 18px; background: var(--esmalte); color: var(--texto);
+  box-shadow: inset 0 2px 0 rgb(255 255 255 / .45), inset 0 -3px 0 rgb(0 0 0 / .08), 0 10px 30px rgb(0 0 0 / .25);
+}
+html[data-asignatura="conmutacion"][data-tema="oscuro"] .cx-cuadro-dentro { box-shadow: inset 0 1px 0 rgb(255 255 255 / .06), 0 10px 30px rgb(0 0 0 / .4); }
+@media (prefers-color-scheme: dark) {
+  html[data-asignatura="conmutacion"]:not([data-tema="claro"]) .cx-cuadro-dentro { box-shadow: inset 0 1px 0 rgb(255 255 255 / .06), 0 10px 30px rgb(0 0 0 / .4); }
+}
+.cx-cabecera h1 { font-size: clamp(2.2rem, 6vw, 3.6rem); line-height: 1; margin: 0 0 10px; }
+.cx-cabecera p { max-width: 62ch; margin: 0 0 20px; color: var(--suave); }
+.cx-regleta {
+  display: inline-block; margin: 0; padding: 4px 10px; border-radius: 4px;
+  background: color-mix(in srgb, var(--texto) 10%, var(--esmalte)); color: var(--texto);
+  font-size: .9rem; font-weight: 600; box-shadow: inset 0 1px 2px rgb(0 0 0 / .18);
+}
+/* Los bloques van uno al lado del otro, cada uno tan ancho como sus clavijas (--n) */
+.cx-paneles { display: flex; flex-wrap: wrap; gap: 0 28px; }
+.cx-panel { flex: var(--n) 1 calc(var(--n) * 150px); min-width: 0; }
+.cx-clavijas { list-style: none; margin: 10px 0 22px; padding: 0; display: grid; gap: 6px; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); }
+@media (max-width: 600px) { .cx-clavijas { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.clavija {
+  display: flex; flex-direction: column; align-items: center; height: 100%; padding: 12px 8px 14px;
+  border-radius: 10px; text-align: center; text-decoration: none; color: var(--texto);
+  transition-property: background-color; transition-duration: .15s; transition-timing-function: ease-out;
+}
+.clavija:hover { background: color-mix(in srgb, var(--placa) 60%, transparent); }
+.toma { width: 46px; height: 46px; margin: 10px 0; border-radius: 50%; background: radial-gradient(circle, #101512 0 8px, #3A3F3B 9px 11px, var(--laton) 12px 19px, #7C5A20 20px 23px); }
+.clavija-nombre { font-stretch: 112%; font-weight: 600; font-size: 1.05rem; line-height: 1.2; }
+.clavija-sub { margin-top: 3px; font-size: .8rem; line-height: 1.35; color: var(--suave); }
+.clavija-estado { margin-top: 6px; font-size: .8rem; color: var(--suave); }
+.cx-leyenda { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 0 0 12px; font-size: .85rem; color: var(--suave); }
+.cx-nota { margin: 0 0 12px; font-size: .9rem; color: var(--suave); }
+
+/* Lámpara: también se usa en la tarjeta de la portada, por eso lleva colores propios.
+   Al poner data-nivel (al cargar) se enciende con un pequeño retraso por clavija (--i). */
+.cx-avance { display: inline-flex; vertical-align: middle; }
+.lampara { position: relative; flex: none; display: inline-block; width: 18px; height: 18px; border-radius: 50%; background: #8E968B; box-shadow: inset 0 0 0 2px #6F786C; }
+.cx-avance .lampara { width: 14px; height: 14px; }
+.lampara::after {
+  content: ""; position: absolute; inset: 0; border-radius: 50%; background: #F2A72E; opacity: 0;
+  box-shadow: 0 0 12px 3px rgb(242 167 46 / .65);
+  transition-property: opacity; transition-duration: .45s; transition-timing-function: ease-out; transition-delay: calc(var(--i, 0) * 70ms);
+}
+[data-nivel="1"] > .lampara::after, [data-nivel="2"] > .lampara::after { opacity: .5; box-shadow: none; }
+[data-nivel="3"] > .lampara::after { opacity: 1; }
+
+/* Oferta de traer el avance antiguo */
+.cx-oferta { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 18px; padding: 14px 16px; border-radius: 12px; background: var(--placa); }
+.cx-oferta[hidden] { display: none; }
+.cx-oferta p { margin: 0; font-weight: 600; }
+.cx-oferta-botones { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* La repisa: boleto de la próxima prueba y palancas de herramientas */
+.cx-repisa { display: grid; gap: 28px 48px; padding-top: 8px; padding-bottom: 8px; }
+@media (min-width: 860px) { .cx-repisa { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); } }
+.cx-repisa h2 { margin: 0 0 12px; font-size: 1.5rem; color: var(--sobre-marco); }
+.cx-boleto {
+  display: grid; grid-template-columns: 5.5em minmax(0, 1fr); gap: 16px; align-items: start;
+  padding: 14px 16px; border-radius: 8px; background: var(--placa); color: var(--texto); box-shadow: 0 2px 0 rgb(0 0 0 / .2);
+}
+.cx-boleto[hidden], .cx-boleto:not([hidden]) ~ .cx-boleto { display: none; }
+.cx-boleto-dias { margin: 0; font-stretch: 62%; font-weight: 800; font-size: 1.8rem; line-height: 1; text-align: right; font-variant-numeric: tabular-nums; }
+.cx-boleto h3 { margin: 0; font-size: 1.2rem; }
+.cx-boleto p { margin: 2px 0; }
+.cx-boleto-temas { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 8px; }
+.cx-boleto-temas li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+html[data-asignatura="conmutacion"] .cx-sin-pruebas { display: none; color: var(--sobre-marco); }
+.cx-boletos:not(:has(.cx-boleto:not([hidden]))) .cx-sin-pruebas { display: block; }
+.cx-herramientas ul { list-style: none; margin: 0; padding: 0; }
+.cx-herramientas a {
+  display: flex; align-items: center; gap: 14px; min-height: 44px; padding: 10px 0; color: var(--sobre-marco); text-decoration: none;
+  border-bottom: 1px solid color-mix(in srgb, var(--sobre-marco) 15%, transparent);
+}
+.cx-herramientas li:last-child a { border-bottom: 0; }
+.cx-herramientas b { display: block; font-weight: 600; }
+.cx-herramientas small { display: block; font-size: .9rem; opacity: .85; }
+.palanca { flex: none; width: 14px; height: 28px; border-radius: 7px; background: linear-gradient(var(--laton) 0 45%, #5C4418 45% 100%); transition-property: translate; transition-duration: .15s; transition-timing-function: ease-out; }
+.cx-herramientas a:hover .palanca { translate: 0 2px; }
+.cx-calendario { padding-top: 12px; }
+
+/* ---------- Página de tema: hoja clara con placas esmaltadas ---------- */
+html[data-asignatura="conmutacion"] .tema-articulo h2 { display: flex; align-items: center; gap: 12px; color: var(--texto); }
+html[data-asignatura="conmutacion"] .tema-articulo h2::before { content: ""; flex: none; width: 12px; height: 12px; border-radius: 50%; background: var(--lampara); box-shadow: 0 0 8px 1px rgb(242 167 46 / .6); }
+html[data-asignatura="conmutacion"] .tema-articulo th { background: var(--esmalte); }
+html[data-asignatura="conmutacion"] .saber { position: relative; background: var(--esmalte); }
+/* dos tornillos en la placa */
+html[data-asignatura="conmutacion"] .saber::before,
+html[data-asignatura="conmutacion"] .saber::after { content: ""; position: absolute; top: 10px; width: 8px; height: 8px; border-radius: 50%; background: radial-gradient(circle, #8B8F86 0 2px, #B9BEB4 3px); }
+html[data-asignatura="conmutacion"] .saber::before { left: 10px; }
+html[data-asignatura="conmutacion"] .saber::after { right: 10px; }
+
+/* ---------- Decoración: cordones en los márgenes libres ---------- */
+.cx-deco { position: fixed; inset: 0; z-index: -1; pointer-events: none; overflow: hidden; }
+/* Empiezan bajo la barra superior, que también ocupa los márgenes */
+.cx-deco-lado { position: absolute; top: 80px; height: calc(100vh - 80px); width: max(0px, calc((100vw - var(--ancho-contenido, 1180px)) / 2 - 24px)); max-width: 220px; }
+.cx-deco-izq { left: 0; }
+.cx-deco-der { right: 0; }
+html:has(.tema-rejilla) { --ancho-contenido: 1440px; }
+.cordon { fill: none; stroke-width: 5; stroke-linecap: round; }
+.cordon.rojo { stroke: var(--cable); }
+.cordon.laton { stroke: var(--laton); }
+.clavija-deco { fill: var(--laton); }
+@media (max-width: 1300px) { .cx-deco { display: none; } }

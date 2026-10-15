@@ -1,0 +1,17 @@
+---
+// Una clavija del cuadro: lámpara + toma + nombre del tema. La lámpara es el
+// avance: apagada (0), tenue (1–2, leído o repasado) o encendida (3, dominado).
+// cliente/avance.ts pone data-nivel y el texto del estado.
+import { ruta } from '../../comun/rutas';
+import type { Tema } from '../../comun/datos';
+
+interface Props { asignatura: string; tema: Tema; i: number }
+const { asignatura, tema, i } = Astro.props;
+---
+<a class="clavija" href={ruta(asignatura, tema.slug)} data-avance data-asig={asignatura} data-tema={tema.slug} data-nivel="0" style={`--i:${i}`}>
+  <span class="lampara" aria-hidden="true"></span>
+  <span class="toma" aria-hidden="true"></span>
+  <span class="clavija-nombre">{tema.titulo}</span>
+  <span class="clavija-sub">{tema.resumen}</span>
+  <span class="clavija-estado" data-avance-texto>Sin empezar</span>
+</a>

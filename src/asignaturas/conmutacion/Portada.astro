@@ -1,0 +1,125 @@
+---
+// Portada de Conmutación: la centralita. Cada bloque es un panel esmaltado y cada
+// tema una clavija con su lámpara. Debajo, la repisa de la operadora: calendario,
+// el boleto de la próxima prueba (con Empezar / Seguir por tema) y las herramientas.
+import Clavija from './Clavija.astro';
+import LineaTiempo from '../../comun/LineaTiempo.astro';
+import { ruta } from '../../comun/rutas';
+import { diasHasta, fechaCorta, textoRelativo } from '../../comun/fechas';
+import type { Asignatura, Tema } from '../../comun/datos';
+
+interface Props { asignatura: Asignatura; temas: Tema[] }
+const { asignatura: a, temas } = Astro.props;
+
+const bloques = [...new Set(temas.map((t) => t.bloque))];
+const hoy = new Date();
+const pruebas = [...a.pruebas].sort((x, y) => x.fecha.localeCompare(y.fecha));
+const titulo = (slug: string) => temas.find((t) => t.slug === slug)?.titulo ?? slug;
+
+// Las palancas de la repisa: herramientas y el tema donde viven
+const herramientas = [
+  { tema: 'trafico-colas', nombre: 'Calculadora de Erlang B y C', detalle: 'Bloqueo, canales necesarios y espera, con cada paso' },
+  { tema: 'arquitectura-gsm', nombre: 'Red GSM clicable', detalle: 'Qué hace cada elemento y por qué interfaz habla' },
+  { tema: 'interfaz-aerea', nombre: 'Trama y multitramas TDMA', detalle: 'Ranuras, ráfagas y canales lógicos' },
+  { tema: 'problemas-guiados', nombre: 'Tarjetas de repaso', detalle: 'Las preguntas de todos los temas' },
+].filter((h) => temas.some((t) => t.slug === h.tema));
+---
+<div class="cx-portada">
+  <section class="cx-cuadro" aria-labelledby="cx-titulo">
+    <div class="cx-cuadro-dentro">
+      <header class="cx-cabecera">
+        <h1 id="cx-titulo">{a.nombre}</h1>
+        <p>{a.descripcion}</p>
+      </header>
+
+      <div class="cx-oferta" role="region" aria-label="Avance de la web anterior" data-oferta-cx hidden>
+        <p data-oferta-texto>Hemos encontrado tu avance de la web anterior. ¿Lo traemos?</p>
+        <div class="cx-oferta-botones" data-oferta-botones>
+          <button type="button" class="boton" data-traer>Traer</button>
+          <button type="button" class="boton boton-secundario" data-rechazar>No, gracias</button>
+        </div>
+      </div>
+
+      <div class="cx-paneles">
+      {bloques.map((b, k) => (
+        <section class="cx-panel" aria-labelledby={`cx-bloque-${k}`} style={`--n:${temas.filter((t) => t.bloque === b).length}`}>
+          <h2 class="cx-regleta" id={`cx-bloque-${k}`}>{b}</h2>
+          <ul class="cx-clavijas">
+            {temas.filter((t) => t.bloque === b).map((t) => (
+              <li><Clavija asignatura={a.slug} tema={t} i={temas.indexOf(t)} /></li>
+            ))}
+          </ul>
+        </section>
+      ))}
+      </div>
+      <p class="cx-leyenda"><span class="cx-avance" data-nivel="0" aria-hidden="true"><span class="lampara"></span></span> sin empezar
+        <span class="cx-avance" data-nivel="1" aria-hidden="true"><span class="lampara"></span></span> leído o repasado
+        <span class="cx-avance" data-nivel="3" aria-hidden="true"><span class="lampara"></span></span> dominado</p>
+      {a.nota && <p class="cx-nota">{a.nota}</p>}
+    </div>
+  </section>
+
+  <div class="cx-repisa envoltura">
+    <section class="cx-boletos" aria-labelledby="cx-proxima">
+      <h2 id="cx-proxima">Próxima prueba</h2>
+      {pruebas.map((p) => (
+        <article class="cx-boleto" data-fecha={p.fecha} data-ocultar-si-pasa hidden={diasHasta(p.fecha, hoy) < 0}>
+          <p class="cx-boleto-dias" data-dias>{textoRelativo(diasHasta(p.fecha, hoy))}</p>
+          <div>
+            <h3>{p.nombre}{p.peso && <span class="suave"> · {p.peso} puntos</span>}</h3>
+            <p class="suave">{fechaCorta(p.fecha)}{p.confirmar && ' (por confirmar)'}</p>
+            {p.temas.length ? (
+              <ul class="cx-boleto-temas">
+                {p.temas.map((t) => (
+                  <li><span>{titulo(t)}</span> <a class="boton boton-pequeno" href={ruta(a.slug, t)} data-empezar data-asig={a.slug} data-tema={t}>Empezar<span class="sr">: {titulo(t)}</span></a></li>
+                ))}
+              </ul>
+            ) : <p class="suave">Temas por confirmar.</p>}
+          </div>
+        </article>
+      ))}
+      <p class="cx-sin-pruebas">Sin pruebas próximas.</p>
+    </section>
+
+    <section class="cx-herramientas" aria-labelledby="cx-herr">
+      <h2 id="cx-herr">Herramientas</h2>
+      <ul>
+        {herramientas.map((h) => (
+          <li><a href={ruta(a.slug, h.tema)}><span class="palanca" aria-hidden="true"></span><span><b>{h.nombre}</b><small>{h.detalle}</small></span></a></li>
+        ))}
+      </ul>
+    </section>
+  </div>
+
+  <div class="envoltura cx-calendario">
+    <LineaTiempo pruebas={a.pruebas.map((p) => ({ ...p, asignatura: a.corto }))} titulo="Calendario de pruebas" variante="linea-cx" />
+  </div>
+</div>
+<script>
+  import { pintarAvance } from '../../comun/cliente/avance';
+  import progreso from '../../comun/progreso';
+
+  // Empezar / Seguir / Repasar según el nivel del tema
+  for (const a of document.querySelectorAll<HTMLAnchorElement>('[data-empezar]')) {
+    const nivel = progreso.nivel(a.dataset.asig!, a.dataset.tema!);
+    a.firstChild!.textContent = nivel === 0 ? 'Empezar' : nivel === 3 ? 'Repasar' : 'Seguir';
+  }
+
+  // Oferta única: traer el avance de la web antigua de Conmutación (claves cx-)
+  const oferta = document.querySelector<HTMLElement>('[data-oferta-cx]');
+  if (oferta && progreso.disponible && progreso.cxPendiente()) {
+    oferta.hidden = false;
+    const texto = oferta.querySelector<HTMLElement>('[data-oferta-texto]')!;
+    const botones = oferta.querySelector<HTMLElement>('[data-oferta-botones]')!;
+    oferta.querySelector('[data-traer]')!.addEventListener('click', () => {
+      const n = progreso.importarCx();
+      pintarAvance();
+      botones.remove();
+      texto.textContent = n === 1 ? 'Hecho: 1 tema traído.' : `Hecho: ${n} temas traídos.`;
+    });
+    oferta.querySelector('[data-rechazar]')!.addEventListener('click', () => {
+      progreso.rechazarCx();
+      oferta.hidden = true;
+    });
+  }
+</script>
