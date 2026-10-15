@@ -30,9 +30,9 @@ const prueba = proximaPrueba(asignatura.pruebas.filter((p) => p.temas.includes(t
     <a class="volver" href={ruta(asignatura.slug)}><Icono nombre="izquierda" /><span>{asignatura.corto}</span></a>
     <span class="tema-barra-titulo">{tema.titulo}</span>
     {prueba && (
-      <span class="chip-prueba" data-fecha={prueba.fecha} data-nombre={prueba.nombre}
+      <span class="chip-prueba" data-fecha={prueba.fecha} data-ocultar-si-pasa
         title={prueba.confirmar ? 'Fecha por confirmar' : undefined}>
-        <span data-dias-texto>{prueba.nombre} {textoDias(diasHasta(prueba.fecha, hoy))}</span>
+        <span>{prueba.nombre} <span data-dias>{textoDias(diasHasta(prueba.fecha, hoy))}</span></span>
         {prueba.confirmar && <span class="chip-confirmar">(por confirmar)</span>}
       </span>
     )}
@@ -55,3 +55,6 @@ const prueba = proximaPrueba(asignatura.pruebas.filter((p) => p.temas.includes(t
     <ListaSaber asignatura={asignatura.slug} tema={tema.slug} saber={tema.saber} />
   </div>
 </BaseLayout>
+<script>
+  import './cliente/linea-tiempo';
+</script>

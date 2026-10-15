@@ -30,3 +30,51 @@ export function textoDias(n: number): string {
   if (n === 1) return 'mañana';
   return `en ${n} días`;
 }
+
+/** Fecha local → 'AAAA-MM-DD'. */
+export function isoDe(d: Date): string {
+  const dos = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${dos(d.getMonth() + 1)}-${dos(d.getDate())}`;
+}
+
+/** Posición de una fecha entre inicio (0) y fin (1). Fuera del tramo da < 0 o > 1. */
+export function fraccion(iso: string, inicio: string, fin: string): number {
+  const total = diasHasta(fin, leerFecha(inicio));
+  return total > 0 ? diasHasta(iso, leerFecha(inicio)) / total : 0;
+}
+
+const DIAS = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
+const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+
+/** '2026-10-19' → 'lun 19 oct'. */
+export function fechaCorta(iso: string): string {
+  const d = leerFecha(iso);
+  return `${DIAS[d.getDay()]} ${d.getDate()} ${MESES[d.getMonth()]}`;
+}
+
+/** Pruebas de hoy a dentro de 7 días, por fecha. */
+export function estaSemana<T extends { fecha: string }>(pruebas: T[], hoy: Date): T[] {
+  return pruebas
+    .filter((p) => { const n = diasHasta(p.fecha, hoy); return n >= 0 && n <= 7; })
+    .sort((x, y) => x.fecha.localeCompare(y.fecha));
+}
+
+/** Fecha de hoy. En desarrollo se puede fingir otra con ?hoy=AAAA-MM-DD (para probar). */
+export function hoyDe(busqueda: string, desarrollo: boolean): Date {
+  const m = /[?&]hoy=(\d{4}-\d{2}-\d{2})/.exec(busqueda);
+  return desarrollo && m ? leerFecha(m[1]) : new Date();
+}
+
+/** Como textoDias, pero una cuenta negativa dice "ya pasó". */
+export function textoRelativo(n: number): string {
+  return n < 0 ? 'ya pasó' : textoDias(n);
+}
+
+/** Mensaje de "Esta semana" cuando no hay pruebas en los próximos 7 días (null si las hay). */
+export function mensajeSemana<T extends { fecha: string; nombre: string }>(pruebas: T[], hoy: Date): string | null {
+  if (estaSemana(pruebas, hoy).length) return null;
+  const siguiente = proximaPrueba(pruebas, hoy);
+  return siguiente
+    ? `Nada esta semana. La siguiente: ${siguiente.nombre}, ${textoDias(diasHasta(siguiente.fecha, hoy))}.`
+    : 'Sin pruebas próximas.';
+}

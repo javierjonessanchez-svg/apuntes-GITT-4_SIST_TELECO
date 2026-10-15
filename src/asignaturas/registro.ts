@@ -4,6 +4,8 @@
 //
 // Cada tema.css va limitado a html[data-asignatura="<slug>"], así que se pueden
 // importar todos aquí sin que se pisen.
+import '@fontsource-variable/bricolage-grotesque';
+import './portada/tema.css';
 import PortadaBase from './base/Portada.astro';
 import AvanceBase from './base/Avance.astro';
 import DecoracionBase from './base/Decoracion.astro';

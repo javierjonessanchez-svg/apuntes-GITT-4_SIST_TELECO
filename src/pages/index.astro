@@ -1,17 +1,57 @@
 ---
-// Portada mínima con el esqueleto; la Tarea 6 pone la línea de tiempo y las tarjetas.
+// Portada: todas las pruebas de todas las asignaturas en una línea de tiempo,
+// "Esta semana" y una tarjeta por asignatura. Textos de specs/2026-10-14-hub-contenido.md §3.
 import BaseLayout from '../comun/BaseLayout.astro';
-import { asignaturasOrdenadas } from '../comun/datos';
-import { ruta } from '../comun/rutas';
+import LineaTiempo from '../comun/LineaTiempo.astro';
+import EstaSemana from '../asignaturas/portada/EstaSemana.astro';
+import TarjetaAsignatura from '../asignaturas/portada/TarjetaAsignatura.astro';
+import { asignaturasOrdenadas, temasDe, type PruebaLinea } from '../comun/datos';
+
 const asignaturas = await asignaturasOrdenadas();
+const temasPorAsignatura = await Promise.all(asignaturas.map((a) => temasDe(a.slug)));
+const pruebas: PruebaLinea[] = asignaturas
+  .filter((a) => a.estado === 'activa')
+  .flatMap((a) => a.pruebas.map((p) => ({ ...p, asignatura: a.corto })));
 ---
-<BaseLayout titulo="Apuntes GITT 4º">
-  <main id="contenido" class="envoltura">
-    <h1>Apuntes GITT 4º</h1>
-    <ul>
-      {asignaturas.map((a) => (
-        <li>{a.estado === 'activa' ? <a href={ruta(a.slug)}>{a.nombre}</a> : <span>{a.nombre} (en preparación)</span>}</li>
-      ))}
-    </ul>
+<BaseLayout titulo="Apuntes GITT 4º (curso 2026/27)"
+  descripcion="Apuntes interactivos no oficiales de 4º de GITT (Universidad de Alcalá), por asignaturas.">
+  <main id="contenido" class="envoltura portada">
+    <header class="portada-cabecera">
+      <h1>Apuntes GITT 4º</h1>
+      <p class="portada-sub">Sistemas de Telecomunicación. Universidad de Alcalá, curso 2026/27.</p>
+      <p class="entradilla">Apuntes interactivos de las asignaturas de cuarto. Elige una para abrirla: funciona en el móvil y en el ordenador, sin instalar nada.</p>
+    </header>
+
+    <LineaTiempo pruebas={pruebas} variante="linea-portada" />
+
+    <div class="portada-rejilla">
+      <EstaSemana pruebas={pruebas} />
+      <section class="panel como" aria-labelledby="como-titulo">
+        <h2 id="como-titulo">Cómo se usan</h2>
+        <ul>
+          <li>Un solo buscador para todas las asignaturas: pulsa <kbd>Ctrl</kbd> + <kbd>K</kbd> o <kbd>/</kbd>.</li>
+          <li>En el móvil, añade la página a la pantalla de inicio para abrirla como una app.</li>
+          <li>Tu progreso (temas repasados, tarjetas) se guarda solo en este navegador: no hay cuentas y no se envía nada.</li>
+        </ul>
+      </section>
+    </div>
+
+    <section class="portada-asignaturas" aria-labelledby="asignaturas-titulo">
+      <h2 id="asignaturas-titulo">Asignaturas</h2>
+      <ul id="asignaturas" class="tarjetas">
+        {asignaturas.map((a, i) => <TarjetaAsignatura asignatura={a} temas={temasPorAsignatura[i]} />)}
+      </ul>
+    </section>
+    <p id="aviso" class="aviso" role="status" hidden>Tu avance no se está guardando en este navegador.</p>
   </main>
+  <footer class="pie">
+    <p>Apuntes no oficiales de estudiantes, no revisados ni avalados por el profesorado. Pueden contener errores.</p>
+    <p>Curso 2026/27.</p>
+  </footer>
 </BaseLayout>
+<script>
+  import '../comun/cliente/avance';
+  import progreso from '../comun/progreso';
+  // Si el navegador no deja guardar, se avisa una vez aquí
+  if (!progreso.disponible) document.getElementById('aviso')!.hidden = false;
+</script>

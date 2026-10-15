@@ -1,0 +1,25 @@
+---
+// "Esta semana": pruebas de hoy a 7 días. Lleva todas las pruebas futuras en el
+// HTML; el script de la línea de tiempo muestra solo las de la semana real.
+import { diasHasta, estaSemana, fechaCorta, mensajeSemana, textoRelativo } from '../../comun/fechas';
+import type { PruebaLinea } from '../../comun/datos';
+
+interface Props { pruebas: PruebaLinea[] }
+const { pruebas } = Astro.props;
+const hoy = new Date();
+const futuras = pruebas.filter((p) => diasHasta(p.fecha, hoy) >= 0).sort((a, b) => a.fecha.localeCompare(b.fecha));
+const semana = new Set(estaSemana(futuras, hoy));
+const mensaje = mensajeSemana(pruebas, hoy);
+---
+<section class="semana panel" aria-labelledby="semana-titulo" data-esta-semana>
+  <h2 id="semana-titulo">Esta semana</h2>
+  <ul class="semana-lista">
+    {futuras.map((p) => (
+      <li data-fecha={p.fecha} data-nombre={p.nombre} hidden={!semana.has(p)}>
+        <span class="semana-dias" data-dias>{textoRelativo(diasHasta(p.fecha, hoy))}</span>
+        <span><b>{p.nombre}</b> <span class="suave">{p.asignatura} · {fechaCorta(p.fecha)}{p.confirmar && ' (por confirmar)'}</span></span>
+      </li>
+    ))}
+  </ul>
+  <p class="suave" data-semana-vacia hidden={mensaje === null}>{mensaje}</p>
+</section>

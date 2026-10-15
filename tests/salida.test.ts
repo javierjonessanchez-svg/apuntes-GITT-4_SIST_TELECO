@@ -102,3 +102,31 @@ describe('búsqueda', () => {
     expect(html).toMatch(/data-pagefind-filter="asignatura:Conmutación"/);
   });
 });
+
+describe('portada', () => {
+  const html = pagina('index.html');
+  const tarjetas = [...html.matchAll(/<li[^>]*data-tarjeta="([^"]+)"[^>]*data-estado="([^"]+)"[^>]*>(.*?)<\/li>/gs)];
+  test('cinco tarjetas de asignatura', () => {
+    expect(tarjetas.map((t) => t[1])).toHaveLength(5);
+  });
+  test('un enlace por tarjeta activa y ninguno en las pendientes', () => {
+    for (const [, slug, estado, dentro] of tarjetas) {
+      const enlaces = dentro.match(/<a\s/g) ?? [];
+      expect(enlaces.length, slug).toBe(estado === 'activa' ? 1 : 0);
+      if (estado !== 'activa') expect(dentro, slug).toContain('En preparación');
+    }
+  });
+  test('cada prueba de la línea de tiempo tiene una data-fecha válida', () => {
+    const linea = /<section[^>]*data-linea-tiempo[^>]*>(.*?)<\/section>/s.exec(html)?.[1] ?? '';
+    const items = [...linea.matchAll(/<li[^>]*data-prueba[^>]*>/g)];
+    expect(items.length).toBeGreaterThan(0);
+    for (const [li] of items) expect(li).toMatch(/data-fecha="\d{4}-\d{2}-\d{2}"/);
+  });
+  test('lista, aviso, viewport, "Esta semana" y aviso legal del pie', () => {
+    expect(html).toContain('id="asignaturas"');
+    expect(html).toContain('id="aviso"');
+    expect(html).toContain('name="viewport"');
+    expect(html).toContain('Esta semana');
+    expect(html).toContain('Apuntes no oficiales de estudiantes, no revisados ni avalados por el profesorado. Pueden contener errores.');
+  });
+});

@@ -10,6 +10,9 @@ export type Prueba = {
   confirmar?: boolean;
 };
 
+/** Prueba con el nombre (corto) de su asignatura, para las líneas de tiempo. */
+export type PruebaLinea = Prueba & { asignatura: string };
+
 export type Asignatura = CollectionEntry<'asignaturas'>['data'] & { archivo: string };
 
 export type Tema = CollectionEntry<'temas'>['data'] & {
