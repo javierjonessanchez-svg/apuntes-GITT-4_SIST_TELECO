@@ -39,7 +39,8 @@ const prueba = proximaPrueba(asignatura.pruebas.filter((p) => p.temas.includes(t
   </div>
   <div class="tema-rejilla">
     <IndiceTema apartados={apartados} />
-    <main id="contenido" class="tema-articulo" data-indice-articulo>
+    <main id="contenido" class="tema-articulo" data-indice-articulo data-pagefind-body
+      data-pagefind-filter={`asignatura:${asignatura.nombre}`}>
       <header class="tema-cabecera">
         <p class="tema-bloque">{tema.bloque}</p>
         <h1>{tema.titulo}</h1>

@@ -84,3 +84,21 @@ describe('páginas de tema', () => {
     expect(html.includes('rel="next"')).toBe(i < temas.length - 1);
   });
 });
+
+describe('búsqueda', () => {
+  test('Pagefind ha creado su índice', () => {
+    expect(existsSync(join(DIST, 'pagefind', 'pagefind.js'))).toBe(true);
+  });
+  test('el botón Buscar empieza oculto (lo muestra el script) y tiene nombre', () => {
+    const html = pagina('conmutacion/capa-enlace/index.html');
+    const boton = /<button[^>]*data-boton-buscar[^>]*>(.*?)<\/button>/s.exec(html);
+    expect(boton).not.toBeNull();
+    expect(boton![0]).toMatch(/\shidden[\s>=]/);
+    expect(boton![1]).toContain('Buscar');
+  });
+  test('el artículo del tema se indexa con su asignatura como filtro', () => {
+    const html = pagina('conmutacion/capa-enlace/index.html');
+    expect(html).toMatch(/data-pagefind-body/);
+    expect(html).toMatch(/data-pagefind-filter="asignatura:Conmutación"/);
+  });
+});

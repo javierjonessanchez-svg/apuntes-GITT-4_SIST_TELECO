@@ -5,7 +5,7 @@
   "description": "Apuntes de 4º de GITT (Sistemas de Telecomunicación), UAH. Web no oficial.",
   "scripts": {
     "dev": "astro dev",
-    "build": "astro build",
+    "build": "astro build && pagefind --site dist",
     "preview": "astro preview",
     "test": "vitest run",
     "check": "astro check && npm run build && npm run test"
