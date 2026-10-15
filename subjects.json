@@ -1,0 +1,32 @@
+[
+  {
+    "slug": "conmutacion",
+    "nombre": "Conmutación",
+    "estado": "activa",
+    "descripcion": "Señalización GSM, GPRS, 3G y 4G, tráfico y telefonía IP"
+  },
+  {
+    "slug": "comunicaciones-opticas",
+    "nombre": "Comunicaciones Ópticas",
+    "estado": "activa",
+    "descripcion": "Fibra óptica, emisores y detectores, WDM y diseño de enlaces"
+  },
+  {
+    "slug": "radiacion-radiocomunicacion",
+    "nombre": "Radiación y Radiocomunicación",
+    "estado": "pendiente",
+    "descripcion": "Propagación, antenas, desvanecimientos y radioenlaces"
+  },
+  {
+    "slug": "circuitos-comunicacion",
+    "nombre": "Circuitos de Comunicación",
+    "estado": "pendiente",
+    "descripcion": "Receptores, ruido, PLL y modulación"
+  },
+  {
+    "slug": "seda",
+    "nombre": "SEDA",
+    "estado": "pendiente",
+    "descripcion": "Sistemas electrónicos digitales avanzados con microcontrolador"
+  }
+]
