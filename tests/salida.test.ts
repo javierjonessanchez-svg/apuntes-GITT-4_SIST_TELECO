@@ -131,3 +131,7 @@ describe('portada', () => {
     expect(html).toContain('Apuntes no oficiales de estudiantes, no revisados ni avalados por el profesorado. Pueden contener errores.');
   });
 });
+
+test('la portada de Conmutación avisa (oculto de entrada) si el avance no se puede guardar', () => {
+  expect(pagina('conmutacion/index.html')).toMatch(/<p[^>]*data-aviso-almacen[^>]*hidden[^>]*>Tu avance no se está guardando en este navegador\.<\/p>/);
+});

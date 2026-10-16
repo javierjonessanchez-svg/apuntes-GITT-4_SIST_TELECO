@@ -142,6 +142,14 @@ export function crearProgreso(almacen: Storage | null) {
 
 export type Progreso = ReturnType<typeof crearProgreso>;
 
-// El progreso de este navegador. Al construir (Node) no hay localStorage.
-const progreso = crearProgreso(typeof localStorage !== 'undefined' ? localStorage : null);
+/**
+ * El localStorage del navegador, o null si no hay (al construir en Node) o si
+ * está bloqueado: con los datos de sitios bloqueados, solo leerlo ya lanza.
+ */
+export function almacenDelNavegador(g: { localStorage?: Storage } = globalThis): Storage | null {
+  try { return g.localStorage ?? null; } catch { return null; }
+}
+
+// El progreso de este navegador
+const progreso = crearProgreso(almacenDelNavegador());
 export default progreso;

@@ -57,6 +57,7 @@ const herramientas = [
         <li><span class="cx-avance" data-nivel="1" aria-hidden="true"><span class="lampara"></span></span> leído o repasado</li>
         <li><span class="cx-avance" data-nivel="3" aria-hidden="true"><span class="lampara"></span></span> dominado</li>
       </ul>
+      <p class="cx-nota" data-aviso-almacen hidden role="status">Tu avance no se está guardando en este navegador.</p>
       {a.nota && <p class="cx-nota">{a.nota}</p>}
     </div>
   </section>
@@ -100,6 +101,9 @@ const herramientas = [
 <script>
   import { pintarAvance } from '../../comun/cliente/avance';
   import progreso from '../../comun/progreso';
+
+  // Sin almacén (bloqueado), las lámparas no pueden recordar nada: se avisa
+  if (!progreso.disponible) document.querySelector<HTMLElement>('[data-aviso-almacen]')!.hidden = false;
 
   // Empezar / Seguir / Repasar según el nivel del tema
   for (const a of document.querySelectorAll<HTMLAnchorElement>('[data-empezar]')) {

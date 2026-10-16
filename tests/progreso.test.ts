@@ -1,7 +1,7 @@
 // Progreso guardado en el navegador: niveles, checklist, tarjetas e importación
 // del avance de la web antigua de Conmutación (claves cx-).
 import { describe, expect, test } from 'vitest';
-import { crearProgreso } from '../src/comun/progreso';
+import { almacenDelNavegador, crearProgreso } from '../src/comun/progreso';
 
 // Almacén falso con la misma forma que localStorage
 function almacenFalso(inicial: Record<string, string> = {}): Storage {
@@ -129,6 +129,13 @@ describe('almacén bloqueado', () => {
   });
   test('sin almacén (al construir en Node): disponible es false', () => {
     expect(crearProgreso(null).disponible).toBe(false);
+  });
+  test('si el navegador bloquea los datos, leer localStorage ya lanza: se trata como sin almacén', () => {
+    const bloqueado = { get localStorage(): Storage { throw new Error('SecurityError'); } };
+    expect(almacenDelNavegador(bloqueado)).toBeNull();
+    expect(almacenDelNavegador({})).toBeNull();
+    const a = almacenFalso();
+    expect(almacenDelNavegador({ localStorage: a })).toBe(a);
   });
 });
 
