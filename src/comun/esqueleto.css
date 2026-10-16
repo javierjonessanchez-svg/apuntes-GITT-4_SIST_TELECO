@@ -223,7 +223,7 @@ a.chip:hover { background: color-mix(in srgb, var(--primario) 10%, var(--superfi
   border-radius: 14px; background: var(--superficie); box-shadow: var(--sombra); text-decoration: none;
   transition-property: scale; transition-duration: .15s; transition-timing-function: ease-out;
 }
-.prevsig a:active { scale: .98; }
+.prevsig a:active { scale: .96; }
 .prevsig small { display: inline-flex; align-items: center; gap: 6px; color: var(--suave); }
 .prevsig span { font-weight: 700; }
 .prevsig-siguiente { text-align: right; align-items: flex-end; margin-left: auto; }

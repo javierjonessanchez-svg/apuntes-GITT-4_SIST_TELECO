@@ -34,6 +34,7 @@ const ancho = (etiqueta: string) => Math.max(68, etiqueta.length * 8.5 + 22);
         {cordones.map((c) => c.interfaz && <text class="interfaz" data-l={c.i} x={c.mx} y={c.my + 4}>{c.interfaz}</text>)}
         {NODOS.map((n) => (
           <g class={`nodo s-${n.sub}`} data-nodo={n.id} tabindex="0" role="button" aria-label={n.titulo}>
+            <rect class="zona" x={n.x - ancho(n.etiqueta) / 2 - 4} y={n.y - 22} width={ancho(n.etiqueta) + 8} height="44" />
             <rect x={n.x - ancho(n.etiqueta) / 2} y={n.y - 17} width={ancho(n.etiqueta)} height="34" rx="9" />
             <text x={n.x} y={n.y + 5}>{n.etiqueta}</text>
           </g>
@@ -56,8 +57,9 @@ const ancho = (etiqueta: string) => Math.max(68, etiqueta.length * 8.5 + 22);
   .red-subsistemas button {
     min-height: 40px; padding: 6px 14px; border: 0; border-radius: 999px; cursor: pointer;
     background: color-mix(in srgb, var(--k) 16%, var(--superficie)); color: var(--texto); font: inherit; font-size: .9rem; font-weight: 600;
-    transition-property: background-color, color; transition-duration: .15s;
+    transition-property: background-color, color, scale; transition-duration: .15s; transition-timing-function: ease-out;
   }
+  .red-subsistemas button:active { scale: .96; }
   .red-subsistemas button[aria-pressed="true"] { background: var(--k); color: var(--superficie); }
   .red svg { display: block; width: 100%; min-width: 620px; height: auto; font-family: inherit; }
   .cordon-red { fill: none; stroke: var(--linea); stroke-width: 3; stroke-linecap: round; transition-property: stroke, stroke-width, opacity; transition-duration: .2s; }
@@ -67,11 +69,12 @@ const ancho = (etiqueta: string) => Math.max(68, etiqueta.length * 8.5 + 22);
     transition-property: fill, opacity; transition-duration: .2s;
   }
   .nodo { cursor: pointer; outline: none; transition-property: opacity; transition-duration: .2s; }
-  .nodo rect { fill: color-mix(in srgb, var(--k) 14%, var(--superficie)); stroke: var(--k); stroke-width: 2; transition-property: fill; transition-duration: .2s; }
-  .nodo:hover rect { fill: color-mix(in srgb, var(--k) 28%, var(--superficie)); }
-  .nodo:focus-visible rect { stroke: var(--foco, var(--texto)); stroke-width: 4; }
+  .nodo .zona { fill: transparent; stroke: none; }
+  .nodo rect:not(.zona) { fill: color-mix(in srgb, var(--k) 14%, var(--superficie)); stroke: var(--k); stroke-width: 2; transition-property: fill; transition-duration: .2s; }
+  .nodo:hover rect:not(.zona) { fill: color-mix(in srgb, var(--k) 28%, var(--superficie)); }
+  .nodo:focus-visible rect:not(.zona) { stroke: var(--foco, var(--texto)); stroke-width: 4; }
   .nodo text { font-size: 13px; font-weight: 700; fill: var(--texto); text-anchor: middle; pointer-events: none; }
-  .nodo.elegido rect { fill: var(--k); }
+  .nodo.elegido rect:not(.zona) { fill: var(--k); }
   .nodo.elegido text { fill: var(--superficie); }
   .cordon-red.activo { stroke: var(--acento2); stroke-width: 4.5; }
   .interfaz.activo { fill: var(--texto); }

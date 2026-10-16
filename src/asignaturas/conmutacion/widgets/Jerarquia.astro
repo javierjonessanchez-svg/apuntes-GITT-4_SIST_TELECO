@@ -36,7 +36,7 @@ const INICIAL = 2;
   .escalera-nivel {
     display: grid; grid-template-columns: minmax(8.5em, 12em) minmax(0, 1fr) 6.5em; align-items: center; gap: 12px;
     min-height: 44px; padding: 6px 10px; border: 0; border-radius: 10px; background: transparent; color: inherit;
-    font: inherit; text-align: left; cursor: pointer; transition-property: background-color; transition-duration: .15s;
+    font: inherit; text-align: left; cursor: pointer; transition-property: background-color, scale; transition-duration: .15s; transition-timing-function: ease-out;
   }
   .escalera-nivel:hover { background: color-mix(in srgb, var(--texto) 6%, transparent); }
   .escalera-nivel[aria-pressed="true"] { background: var(--fondo); font-weight: 700; }
@@ -45,6 +45,7 @@ const INICIAL = 2;
   .escalera-tiempo { text-align: right; font-variant-numeric: tabular-nums; }
   .escalera-info { margin: 12px 0 0; text-wrap: pretty; }
   .escalera-calculo { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .escalera-nivel:active { scale: .96; }
   @media (max-width: 520px) {
     .escalera-nivel { grid-template-columns: minmax(0, 1fr) auto; }
     .escalera-barra { grid-column: 1 / -1; grid-row: 2; }

@@ -2,6 +2,7 @@
 // Enlace al visor público del Ministerio con las estaciones de telefonía móvil
 // de España (sus niveles de exposición). No se incrusta: se abre en otra pestaña.
 import Widget from '../../../widgets/Widget.astro';
+import Icono from '../../../comun/Icono.astro';
 
 const VISOR = 'https://geoportal.minetur.gob.es/VCTEL/vcne.do';
 ---
@@ -16,7 +17,7 @@ const VISOR = 'https://geoportal.minetur.gob.es/VCTEL/vcne.do';
     en el campo: células pequeñas donde hay mucho tráfico y grandes donde hay poco,
     como en el apartado de reutilización de frecuencias.
   </p>
-  <p><a class="mapa-enlace" href={VISOR} target="_blank" rel="noopener">Abrir el visor de estaciones del Ministerio <span aria-hidden="true">↗</span><span class="sr-only"> (se abre en otra pestaña)</span></a></p>
+  <p><a class="mapa-enlace" href={VISOR} target="_blank" rel="noopener">Abrir el visor de estaciones del Ministerio <Icono nombre="externo" /><span class="sr-only"> (se abre en otra pestaña)</span></a></p>
 </Widget>
 <style>
   .mapa-enlace { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; font-weight: 700; }
