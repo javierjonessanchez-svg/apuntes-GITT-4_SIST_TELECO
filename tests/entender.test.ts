@@ -23,7 +23,7 @@ describe('células', () => {
     for (const N of [3, 4, 7, 12]) {
       const et = etiquetas(celdas, N);
       expect(new Set(et).size).toBe(N);
-      const [i, j] = ijDe(N);
+      const [i, j] = ijDe(N)!;
       const centro = et[celdas.findIndex(([q, r]) => q === 0 && r === 0)];
       // desplazamiento (i, j) en axiales: misma etiqueta; un paso al lado: otra
       expect(et[celdas.findIndex(([q, r]) => q === i && r === j)]).toBe(centro);
