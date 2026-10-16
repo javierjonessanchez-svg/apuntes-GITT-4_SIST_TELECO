@@ -1,0 +1,2 @@
+@font-face { font-family: Letra; src: url("/fuentes/letra.woff2") format("woff2"); }
+body { font-family: Letra, sans-serif; }
