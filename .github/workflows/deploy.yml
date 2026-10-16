@@ -1,0 +1,43 @@
+# Publica la web en GitHub Pages cada vez que se sube algo a main (o a mano,
+# desde la pestaña Actions). Antes de publicar pasa todas las comprobaciones
+# (npm run check: tipos, construcción, pruebas y comprobador del hub): si algo
+# falla, no se publica nada.
+# Una sola vez en GitHub: Settings → Pages → Source = GitHub Actions.
+name: Publicar en GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Una publicación cada vez; si llega otra, la que está en marcha termina
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  construir:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar el repositorio
+        uses: actions/checkout@v7
+      - name: Comprobar y construir con Astro
+        uses: withastro/action@v6
+        with:
+          build-cmd: npm run check
+
+  publicar:
+    needs: construir
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.publicacion.outputs.page_url }}
+    steps:
+      - name: Publicar en GitHub Pages
+        id: publicacion
+        uses: actions/deploy-pages@v5
