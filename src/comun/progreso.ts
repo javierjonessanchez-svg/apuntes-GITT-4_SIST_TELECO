@@ -13,9 +13,19 @@
 // nunca se escriben ni se borran:
 //   cx-seen   JSON string[]: temas abiertos, con o sin "p-" delante ("p-arq" o "arq")
 //   cx-done   JSON string[]: temas que el estudiante marcó como hechos
-//   cx-know   JSON { pregunta: 0|1|2 }: notas del modo repaso (tarjetas)
+//   cx-know   JSON { pregunta: 0|1 }: 1 = «La sabía», 0 = «Repasar» (aquí pasan a 2 y 0)
 
 export type Nivel = 0 | 1 | 2 | 3;
+
+/** Lo que trae importarCx(): temas que subieron de nivel y notas de tarjetas copiadas. */
+export interface Importado { temas: number; tarjetas: number }
+
+/** Mensaje tras «Traer mi avance», p. ej. «Hecho: 1 tema y 5 tarjetas traídos.» */
+export function textoImportado({ temas, tarjetas }: Importado): string {
+  const t = `${temas} ${temas === 1 ? 'tema' : 'temas'}`;
+  if (tarjetas === 0) return `Hecho: ${t} ${temas === 1 ? 'traído' : 'traídos'}.`;
+  return `Hecho: ${t} y ${tarjetas} ${tarjetas === 1 ? 'tarjeta' : 'tarjetas'} traídos.`;
+}
 
 // Temas antiguos → temas nuevos de Conmutación
 const MAPA_CX: Record<string, string> = {
@@ -100,9 +110,9 @@ export function crearProgreso(almacen: Storage | null) {
     return ['cx-seen', 'cx-done', 'cx-know'].some((k) => leer(k) !== null);
   }
 
-  /** Trae el avance antiguo sin bajar ningún nivel. Devuelve cuántos temas cambiaron. */
-  function importarCx(): number {
-    if (!disponible) return 0;
+  /** Trae el avance antiguo sin bajar ningún nivel. Devuelve cuántos temas y tarjetas trajo. */
+  function importarCx(): Importado {
+    if (!disponible) return { temas: 0, tarjetas: 0 };
     const objetivo = new Map<string, Nivel>();
     for (const t of temasCx('cx-seen')) objetivo.set(t, 1);
     for (const t of temasCx('cx-done')) objetivo.set(t, 3);
@@ -110,16 +120,20 @@ export function crearProgreso(almacen: Storage | null) {
     for (const [t, n] of objetivo) {
       if (n > nivel('conmutacion', t)) { marcar('conmutacion', t, n); cambiados++; }
     }
-    // Las notas nuevas mandan sobre las antiguas
+    // La web antigua solo tenía «La sabía» (1) y «Repasar» (0): pasan a 2 y 0.
+    // Las notas nuevas mandan sobre las antiguas.
+    let traidas = 0;
     const antiguas = leerJson<unknown>('cx-know', {});
     if (antiguas && typeof antiguas === 'object' && !Array.isArray(antiguas)) {
-      const limpias = Object.fromEntries(
-        Object.entries(antiguas).filter(([, v]) => v === 0 || v === 1 || v === 2),
-      ) as Record<string, 0 | 1 | 2>;
-      escribir('gitt-conmutacion-tarjetas', JSON.stringify({ ...limpias, ...tarjetas('conmutacion') }));
+      const nuevas = tarjetas('conmutacion');
+      const limpias: Record<string, 0 | 2> = {};
+      for (const [q, v] of Object.entries(antiguas)) {
+        if ((v === 0 || v === 1) && !(q in nuevas)) { limpias[q] = v === 1 ? 2 : 0; traidas++; }
+      }
+      escribir('gitt-conmutacion-tarjetas', JSON.stringify({ ...limpias, ...nuevas }));
     }
     escribir('gitt-importado-cx', '1');
-    return cambiados;
+    return { temas: cambiados, tarjetas: traidas };
   }
 
   /** "No, gracias": no se vuelve a ofrecer. */

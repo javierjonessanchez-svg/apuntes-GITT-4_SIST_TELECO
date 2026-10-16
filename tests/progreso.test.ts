@@ -1,7 +1,7 @@
 // Progreso guardado en el navegador: niveles, checklist, tarjetas e importación
 // del avance de la web antigua de Conmutación (claves cx-).
 import { describe, expect, test } from 'vitest';
-import { almacenDelNavegador, crearProgreso } from '../src/comun/progreso';
+import { almacenDelNavegador, crearProgreso, textoImportado } from '../src/comun/progreso';
 
 // Almacén falso con la misma forma que localStorage
 function almacenFalso(inicial: Record<string, string> = {}): Storage {
@@ -72,17 +72,18 @@ describe('importación del avance antiguo (cx-)', () => {
   const antiguo = () => almacenFalso({
     'cx-done': '["p-arq"]',
     'cx-seen': '["um"]',
-    'cx-know': '{"¿Qué es el VLR?":1}',
+    'cx-know': '{"¿Qué es el VLR?":1,"¿Qué es el HLR?":0}',
   });
 
   test('trae vistos y dominados, y no toca las claves antiguas', () => {
     const a = antiguo();
     const p = crearProgreso(a);
     expect(p.cxPendiente()).toBe(true);
-    expect(p.importarCx()).toBe(2);
+    expect(p.importarCx()).toEqual({ temas: 2, tarjetas: 2 });
     expect(p.nivel('conmutacion', 'arquitectura-gsm')).toBe(3);
     expect(p.nivel('conmutacion', 'interfaz-aerea')).toBe(1);
-    expect(p.tarjetas('conmutacion')).toEqual({ '¿Qué es el VLR?': 1 });
+    // En la web antigua 1 era «La sabía» y 0 «Repasar»; aquí la nota alta es 2
+    expect(p.tarjetas('conmutacion')).toEqual({ '¿Qué es el VLR?': 2, '¿Qué es el HLR?': 0 });
     expect(a.getItem('cx-done')).toBe('["p-arq"]');
     expect(a.getItem('cx-seen')).toBe('["um"]');
     expect(p.cxPendiente()).toBe(false);
@@ -90,7 +91,7 @@ describe('importación del avance antiguo (cx-)', () => {
   test('importar dos veces no cambia nada la segunda', () => {
     const p = crearProgreso(antiguo());
     p.importarCx();
-    expect(p.importarCx()).toBe(0);
+    expect(p.importarCx()).toEqual({ temas: 0, tarjetas: 0 });
     expect(p.nivel('conmutacion', 'arquitectura-gsm')).toBe(3);
     expect(p.nivel('conmutacion', 'interfaz-aerea')).toBe(1);
   });
@@ -99,6 +100,24 @@ describe('importación del avance antiguo (cx-)', () => {
     a.setItem('gitt-conmutacion-interfaz-aerea', '2');
     crearProgreso(a).importarCx();
     expect(crearProgreso(a).nivel('conmutacion', 'interfaz-aerea')).toBe(2);
+  });
+  test('una nota nueva de tarjeta manda sobre la antigua y no cuenta como traída', () => {
+    const a = antiguo();
+    a.setItem('gitt-conmutacion-tarjetas', '{"¿Qué es el VLR?":0}');
+    const p = crearProgreso(a);
+    expect(p.importarCx().tarjetas).toBe(1);
+    expect(p.tarjetas('conmutacion')['¿Qué es el VLR?']).toBe(0);
+  });
+  test('valores antiguos que no son 0 ni 1 se descartan', () => {
+    const p = crearProgreso(almacenFalso({ 'cx-know': '{"a":2,"b":"1","c":1}' }));
+    expect(p.importarCx()).toEqual({ temas: 0, tarjetas: 1 });
+    expect(p.tarjetas('conmutacion')).toEqual({ c: 2 });
+  });
+  test('el mensaje cuenta temas y tarjetas', () => {
+    expect(textoImportado({ temas: 0, tarjetas: 5 })).toBe('Hecho: 0 temas y 5 tarjetas traídos.');
+    expect(textoImportado({ temas: 1, tarjetas: 1 })).toBe('Hecho: 1 tema y 1 tarjeta traídos.');
+    expect(textoImportado({ temas: 2, tarjetas: 0 })).toBe('Hecho: 2 temas traídos.');
+    expect(textoImportado({ temas: 1, tarjetas: 0 })).toBe('Hecho: 1 tema traído.');
   });
   test('"No, gracias" marca la oferta como vista sin importar', () => {
     const p = crearProgreso(antiguo());
@@ -111,7 +130,7 @@ describe('importación del avance antiguo (cx-)', () => {
   });
   test('claves antiguas rotas no rompen la importación', () => {
     const p = crearProgreso(almacenFalso({ 'cx-done': '{no es json', 'cx-seen': '["rr","desconocido"]' }));
-    expect(p.importarCx()).toBe(1);
+    expect(p.importarCx().temas).toBe(1);
     expect(p.nivel('conmutacion', 'capa-red-rr')).toBe(1);
   });
 });
@@ -125,7 +144,7 @@ describe('almacén bloqueado', () => {
     expect(() => p.marcarSaber('conmutacion', 'capa-enlace', 0, true)).not.toThrow();
     expect(p.checklist('conmutacion', 'capa-enlace', 2)).toEqual([false, false]);
     expect(p.cxPendiente()).toBe(false);
-    expect(p.importarCx()).toBe(0);
+    expect(p.importarCx()).toEqual({ temas: 0, tarjetas: 0 });
   });
   test('sin almacén (al construir en Node): disponible es false', () => {
     expect(crearProgreso(null).disponible).toBe(false);

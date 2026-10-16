@@ -100,16 +100,19 @@ const herramientas = [
 </div>
 <script>
   import { pintarAvance } from '../../comun/cliente/avance';
-  import progreso from '../../comun/progreso';
+  import progreso, { textoImportado } from '../../comun/progreso';
 
   // Sin almacén (bloqueado), las lámparas no pueden recordar nada: se avisa
   if (!progreso.disponible) document.querySelector<HTMLElement>('[data-aviso-almacen]')!.hidden = false;
 
-  // Empezar / Seguir / Repasar según el nivel del tema
-  for (const a of document.querySelectorAll<HTMLAnchorElement>('[data-empezar]')) {
-    const nivel = progreso.nivel(a.dataset.asig!, a.dataset.tema!);
-    a.firstChild!.textContent = nivel === 0 ? 'Empezar' : nivel === 3 ? 'Repasar' : 'Seguir';
+  // Empezar / Seguir / Repasar según el nivel del tema (también tras importar)
+  function pintarBotones() {
+    for (const a of document.querySelectorAll<HTMLAnchorElement>('[data-empezar]')) {
+      const nivel = progreso.nivel(a.dataset.asig!, a.dataset.tema!);
+      a.firstChild!.textContent = nivel === 0 ? 'Empezar' : nivel === 3 ? 'Repasar' : 'Seguir';
+    }
   }
+  pintarBotones();
 
   // Oferta única: traer el avance de la web antigua de Conmutación (claves cx-)
   const oferta = document.querySelector<HTMLElement>('[data-oferta-cx]');
@@ -118,10 +121,11 @@ const herramientas = [
     const texto = oferta.querySelector<HTMLElement>('[data-oferta-texto]')!;
     const botones = oferta.querySelector<HTMLElement>('[data-oferta-botones]')!;
     oferta.querySelector('[data-traer]')!.addEventListener('click', () => {
-      const n = progreso.importarCx();
+      const traido = progreso.importarCx();
       pintarAvance();
+      pintarBotones();
       botones.remove();
-      texto.textContent = n === 1 ? 'Hecho: 1 tema traído.' : `Hecho: ${n} temas traídos.`;
+      texto.textContent = textoImportado(traido);
       // El botón pulsado ya no existe: el foco pasa al mensaje, que así se lee
       texto.focus();
     });
