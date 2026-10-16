@@ -1,10 +1,10 @@
 ---
-// Botón "Buscar" (también Ctrl K o /) que abre un diálogo con resultados de
+// Botón "Buscar" (también Ctrl K) que abre un diálogo con resultados de
 // Pagefind, el índice estático que se genera al construir. Sin JavaScript el
 // botón no se ve (no funcionaría).
 import Icono from './Icono.astro';
 ---
-<button type="button" class="boton-icono boton-buscar" data-boton-buscar aria-haspopup="dialog" aria-keyshortcuts="Control+K /" hidden>
+<button type="button" class="boton-icono boton-buscar" data-boton-buscar aria-haspopup="dialog" aria-keyshortcuts="Control+K Meta+K" hidden>
   <span class="sr">Buscar</span>
   <Icono nombre="buscar" />
 </button>

@@ -4,7 +4,7 @@
 // las que habla, y abajo sale su ficha. Los subsistemas también se pueden elegir.
 // Los enlaces se dibujan como cordones de centralita que cuelgan un poco.
 import Widget from '../../../widgets/Widget.astro';
-import { ENLACES, NODOS, SUBSISTEMAS } from './red';
+import { ENLACES, NODOS, SUBSISTEMAS, TOKEN_CORDON, colorDe } from './red';
 
 const pos = Object.fromEntries(NODOS.map((n) => [n.id, n]));
 // Cordón: curva que cuelga hacia abajo (o hacia la derecha si el enlace es vertical)
@@ -25,16 +25,16 @@ const ancho = (etiqueta: string) => Math.max(68, etiqueta.length * 8.5 + 22);
   <div class="red" data-red>
     <div class="red-subsistemas" role="group" aria-label="Subsistemas">
       {(Object.keys(SUBSISTEMAS) as (keyof typeof SUBSISTEMAS)[]).map((s) => (
-        <button type="button" class={`s-${s}`} data-sub={s} aria-pressed="false" title={SUBSISTEMAS[s].nombre}>{s}</button>
+        <button type="button" style={colorDe(s)} data-sub={s} aria-pressed="false" title={SUBSISTEMAS[s].nombre}>{s}</button>
       ))}
     </div>
     <div class="desliza">
-      <svg viewBox="0 0 700 290" role="group" aria-label="Elementos de la red GSM y sus interfaces">
+      <svg viewBox="0 0 700 290" role="group" aria-label="Elementos de la red GSM y sus interfaces" style={`--cordon: var(--${TOKEN_CORDON})`}>
         {cordones.map((c) => <path class="cordon-red" data-l={c.i} d={c.d} />)}
         {cordones.map((c) => c.interfaz && <text class="interfaz" data-l={c.i} x={c.mx} y={c.my + 4}>{c.interfaz}</text>)}
         {NODOS.map((n) => (
-          <g class={`nodo s-${n.sub}`} data-nodo={n.id} tabindex="0" role="button" aria-label={n.titulo}>
-            <rect class="zona" x={n.x - ancho(n.etiqueta) / 2 - 4} y={n.y - 22} width={ancho(n.etiqueta) + 8} height="44" />
+          <g class="nodo" style={colorDe(n.sub)} data-nodo={n.id} tabindex="0" role="button" aria-pressed="false" aria-label={n.titulo}>
+            <rect class="zona" x={n.x - ancho(n.etiqueta) / 2 - 5} y={n.y - 22} width={ancho(n.etiqueta) + 10} height="44" rx="13" />
             <rect x={n.x - ancho(n.etiqueta) / 2} y={n.y - 17} width={ancho(n.etiqueta)} height="34" rx="9" />
             <text x={n.x} y={n.y + 5}>{n.etiqueta}</text>
           </g>
@@ -47,12 +47,8 @@ const ancho = (etiqueta: string) => Math.max(68, etiqueta.length * 8.5 + 22);
   </div>
 </Widget>
 <style>
-  .red { --k: var(--suave); }
-  .s-RSS { --k: var(--resalte); }
-  .s-BSS { --k: var(--primario); }
-  .s-NSS { --k: var(--acento2); }
-  .s-OSS { --k: var(--suave); }
-  .s-EXT { --k: var(--linea); }
+  /* --k y --sobre-k de cada subsistema llegan en style, desde COLORES_SUBSISTEMA de red.ts */
+  .red { --k: var(--suave); --sobre-k: var(--superficie); }
   .red-subsistemas { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
   .red-subsistemas button {
     min-height: 40px; padding: 6px 14px; border: 0; border-radius: 999px; cursor: pointer;
@@ -60,9 +56,9 @@ const ancho = (etiqueta: string) => Math.max(68, etiqueta.length * 8.5 + 22);
     transition-property: background-color, color, scale; transition-duration: .15s; transition-timing-function: ease-out;
   }
   .red-subsistemas button:active { scale: .96; }
-  .red-subsistemas button[aria-pressed="true"] { background: var(--k); color: var(--superficie); }
+  .red-subsistemas button[aria-pressed="true"] { background: var(--k); color: var(--sobre-k); }
   .red svg { display: block; width: 100%; min-width: 620px; height: auto; font-family: inherit; }
-  .cordon-red { fill: none; stroke: var(--linea); stroke-width: 3; stroke-linecap: round; transition-property: stroke, stroke-width, opacity; transition-duration: .2s; }
+  .cordon-red { fill: none; stroke: var(--cordon); stroke-width: 3; stroke-linecap: round; transition-property: stroke, stroke-width, opacity; transition-duration: .2s; }
   .interfaz {
     font-size: 12px; font-weight: 700; fill: var(--suave); text-anchor: middle;
     paint-order: stroke; stroke: var(--superficie); stroke-width: 4px; stroke-linejoin: round;
@@ -72,10 +68,11 @@ const ancho = (etiqueta: string) => Math.max(68, etiqueta.length * 8.5 + 22);
   .nodo .zona { fill: transparent; stroke: none; }
   .nodo rect:not(.zona) { fill: color-mix(in srgb, var(--k) 14%, var(--superficie)); stroke: var(--k); stroke-width: 2; transition-property: fill; transition-duration: .2s; }
   .nodo:hover rect:not(.zona) { fill: color-mix(in srgb, var(--k) 28%, var(--superficie)); }
-  .nodo:focus-visible rect:not(.zona) { stroke: var(--foco, var(--texto)); stroke-width: 4; }
+  /* foco: un anillo por fuera (la zona de pulsación), como el outline del resto de la web */
+  .nodo:focus-visible .zona { stroke: var(--foco, var(--texto)); stroke-width: 3; }
   .nodo text { font-size: 13px; font-weight: 700; fill: var(--texto); text-anchor: middle; pointer-events: none; }
   .nodo.elegido rect:not(.zona) { fill: var(--k); }
-  .nodo.elegido text { fill: var(--superficie); }
+  .nodo.elegido text { fill: var(--sobre-k); }
   .cordon-red.activo { stroke: var(--acento2); stroke-width: 4.5; }
   .interfaz.activo { fill: var(--texto); }
   .red.foco .nodo:not(.activo), .red.foco .cordon-red:not(.activo), .red.foco .interfaz:not(.activo) { opacity: .22; }
@@ -87,7 +84,7 @@ const ancho = (etiqueta: string) => Math.max(68, etiqueta.length * 8.5 + 22);
 </style>
 <script>
   import { montar } from '../../../widgets/cliente';
-  import { ENLACES, NODOS, SUBSISTEMAS, type Subsistema } from './red';
+  import { ENLACES, NODOS, SUBSISTEMAS, colorDe, type Subsistema } from './red';
 
   const escapar = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;');
 
@@ -108,18 +105,19 @@ const ancho = (etiqueta: string) => Math.max(68, etiqueta.length * 8.5 + 22);
         const id = g.dataset.nodo!;
         g.classList.toggle('activo', nodos.has(id));
         g.classList.toggle('elegido', id === nodo || (!!sub && NODOS.find((n) => n.id === id)!.sub === sub));
+        g.setAttribute('aria-pressed', String(id === nodo));
       }
       for (const el of red.querySelectorAll<SVGElement>('[data-l]')) el.classList.toggle('activo', enlaces.has(Number(el.dataset.l)));
       for (const b of red.querySelectorAll<HTMLElement>('[data-sub]')) b.setAttribute('aria-pressed', String(b.dataset.sub === sub));
       if (nodo) {
         const n = NODOS.find((x) => x.id === nodo)!;
         const via = ENLACES.filter((e) => e.a === nodo || e.b === nodo).map((e) => `${e.interfaz || 'enlace directo'} con ${e.a === nodo ? e.b : e.a}`);
-        ficha.className = `red-ficha s-${n.sub}`;
+        ficha.style.cssText = colorDe(n.sub);
         ficha.innerHTML = `<p><span class="quien">${escapar(n.titulo)}</span><span class="etiqueta-sub">${SUBSISTEMAS[n.sub].nombre}</span></p>`
           + `<p><b>Qué hace.</b> ${escapar(n.hace)}</p><p><b>Qué guarda.</b> ${escapar(n.guarda)}</p>`
           + `<p><b>Interfaces.</b> ${escapar(n.interfaces)} En el dibujo: ${via.join(', ')}.</p>`;
       } else if (sub) {
-        ficha.className = `red-ficha s-${sub}`;
+        ficha.style.cssText = colorDe(sub);
         ficha.innerHTML = `<p><span class="quien">${sub}</span><span class="etiqueta-sub">${SUBSISTEMAS[sub].nombre}</span></p><p>${escapar(SUBSISTEMAS[sub].resumen)}</p>`;
       }
     };

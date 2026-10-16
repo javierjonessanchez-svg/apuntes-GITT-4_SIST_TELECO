@@ -10,6 +10,24 @@ export type Nodo = {
 };
 export type Enlace = { a: string; b: string; interfaz: string };
 
+// Color de cada subsistema (token del tema) y el del texto que va encima cuando
+// está elegido; las pruebas de contraste comprueban cada par en claro y oscuro.
+export const COLORES_SUBSISTEMA: Record<Subsistema, { k: string; sobreK: string }> = {
+  RSS: { k: 'resalte', sobreK: 'sobre-resalte' },
+  BSS: { k: 'primario', sobreK: 'sobre-primario' },
+  NSS: { k: 'acento2', sobreK: 'superficie' },
+  OSS: { k: 'suave', sobreK: 'superficie' },
+  EXT: { k: 'linea', sobreK: 'texto' },
+};
+// Cordones en reposo: tienen que verse (3:1) sobre la superficie del widget
+export const TOKEN_CORDON = 'suave';
+
+/** Variables CSS (--k y --sobre-k) con los colores de un subsistema, para un atributo style. */
+export function colorDe(sub: Subsistema): string {
+  const c = COLORES_SUBSISTEMA[sub];
+  return `--k: var(--${c.k}); --sobre-k: var(--${c.sobreK})`;
+}
+
 export const SUBSISTEMAS: Record<Subsistema, { nombre: string; resumen: string }> = {
   RSS: { nombre: 'Subsistema de radio', resumen: 'El terminal: el móvil y su SIM.' },
   BSS: { nombre: 'Subsistema de estaciones base', resumen: 'Controla la radio: BTS, BSC y TRAU.' },

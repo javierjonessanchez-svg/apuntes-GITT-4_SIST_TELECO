@@ -135,3 +135,9 @@ describe('portada', () => {
 test('la portada de Conmutación avisa (oculto de entrada) si el avance no se puede guardar', () => {
   expect(pagina('conmutacion/index.html')).toMatch(/<p[^>]*data-aviso-almacen[^>]*hidden[^>]*>Tu avance no se está guardando en este navegador\.<\/p>/);
 });
+
+test('el buscador no anuncia atajos de una sola tecla (WCAG 2.1.4): solo Ctrl + K', () => {
+  expect(pagina('index.html')).toContain('<kbd>Ctrl</kbd> + <kbd>K</kbd>');
+  expect(pagina('index.html')).not.toContain('<kbd>/</kbd>');
+  expect(readFileSync('src/comun/cliente/buscador.ts', 'utf8')).not.toMatch(/e\.key === '\/'/);
+});

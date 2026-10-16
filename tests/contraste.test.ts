@@ -64,3 +64,18 @@ test('Conmutación tiene su mundo con tokens propios', () => {
     expect(t.oscuro[k], k).toBeTruthy();
   }
 });
+
+test('red GSM: texto sobre el color de cada subsistema ≥ 4,5:1, y los cordones ≥ 3:1 sobre la superficie', async () => {
+  const { COLORES_SUBSISTEMA, TOKEN_CORDON } = await import('../src/asignaturas/conmutacion/widgets/red');
+  const t = leerTokens(readFileSync('src/asignaturas/conmutacion/tema.css', 'utf8'));
+  const fallos: string[] = [];
+  for (const modo of ['claro', 'oscuro'] as const) {
+    for (const [sub, { k, sobreK }] of Object.entries(COLORES_SUBSISTEMA)) {
+      const r = ratio(t[modo][sobreK], t[modo][k]);
+      if (!(r >= 4.5)) fallos.push(`${modo} ${sub}: ${sobreK} sobre ${k} = ${r}`);
+    }
+    const c = ratio(t[modo][TOKEN_CORDON], t[modo].superficie);
+    if (!(c >= 3)) fallos.push(`${modo} cordón: ${TOKEN_CORDON} sobre superficie = ${c}`);
+  }
+  expect(fallos).toEqual([]);
+});

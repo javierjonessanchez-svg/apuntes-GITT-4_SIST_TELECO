@@ -264,7 +264,7 @@ a.chip:hover { background: color-mix(in srgb, var(--primario) 10%, var(--superfi
 .buscador-resultados a:hover, .buscador-resultados a:focus-visible { background: color-mix(in srgb, var(--primario) 10%, transparent); }
 .buscador-resultados small { color: var(--suave); }
 .buscador-resultados span { font-size: .92rem; color: var(--suave); }
-.buscador-resultados mark { background: color-mix(in srgb, var(--resalte) 55%, transparent); color: inherit; border-radius: 3px; }
+.buscador-resultados mark { background: var(--resalte); color: var(--sobre-resalte); border-radius: 3px; }
 
 /* ---------- Línea de tiempo ---------- */
 /* En el móvil: una lista de pruebas por fecha. */
@@ -275,7 +275,7 @@ a.chip:hover { background: color-mix(in srgb, var(--primario) 10%, var(--superfi
 .linea-prueba b { grid-row: span 2; min-width: 4.5em; }
 .linea-prueba small { color: var(--suave); }
 .linea-prueba .linea-dias { font-weight: 700; color: var(--texto); font-variant-numeric: tabular-nums; }
-.linea-prueba.pasada { opacity: .6; }
+.linea-prueba.pasada b { color: var(--suave); } /* atenuada sin bajar el contraste del texto */
 .linea-eje, .linea-hoy { display: none; }
 /* En pantallas anchas: eje horizontal con cada prueba colocada en su fecha (--x de 0 a 1) */
 @media (min-width: 760px) {

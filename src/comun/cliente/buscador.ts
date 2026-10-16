@@ -90,11 +90,9 @@ if (boton && dialogo) {
   dialogo.addEventListener('click', (e) => { if (e.target === dialogo) dialogo.close(); });
 
   document.addEventListener('keydown', (e) => {
-    const escribiendo = e.target instanceof HTMLElement && e.target.closest('input, textarea, select, [contenteditable="true"]');
+    // Solo con Ctrl/⌘: un atajo de una sola tecla (como «/») lo dispara sin querer
+    // quien usa control por voz (WCAG 2.1.4)
     if ((e.key === 'k' || e.key === 'K') && (e.ctrlKey || e.metaKey)) {
-      e.preventDefault();
-      abrir();
-    } else if (e.key === '/' && !escribiendo && !dialogo.open) {
       e.preventDefault();
       abrir();
     }

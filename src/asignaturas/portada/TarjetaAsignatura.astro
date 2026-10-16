@@ -16,7 +16,8 @@ const activa = a.estado === 'activa';
   <p>{a.descripcion}</p>
   {activa && temas.length > 0 && (
     <>
-      <div class="tarjeta-mundo">
+      {/* las lámparas son un anticipo visual: el lector de pantalla ya tiene «N de M temas dominados» */}
+      <div class="tarjeta-mundo" aria-hidden="true">
         {temas.map((t) => <Avance asignatura={a.slug} tema={t.slug} />)}
       </div>
       <div class="tarjeta-barra" data-avance-barra data-asig={a.slug} data-temas={temas.map((t) => t.slug).join(',')}>
