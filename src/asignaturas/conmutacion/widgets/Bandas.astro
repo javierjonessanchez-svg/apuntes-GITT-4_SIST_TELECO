@@ -1,0 +1,99 @@
+---
+// Bandas GSM en España: número de portadora (ARFCN) → frecuencias de subida y
+// bajada, con el desarrollo, y al revés (frecuencia → portadora). Debajo, la
+// tabla de las tres bandas. Sin JavaScript se ve un ejemplo ya resuelto.
+import Widget from '../../../widgets/Widget.astro';
+import Desarrollo from '../../../widgets/Desarrollo.astro';
+import { fmt } from '../../../widgets/numeros';
+import { arfcnAFrecuencia, pasosArfcn } from './bandas';
+
+const EJEMPLO = 60;
+const p = arfcnAFrecuencia(EJEMPLO)!;
+const BANDAS = [
+  { banda: 'GSM 900 (P-GSM)', arfcn: '1 a 124', subida: '890,2 a 914,8', bajada: '935,2 a 959,8', duplex: 45 },
+  { banda: 'E-GSM', arfcn: '0 y 975 a 1023', subida: '880,2 a 890', bajada: '925,2 a 935', duplex: 45 },
+  { banda: 'DCS 1800', arfcn: '512 a 885', subida: '1710,2 a 1784,8', bajada: '1805,2 a 1879,8', duplex: 95 },
+];
+---
+<Widget titulo="Bandas y números de portadora" tipo="real">
+  <div class="bandas">
+    <div data-arfcn>
+      <form class="widget-campos">
+        <label class="widget-campo">Número de portadora (ARFCN)
+          <input name="n" inputmode="numeric" value={EJEMPLO} autocomplete="off" spellcheck="false" />
+        </label>
+      </form>
+      <p class="widget-aviso" data-aviso role="status" hidden></p>
+      <p class="widget-resultado" data-resultado aria-live="polite"></p>
+      <Desarrollo />
+    </div>
+    <div class="bandas-inversa" data-frecuencia>
+      <form class="widget-campos">
+        <label class="widget-campo">Y al revés: frecuencia en MHz
+          <input name="f" inputmode="decimal" value="947,2" autocomplete="off" spellcheck="false" />
+        </label>
+      </form>
+      <p class="widget-aviso" data-aviso role="status" hidden></p>
+      <p class="widget-resultado" data-resultado aria-live="polite"></p>
+      <Desarrollo titulo="De dónde sale" />
+    </div>
+    <div class="desliza">
+      <table class="bandas-tabla">
+        <caption>Las bandas GSM que se usan en España (MHz)</caption>
+        <thead><tr><th scope="col">Banda</th><th scope="col">ARFCN</th><th scope="col">Subida</th><th scope="col">Bajada</th><th scope="col">Dúplex</th></tr></thead>
+        <tbody>
+          {BANDAS.map((b) => <tr><th scope="row">{b.banda}</th><td>{b.arfcn}</td><td>{b.subida}</td><td>{b.bajada}</td><td>{b.duplex}</td></tr>)}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <Fragment slot="estatico">
+    <p class="widget-resultado">La portadora {EJEMPLO} es de <b>{p.banda}</b>: sube por {fmt(p.subidaMHz, 1)} MHz y baja por {fmt(p.bajadaMHz, 1)} MHz.</p>
+    <Desarrollo pasos={pasosArfcn(EJEMPLO)} />
+    <div class="desliza">
+      <table class="bandas-tabla">
+        <caption>Las bandas GSM que se usan en España (MHz)</caption>
+        <thead><tr><th scope="col">Banda</th><th scope="col">ARFCN</th><th scope="col">Subida</th><th scope="col">Bajada</th><th scope="col">Dúplex</th></tr></thead>
+        <tbody>
+          {BANDAS.map((b) => <tr><th scope="row">{b.banda}</th><td>{b.arfcn}</td><td>{b.subida}</td><td>{b.bajada}</td><td>{b.duplex}</td></tr>)}
+        </tbody>
+      </table>
+    </div>
+  </Fragment>
+</Widget>
+<style>
+  .bandas-inversa { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--linea); }
+  .bandas-tabla { width: 100%; min-width: 520px; margin-top: 18px; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: .92rem; }
+  .bandas-tabla caption { text-align: left; font-weight: 700; margin-bottom: 6px; }
+  .bandas-tabla th, .bandas-tabla td { padding: 6px 10px; border-bottom: 1px solid var(--linea); text-align: left; }
+  .bandas-tabla thead th { color: var(--suave); font-weight: 600; }
+</style>
+<script>
+  import { montar } from '../../../widgets/cliente';
+  import { calculadora } from '../../../widgets/calculadora';
+  import { fmt } from '../../../widgets/numeros';
+  import { arfcnAFrecuencia, frecuenciaAArfcn, pasosArfcn } from './bandas';
+
+  montar('[data-arfcn]', (caja) => calculadora(caja, [
+    { nombre: 'n', etiqueta: 'Número de portadora', reglas: { entero: true, min: 0, max: 1023 } },
+  ], ({ n }) => {
+    const p = arfcnAFrecuencia(n!);
+    return {
+      resultado: p
+        ? `${p.banda}: sube por **${fmt(p.subidaMHz, 1)} MHz** y baja por **${fmt(p.bajadaMHz, 1)} MHz**`
+        : `El ${n} no es una portadora de ninguna de las tres bandas.`,
+      pasos: pasosArfcn(n!),
+    };
+  }));
+
+  montar('[data-frecuencia]', (caja) => calculadora(caja, [
+    { nombre: 'f', etiqueta: 'Frecuencia', reglas: { positivo: true, max: 3000 } },
+  ], ({ f }) => {
+    const r = frecuenciaAArfcn(f!);
+    if (!r) return { resultado: `${fmt(f!, 4)} MHz no cae en la rejilla de 200 kHz de ninguna de las tres bandas.`, pasos: [] };
+    return {
+      resultado: `Es la **portadora ${r.arfcn}** (${r.banda}), en el sentido de ${r.sentido}`,
+      pasos: pasosArfcn(r.arfcn),
+    };
+  }));
+</script>

@@ -18,6 +18,8 @@ import Racimo from '../../../src/asignaturas/conmutacion/widgets/Racimo.astro';
 import Jerarquia from '../../../src/asignaturas/conmutacion/widgets/Jerarquia.astro';
 import TramaTDMA from '../../../src/asignaturas/conmutacion/widgets/TramaTDMA.astro';
 import FlujoLlamada from '../../../src/asignaturas/conmutacion/widgets/FlujoLlamada.astro';
+import Bandas from '../../../src/asignaturas/conmutacion/widgets/Bandas.astro';
+import MapaAntenas from '../../../src/asignaturas/conmutacion/widgets/MapaAntenas.astro';
 
 Entre el móvil y la BTS no hay un cable: hay que repartir el espectro en frecuencia y en tiempo, y dentro de cada ranura de tiempo repartir otra vez entre los canales lógicos. Este tema es el que más cálculos genera.
 
@@ -30,7 +32,7 @@ GSM es un sistema **FDD/TDMA**. *FDD* (duplexión por división en frecuencia) s
 | **GSM 900** | 890–915 MHz | 935–960 MHz | 124 | 45 MHz |
 | **GSM 1800** | 1710–1785 MHz | 1805–1880 MHz | 374 | 95 MHz |
 
-{/* widget: Bandas */}
+<Bandas />
 
 ### Reutilización de frecuencias
 
@@ -45,6 +47,8 @@ $$
 Un $N$ grande mejora la C/I pero deja menos portadoras en cada célula: es el compromiso entre calidad y capacidad. Con $\gamma = 4$ y $N = 7$ sale $C/I \approx 18{,}7$ dB.
 
 <Racimo />
+
+<MapaAntenas />
 
 ## Tiempo: tramas, multitramas y más
 

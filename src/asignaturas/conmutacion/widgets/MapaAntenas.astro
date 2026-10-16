@@ -1,0 +1,24 @@
+---
+// Enlace al visor público del Ministerio con las estaciones de telefonía móvil
+// de España (sus niveles de exposición). No se incrusta: se abre en otra pestaña.
+import Widget from '../../../widgets/Widget.astro';
+
+const VISOR = 'https://geoportal.minetur.gob.es/VCTEL/vcne.do';
+---
+<Widget titulo="Las antenas de tu barrio" tipo="real">
+  <p>
+    El Ministerio publica un mapa con las estaciones de telefonía móvil de toda España.
+    Busca tu calle: cada punto es un emplazamiento de antenas, y en su ficha salen
+    sus datos y las medidas de exposición radioeléctrica.
+  </p>
+  <p>
+    Fíjate en lo juntas que están en el centro de una ciudad y lo separadas que quedan
+    en el campo: células pequeñas donde hay mucho tráfico y grandes donde hay poco,
+    como en el apartado de reutilización de frecuencias.
+  </p>
+  <p><a class="mapa-enlace" href={VISOR} target="_blank" rel="noopener">Abrir el visor de estaciones del Ministerio <span aria-hidden="true">↗</span><span class="sr-only"> (se abre en otra pestaña)</span></a></p>
+</Widget>
+<style>
+  .mapa-enlace { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; font-weight: 700; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+</style>
