@@ -1,0 +1,103 @@
+---
+// Racimo de reúso: rejilla hexagonal con la etiqueta (grupo de portadoras) de
+// cada célula. Se resaltan el racimo central y las células cocanal de la del
+// centro; al cambiar N o γ se recalculan D/R y la C/I. Sin JavaScript se ve N = 7.
+import Widget from '../../../widgets/Widget.astro';
+import Deslizador from '../../../widgets/Deslizador.astro';
+import { fmt } from '../../../widgets/numeros';
+import { ciDb, etiquetas } from './celulas';
+
+const TAMANOS = [3, 4, 7, 9, 12, 13];
+const N0 = 7, GAMMA0 = 4, RADIO = 4, S = 22; // S: radio del hexágono dibujado, en px
+
+// Celdas de un hexágono de radio 4, de dentro afuera (la del centro, la primera)
+const dist = ([q, r]: [number, number]) => Math.max(Math.abs(q), Math.abs(r), Math.abs(q + r));
+const celdas: [number, number][] = [];
+for (let q = -RADIO; q <= RADIO; q++) for (let r = -RADIO; r <= RADIO; r++) if (dist([q, r]) <= RADIO) celdas.push([q, r]);
+celdas.sort((a, b) => dist(a) - dist(b) || Math.atan2(a[1], a[0]) - Math.atan2(b[1], b[0]));
+
+const centro = ([q, r]: [number, number]) => [S * Math.sqrt(3) * (q + r / 2), S * 1.5 * r];
+const hexagono = ([x, y]: number[]) =>
+  Array.from({ length: 6 }, (_, k) => {
+    const a = (Math.PI / 3) * k + Math.PI / 6;
+    return `${(x + (S - 1) * Math.cos(a)).toFixed(1)},${(y + (S - 1) * Math.sin(a)).toFixed(1)}`;
+  }).join(' ');
+const et = etiquetas(celdas, N0);
+const vistas = new Set<number>();
+const central = et.map((e) => (vistas.has(e) ? false : (vistas.add(e), true)));
+const ancho = 2 * (S * Math.sqrt(3) * RADIO + S);
+const alto = 2 * (S * 1.5 * RADIO + S);
+---
+<Widget titulo="Racimo de reúso de frecuencias" tipo="entender">
+  <div class="racimo" data-racimo>
+    <div class="widget-campos racimo-controles" data-controles hidden>
+      <label class="widget-campo">Tamaño del racimo, N
+        <select name="n">{TAMANOS.map((n) => <option value={n} selected={n === N0}>{n}</option>)}</select>
+      </label>
+      <Deslizador id="racimo-gamma" etiqueta="Exponente de pérdidas, γ" min={2} max={5} paso={0.1} valor={GAMMA0} decimales={1} />
+    </div>
+    <p class="widget-resultado" data-resultado aria-live="polite">
+      N = {N0}: D = <b>{fmt(Math.sqrt(3 * N0), 2)} R</b> · C/I = <b>{fmt(ciDb(N0, GAMMA0), 1)} dB</b> (γ = {fmt(GAMMA0, 1)}, 6 interferentes)
+    </p>
+    <svg class="racimo-dibujo" viewBox={`${-ancho / 2} ${-alto / 2} ${ancho} ${alto}`} role="img"
+      aria-label="Rejilla de células hexagonales con el número de grupo de portadoras de cada una">
+      {celdas.map((c, i) => (
+        <g class:list={['celda', { central: central[i], cocanal: et[i] === 1 }]} data-celda={i} data-q={c[0]} data-r={c[1]}>
+          <polygon points={hexagono(centro(c))} />
+          <text x={centro(c)[0]} y={centro(c)[1] + 4}>{et[i]}</text>
+        </g>
+      ))}
+    </svg>
+    <ul class="racimo-leyenda">
+      <li><i class="central" />Racimo central: cada grupo de portadoras una vez</li>
+      <li><i class="cocanal" />Células cocanal de la del centro (grupo 1)</li>
+    </ul>
+  </div>
+</Widget>
+<style>
+  .racimo-dibujo { display: block; width: 100%; max-width: 440px; margin: 12px auto 0; font-size: 11px; }
+  .celda polygon { fill: var(--fondo); stroke: var(--linea); stroke-width: 1; transition-property: fill; transition-duration: .15s; }
+  .celda text { fill: var(--suave); text-anchor: middle; font-variant-numeric: tabular-nums; }
+  .celda.central polygon { fill: color-mix(in srgb, var(--primario) 22%, var(--fondo)); }
+  .celda.central text { fill: var(--texto); }
+  .celda.cocanal polygon { fill: var(--resalte); }
+  .celda.cocanal text { fill: var(--sobre-resalte); font-weight: 700; }
+  .racimo-leyenda { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 10px 0 0; padding: 0; list-style: none; font-size: .85rem; color: var(--suave); }
+  .racimo-leyenda li { display: inline-flex; align-items: center; gap: 6px; }
+  .racimo-leyenda i { width: 14px; height: 14px; border-radius: 4px; }
+  .racimo-leyenda i.central { background: color-mix(in srgb, var(--primario) 22%, var(--fondo)); box-shadow: inset 0 0 0 1px var(--linea); }
+  .racimo-leyenda i.cocanal { background: var(--resalte); }
+  .racimo-controles { margin-bottom: 4px; }
+  .racimo-controles .deslizador { flex: 1 1 14em; }
+  [data-controles][hidden] { display: none; }
+</style>
+<script>
+  import { montar } from '../../../widgets/cliente';
+  import { fmt } from '../../../widgets/numeros';
+  import { ciDb, etiquetas } from './celulas';
+
+  montar('[data-racimo]', (caja) => {
+    const n = caja.querySelector<HTMLSelectElement>('select[name="n"]')!;
+    const gamma = caja.querySelector<HTMLInputElement>('#racimo-gamma')!;
+    const resultado = caja.querySelector<HTMLElement>('[data-resultado]')!;
+    const grupos = [...caja.querySelectorAll<SVGGElement>('[data-celda]')];
+    const celdas = grupos.map((g) => [Number(g.dataset.q), Number(g.dataset.r)] as [number, number]);
+
+    const pintar = () => {
+      const N = Number(n.value), g = Number(gamma.value);
+      const et = etiquetas(celdas, N);
+      const vistas = new Set<number>();
+      grupos.forEach((grupo, i) => {
+        grupo.classList.toggle('central', !vistas.has(et[i]));
+        vistas.add(et[i]);
+        grupo.classList.toggle('cocanal', et[i] === 1);
+        grupo.querySelector('text')!.textContent = String(et[i]);
+      });
+      resultado.innerHTML = `N = ${N}: D = <b>${fmt(Math.sqrt(3 * N), 2)} R</b> · C/I = <b>${fmt(ciDb(N, g), 1)} dB</b> (γ = ${fmt(g, 1)}, 6 interferentes)`;
+    };
+    caja.addEventListener('input', pintar);
+    caja.addEventListener('change', pintar);
+    caja.querySelector<HTMLElement>('[data-controles]')!.hidden = false;
+    pintar();
+  });
+</script>

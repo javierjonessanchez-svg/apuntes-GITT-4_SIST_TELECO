@@ -1,0 +1,14 @@
+---
+// Problema con enunciado de estilo libro (números inventados), pistas que se
+// abren de una en una y la solución al final. Los textos admiten $…$ y **negrita**.
+import Widget from '../../../widgets/Widget.astro';
+import Pistas from '../../../widgets/Pistas.astro';
+import { conMates } from '../../../widgets/mates';
+
+interface Props { enunciado: string; pistas: string[]; solucion: string; titulo?: string }
+const { enunciado, pistas, solucion, titulo = 'Enunciado' } = Astro.props;
+---
+<Widget titulo={titulo} tipo="resolver">
+  <p class="problema-enunciado" set:html={conMates(enunciado)} />
+  <Pistas pistas={pistas} solucion={solucion} />
+</Widget>

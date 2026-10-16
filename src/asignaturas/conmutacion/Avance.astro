@@ -1,0 +1,10 @@
+---
+// Avance de un tema en el mundo de Conmutación: una lámpara del cuadro.
+// Se usa también en la tarjeta de la portada, así que lleva sus propios colores.
+interface Props { asignatura: string; tema: string }
+const { asignatura, tema } = Astro.props;
+---
+<span class="cx-avance" data-avance data-asig={asignatura} data-tema={tema} data-nivel="0">
+  <span class="lampara" aria-hidden="true"></span>
+  <span class="sr" data-avance-texto>Sin empezar</span>
+</span>

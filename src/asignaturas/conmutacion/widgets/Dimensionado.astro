@@ -1,0 +1,49 @@
+---
+// Dimensionado: usuarios × tráfico por usuario → canales para un bloqueo
+// objetivo (Erlang B), con los pasos. Sin JavaScript se ve el ejemplo resuelto.
+import Widget from '../../../widgets/Widget.astro';
+import Desarrollo from '../../../widgets/Desarrollo.astro';
+import { fmt } from '../../../widgets/numeros';
+import { pasosDimensionado } from './erlang';
+
+interface Props { usuarios?: number; mE?: number; objetivo?: number }
+const { usuarios = 250, mE = 20, objetivo = 2 } = Astro.props;
+---
+<Widget titulo="¿Cuántos canales hacen falta?" tipo="resolver">
+  <div data-dimensionado>
+    <form class="widget-campos">
+      <label class="widget-campo">Usuarios
+        <input name="u" inputmode="numeric" value={usuarios} autocomplete="off" spellcheck="false" />
+      </label>
+      <label class="widget-campo">Tráfico por usuario (mE)
+        <input name="m" inputmode="decimal" value={fmt(mE)} autocomplete="off" spellcheck="false" />
+      </label>
+      <label class="widget-campo">Bloqueo máximo (%)
+        <input name="p" inputmode="decimal" value={fmt(objetivo)} autocomplete="off" spellcheck="false" />
+      </label>
+    </form>
+    <p class="widget-aviso" data-aviso role="status" hidden></p>
+    <p class="widget-resultado" data-resultado aria-live="polite"></p>
+    <Desarrollo />
+  </div>
+  <Fragment slot="estatico">
+    <p class="widget-resultado">Ejemplo con {usuarios} usuarios de {fmt(mE)} mE y un bloqueo máximo del {fmt(objetivo)} %:</p>
+    <Desarrollo pasos={pasosDimensionado(usuarios, mE, objetivo)} />
+  </Fragment>
+</Widget>
+<script>
+  import { montar } from '../../../widgets/cliente';
+  import { calculadora } from '../../../widgets/calculadora';
+  import { fmt } from '../../../widgets/numeros';
+  import { canalesPara, pasosDimensionado } from './erlang';
+
+  montar('[data-dimensionado]', (caja) => calculadora(caja, [
+    { nombre: 'u', etiqueta: 'Usuarios', reglas: { entero: true, min: 1, max: 1000000 } },
+    { nombre: 'm', etiqueta: 'Tráfico por usuario', reglas: { positivo: true, max: 1000 } },
+    { nombre: 'p', etiqueta: 'Bloqueo máximo', reglas: { positivo: true, max: 99 } },
+  ], ({ u, m, p }) => {
+    const N = canalesPara((u! * m!) / 1000, p! / 100);
+    const resultado = Number.isNaN(N) ? 'Más de 5000 canales: revisa los datos' : `Hacen falta **${fmt(N)} canales**`;
+    return { resultado, pasos: pasosDimensionado(u!, m!, p!) };
+  }));
+</script>

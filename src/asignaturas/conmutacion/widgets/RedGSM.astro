@@ -1,0 +1,136 @@
+---
+// Arquitectura de red GSM clicable (comportamiento del prototipo C): al pulsar un
+// elemento (o Intro / espacio) se resaltan él, sus cordones y las interfaces por
+// las que habla, y abajo sale su ficha. Los subsistemas también se pueden elegir.
+// Los enlaces se dibujan como cordones de centralita que cuelgan un poco.
+import Widget from '../../../widgets/Widget.astro';
+import { ENLACES, NODOS, SUBSISTEMAS, TOKEN_CORDON, colorDe } from './red';
+
+const pos = Object.fromEntries(NODOS.map((n) => [n.id, n]));
+// Cordón: curva que cuelga hacia abajo (o hacia la derecha si el enlace es vertical)
+const cordones = ENLACES.map((e, i) => {
+  const A = pos[e.a], B = pos[e.b];
+  const dx = B.x - A.x, dy = B.y - A.y, largo = Math.hypot(dx, dy);
+  let [px, py] = [-dy / largo, dx / largo];
+  if (py < 0 || (Math.abs(py) < 1e-9 && px < 0)) [px, py] = [-px, -py];
+  const caida = 10 + largo * 0.08;
+  const cx = (A.x + B.x) / 2 + px * caida, cy = (A.y + B.y) / 2 + py * caida;
+  // punto medio de la curva, para la etiqueta de la interfaz
+  const mx = 0.25 * A.x + 0.5 * cx + 0.25 * B.x, my = 0.25 * A.y + 0.5 * cy + 0.25 * B.y;
+  return { ...e, i, d: `M${A.x} ${A.y} Q${cx.toFixed(1)} ${cy.toFixed(1)} ${B.x} ${B.y}`, mx, my };
+});
+const ancho = (etiqueta: string) => Math.max(68, etiqueta.length * 8.5 + 22);
+---
+<Widget titulo="Arquitectura de red GSM" tipo="real">
+  <div class="red" data-red>
+    <div class="red-subsistemas" role="group" aria-label="Subsistemas">
+      {(Object.keys(SUBSISTEMAS) as (keyof typeof SUBSISTEMAS)[]).map((s) => (
+        <button type="button" style={colorDe(s)} data-sub={s} aria-pressed="false" title={SUBSISTEMAS[s].nombre}>{s}</button>
+      ))}
+    </div>
+    <div class="desliza">
+      <svg viewBox="0 0 700 290" role="group" aria-label="Elementos de la red GSM y sus interfaces" style={`--cordon: var(--${TOKEN_CORDON})`}>
+        {cordones.map((c) => <path class="cordon-red" data-l={c.i} d={c.d} />)}
+        {cordones.map((c) => c.interfaz && <text class="interfaz" data-l={c.i} x={c.mx} y={c.my + 4}>{c.interfaz}</text>)}
+        {NODOS.map((n) => (
+          <g class="nodo" style={colorDe(n.sub)} data-nodo={n.id} tabindex="0" role="button" aria-pressed="false" aria-label={n.titulo}>
+            <rect class="zona" x={n.x - ancho(n.etiqueta) / 2 - 5} y={n.y - 22} width={ancho(n.etiqueta) + 10} height="44" rx="13" />
+            <rect x={n.x - ancho(n.etiqueta) / 2} y={n.y - 17} width={ancho(n.etiqueta)} height="34" rx="9" />
+            <text x={n.x} y={n.y + 5}>{n.etiqueta}</text>
+          </g>
+        ))}
+      </svg>
+    </div>
+    <div class="red-ficha" data-ficha aria-live="polite">
+      <p>Pulsa un elemento o un subsistema. Se resaltan sus cordones y las interfaces por las que habla.</p>
+    </div>
+  </div>
+</Widget>
+<style>
+  /* --k y --sobre-k de cada subsistema llegan en style, desde COLORES_SUBSISTEMA de red.ts */
+  .red { --k: var(--suave); --sobre-k: var(--superficie); }
+  .red-subsistemas { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+  .red-subsistemas button {
+    min-height: 40px; padding: 6px 14px; border: 0; border-radius: 999px; cursor: pointer;
+    background: color-mix(in srgb, var(--k) 16%, var(--superficie)); color: var(--texto); font: inherit; font-size: .9rem; font-weight: 600;
+    transition-property: background-color, color, scale; transition-duration: .15s; transition-timing-function: ease-out;
+  }
+  .red-subsistemas button:active { scale: .96; }
+  .red-subsistemas button[aria-pressed="true"] { background: var(--k); color: var(--sobre-k); }
+  .red svg { display: block; width: 100%; min-width: 620px; height: auto; font-family: inherit; }
+  .cordon-red { fill: none; stroke: var(--cordon); stroke-width: 3; stroke-linecap: round; transition-property: stroke, stroke-width, opacity; transition-duration: .2s; }
+  .interfaz {
+    font-size: 12px; font-weight: 700; fill: var(--suave); text-anchor: middle;
+    paint-order: stroke; stroke: var(--superficie); stroke-width: 4px; stroke-linejoin: round;
+    transition-property: fill, opacity; transition-duration: .2s;
+  }
+  .nodo { cursor: pointer; outline: none; transition-property: opacity; transition-duration: .2s; }
+  .nodo .zona { fill: transparent; stroke: none; }
+  .nodo rect:not(.zona) { fill: color-mix(in srgb, var(--k) 14%, var(--superficie)); stroke: var(--k); stroke-width: 2; transition-property: fill; transition-duration: .2s; }
+  .nodo:hover rect:not(.zona) { fill: color-mix(in srgb, var(--k) 28%, var(--superficie)); }
+  /* foco: un anillo por fuera (la zona de pulsación), como el outline del resto de la web */
+  .nodo:focus-visible .zona { stroke: var(--foco, var(--texto)); stroke-width: 3; }
+  .nodo text { font-size: 13px; font-weight: 700; fill: var(--texto); text-anchor: middle; pointer-events: none; }
+  .nodo.elegido rect:not(.zona) { fill: var(--k); }
+  .nodo.elegido text { fill: var(--sobre-k); }
+  .cordon-red.activo { stroke: var(--acento2); stroke-width: 4.5; }
+  .interfaz.activo { fill: var(--texto); }
+  .red.foco .nodo:not(.activo), .red.foco .cordon-red:not(.activo), .red.foco .interfaz:not(.activo) { opacity: .22; }
+  .red-ficha { min-height: 6.5em; margin-top: 10px; text-wrap: pretty; }
+  /* la ficha se rellena con innerHTML: sus hijos no llevan el atributo de ámbito de Astro */
+  .red-ficha :global(p) { margin: 0 0 6px; }
+  .red-ficha :global(.quien) { font-weight: 700; }
+  .red-ficha :global(.etiqueta-sub) { margin-left: 8px; padding: 1px 8px; border-radius: 999px; font-size: .8rem; font-weight: 600; background: color-mix(in srgb, var(--k) 22%, transparent); }
+</style>
+<script>
+  import { montar } from '../../../widgets/cliente';
+  import { ENLACES, NODOS, SUBSISTEMAS, colorDe, type Subsistema } from './red';
+
+  const escapar = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+
+  montar('[data-red]', (red) => {
+    const ficha = red.querySelector<HTMLElement>('[data-ficha]')!;
+    const elegir = ({ nodo, sub }: { nodo?: string; sub?: Subsistema }) => {
+      const nodos = new Set<string>(), enlaces = new Set<number>();
+      if (nodo) {
+        nodos.add(nodo);
+        ENLACES.forEach((e, i) => { if (e.a === nodo || e.b === nodo) { enlaces.add(i); nodos.add(e.a); nodos.add(e.b); } });
+      }
+      if (sub) {
+        for (const n of NODOS) if (n.sub === sub) nodos.add(n.id);
+        ENLACES.forEach((e, i) => { if (nodos.has(e.a) && nodos.has(e.b)) enlaces.add(i); });
+      }
+      red.classList.add('foco');
+      for (const g of red.querySelectorAll<SVGGElement>('[data-nodo]')) {
+        const id = g.dataset.nodo!;
+        g.classList.toggle('activo', nodos.has(id));
+        g.classList.toggle('elegido', id === nodo || (!!sub && NODOS.find((n) => n.id === id)!.sub === sub));
+        g.setAttribute('aria-pressed', String(id === nodo));
+      }
+      for (const el of red.querySelectorAll<SVGElement>('[data-l]')) el.classList.toggle('activo', enlaces.has(Number(el.dataset.l)));
+      for (const b of red.querySelectorAll<HTMLElement>('[data-sub]')) b.setAttribute('aria-pressed', String(b.dataset.sub === sub));
+      if (nodo) {
+        const n = NODOS.find((x) => x.id === nodo)!;
+        const via = ENLACES.filter((e) => e.a === nodo || e.b === nodo).map((e) => `${e.interfaz || 'enlace directo'} con ${e.a === nodo ? e.b : e.a}`);
+        ficha.style.cssText = colorDe(n.sub);
+        ficha.innerHTML = `<p><span class="quien">${escapar(n.titulo)}</span><span class="etiqueta-sub">${SUBSISTEMAS[n.sub].nombre}</span></p>`
+          + `<p><b>Qué hace.</b> ${escapar(n.hace)}</p><p><b>Qué guarda.</b> ${escapar(n.guarda)}</p>`
+          + `<p><b>Interfaces.</b> ${escapar(n.interfaces)} En el dibujo: ${via.join(', ')}.</p>`;
+      } else if (sub) {
+        ficha.style.cssText = colorDe(sub);
+        ficha.innerHTML = `<p><span class="quien">${sub}</span><span class="etiqueta-sub">${SUBSISTEMAS[sub].nombre}</span></p><p>${escapar(SUBSISTEMAS[sub].resumen)}</p>`;
+      }
+    };
+    red.addEventListener('click', (e) => {
+      const t = e.target as Element;
+      const nodo = t.closest<SVGGElement>('[data-nodo]');
+      const sub = t.closest<HTMLElement>('[data-sub]');
+      if (nodo) elegir({ nodo: nodo.dataset.nodo });
+      else if (sub) elegir({ sub: sub.dataset.sub as Subsistema });
+    });
+    red.addEventListener('keydown', (e) => {
+      const nodo = (e.target as Element).closest<SVGGElement>('[data-nodo]');
+      if (nodo && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); elegir({ nodo: nodo.dataset.nodo }); }
+    });
+  });
+</script>

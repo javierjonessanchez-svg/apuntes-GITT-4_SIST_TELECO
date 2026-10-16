@@ -1,0 +1,71 @@
+---
+// Reproductor de pasos: muestra los hijos con data-paso="0…n-1" de uno en uno
+// (o acumulados, con «acumular»), con anterior / reproducir / siguiente,
+// flechas del teclado y una región viva que anuncia el paso. Cada cambio
+// lanza el evento «cambio-paso» con detail.paso. Sin JavaScript se ven todos.
+import './widgets.css';
+import Icono from '../comun/Icono.astro';
+
+interface Props { pasos: number; acumular?: boolean; etiqueta?: string }
+const { pasos, acumular = false, etiqueta = 'Pasos' } = Astro.props;
+---
+<div class="paso-a-paso" data-paso-a-paso data-pasos={pasos} data-acumular={acumular ? '' : undefined}
+  role="group" aria-label={etiqueta} tabindex="0">
+  <div class="paso-contenido"><slot /></div>
+  <div class="paso-controles" hidden data-paso-controles>
+    <button type="button" class="boton-icono" data-anterior aria-label="Paso anterior"><Icono nombre="anterior" /></button>
+    <button type="button" class="boton-icono" data-reproducir aria-label="Reproducir" aria-pressed="false">
+      <span class="icono-reproducir"><Icono nombre="reproducir" /></span><span class="icono-pausa"><Icono nombre="pausa" /></span>
+    </button>
+    <button type="button" class="boton-icono" data-siguiente aria-label="Paso siguiente"><Icono nombre="siguiente" /></button>
+    <span class="paso-contador" aria-live="polite" data-anuncio></span>
+  </div>
+</div>
+<script>
+  import { montar } from './cliente';
+
+  montar('[data-paso-a-paso]', (caja) => {
+    const total = Number(caja.dataset.pasos);
+    const acumular = caja.hasAttribute('data-acumular');
+    const anuncio = caja.querySelector<HTMLElement>('[data-anuncio]')!;
+    const reproducir = caja.querySelector<HTMLButtonElement>('[data-reproducir]')!;
+    let actual = 0;
+    let reloj: number | undefined;
+
+    const ir = (n: number) => {
+      actual = Math.max(0, Math.min(total - 1, n));
+      for (const el of caja.querySelectorAll<HTMLElement>('[data-paso]')) {
+        const k = Number(el.dataset.paso);
+        // atributo, no la propiedad: así también vale para grupos <g> de un SVG
+        el.toggleAttribute('hidden', acumular ? k > actual : k !== actual);
+      }
+      const titulo = caja.querySelector<HTMLElement>(`[data-paso="${actual}"]`)?.dataset.titulo;
+      anuncio.textContent = `Paso ${actual + 1} de ${total}${titulo ? `: ${titulo}` : ''}`;
+      caja.dispatchEvent(new CustomEvent('cambio-paso', { detail: { paso: actual }, bubbles: true }));
+    };
+    const parar = () => {
+      window.clearInterval(reloj);
+      reloj = undefined;
+      reproducir.setAttribute('aria-pressed', 'false');
+      reproducir.setAttribute('aria-label', 'Reproducir');
+    };
+
+    caja.querySelector('[data-anterior]')!.addEventListener('click', () => { parar(); ir(actual - 1); });
+    caja.querySelector('[data-siguiente]')!.addEventListener('click', () => { parar(); ir(actual + 1); });
+    reproducir.addEventListener('click', () => {
+      if (reloj !== undefined) return parar();
+      if (actual === total - 1) ir(0);
+      reproducir.setAttribute('aria-pressed', 'true');
+      reproducir.setAttribute('aria-label', 'Pausa');
+      reloj = window.setInterval(() => (actual < total - 1 ? ir(actual + 1) : parar()), 1600);
+    });
+    caja.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight') { parar(); ir(actual + 1); e.preventDefault(); }
+      if (e.key === 'ArrowLeft') { parar(); ir(actual - 1); e.preventDefault(); }
+    });
+
+    caja.querySelector<HTMLElement>('[data-paso-controles]')!.hidden = false;
+    caja.setAttribute('data-listo', '');
+    ir(0);
+  });
+</script>

@@ -1,0 +1,21 @@
+---
+// Tema anterior y siguiente, al final del artículo.
+import Icono from './Icono.astro';
+import { ruta } from './rutas';
+import type { Tema } from './datos';
+
+interface Props { asignatura: string; anterior?: Tema; siguiente?: Tema }
+const { asignatura, anterior, siguiente } = Astro.props;
+---
+<nav class="prevsig" aria-label="Otros temas">
+  {anterior && (
+    <a rel="prev" class="prevsig-anterior" href={ruta(asignatura, anterior.slug)}>
+      <small><Icono nombre="izquierda" /> Anterior</small><span>{anterior.titulo}</span>
+    </a>
+  )}
+  {siguiente && (
+    <a rel="next" class="prevsig-siguiente" href={ruta(asignatura, siguiente.slug)}>
+      <small>Siguiente <Icono nombre="derecha" /></small><span>{siguiente.titulo}</span>
+    </a>
+  )}
+</nav>

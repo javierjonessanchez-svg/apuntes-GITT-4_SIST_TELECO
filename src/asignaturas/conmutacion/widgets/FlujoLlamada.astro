@@ -1,0 +1,126 @@
+---
+// Diagrama de secuencia de un flujo de mensajes (flujos.ts), mensaje a mensaje
+// con PasoAPaso. Se dibuja al construir; sin JavaScript se ve entero. El dibujo
+// es ancho, así que va dentro de .desliza y se desplaza en su caja en el móvil.
+import Widget from '../../../widgets/Widget.astro';
+import PasoAPaso from '../../../widgets/PasoAPaso.astro';
+import { FLUJOS, type Mensaje } from './flujos';
+
+interface Props { id: string }
+const flujo = FLUJOS.find((f) => f.id === Astro.props.id);
+if (!flujo) throw new Error(`FlujoLlamada: no existe el flujo "${Astro.props.id}"`);
+
+const W = flujo.ancho, L = 80, FILA = 34, BANDA = 36;
+const paso = (W - 2 * L) / Math.max(1, flujo.actores.length - 1);
+const X = (actor: string) => L + flujo.actores.indexOf(actor) * paso;
+const tipo = (m: Mensaje) => (m.texto.startsWith('MAP') ? 'map' : flujo.leyenda.tramas ? 'tramas' : 'radio');
+// «SRES_A» → SRES con la A en subíndice
+const trozos = (t: string) => t.split(/_([A-Z])(?![A-Za-z0-9_])/);
+
+let y = 76;
+const filas = flujo.mensajes.map((m, k) => {
+  const yBanda = m.fase ? y : undefined;
+  if (m.fase) y += BANDA;
+  const fila = { m, k, y, yBanda };
+  y += FILA;
+  return fila;
+});
+const H = y + 4;
+const marca = (t: string) => `flujo-${flujo.id}-${t}`;
+---
+<Widget titulo={flujo.titulo} tipo="entender">
+  <ul class="flujo-leyenda">
+    {flujo.leyenda.radio && <li><i class="radio" />{flujo.leyenda.radio}</li>}
+    {flujo.leyenda.map && <li><i class="map" />{flujo.leyenda.map}</li>}
+    {flujo.leyenda.tramas && <li><i class="tramas" />{flujo.leyenda.tramas}</li>}
+    <li><i class="respuesta" />Respuesta o confirmación</li>
+  </ul>
+  <PasoAPaso pasos={flujo.mensajes.length} acumular etiqueta={`${flujo.titulo}, mensaje a mensaje`}>
+    <div class="desliza flujo" data-flujo>
+      <svg viewBox={`0 0 ${W} ${H}`} width={W} height={H} role="img" aria-label={`Diagrama: ${flujo.titulo}`}>
+        <defs>
+          {['radio', 'map', 'tramas'].map((t) => (
+            <marker id={marca(t)} viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto">
+              <path class={`punta ${t}`} d="M0 0L10 5L0 10z" />
+            </marker>
+          ))}
+        </defs>
+        {flujo.actores.map((a) => <line class="vida" x1={X(a)} y1="44" x2={X(a)} y2={H - 6} />)}
+        {flujo.actores.map((a) => {
+          const w = Math.max(96, a.length * 9 + 24);
+          return <g><rect class="actor" x={X(a) - w / 2} y="10" width={w} height="34" rx="8" /><text class="actor-nombre" x={X(a)} y="32">{a}</text></g>;
+        })}
+        {filas.map(({ m, k, y, yBanda }) => (
+          <g data-paso={k} data-titulo={m.texto.replace(/_([A-Z])\b/g, '$1')} data-nota={m.nota ?? ''}>
+            {yBanda !== undefined && (
+              <g><rect class="banda" x="8" y={yBanda - 6} width={W - 16} height="24" rx="6" /><text class="banda-texto" x={W / 2} y={yBanda + 10}>{m.fase}</text></g>
+            )}
+            {m.de === m.a ? (
+              <g>
+                <rect class="accion" x={Math.min(Math.max(X(m.de) - 110, 8), W - 228)} y={y - 13} width="220" height="26" rx="6" />
+                <text class="accion-texto" x={Math.min(Math.max(X(m.de), 118), W - 118)} y={y + 4}>{trozos(m.texto).map((t, i) => (i % 2 ? <tspan class="sub" baseline-shift="sub">{t}</tspan> : t))}</text>
+              </g>
+            ) : (
+              <g class={tipo(m)}>
+                <line class:list={['flecha', { respuesta: m.respuesta }]} x1={X(m.de)} y1={y} x2={X(m.a)} y2={y} marker-end={`url(#${marca(tipo(m))})`} />
+                <text class="etiqueta" x={(X(m.de) + X(m.a)) / 2} y={y - 8}>{trozos(m.texto).map((t, i) => (i % 2 ? <tspan class="sub" baseline-shift="sub">{t}</tspan> : t))}</text>
+              </g>
+            )}
+          </g>
+        ))}
+      </svg>
+    </div>
+  </PasoAPaso>
+  <p class="flujo-nota" data-flujo-nota hidden></p>
+</Widget>
+<style>
+  .flujo-leyenda { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 0 0 8px; padding: 0; list-style: none; font-size: .85rem; color: var(--suave); }
+  .flujo-leyenda li { display: inline-flex; align-items: center; gap: 6px; }
+  .flujo-leyenda i { display: inline-block; width: 22px; border-top: 2.5px solid var(--primario); }
+  .flujo-leyenda i.map { border-color: var(--acento2); }
+  .flujo-leyenda i.tramas { border-color: var(--texto); }
+  .flujo-leyenda i.respuesta { border-top-style: dashed; border-color: var(--suave); }
+  .flujo svg { display: block; max-width: none; font-family: inherit; font-size: 13px; }
+  .flujo text { fill: var(--texto); text-anchor: middle; }
+  .flujo .sub { font-size: 10px; }
+  .vida { stroke: var(--linea); stroke-width: 1.5; stroke-dasharray: 3 4; }
+  .actor { fill: var(--superficie); stroke: var(--suave); stroke-width: 1.5; }
+  .actor-nombre { font-weight: 700; }
+  .banda { fill: color-mix(in srgb, var(--primario) 12%, transparent); }
+  .banda-texto { font-size: 11px; font-weight: 700; letter-spacing: .04em; }
+  .accion { fill: var(--fondo); stroke: var(--suave); stroke-dasharray: 4 3; }
+  .flecha { stroke-width: 2; }
+  .flecha.respuesta { stroke-dasharray: 7 5; }
+  .radio .flecha, .punta.radio { stroke: var(--primario); fill: var(--primario); }
+  .map .flecha, .punta.map { stroke: var(--acento2); fill: var(--acento2); }
+  .tramas .flecha, .punta.tramas { stroke: var(--texto); fill: var(--texto); }
+  .flecha { fill: none; }
+  /* El mensaje actual, al ir paso a paso */
+  .actual .flecha { stroke-width: 3.5; }
+  .actual .etiqueta, .actual .accion-texto { font-weight: 700; }
+  /* Paso a paso, los mensajes que faltan se ven tenues en vez de desaparecer */
+  .flujo [data-paso][hidden] { display: inline; opacity: .15; }
+  .flujo-nota { margin: 10px 0 0; min-height: 2.6em; text-wrap: pretty; }
+</style>
+<script>
+  import { montar } from '../../../widgets/cliente';
+
+  // La explicación del mensaje actual va debajo del dibujo; el reproductor ya
+  // anuncia «Paso i de N: mensaje», así que esta nota no es región viva.
+  montar('[data-flujo]', (dibujo) => {
+    const reproductor = dibujo.closest<HTMLElement>('[data-paso-a-paso]')!;
+    const nota = reproductor.parentElement!.querySelector<HTMLElement>('[data-flujo-nota]')!;
+    const pintar = (k: number) => {
+      for (const g of dibujo.querySelectorAll('[data-paso]')) g.classList.toggle('actual', g.getAttribute('data-paso') === String(k));
+      const actual = dibujo.querySelector<SVGGElement>(`[data-paso="${k}"]`)!;
+      nota.textContent = actual.dataset.nota || '';
+      nota.hidden = false;
+      // Solo desplaza dentro de la caja del dibujo, nunca la página
+      const r = actual.getBoundingClientRect(), caja = dibujo.getBoundingClientRect();
+      if (r.left < caja.left || r.right > caja.right) dibujo.scrollLeft += r.left - caja.left - 16;
+    };
+    reproductor.addEventListener('cambio-paso', (e) => pintar((e as CustomEvent<{ paso: number }>).detail.paso));
+    // Si el reproductor arrancó antes que este script, ya enseña el paso 0
+    if (reproductor.hasAttribute('data-listo')) pintar(0);
+  });
+</script>

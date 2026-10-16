@@ -1,0 +1,227 @@
+---
+titulo: "Capa de enlace"
+orden: 3
+bloque: "Señalización"
+resumen: "HDLC, LAPDm, LAPD, MTP/SCCP"
+saber:
+  - "Un protocolo por interfaz: LAPDm en Um, LAPD en Abis, MTP/SCCP en A y entre elementos del NSS"
+  - "HDLC: orientado a bit, bandera 01111110, relleno de bits (un 0 tras cinco 1), dirección, control, datos y FCS"
+  - "Tres tipos de trama: I (información), S (supervisión: RR, RNR, REJ, SREJ) y U (sin numerar: SABM, UA, DM, DISC, UI)"
+  - "LAPDm: trama fija de 23 octetos (184 bits, 456 codificados = 4 ráfagas), sin banderas ni FCS, SAPI 0 o 3, una sola trama pendiente"
+  - "De móvil a MSC, LAPDm, LAPD y MTP/SCCP en cadena llevan la señalización extremo a extremo"
+fuentes:
+  - "Cx_Enlace.pdf"
+---
+
+import FlujoLlamada from '../../../src/asignaturas/conmutacion/widgets/FlujoLlamada.astro';
+
+Cada salto de la red tiene su propio protocolo de enlace, pero casi todos son versiones recortadas de la misma familia, HDLC. Si entiendes HDLC, LAPD y LAPDm son cuestión de saber qué le quitaron.
+
+## Visión global de la pila
+
+En la capa de enlace de la interfaz de radio (Um) se usa **LAPDm**. En **Abis** (BTS–BSC), LAPD sobre una línea dedicada. En **A** y en las interfaces B a H, SS7: MTP y SCCP como enlace, TCAP y MAP para relacionar MSC, VLR, HLR y AuC, e ISUP para establecer llamadas. Por encima va la capa de red de los siguientes temas: RR (MS–BSS), MM y CM (MS–MSC), BTSM entre BTS y BSC, y BSSAP en la interfaz A.
+
+| Capa | MS | BTS | BSC | MSC |
+| --- | --- | --- | --- | --- |
+| 3 | CM · **MM** · RR | RR' | RR · BTSM | CM · **MM** · BSSAP |
+| 2 | LAPDm | LAPDm · LAPD | LAPD · MTP' | MTP' · SCCP |
+| 1 | TDMA / FDMA | TDMA / FDMA | G.703 · G.732 | G.703 · G.732 |
+
+*Interfaces: Um entre MS y BTS, Abis entre BTS y BSC, A entre BSC y MSC. El MM sale del MS y termina en el MSC: BTS y BSC solo transportan. En cada salto el enlace es distinto (LAPDm, LAPD, MTP). Capa 1: TDMA/FDMA en el aire y E1 (G.703/G.732) en tierra. Entre MSC, VLR, HLR y AuC (B a H): MTP · SCCP · TCAP · MAP, y ISUP para las llamadas.*
+
+La función de la capa física en Um, vista desde arriba: transporte de bits sobre los canales lógicos, control de acceso, control de errores y cifrado.
+
+## HDLC: la familia
+
+HDLC (High-level Data Link Control, ISO 3309) deriva de SDLC, de la arquitectura SNA de IBM. ITU-T lo adopta y lo recorta (subconjuntos de lo que HDLC permite) para cada red, y salen los protocolos **LAP** (Link Access Procedures): LAP-B para X.25, **LAP-D** para RDSI, LAP-F para Frame Relay, LAP-M para módems y **LAP-Dm** para GSM.
+
+Es un protocolo **orientado a bit**: usa el patrón `01111110` para marcar el comienzo y el final de la trama. Para que ese patrón nunca aparezca dentro de los datos se hace **relleno de bits**: el transmisor inserta un 0 tras cada cinco 1 seguidos, y el receptor elimina el 0 que llega tras cinco 1. Así, si se reciben seis 1 seguidos, solo puede ser una bandera.
+
+{/* widget: stuff (relleno de bits; no está en la v1) */}
+
+Ofrece dos servicios: **fiable** (con conexión, tramas numeradas y retransmisión si hay pérdidas o errores) y **no fiable** (tramas sueltas sin control de entrega). El formato de trama es común a toda la familia:
+
+| Flag | Dirección | Control | Datos | FCS | Flag |
+| --- | --- | --- | --- | --- | --- |
+| 01111110 | 1 a n B | 1 o 2 B | 0 a m B | 2 o 4 B | 01111110 |
+
+- **Dirección** de longitud variable. El bit menos significativo de cada octeto (EA, Extended Address) dice si es el último (1) o si continúa en el siguiente (0). La dirección `11111111` es la de difusión.
+- **FCS** (Frame Check Sequence): código detector de errores, un CRC de 16 bits (CRC-CCITT) o de 32 según el tamaño de la trama. Se calcula en hardware a la velocidad de línea. En modo fiable, si detecta un error se pide retransmisión. En modo no fiable el receptor descarta la trama.
+
+## El campo de control: tipos de trama
+
+El campo de control dice para qué sirve la trama y da los mecanismos de secuenciación. Hay tres tipos, que se distinguen por los bits menos significativos.
+
+### I: Información
+
+Lleva datos de usuario, numerada. Bit menos significativo a **0**. Dos contadores: **N(S)** es el nº de esta trama y **N(R)** el de la siguiente que espera recibir del otro extremo (por tanto confirma todas hasta N(R)−1). Contadores de 3 bits (control de 1 octeto) o de 7 (2 octetos).
+
+### S: Supervisión
+
+Controla el intercambio de tramas I. Bits **01** al final. No lleva datos.
+
+- **RR**: confirmación, espero la N(R)
+- **RNR**: confirmación y control de flujo, no admito más por ahora
+- **REJ**: fallo de secuencia, reenvía desde N(R). El receptor solo procesa en orden
+- **SREJ**: reenvía solo la N(R). El receptor puede guardar fuera de orden
+
+### U: Sin numerar
+
+Sin nº de secuencia. Bits **11** al final. Cinco bits de «tipo» permiten hasta 32 tramas de control distintas. Sirven para establecer o liberar la conexión, controlar el enlace e intercambiar datos en modo no fiable (**UI**).
+
+{/* widget: ctrl (campo de control; no está en la v1) */}
+
+> **Ojo con el orden de los bits.** La diapositiva escribe el campo de control en orden de transmisión, con el bit menos significativo primero. Por eso dice que las tramas S terminan en «10» y los códigos RR, RNR, REJ y SREJ son 00, 10, 01 y 11. Aquí los bits van del 8 al 1 (el menos significativo, a la derecha), así que las S terminan en 01 y los códigos son 00, 01, 10 y 11. Es lo mismo escrito del revés.
+
+## Modos de operación y un ejemplo
+
+El servicio fiable admite tres modos: **NRM** (no balanceado: un maestro sondea a los esclavos), **ARM** (los esclavos pueden indicar que quieren transmitir, pero transmiten con permiso del maestro) y **ABM** (balanceado: los dos extremos pueden iniciar y terminar la conexión cuando lo necesiten). **ABM es el que usan casi todas las implementaciones actuales.**
+
+- **Establecer:** SABM (conexión en modo ABM con secuencia de 3 bits; SABME si son 7), respondida con UA (aceptada) o DM (rechazada).
+- **Intercambiar datos** con control de errores: tramas I y S. Si no hay confirmación, se reenvía por temporizador.
+- **Liberar:** DISC desde cualquier extremo, respondida con UA o DM.
+
+> **Extra.** El ejemplo siguiente es mío, para ilustrar REJ; no es la figura de la diapositiva. Lo que sí está en las diapositivas es cada trama por separado.
+
+<FlujoLlamada id="hdlc-rej" />
+
+| Paso | Sentido | Trama | Qué pasa |
+| --- | --- | --- | --- |
+| 1 | A → B | SABM | A pide abrir la conexión en modo balanceado. |
+| 2 | B → A | UA | B acepta. La conexión está establecida. |
+| 3 | A → B | I(0,0) | Notación I(N(S), N(R)). A envía su trama 0 y todavía no ha recibido nada de B. |
+| 4 | B → A | RR(1) | B confirma: ha recibido la 0 y espera la 1. |
+| 5 | A → B | I(1,0), se pierde | La trama 1 sufre un error de transmisión: el FCS no cuadra y B la descarta. |
+| 6 | A → B | I(2,0) | La trama 2 sí llega, pero B esperaba la 1. |
+| 7 | B → A | REJ(1) | B avisa del fallo de secuencia: reenvía todo desde la 1. Con REJ el receptor solo procesa en orden, así que la 2 se descarta aunque llegó bien. |
+| 8 | A → B | I(1,0) | A retransmite desde la 1. |
+| 9 | A → B | I(2,0) | |
+| 10 | B → A | RR(3) | B confirma todo hasta la 2 y espera la 3. |
+| 11 | A → B | DISC | A pide liberar la conexión. |
+| 12 | B → A | UA | B confirma la liberación. |
+
+## LAPD
+
+LAPD es el protocolo de control del enlace para el **canal D** de la RDSI (su señalización), tanto en el acceso básico entre el terminal y la central local como en el primario entre la centralita y la central. Es un subconjunto de HDLC:
+
+- Números de secuencia de 7 bits y CRC-16.
+- Dirección de 16 bits que identifica al **terminal** (TEI, uno de los que admite la interfaz) y al **protocolo de capa superior** al que da servicio (SAPI), lo que permite multiplexar datos de usuario y señalización en el canal D.
+- Mismos servicios que HDLC: fiable (modo multitrama) y no fiable.
+- Solo admite la trama **REJ** (rechazo simple) para pedir retransmisión. Campo de datos limitado a 260 octetos.
+
+En **Abis** se usa LAPD sobre una línea dedicada BTS–BSC. El campo TEI identifica a cada transceptor de una BTS (si hay varios), y funciona en modo multitrama (fiable) y sin confirmación (UI).
+
+## LAPDm en la interfaz radio
+
+LAPDm deriva de Q.921 (el LAPD de la RDSI) y se adapta a la radio. En lugar de banderas y FCS (la capa física ya protege), la trama tiene **tamaño fijo**:
+
+| Dirección | Control | Longitud | Datos | Relleno |
+| --- | --- | --- | --- | --- |
+| 1 B | 1 B | 1 B | 0 a 20 B | 20 a 0 B |
+
+*Es el «formato B», el de la señalización por canales dedicados y asociados. Cabecera de 3 octetos más cuerpo de 20.*
+
+| Paso | Cuenta | Resultado |
+| --- | --- | --- |
+| Trama LAPDm | 23 octetos × 8 | **184 bits** |
+| Código bloque (de Fire) | + 44 bits de redundancia | 228 bits |
+| Código convolucional, tasa ½ | 228 × 2 | **456 bits** |
+| Ráfagas normales | 456 ÷ 114 bits de datos por ráfaga | **4 ráfagas** completas |
+
+*Los 44 bits de redundancia vienen de las hojas de ejercicios; las diapositivas de LAPDm solo dan 184 y 456.*
+
+- **Sin patrones de inicio y fin y sin FCS.**
+- **Dirección:** no identifica a un terminal. Solo hay dos valores de SAPI, que marcan la prioridad: **3** para SMS y **0** para todo lo demás.
+- **Control:** mismos tres tipos de trama. Soporta tramas U SABM, DISC, DM, UI y UA. Tramas I y S con 3 bits de secuencia y **solo una trama pendiente de confirmación**. De supervisión solo RR y REJ.
+
+| Modo | Tramas | Canales |
+| --- | --- | --- |
+| **Multitrama o confirmado** (con conexión, fiable, modo I) | SABM, UA, DISC, DM; I; RR, REJ | Lógicos dedicados (tráfico y señalización) |
+| **Sin confirmación** (sin conexión, no fiable, modo UI) | UI | Difusivos |
+
+### Resolución de contienda
+
+Las tramas LAPDm no llevan identificador de terminal (TEI), así que ¿cómo sabe un móvil que el canal concedido es para él? Dos móviles pueden haber pedido canal a la vez por el RACH y recibir la misma asignación. La solución es que la petición de conexión lleve un **identificador del móvil**, normalmente un mensaje de capa 3 que incluye su identidad, y que la respuesta lo repita.
+
+<FlujoLlamada id="contienda-lapdm" />
+
+| Paso | Sentido | Mensaje | Qué pasa |
+| --- | --- | --- | --- |
+| 1 | MS 1 → BTS-BSC | RACH: petición de canal | El móvil 1 pide canal por el RACH. |
+| 2 | MS 2 → BTS-BSC | RACH: petición de canal | El móvil 2 pide canal casi a la vez y la red no distingue las dos peticiones. |
+| 3 | BTS-BSC → MS 1 | AGCH: asignación (SDCCH 1) | Una sola asignación, que oyen los dos móviles. Cada uno cree que es para él. |
+| 4 | MS 1 → BTS-BSC | SABM [L3 (id MS 1)] en SDCCH 1 | Cada móvil abre la conexión LAPDm en el canal asignado, metiendo su identidad en el mensaje de capa 3. |
+| 5 | MS 2 → BTS-BSC | SABM [L3 (id MS 2)] en SDCCH 1 | Los dos transmiten en la misma ranura: la BTS se queda con una de las dos. |
+| 6 | BTS-BSC → MS 1 | UA [L3 (id MS 1)] | La respuesta repite el mensaje de capa 3 recibido. El móvil 1 reconoce su propia identidad y sigue. |
+| 7 | BTS-BSC → MS 2 | DM [L3 (id MS 1)] | El móvil 2 ve un mensaje que no es el suyo: ha perdido la contienda y tiene que volver a pedir canal por el RACH. |
+| 8 | MS 1 → BTS-BSC | I(0,0) [datos] | El móvil 1 envía su primera trama de información. |
+| 9 | BTS-BSC → MS 1 | RR(1) | La BTS confirma. |
+| 10 | MS 1 → BTS-BSC | DISC | Al terminar, el móvil libera la conexión. |
+| 11 | BTS-BSC → MS 1 | UA | |
+
+> **Ojo.** En la figura de la diapositiva el DM del móvil 2 aparece con el mensaje de capa 3 de otra identidad. Si tu profesor lo cuenta de otra manera (por ejemplo que el móvil 2 simplemente no recibe UA), quédate con la idea: **la identidad en la respuesta es lo que desempata**.
+
+## Abis y A: el resto del camino
+
+- **Abis:** LAPD, con TEI para identificar cada transceptor. Modos multitrama (fiable) y UI.
+- **A (BSC–MSC):** señalización de red SS7. La diapositiva habla de dos clases de servicio equivalentes a los modos de LAPD (UI e I): **clase 0** (sin conexión), para mensajes difusivos, y **clase 2** (con conexión y fiable), para comunicaciones punto a punto con un móvil concreto. Son las clases de SCCP (el formulario da los tamaños de mensaje de las clases 1 y 2).
+
+La concatenación de tres conexiones, **LAPDm + LAPD + MTP'**, permite intercambiar mensajes de señalización entre el móvil y su central.
+
+## Autoevaluación
+
+<details>
+<summary>Pasa 01111101111110 por el transmisor HDLC con relleno de bits.</summary>
+
+Tras cada cinco 1 seguidos se inserta un 0 (aunque el siguiente bit ya fuera 0). Resultado: 011111**0**011111**0**10 (en negrita los ceros de relleno), es decir `0111110011111010`, con 16 bits.
+
+</details>
+
+<details>
+<summary>¿Qué significa I(2,1) en una trama HDLC?</summary>
+
+Es la trama de información número 2 (N(S)=2), y N(R)=1: el emisor ha recibido bien hasta la 0 y espera la 1 del otro extremo.
+
+</details>
+
+<details>
+<summary>¿En qué se diferencian REJ y SREJ?</summary>
+
+REJ pide retransmitir todas las tramas desde N(R) en adelante y el receptor solo procesa en orden. SREJ pide solo la trama N(R) y el receptor puede guardar las que llegan fuera de orden.
+
+</details>
+
+<details>
+<summary>¿Qué tramas se usan para abrir y cerrar una conexión en modo ABM?</summary>
+
+Abrir: SABM (o SABME con 7 bits), respondida con UA o DM. Cerrar: DISC, respondida con UA o DM.
+
+</details>
+
+<details>
+<summary>Enumera las diferencias de LAPDm respecto a HDLC.</summary>
+
+Tamaño fijo de 23 octetos, sin banderas de inicio y fin, sin FCS, dirección sin identificador de terminal (solo SAPI 0 y 3), números de secuencia de 3 bits con una sola trama pendiente de confirmación, y solo RR y REJ como tramas de supervisión.
+
+</details>
+
+<details>
+<summary>¿De cuántas ráfagas es una trama LAPDm y por qué?</summary>
+
+De 4. 23 octetos son 184 bits; con el código de bloque (+44) y el convolucional de tasa ½ salen 456 bits, y una ráfaga normal lleva 114 bits de datos.
+
+</details>
+
+<details>
+<summary>¿Cómo se resuelve que dos móviles reciban la misma asignación de canal?</summary>
+
+Por contienda: cada móvil mete su identidad en un mensaje de capa 3 dentro del SABM, y la BTS responde repitiendo ese mensaje. El móvil que no reconoce su identidad en la respuesta sabe que ha perdido y vuelve a pedir canal.
+
+</details>
+
+<details>
+<summary>¿Qué protocolos de enlace se encadenan entre el móvil y el MSC?</summary>
+
+LAPDm (Um), LAPD (Abis) y MTP/SCCP (A).
+
+</details>

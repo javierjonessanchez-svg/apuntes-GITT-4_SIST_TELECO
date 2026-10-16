@@ -1,0 +1,175 @@
+---
+titulo: "Capa de red: RR y traspasos"
+orden: 4
+bloque: "Señalización"
+resumen: "Mensajes de capa 3, recursos radio y traspaso"
+saber:
+  - "Tres subcapas: RR (MS–BSS, con RR' en la BTS), MM (MS–MSC) y CM (MS–MSC), que se divide en CC, SMS y SS"
+  - "Mensaje de capa 3 (de Q.931): TI, PD, tipo de mensaje e IE; sin encapsulado, el PD reparte cada mensaje a su subcapa"
+  - "RR gestiona canales físicos y lógicos, con el control en la BSC; modo sin conexión (difusivos) y con conexión (sesión RR)"
+  - "Traspaso: causas, tipos intra-BSC, intra-MSC e inter-MSC, y cuatro fases: medidas, solicitud, decisión y ejecución"
+  - "Medidas: el móvil y la BTS informan por el SACCH cada 480 ms"
+fuentes:
+  - "Cx_Red-RecursosRadio.pdf"
+---
+
+import FlujoLlamada from '../../../src/asignaturas/conmutacion/widgets/FlujoLlamada.astro';
+
+La capa 3 de la interfaz radio se divide en tres subcapas. Este tema cubre el formato de sus mensajes, la subcapa RR que reparte los recursos radio y, como caso estrella, el traspaso (handover).
+
+## Las tres subcapas
+
+La capa de red afecta al MS, a la BTS (RR'), a la BSC (RR) y al MSC (MM y CM). **RR** (Radio Resource) se ocupa de los recursos de transmisión de la interfaz radio, canales físicos y lógicos. **MM** (Mobility Management) del registro, la localización, la autenticación y la asignación de identidades temporales. **CM** (Connection Management) se divide en tres entidades: **CC** (Call Control, control de llamada en modo circuito), **SMS** (Short Message Service) y **SS** (Supplementary Services).
+
+| Subcapa | Entidades | Punto de acceso hacia arriba |
+| --- | --- | --- |
+| **CM** | CC · SS · SMS | — |
+| **MM** | Gestión de movilidad, con su demultiplexor PD | CC-SAP, SS-SAP y SMS-SAP; REG-SAP: conexión con HLR y VLR |
+| **RR** | Control de recursos radio, con su demultiplexor PD | RR-SAP |
+
+*Hacia abajo, RR usa canales lógicos con SAPI 0 (RACH, BCCH, CCCH, SDCCH, SACCH, FACCH) y SAPI 3 (SDCCH, SACCH para SMS). Los PD son demultiplexores: el mensaje no se encapsula entre capas, se entrega a la subcapa que indica su discriminador de protocolo. El cuarto SAP (REG-SAP) conecta la gestión de movilidad con los registros de la red.*
+
+## Formato de un mensaje de capa 3
+
+Derivado de Q.931 de la RDSI, simplificado para reducir el tamaño.
+
+| TI | PD | 0 | N | Tipo de mensaje | IE obligatorios | IE opcionales |
+| --- | --- | --- | --- | --- | --- | --- |
+| 4 bits | 4 bits | 1 bit | 1 bit | 6 bits | | |
+
+- **TI**, identificador de transacción (equivale al CRV de la RDSI). Un bit F (0: sentido de la comunicación, 1: sentido contrario) más un valor: **0 para RR y MM** y de 1 a 6 para las transacciones de CC, SMS y SS.
+- **PD**, discriminador de protocolo: la entidad de capa 3 responsable. 0011 CC, 0101 MM, 1001 SMS, 1011 SS.
+- **Tipo de mensaje**: la función concreta. N es un bit alternante.
+- **IE** (information elements): los parámetros del mensaje, obligatorios y opcionales.
+
+{/* widget: l3hdr (cabecera de capa 3; no está en la v1) */}
+
+## Subcapa RR: gestión de recursos radio
+
+Gestiona los recursos compartidos de la interfaz radio (canales físicos y lógicos). **El control recae en la BSC** y afecta al MS, a la BTS (RR') y a la BSC (RR). Tiene acceso directo a la capa física para vigilar la calidad de los canales lógicos activos.
+
+### Modo sin conexión
+
+Para mensajes en canales difusivos (BCCH y CCCH): selección automática de célula, solicitud de recursos…
+
+### Modo con conexión
+
+Punto a punto y dúplex entre MS y BSC. Requiere una conexión de enlace (SAPI=0) en modo confirmado sobre un canal asignado al móvil (FACCH, SDCCH o SACCH).
+
+Servicios del modo con conexión: secuenciar los mensajes de MM y CM, transmitirlos y recibirlos sobre conexiones de enlace, abrir y cerrar la conexión de enlace SAPI=3 para los SMS, y **gestionar automáticamente los traspasos** (monitorización, decisión, ejecución, y suspensión y reanudación de la transmisión).
+
+Una **sesión RR** se extiende sobre varias **conexiones RR** que van en canales físicos y lógicos distintos a lo largo del tiempo, porque la sesión continúa aunque el móvil cambie de canal.
+
+| Sesión RR | Conexión RR 1 | Conexión RR 2 | … | Conexión RR n |
+| --- | --- | --- | --- | --- |
+| Enlace | LAPDm 1 | LAPDm 2 | … | LAPDm n |
+| Canal | canal x | canal y | … | canal z |
+
+*Ejemplo típico: la conexión RR 1 va en un SDCCH mientras se señaliza la llamada y la RR 2 en el TCH cuando empieza la conversación.*
+
+## Traspaso (handover)
+
+El traspaso cambia a un móvil con una comunicación activa de una célula a otra sin cortarla. Hay **tres causas**: mala calidad de la conexión, cambio de localización y volumen de tráfico en la célula. Y **tres tipos** según a qué elementos afecta:
+
+| Tipo | Qué cambia | Quién lo resuelve |
+| --- | --- | --- |
+| **Intra-BSC** | Las células origen y destino dependen de la misma BSC | Lo resuelve la BSC |
+| **Intra-MSC** | Mismo MSC pero distinta BSC | Interviene el MSC |
+| **Inter-MSC** | Distinto MSC | Requiere señalización entre MSC (MAP sobre SS7) |
+
+Se hace en **cuatro fases**:
+
+1. **Medidas e informe.** Las hacen el MS y la BTS: nivel de señal, tasa de error (BER) y distancia, y además el MS mide otras BTS. Se empaquetan y se transmiten por el SACCH, del MS a la BTS y de la BTS a la BSC, **cada 480 ms**.
+2. **Solicitud.** La BSC compara umbrales con la información del MS, de la BTS y la suya propia (por ejemplo la potencia de transmisión). Si la BTS destino no depende de ella, pide el traspaso al MSC común.
+3. **Decisión.** El MSC hace algo parecido incluyendo información de la rama destino, y ordena la ejecución.
+4. **Ejecución.** Se activa el canal en la célula destino y el móvil salta a él (secuencia de abajo).
+
+| ¿Cuándo se mide? | Dónde | Duración |
+| --- | --- | --- |
+| **Periodo corto** | Entre las ranuras de transmisión y de recepción del móvil | ≈ 2,3 ms |
+| **Periodo largo** | En las tramas libres de la multitrama (como la última de la combinación I) | ≈ 7 ms |
+
+> **Extra.** 480 ms son 4 multitramas de 26 tramas (4 × 120 ms): un informe de medidas son 4 ráfagas del SACCH, una por multitrama, igual que una trama LAPDm son 4 ráfagas.
+
+{/* widget: ho (decisión de traspaso; no está en la v1) */}
+
+### Ejecución del traspaso intra-MSC
+
+Los mensajes que llevan el **identificador del traspaso** van marcados en la diapositiva.
+
+<FlujoLlamada id="traspaso-bsc" />
+
+| Paso | Sentido | Mensaje | Qué pasa |
+| --- | --- | --- | --- |
+| 1 | MS → BTS 1 | Measurement Report | El móvil informa de lo que mide, sobre todo del nivel de las células vecinas (SACCH). |
+| 2 | BTS 1 → BSC 1 | Measurement Result | La BTS añade sus propias medidas y se lo pasa a la BSC. |
+| 3 | BSC 1 → MSC | Handover Required | La BSC 1 aplica sus umbrales. La célula destino no es suya, así que pide el traspaso al MSC. |
+| 4 | MSC → BSC 2 | Handover Request | El MSC pide a la BSC 2 que prepare un canal para el móvil. |
+| 5 | BSC 2 → BTS 2 | Channel Activation | La BSC 2 manda a la BTS 2 activar un canal. |
+| 6 | BTS 2 → BSC 2 | Channel Activation ACK | La BTS 2 confirma que el canal está listo. |
+| 7 | BSC 2 → MSC | Handover Request ACK | La BSC 2 contesta al MSC con los datos del canal (lleva el identificador del traspaso). |
+| 8 | MSC → BSC 1 | Handover Command | El MSC ordena el traspaso por el camino de origen. |
+| 9 | BSC 1 → BTS 1 | Handover Command | |
+| 10 | BTS 1 → MS | Handover Command | Llega al móvil con la frecuencia y la ranura del canal nuevo. |
+| 11 | MS → BTS 2 | Handover Access | El móvil salta a la célula nueva y transmite una ráfaga de acceso (no sabe aún su avance temporal). |
+| 12 | BTS 2 → MS | Physical Information | La BTS 2 le da el avance temporal (timing advance) que necesita. |
+| 13 | MS → BTS 2 | SABM | El móvil abre la conexión LAPDm en el canal nuevo. |
+| 14 | BTS 2 → MS | UA | La BTS 2 confirma. |
+| 15 | MS → BTS 2 | Handover Complete | El móvil avisa de que ya está en el canal nuevo. |
+| 16 | BTS 2 → BSC 2 | Handover Complete | |
+| 17 | BSC 2 → MSC | Handover Complete | El MSC sabe que el traspaso ha terminado y puede liberar el canal antiguo. |
+| 18 | MSC → BSC 1 | Clear Command | Liberación de los recursos de la célula de origen. |
+| 19 | BSC 1 → BTS 1 | Clear Command | |
+| 20 | BTS 1 → BSC 1 | Clear Complete | |
+| 21 | BSC 1 → MSC | Clear Complete | Fin: el móvil sigue en la llamada, ahora por la BTS 2. |
+
+## Autoevaluación
+
+<details>
+<summary>¿Qué hace cada subcapa de la capa de red y entre qué elementos habla?</summary>
+
+RR gestiona los recursos radio (MS con BSS, RR' en la BTS, RR en la BSC). MM gestiona el registro, localización, autenticación y las identidades temporales (MS con MSC). CM gestiona las conexiones (MS con MSC) y se divide en CC, SMS y SS.
+
+</details>
+
+<details>
+<summary>¿Para qué sirve el discriminador de protocolo (PD)?</summary>
+
+Indica qué subcapa de capa 3 es responsable del mensaje (0011 CC, 0101 MM, 1001 SMS, 1011 SS). Como no hay encapsulado entre subcapas, es lo que se usa para repartir el mensaje.
+
+</details>
+
+<details>
+<summary>¿Qué valor tiene el identificador de transacción en RR y MM?</summary>
+
+0. Los valores de 1 a 6 son para las transacciones de CC, SMS y SS.
+
+</details>
+
+<details>
+<summary>¿Qué diferencia hay entre una sesión RR y una conexión RR?</summary>
+
+La sesión RR es el conjunto; se extiende sobre varias conexiones RR, cada una en un canal físico y lógico distinto (por ejemplo, un SDCCH y después un TCH).
+
+</details>
+
+<details>
+<summary>Nombra las causas y los tipos de traspaso.</summary>
+
+Causas: mala calidad, cambio de localización y volumen de tráfico en la célula. Tipos: intra-BSC, intra-MSC (mismo MSC, distinta BSC) e inter-MSC (requiere MAP entre MSC).
+
+</details>
+
+<details>
+<summary>Describe las cuatro fases del traspaso.</summary>
+
+1) Medidas e informe, cada 480 ms por el SACCH. 2) Solicitud: la BSC compara umbrales y pide al MSC si el destino no es suyo. 3) Decisión: el MSC decide y ordena. 4) Ejecución: activación del canal, Handover Command, acceso, SABM/UA, Handover Complete y liberación.
+
+</details>
+
+<details>
+<summary>¿Por qué el móvil manda un Handover Access en el canal nuevo, y qué recibe después?</summary>
+
+Porque aún no conoce su avance temporal en la célula nueva. La BTS destino se lo da en el mensaje Physical Information.
+
+</details>

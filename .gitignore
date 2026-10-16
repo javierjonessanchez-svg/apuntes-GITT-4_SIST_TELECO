@@ -1,2 +1,8 @@
 docs/
 publicar.ps1
+node_modules/
+dist/
+.astro/
+/conmutacion/
+/comunicaciones-opticas/
+.claude/

@@ -1,0 +1,9 @@
+---
+// Botón claro/oscuro. Oculto sin JavaScript (no haría nada): el script lo muestra.
+import Icono from './Icono.astro';
+---
+<button type="button" class="boton-icono boton-tema" data-boton-tema aria-pressed="false" hidden>
+  <span class="sr">Modo oscuro</span>
+  <Icono nombre="luna" />
+  <Icono nombre="sol" />
+</button>

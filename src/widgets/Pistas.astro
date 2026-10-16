@@ -1,0 +1,41 @@
+---
+// Pistas que se abren de una en una y, al final, la solución. Sin JavaScript
+// se ven todas (el botón no aparece).
+import './widgets.css';
+import { conMates } from './mates';
+
+interface Props { pistas: string[]; solucion: string }
+const { pistas, solucion } = Astro.props;
+---
+<div class="pistas" data-pistas>
+  <ol class="pistas-lista">
+    {pistas.map((p, i) => (
+      <li data-pista hidden tabindex="-1"><b>Pista {i + 1}.</b> <span set:html={conMates(p)} /></li>
+    ))}
+    <li data-pista hidden tabindex="-1" class="pistas-solucion"><b>Solución.</b> <span set:html={conMates(solucion)} /></li>
+  </ol>
+  <button type="button" class="boton boton-secundario" data-pistas-boton hidden>Ver pista 1</button>
+</div>
+<script>
+  import { montar } from './cliente';
+
+  montar('[data-pistas]', (caja) => {
+    const items = [...caja.querySelectorAll<HTMLElement>('[data-pista]')];
+    const boton = caja.querySelector<HTMLButtonElement>('[data-pistas-boton]')!;
+    let abiertas = 0;
+    const etiqueta = () => (abiertas < items.length - 1 ? `Ver pista ${abiertas + 1}` : 'Ver la solución');
+    boton.textContent = etiqueta();
+    boton.hidden = false;
+    boton.addEventListener('click', () => {
+      const item = items[abiertas++];
+      item.hidden = false;
+      if (abiertas === items.length) {
+        boton.remove();
+        item.focus(); // el botón ya no existe: el foco pasa a la solución
+      } else {
+        boton.textContent = etiqueta();
+      }
+    });
+    caja.setAttribute('data-listo', '');
+  });
+</script>

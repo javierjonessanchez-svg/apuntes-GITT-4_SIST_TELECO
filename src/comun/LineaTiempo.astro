@@ -1,0 +1,53 @@
+---
+// Línea de tiempo con las pruebas. Se pinta al construir; al abrir la página,
+// cliente/linea-tiempo.ts coloca "Hoy" y recalcula cada "en N días" (una web
+// estática se quedaría con la fecha de construcción). En el móvil es una lista.
+import { diasHasta, fechaCorta, fraccion, isoDe, leerFecha, textoRelativo } from './fechas';
+import type { PruebaLinea } from './datos';
+interface Props { pruebas: PruebaLinea[]; variante?: string; titulo?: string }
+const { pruebas, variante = '', titulo = 'Calendario de pruebas' } = Astro.props;
+
+const ordenadas = [...pruebas].sort((a, b) => a.fecha.localeCompare(b.fecha));
+const hoy = new Date();
+const desplazar = (iso: string, dias: number) => {
+  const d = leerFecha(iso);
+  d.setDate(d.getDate() + dias);
+  return isoDe(d);
+};
+// Tramo dibujado: una semana antes de la primera prueba y una después de la última
+const inicio = ordenadas.length ? desplazar(ordenadas[0].fecha, -7) : isoDe(hoy);
+const fin = ordenadas.length ? desplazar(ordenadas[ordenadas.length - 1].fecha, 7) : isoDe(hoy);
+// Lunes del tramo, para las marcas de semana
+const lunes: string[] = [];
+for (let d = leerFecha(inicio); isoDe(d) <= fin; d.setDate(d.getDate() + 1)) {
+  if (d.getDay() === 1) lunes.push(isoDe(d));
+}
+const x = (iso: string) => fraccion(iso, inicio, fin).toFixed(4);
+---
+<section class={`linea panel ${variante}`} aria-labelledby="linea-titulo" data-linea-tiempo data-inicio={inicio} data-fin={fin}>
+  <h2 id="linea-titulo">{titulo}</h2>
+  {ordenadas.length === 0 ? (
+    <p class="suave">Sin pruebas próximas.</p>
+  ) : (
+    <div class="linea-pista">
+      <div class="linea-eje" aria-hidden="true">
+        <span class="linea-pasado" data-pasado></span>
+        {lunes.map((l) => <span class="linea-semana" style={`--x:${x(l)}`}>{fechaCorta(l).slice(4)}</span>)}
+      </div>
+      <span class="linea-hoy" data-hoy hidden><span>Hoy</span></span>
+      <ol class="linea-pruebas">
+        {ordenadas.map((p, i) => (
+          <li class:list={['linea-prueba', { pasada: diasHasta(p.fecha, hoy) < 0, abajo: i % 2 === 1 }]}
+            data-prueba data-fecha={p.fecha} style={`--x:${x(p.fecha)};--i:${i}`}>
+            <b>{p.nombre}</b>
+            <small>{p.asignatura} · {fechaCorta(p.fecha)}{p.confirmar && <span class="linea-confirmar"> (por confirmar)</span>}</small>
+            <small class="linea-dias" data-dias>{textoRelativo(diasHasta(p.fecha, hoy))}</small>
+          </li>
+        ))}
+      </ol>
+    </div>
+  )}
+</section>
+<script>
+  import './cliente/linea-tiempo';
+</script>

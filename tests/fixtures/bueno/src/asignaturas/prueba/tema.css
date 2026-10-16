@@ -1,0 +1,18 @@
+/* Tokens de un mundo de prueba que cumplen todas las reglas de contraste */
+html[data-asignatura="prueba"] {
+  --fondo: #FFFFFF; --superficie: #FFFFFF; --texto: #111111; --suave: #555555;
+  --primario: #1F4E79; --sobre-primario: #FFFFFF; --resalte: #1F4E79; --sobre-resalte: #FFFFFF;
+  --acento: #8A4B00; --acento2: #A12A2A;
+}
+html[data-asignatura="prueba"][data-tema="oscuro"] {
+  --fondo: #111111; --superficie: #1A1A1A; --texto: #F2F2F2; --suave: #BBBBBB;
+  --primario: #8EC5FF; --sobre-primario: #111111; --resalte: #FFD27A; --sobre-resalte: #111111;
+  --acento: #FFB86B; --acento2: #FF8A80;
+}
+@media (prefers-color-scheme: dark) {
+  html[data-asignatura="prueba"]:not([data-tema="claro"]) {
+    --fondo: #111111; --superficie: #1A1A1A; --texto: #F2F2F2; --suave: #BBBBBB;
+    --primario: #8EC5FF; --sobre-primario: #111111; --resalte: #FFD27A; --sobre-resalte: #111111;
+    --acento: #FFB86B; --acento2: #FF8A80;
+  }
+}

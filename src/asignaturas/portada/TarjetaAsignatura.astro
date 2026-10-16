@@ -1,0 +1,31 @@
+---
+// Tarjeta de una asignatura en la portada: un anticipo de su mundo (el avance de
+// cada tema dibujado a su manera) y una barra con los temas dominados.
+// Activa: toda la tarjeta lleva a la asignatura. En preparación: no es enlace.
+import { mundoDe } from '../registro';
+import { ruta } from '../../comun/rutas';
+import type { Asignatura, Tema } from '../../comun/datos';
+
+interface Props { asignatura: Asignatura; temas: Tema[] }
+const { asignatura: a, temas } = Astro.props;
+const { Avance } = mundoDe(a.slug);
+const activa = a.estado === 'activa';
+---
+<li class:list={['tarjeta', { activa }]} data-tarjeta={a.slug} data-estado={a.estado} data-asignatura={a.slug}>
+  <h3>{activa ? <a href={ruta(a.slug)}>{a.nombre}</a> : a.nombre}</h3>
+  <p>{a.descripcion}</p>
+  {activa && temas.length > 0 && (
+    <>
+      {/* las lámparas son un anticipo visual: el lector de pantalla ya tiene «N de M temas dominados» */}
+      <div class="tarjeta-mundo" aria-hidden="true">
+        {temas.map((t) => <Avance asignatura={a.slug} tema={t.slug} />)}
+      </div>
+      <div class="tarjeta-barra" data-avance-barra data-asig={a.slug} data-temas={temas.map((t) => t.slug).join(',')}>
+        <span class="tarjeta-barra-pista" aria-hidden="true"><i></i></span>
+        <small data-avance-barra-texto>0 de {temas.length} temas dominados</small>
+      </div>
+    </>
+  )}
+  {a.nota && <p class="tarjeta-nota">{a.nota}</p>}
+  {activa ? <span class="tarjeta-accion" aria-hidden="true">Abrir →</span> : <span class="tarjeta-etiqueta">En preparación</span>}
+</li>

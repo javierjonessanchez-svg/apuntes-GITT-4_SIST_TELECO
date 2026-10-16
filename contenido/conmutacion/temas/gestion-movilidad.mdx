@@ -1,0 +1,294 @@
+---
+titulo: "Gestión de movilidad"
+orden: 5
+bloque: "Señalización"
+resumen: "Identidades, áreas de localización y autenticación"
+saber:
+  - "MM hace registro, localización, autenticación y asignación de identidades temporales, entre el MS y el MSC, con MAP sobre SS7"
+  - "Identidades: MSISDN (número público, E.164), IMSI (identidad real, E.202), IMEI (el terminal) y TMSI (alias temporal de 32 bits del VLR)"
+  - "LA: células contiguas de un mismo MSC/VLR; la red sabe el LA del móvil, no su célula, y avisa por el PCH en todo el LA"
+  - "Autenticación: RAND (128 bits) con Ki da SRES (con A3) y Kc (con A8); Ki y Kc nunca viajan por el aire"
+  - "Location Update: lo inicia el móvil al encender, al cambiar de LA o al vencer el temporizador periódico"
+fuentes:
+  - "Cx_Red-Movilidad.pdf"
+---
+
+import FlujoLlamada from '../../../src/asignaturas/conmutacion/widgets/FlujoLlamada.astro';
+
+El móvil se mueve y la red tiene que saber en qué zona está para poder encontrarlo, quién es (autenticación) y cómo protegerlo (cifrado). De eso se encarga la subcapa MM.
+
+## Dónde encaja MM
+
+Dentro de la capa de red (RR, MM y CM), MM habla **entre el MS y el MSC**; la BTS y la BSC solo transportan (mira la pila en el tema de enlace). Sus interfaces son MS a MSC y MSC a HLR, VLR y AuC. Como el mensaje atraviesa toda la red, hace falta **identificar al móvil sin ambigüedad**.
+
+## Quién eres: las identidades
+
+Un móvil tiene cuatro identificadores. Tres son permanentes y uno es temporal.
+
+### MSISDN: el número público
+
+| CP | CA | NA |
+| --- | --- | --- |
+| 34 | 639 | 123 456 |
+
+- Norma **E.164**, hasta 15 dígitos. Nº internacional NI = CP + NN, y nº nacional NN = CA + NA.
+- CP (código de país): 1 a 3 dígitos. España 34, EE. UU. 1, Bulgaria 359. El primer dígito indica la zona mundial (hay 9).
+- En España el nacional tiene **9 dígitos** y los móviles empiezan por 6, 71, 72, 73, 74… Los bloques de tres dígitos van por operador (639, Telefónica Móviles).
+- No depende del operador (portabilidad). Se guarda en el **HLR**. Es lo que los demás marcan.
+
+### IMSI: la identidad real
+
+| MCC | MNC | MSIN (hasta 10) |
+| --- | --- | --- |
+| 214 | 01 | xxxxxxxxxx |
+
+- Norma **E.202** (plan de numeración móvil). NmI = MCC + NmN, y NmN = MNC + MSIN.
+- MCC: país, 3 dígitos (España 214). MNC: operador, 2 o 3 dígitos (Vodafone 01).
+- Asociado a un operador. Se guarda en la **SIM y el HLR**. Con él la red nos reconoce: cuando nos llaman, el HLR traduce el MSISDN al IMSI.
+- Varios IMSI pueden apuntar a un mismo MSISDN.
+
+### IMEI: el terminal
+
+| TAC | FAC | SNR | c |
+| --- | --- | --- | --- |
+| xxxxxx | yy | zzzzzz | c |
+
+- Identifica al **terminal, no al abonado**. 15 dígitos. La red puede pedirlo al registrar el móvil y al atender servicios.
+- **TAC** (Type Allocation Code): x₁x₂ = autoridad que lo homologa, el resto = modelo. **FAC**: fábrica. **SNR**: nº de serie. **c**: dígito de control.
+
+### TMSI: el alias temporal
+
+Un número plano de **32 bits**.
+
+- Lo asigna el **VLR** del MSC que sirve la zona, al registrarse o cambiar de localización. **Es local al LA**.
+- Reduce la señalización necesaria para mantener la localización y da **privacidad** (sustituye al IMSI).
+
+| Identidad | Identifica a | Tipo | Se guarda en | Para recordarlo |
+| --- | --- | --- | --- | --- |
+| **MSISDN** | El abonado (público) | Permanente | HLR | Tu nombre en la guía telefónica |
+| **IMSI** | El abonado (privado) | Permanente | SIM y HLR | Tu DNI |
+| **IMEI** | El terminal | Permanente | El móvil (y el EIR) | La matrícula del coche |
+| **TMSI** | El abonado, en una zona | Temporal | VLR y SIM | Un número de turno en una sala de espera |
+
+{/* widget: ident (identidades; no está en la v1) */}
+
+## Dónde estás: células, LA y MSC/VLR
+
+Un **área de localización** (LA) es un conjunto de células contiguas, de un mismo MSC/VLR, que comparten el rango de numeración temporal. **LAI = MCC + MNC + LAC**, y LAI + TMSI es una identidad única. El móvil escucha el BCCH de la BTS que recibe con más potencia, donde viene el LAI.
+
+*Por ejemplo, un MSC/VLR con dos áreas: LA 1 (LAI = MCC + MNC + LAC₁) y LA 2 (LAI = MCC + MNC + LAC₂), cada una con varias células. El aviso (paging, por el PCH) va a todas las células del LA. El TMSI vale dentro de su LA: cuando el móvil pasa de LA 1 a LA 2 detecta el cambio de LA y hace un Location Update.*
+
+La red (VLR y HLR) conoce el LA del móvil pero **no su célula**. Por eso las células de un LA deben compartir el canal PCH: una llamada entrante se avisa en todas. Cuanto mayor es el LA, menos Location Updates y más paging; cuanto menor, al revés.
+
+{/* widget: lasim (simulador de LA; no está en la v1) */}
+
+## Los procedimientos de MM
+
+### Generales
+
+Solo necesitan una conexión RR activa (canal dedicado asignado al MS y conexión LAPD sobre él).
+
+- Los inicia la red: asignación de TMSI, autenticación (IMSI/TMSI) e identificación (pide IMSI o IMEI).
+- Los inicia el MS: desenganche IMSI (apagado, *detach*).
+
+### Especiales
+
+Mutuamente excluyentes entre sí y con las conexiones CM: no se pueden hacer con una llamada en curso.
+
+- Enganche IMSI (encendido, *attach*).
+- Actualización de posición: por cambio de localización; puede implicar cambio de MSC y de VLR, o solo de identidad temporal en el mismo.
+- Actualización periódica: cada *n* minutos, si la célula lo permite y lo indica por el BCCH.
+
+### Gestión de conexiones
+
+Da servicio a la subcapa de arriba (CM).
+
+- Establece la conexión MM que CM necesita para una llamada o un SMS. Sin ella, CM no puede hacer nada.
+
+## Autenticación
+
+La clave secreta **Ki** vive solo en la SIM y en el AuC y **nunca viaja** por el aire. La red manda un número aleatorio (RAND), los dos lados lo combinan con Ki y comparan resultados.
+
+| Paso | Qué cruza el aire | Tamaño |
+| --- | --- | --- |
+| 1 | RAND, de la red al móvil, en claro | 128 bits |
+| 2 | SRES, del móvil a la red | 32 bits |
+| 3 | La red compara los SRES; si coinciden, modo cifrado | |
+| 4 | Datos cifrados con Kc (A5) | Kc de 64 bits |
+
+*Lo que cruza el aire: RAND, SRES y después los datos cifrados. Lo que no: Ki y Kc, que cada lado calcula por su cuenta. Tamaños: Ki y RAND 128 bits, SRES 32, Kc 64 (Ki y SRES son datos estándar, no vienen en la diapositiva).*
+
+> **Matiz del paso 7 de la diapositiva.** Cuando SRES<sub>A</sub> = SRES<sub>B</sub>, el MSC entrega la Kc **al BSS** (que es quien cifra en el aire), no al móvil: el móvil ya calculó la suya con A8.
+
+{/* widget: authsim (simulador de autenticación; no está en la v1) */}
+
+### El mismo proceso, mensaje a mensaje
+
+<FlujoLlamada id="autenticacion" />
+
+| Paso | Sentido | Mensaje | Qué pasa |
+| --- | --- | --- | --- |
+| 1 | MS → BSS | RR-Channel Request (RACH) | El móvil necesita un servicio (llamada, actualización, registro) y pide un canal. |
+| 2 | BSS → MS | RR-Immediate Assignment (AGCH) | La red le da un canal dedicado (SDCCH): ya hay conexión RR. |
+| | | **Conexión RR establecida (SDCCH)** | |
+| 3 | MS → MSC/VLR | CM-Service Request (IMSI/TMSI) | El móvil pide el servicio indicando su identidad. La autenticación la inicia la red. |
+| 4 | MSC/VLR → HLR/AuC | MAP-SEND AUTH INFO (IMSI) | El MSC/VLR pide al HLR la verificación del IMSI, y el HLR al AuC la tripleta. |
+| 5 | HLR/AuC → MSC/VLR | MAP-SEND AUTH INFO ack (RAND, SRES<sub>A</sub>, Kc<sub>A</sub>) | El AuC genera RAND, SRES = A3(Ki, RAND) y Kc = A8(Ki, RAND). El HLR comprueba que el IMSI es cliente y tiene el servicio contratado, y entrega la tripleta. |
+| 6 | MSC/VLR → MS | MM-Authentication Request (RAND) | Solo se manda el RAND (el MSC lo pasa al BSS y este al móvil). La SIM calcula SRES<sub>B</sub> y Kc<sub>B</sub>. |
+| 7 | MS → MSC/VLR | MM-Authentication Response (SRES<sub>B</sub>) | La SIM tiene Ki, A3 y A8: calcula su respuesta y su propia clave de cifrado. El MSC/VLR comprueba si SRES<sub>A</sub> = SRES<sub>B</sub>. |
+| 8 | MSC/VLR → BSS | Kc<sub>A</sub> | Si coinciden, el MSC entrega Kc al BSS (no al móvil). |
+| 9 | BSS → MS | RR-Cipher Mode Command | El BSS ordena pasar a modo cifrado. |
+| 10 | MS → BSS | RR-Cipher Mode Complete | Desde aquí todo va cifrado con Kc. |
+| 11 | MSC/VLR → MS | CM-Service Accepted | Servicio aceptado. |
+
+1. El MSC/VLR pide al HLR la verificación del IMSI.
+2. El HLR pide al AuC la tripleta ⟨RAND, SRES, Kc⟩.
+3. El AuC la genera: RAND aleatorio (128 b), SRES = A3(Ki, RAND), Kc = A8(Ki, RAND) (64 b).
+4. El HLR verifica que el IMSI es cliente y tiene contratado el servicio y entrega la tripleta al MSC/VLR.
+5. El MSC/VLR entrega el RAND al BSS, que lo transmite al MS.
+6. La SIM (con Ki, A3 y A8) calcula SRES<sub>B</sub> y Kc<sub>B</sub> y devuelve SRES<sub>B</sub>.
+7. Si SRES<sub>A</sub> = SRES<sub>B</sub>, el MSC entrega Kc al BSS, que ordena al MS pasar a modo cifrado.
+
+## Actualización de posición (Location Update)
+
+**Siempre la inicia el MS**, en tres casos:
+
+| Caso | Qué pasa |
+| --- | --- |
+| **Encendido** | Attach o power-on: se registra en la red. |
+| **Cambio de LA** | Detecta en el BCCH un LAI distinto del que tenía. |
+| **Temporizador** | Venció el plazo de actualización periódica, si la célula lo exige. |
+
+El resultado puede incluir actualizar el LA en el VLR, asignar o cambiar el TMSI, y **cambiar de VLR y actualizar el HLR**. Hay tres casos con distinta cantidad de señalización.
+
+### Caso A: registro completo (encendido)
+
+El más largo: hay que dar de alta al móvil en el VLR y el HLR le manda su perfil de abonado. Después se encadena **autenticación, cifrado y TMSI nuevo**, los procedimientos generales que ya conoces.
+
+<FlujoLlamada id="actualizacion-a" />
+
+| Paso | Sentido | Mensaje | Qué pasa |
+| --- | --- | --- | --- |
+| | | **Conexión RR** | |
+| 1 | MS → MSC | LU-Request (LAI) | El móvil pide actualizar su posición. El BSS es solo la tubería por la que pasan los mensajes. |
+| 2 | MSC → VLR | MAP-UPDATE_LOCATION_AREA (IMSI, LAI) | El MSC pasa la petición a su VLR. |
+| 3 | VLR → HLR/AuC | MAP-UPDATE_LOCATION (IMSI) | El VLR avisa al HLR de dónde está ahora el abonado. |
+| 4 | HLR/AuC → VLR | MAP-INSERT_SUBSCRIBER_DATA (registro MS) | El HLR le da al VLR el perfil del abonado. |
+| 5 | VLR → HLR/AuC | MAP-INSERT_SUBSCRIBER_DATA ack | |
+| 6 | HLR/AuC → VLR | MAP-UPDATE_LOCATION ack | |
+| | | **Autenticación** | |
+| 7 | VLR → HLR/AuC | MAP-SEND AUTH INFO (IMSI) | |
+| 8 | HLR/AuC → VLR | MAP-SEND AUTH INFO ack (RAND, SRES<sub>A</sub>, Kc) | |
+| 9 | VLR → MSC | MAP-AUTHENTICATE (RAND) | |
+| 10 | MSC → MS | Auth. Request (RAND) | |
+| 11 | MS → MSC | Auth. Response (SRES<sub>B</sub>) | |
+| 12 | MSC → VLR | MAP-AUTHENTICATE ack (SRES<sub>B</sub>) | |
+| | | **Cifrado** | |
+| 13 | VLR → MSC | MAP-SET CIPHERING MODE (Kc) | |
+| 14 | MSC → MS | Ciph. Mode Command (Kc) | |
+| 15 | MS → MSC | Ciph. Mode Complete | |
+| 16 | MSC → VLR | MAP-SET CIPHERING MODE ack | |
+| | | **Asignación de TMSI nuevo** | |
+| 17 | VLR → MSC | MAP-FORWARD NEW TMSI (TMSI) | |
+| 18 | MSC → MS | TMSI Realloc. Command (TMSI) | |
+| 19 | MS → MSC | TMSI Realloc. Complete | |
+| 20 | MSC → VLR | MAP-FORWARD NEW TMSI ack | |
+| 21 | VLR → MSC | MAP-UPDATE LOCATION AREA ack | |
+| 22 | MSC → MS | LU-Confirm (LAI) | Registro terminado: el móvil ya tiene TMSI y la red sabe su LA. |
+
+### Caso B: cambio de LA dentro del mismo VLR
+
+El VLR **ya conoce** al móvil (le asignó el TMSI<sub>A</sub>). Solo tiene que anotar el LAI nuevo y **no se toca el HLR**, así que se ahorra casi toda la señalización.
+
+<FlujoLlamada id="actualizacion-b" />
+
+| Paso | Sentido | Mensaje | Qué pasa |
+| --- | --- | --- | --- |
+| | | **Conexión RR** | |
+| 1 | MS → MSC/VLR | LU-Request (TMSI<sub>A</sub>, LAI<sub>A</sub>, LAI<sub>B</sub>) | El móvil se identifica con su TMSI antiguo y dice de qué LA viene (A) y a cuál ha llegado (B). El VLR cambia LAI<sub>A</sub> por LAI<sub>B</sub>. |
+| | | **Autenticación · cifrado · TMSI nuevo** | |
+| 2 | MSC/VLR → MS | LU-Confirm (LAI<sub>B</sub>) | Confirmación. Sin HLR de por medio. |
+
+### Caso C: cambio de LA que cambia de VLR
+
+El VLR nuevo no conoce ese TMSI (lo asignó otro VLR). Le pregunta al **VLR anterior** quién es, y solo entonces crea el registro y avisa al HLR.
+
+<FlujoLlamada id="actualizacion-c" />
+
+| Paso | Sentido | Mensaje | Qué pasa |
+| --- | --- | --- | --- |
+| | | **Conexión RR** | |
+| 1 | MS → MSC/VLR nuevo | LU-Request (TMSI<sub>A</sub>, LAI<sub>A</sub>, LAI<sub>B</sub>) | El móvil se presenta con un TMSI que este VLR no conoce. |
+| 2 | MSC/VLR nuevo → VLR anterior | MAP-SEND IDENTIFICATION (TMSI<sub>A</sub>, LAI<sub>A</sub>) | Por el LAI antiguo, el VLR nuevo sabe a quién preguntar. |
+| 3 | VLR anterior → MSC/VLR nuevo | MAP-SEND IDENTIFICATION ack (IMSI) | El VLR anterior devuelve el IMSI. |
+| | | **Creación de registro en el VLR nuevo** | |
+| 4 | MSC/VLR nuevo → HLR/AuC | MAP-UPDATE LOCATION (IMSI) | Ahora sí hay que avisar al HLR de la nueva posición. |
+| | | **Autenticación · cifrado · TMSI nuevo** | |
+| 5 | HLR/AuC → VLR anterior | MAP-CANCEL LOCATION (\*) | El HLR manda borrar el registro del VLR antiguo. |
+| 6 | MSC/VLR nuevo → MS | LU-Confirm (LAI<sub>B</sub>) | |
+
+*\* MAP-CANCEL LOCATION no aparece en la diapositiva: es lo que hace el estándar para borrar el registro del VLR antiguo. Cuéntalo solo si te preguntan qué pasa con él.*
+
+| Caso | ¿Conoce el VLR al móvil? | ¿Interviene el HLR? | Señalización |
+| --- | --- | --- | --- |
+| **A** Encendido | No (registro nuevo) | Sí (perfil de abonado) | Máxima |
+| **B** Mismo VLR | Sí | No | Mínima |
+| **C** Otro VLR | No (lo pregunta al anterior) | Sí (actualiza posición) | Alta |
+
+## Autoevaluación
+
+<details>
+<summary>¿Por qué existe el TMSI si ya existe el IMSI?</summary>
+
+Para reducir la señalización y por **privacidad**: el IMSI casi no se transmite por el aire, se usa un alias asignado por el VLR y válido solo dentro de su LA.
+
+</details>
+
+<details>
+<summary>¿Qué diferencia hay entre MSISDN e IMSI y quién los traduce?</summary>
+
+El MSISDN es el número público (E.164) y el IMSI el identificador privado (E.202). Cuando alguien llama al MSISDN, el **HLR** lo traduce al IMSI.
+
+</details>
+
+<details>
+<summary>¿Qué viaja por el aire en la autenticación y qué no?</summary>
+
+Viajan RAND (de la red al móvil) y SRES (del móvil a la red). **No viajan Ki ni Kc**: cada lado calcula Kc con A8 a partir de Ki y RAND.
+
+</details>
+
+<details>
+<summary>La red sabe el LA del móvil pero no su célula. ¿Qué implica para una llamada entrante?</summary>
+
+Que el aviso (paging) se envía **por el PCH en todas las células del LA**.
+
+</details>
+
+<details>
+<summary>¿En qué casos inicia el móvil una actualización de posición?</summary>
+
+Al encenderse (attach), al detectar un cambio de LA (LAI distinto en el BCCH) y cuando vence el temporizador de actualización periódica.
+
+</details>
+
+<details>
+<summary>¿Por qué el cambio de VLR necesita MAP-SEND IDENTIFICATION y el cambio de LA dentro del mismo VLR no?</summary>
+
+En el cambio de VLR, el nuevo no conoce ese TMSI (lo asignó otro) y pregunta al VLR anterior por el IMSI. Dentro del mismo VLR ya tiene el registro del móvil.
+
+</details>
+
+<details>
+<summary>¿Se puede hacer una actualización de posición durante una llamada?</summary>
+
+No: los procedimientos **especiales** son mutuamente excluyentes con las conexiones CM.
+
+</details>
+
+<details>
+<summary>¿Cuál es la diferencia entre procedimientos generales y especiales de MM?</summary>
+
+Los generales solo requieren una conexión RR activa y los inician la red (TMSI, autenticación, identificación) o el MS (detach). Los especiales (attach, actualización de posición, periódica) son mutuamente excluyentes entre sí y con las conexiones CM.
+
+</details>

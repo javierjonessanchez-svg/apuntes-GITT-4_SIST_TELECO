@@ -1,0 +1,19 @@
+---
+// "En este tema": enlaces a los apartados (##) del artículo. El apartado que se
+// está leyendo se resalta con cliente/indice-activo.ts.
+interface Props { apartados: { slug: string; text: string }[] }
+const { apartados } = Astro.props;
+---
+<nav class="indice panel" aria-label="En este tema" data-indice>
+  <p class="panel-titulo">En este tema</p>
+  {apartados.length > 0 ? (
+    <ol>
+      {apartados.map((a) => <li><a href={`#${a.slug}`}>{a.text}</a></li>)}
+    </ol>
+  ) : (
+    <p class="suave">Este tema aún no tiene apartados.</p>
+  )}
+</nav>
+<script>
+  import './cliente/indice-activo';
+</script>

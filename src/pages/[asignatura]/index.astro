@@ -1,0 +1,21 @@
+---
+// Portada de cada asignatura activa, dibujada por su mundo.
+import BaseLayout from '../../comun/BaseLayout.astro';
+import { asignaturasOrdenadas, temasDe, type Asignatura } from '../../comun/datos';
+import { mundoDe } from '../../asignaturas/registro';
+
+export async function getStaticPaths() {
+  return (await asignaturasOrdenadas())
+    .filter((a) => a.estado === 'activa')
+    .map((a) => ({ params: { asignatura: a.slug }, props: { asignatura: a } }));
+}
+
+const { asignatura } = Astro.props as { asignatura: Asignatura };
+const temas = await temasDe(asignatura.slug);
+const { Portada } = mundoDe(asignatura.slug);
+---
+<BaseLayout titulo={asignatura.nombre} asignatura={asignatura.slug} descripcion={asignatura.descripcion}>
+  <main id="contenido">
+    <Portada asignatura={asignatura} temas={temas} />
+  </main>
+</BaseLayout>

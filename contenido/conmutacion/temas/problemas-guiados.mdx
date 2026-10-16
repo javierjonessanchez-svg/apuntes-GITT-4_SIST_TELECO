@@ -1,0 +1,139 @@
+---
+titulo: "Problemas guiados"
+orden: 7
+bloque: "Tráfico"
+resumen: "Enunciados con pistas y resultados"
+saber:
+  - "Deducir el radio máximo de una célula a partir del tiempo de guarda"
+  - "Calcular la capacidad bruta de un canal lógico a partir de su multitrama"
+  - "Calcular cuántas peticiones por segundo admite un RACH"
+  - "Dimensionar una célula con Erlang B o con Engset"
+  - "Calcular el tamaño de un mensaje de capa 3 y comprobar si cabe en una trama LAPDm"
+  - "Contar los grupos de paging de una célula"
+fuentes:
+  - "Cx_EjerciciosMultiplex.pdf"
+  - "Cx_EjerciciosRed1.pdf"
+---
+
+import ProblemaGuiado from '../../../src/asignaturas/conmutacion/widgets/ProblemaGuiado.astro';
+import ErlangB from '../../../src/asignaturas/conmutacion/widgets/ErlangB.astro';
+import Tarjetas from '../../../src/asignaturas/conmutacion/widgets/Tarjetas.astro';
+
+Problemas del estilo de las hojas de ejercicios, con **otros números**: aquí está el método, no las respuestas de la hoja. Lee el enunciado, abre las pistas solo si te atascas y compara al final con el resultado.
+
+## Cómo usarlo
+
+- Cada problema dice qué tema de los apuntes necesitas. Las pistas van de una en una.
+- Los números son inventados. Sirven para practicar el camino, que es el mismo que en los ejercicios de clase.
+- Si un resultado no te sale, busca en qué paso te separas antes de mirar la solución entera.
+
+## Multiplexado
+
+### Radio máximo de una célula
+
+Tema: Interfaz aérea (la ráfaga y el avance temporal).
+
+<ProblemaGuiado
+  enunciado="Un sistema TDMA usa una ráfaga de acceso con un tiempo de guarda de 50 bits y transmite a 400 kbit/s. Un móvil pegado a la estación base y otro en el borde de la célula envían su ráfaga de acceso en la misma ranura. ¿Cuál es el radio máximo de la célula para que las dos ráfagas no se solapen?"
+  pistas={[
+    String.raw`El tiempo de guarda es lo que puede llegar tarde la ráfaga del móvil lejano: $t_g = 50 / 400\,000$ s.`,
+    String.raw`El móvil lejano oye el comienzo de la trama con un retardo $d/c$, y su ráfaga tarda otros $d/c$ en volver: en total $2d/c$. Iguala $2d/c = t_g$ y despeja $d$.`,
+  ]}
+  solucion={String.raw`$t_g = 125\ \mu\text{s}$, así que $R = c \cdot t_g / 2 = 3 \cdot 10^8 \cdot 125 \cdot 10^{-6} / 2 =$ **18,75 km**. En GSM la ráfaga de acceso tiene 68,25 bits de guarda a 270,833 kbit/s, y por eso se habla de unos 35 km de radio máximo.`}
+/>
+
+### Capacidad bruta de un canal lógico
+
+Tema: Interfaz aérea (multitramas).
+
+<ProblemaGuiado
+  enunciado="Un canal lógico ocupa 3 ráfagas normales en cada multitrama de 51 tramas. ¿Qué capacidad bruta tiene, en bit/s?"
+  pistas={[
+    String.raw`Una ráfaga normal lleva $2 \times 57 = 114$ bits de datos.`,
+    String.raw`Capacidad = ráfagas por ciclo × bits por ráfaga / duración del ciclo. Un ciclo de 51 tramas dura $51 \times 4{,}615$ ms.`,
+  ]}
+  solucion={String.raw`$C = \dfrac{3 \cdot 114\ \text{bits}}{51 \cdot 4{,}615\ \text{ms}} = \dfrac{342}{235{,}365\ \text{ms}} \approx$ **1453 bit/s**. Es la capacidad **bruta**. Si piden la información útil, descuenta la codificación de canal: un bloque de señalización son 184 bits útiles repartidos en 4 ráfagas.`}
+/>
+
+### Capacidad de un canal de acceso aleatorio
+
+Tema: Interfaz aérea (canales lógicos y multitramas).
+
+<ProblemaGuiado
+  enunciado="Una célula tiene 20 ranuras RACH en cada multitrama de 51 tramas. Para que el ALOHA ranurado tenga poco retardo, la ocupación no debe pasar del 10 %. Cada petición usa una ranura y lleva 36 bits de datos. ¿Cuántas peticiones por segundo admite y con qué régimen binario?"
+  pistas={[
+    "Pasa las ranuras por multitrama a ranuras por segundo dividiendo por la duración de la multitrama (235,365 ms).",
+    "Aplica el 10 % a las ranuras por segundo. Para el régimen binario, multiplica por los 36 bits de cada petición.",
+  ]}
+  solucion={String.raw`$20 / 0{,}235365\ \text{s} \approx 85{,}0$ ranuras/s. Al 10 %: **≈ 8,5 peticiones/s**. Régimen binario: $85{,}0 \times 36 \approx 3{,}06$ kbit/s a plena ocupación y **≈ 306 bit/s** al 10 %.`}
+/>
+
+## Tráfico
+
+### Una célula con pocos usuarios
+
+Tema: Tráfico y colas (Erlang B y Engset).
+
+<ProblemaGuiado
+  enunciado="Una célula tiene 8 canales de tráfico y atiende a 150 móviles. En la hora cargada cada móvil hace un intento de llamada cada 60 minutos y las llamadas duran 3 minutos de media (exponencial). ¿Qué probabilidad de bloqueo ve una llamada? ¿Cuántos móviles caben si el bloqueo no debe pasar del 2 %?"
+  pistas={[
+    String.raw`Tráfico por usuario: $a = \lambda / \mu = (1/60) / (1/3) = 0{,}05$ E. Tráfico total: $A = 150 \cdot 0{,}05 = 7{,}5$ E.`,
+    String.raw`Con un número finito de usuarios el modelo es **Engset**. El bloqueo que ve una llamada es el del sistema con un usuario menos: $P_L(p) = P_B(p - 1)$.`,
+    String.raw`Para «cuántos móviles», deja $a = 0{,}05$ fijo y busca el mayor $p$ con $P_L(p) \le 2\ \%$.`,
+  ]}
+  solucion={String.raw`Con 8 canales y 150 móviles, Engset da $P_L \approx 18{,}8\ \%$. Erlang B con $A = 7{,}5$ E daría 20,7 %: con pocos usuarios Erlang B se pasa un poco, porque los que ya hablan no generan llamadas nuevas. Al 2 % caben **78 móviles** ($P_L \approx 1{,}94\ \%$; con 79 ya sería 2,06 %). Con Erlang B saldrían menos: el tráfico máximo con 8 canales al 2 % es 3,63 E, es decir unos 72 móviles.`}
+/>
+
+Para comparar con Erlang B, prueba la calculadora con los datos del problema:
+
+<ErlangB N={8} A={7.5} />
+
+## Capa de red
+
+### ¿Cabe el informe de medidas en una trama?
+
+Tema: Capa de enlace (LAPDm) y Capa de red (medidas del traspaso).
+
+<ProblemaGuiado
+  enunciado="Un móvil activo envía un mensaje RR *Measurement Report* con el IE *Measurement Results*: calidad y nivel de la célula propia y el nivel de **4 vecinas**. La cabecera de capa 3 tiene TI (4 bits), PD (4 bits) y el tipo de mensaje (8 bits). El IE tiene un identificador de 8 bits, 23 bits de la célula propia, 3 bits con el número de vecinas y 17 bits por vecina. El mensaje va en tramas LAPDm de 23 octetos por el SACCH de una combinación I. ¿Cabe en una trama? ¿Cada cuánto puede enviar un informe?"
+  pistas={[
+    String.raw`Suma los bits: cabecera $4 + 4 + 8$ y el IE $8 + 23 + 3 + 4 \times 17$. Pásalo a octetos redondeando hacia arriba.`,
+    "El campo de información de una trama LAPDm tiene 20 octetos. Una trama ocupa 4 ráfagas, y en la combinación I el SACCH tiene una ráfaga por multitrama de 26 tramas (120 ms).",
+  ]}
+  solucion={String.raw`$16 + (8 + 23 + 3 + 68) = 118$ bits, es decir **15 octetos** (redondeando), que caben en **una trama LAPDm**. Una trama son 4 ráfagas del SACCH: $4 \times 120 = 480$ ms por informe, unas **2,08 medidas/s**. Con 6 vecinas serían 152 bits (19 octetos): también cabría.`}
+/>
+
+### Grupos de paging
+
+Tema: Interfaz aérea (multitramas) y Gestión de movilidad (paging).
+
+<ProblemaGuiado
+  enunciado="Una célula usa la combinación IV en su canal de control, que tiene **9 grupos CCCH** por multitrama de 51 tramas (un grupo son 4 ranuras CCCH seguidas). Los parámetros son BS_AG_BLKS_RES = 2 y BS_PA_MFRMS = 3. ¿Cuántos grupos de recepción (*paging blocks*) hay? Si cada aviso ocupa una ráfaga y se transmite tres veces, ¿cuántos avisos por segundo puede entregar la célula?"
+  pistas={[
+    "Los grupos reservados por BS_AG_BLKS_RES son para el AGCH y no sirven para paging.",
+    String.raw`Fórmula habitual: $N_{PB} = (\text{grupos CCCH por multitrama} - \text{BS\_AG\_BLKS\_RES}) \times \text{BS\_PA\_MFRMS}$.`,
+  ]}
+  solucion={String.raw`$N_{PB} = (9 - 2) \times 3 =$ **21 grupos**. Para paging quedan $7 \times 4 = 28$ ráfagas por multitrama: $28 / 0{,}235365 \approx 119$ ráfagas/s. Con tres repeticiones por aviso: **≈ 39,7 avisos/s**.`}
+/>
+
+## Autoevaluación
+
+<details>
+<summary>¿Cómo se obtiene la capacidad bruta de un canal lógico a partir de la multitrama?</summary>
+
+Se cuentan las ráfagas que le tocan en un ciclo, se multiplica por los bits de datos de la ráfaga (114 en una normal, 36 en una de acceso) y se divide por la duración del ciclo (tramas × 4,615 ms).
+
+</details>
+
+<details>
+<summary>Pasos para dimensionar los canales de tráfico de una célula con un número finito de usuarios.</summary>
+
+1) Calcula $a = \lambda/\mu$ por usuario y $A = p \cdot a$. 2) Usa Engset ($P_L = P_B(p-1)$) con $N$ canales. 3) Para «cuántos usuarios», fija $a$ y busca el mayor $p$ con $P_L$ por debajo del objetivo. 4) Con muchos usuarios, usa Erlang B y busca el $N$ mínimo.
+
+</details>
+
+## Repaso con tarjetas
+
+Todas las preguntas de autoevaluación de Conmutación y los puntos de «Lo que tienes que saber» de cada tema, de una en una. Primero salen las que no has visto nunca y luego las que peor sabías.
+
+<Tarjetas />

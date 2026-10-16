@@ -1,0 +1,27 @@
+---
+// Una página por tema de cada asignatura activa.
+import { render } from 'astro:content';
+import TemaLayout from '../../comun/TemaLayout.astro';
+import { asignaturasOrdenadas, temasDe, type Asignatura, type Tema } from '../../comun/datos';
+
+type Props = { asignatura: Asignatura; tema: Tema; anterior?: Tema; siguiente?: Tema };
+
+export async function getStaticPaths() {
+  const rutas: { params: { asignatura: string; tema: string }; props: Props }[] = [];
+  for (const asignatura of (await asignaturasOrdenadas()).filter((a) => a.estado === 'activa')) {
+    const temas = await temasDe(asignatura.slug);
+    temas.forEach((tema, i) => rutas.push({
+      params: { asignatura: asignatura.slug, tema: tema.slug },
+      props: { asignatura, tema, anterior: temas[i - 1], siguiente: temas[i + 1] },
+    }));
+  }
+  return rutas;
+}
+
+const { asignatura, tema, anterior, siguiente } = Astro.props;
+const { Content, headings } = await render(tema.entrada);
+const apartados = headings.filter((h) => h.depth === 2);
+---
+<TemaLayout asignatura={asignatura} tema={tema} apartados={apartados} anterior={anterior} siguiente={siguiente}>
+  <Content />
+</TemaLayout>

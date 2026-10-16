@@ -1,0 +1,15 @@
+---
+// Lista numerada con los pasos de un cálculo. Los pasos pueden venir ya hechos
+// (prop pasos) o pintarse en el navegador con pintarDesarrollo().
+import './widgets.css';
+import { htmlPaso, type Paso } from './desarrollo';
+
+interface Props { pasos?: Paso[]; titulo?: string }
+const { pasos = [], titulo = 'Desarrollo' } = Astro.props;
+---
+<div class="desarrollo">
+  <p class="desarrollo-titulo">{titulo}</p>
+  <ol data-desarrollo aria-live="polite">
+    {pasos.map((p) => <li set:html={htmlPaso(p)} />)}
+  </ol>
+</div>

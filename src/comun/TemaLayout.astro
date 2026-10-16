@@ -1,0 +1,60 @@
+---
+// Página de tema: barra fija (volver · título · próxima prueba), índice a la
+// izquierda, artículo en el centro y "Lo que tienes que saber" a la derecha.
+// Por debajo de 1100 px los tres van uno debajo de otro.
+import BaseLayout from './BaseLayout.astro';
+import IndiceTema from './IndiceTema.astro';
+import ListaSaber from './ListaSaber.astro';
+import PrevSig from './PrevSig.astro';
+import Icono from './Icono.astro';
+import { ruta } from './rutas';
+import { diasHasta, proximaPrueba, textoDias } from './fechas';
+import type { Asignatura, Tema } from './datos';
+
+interface Props {
+  asignatura: Asignatura;
+  tema: Tema;
+  apartados: { slug: string; text: string }[];
+  anterior?: Tema;
+  siguiente?: Tema;
+}
+const { asignatura, tema, apartados, anterior, siguiente } = Astro.props;
+
+// Próxima prueba que incluye este tema. El número de días se recalcula en el
+// navegador al abrir la página (una web estática se queda con la fecha de construcción).
+const hoy = new Date();
+const prueba = proximaPrueba(asignatura.pruebas.filter((p) => p.temas.includes(tema.slug)), hoy);
+---
+<BaseLayout titulo={tema.titulo} asignatura={asignatura.slug} descripcion={tema.resumen}>
+  <div class="tema-barra">
+    <a class="volver" href={ruta(asignatura.slug)}><Icono nombre="izquierda" /><span>{asignatura.corto}</span></a>
+    <span class="tema-barra-titulo">{tema.titulo}</span>
+    {prueba && (
+      <span class="chip-prueba" data-fecha={prueba.fecha} data-ocultar-si-pasa
+        title={prueba.confirmar ? 'Fecha por confirmar' : undefined}>
+        <span>{prueba.nombre} <span data-dias>{textoDias(diasHasta(prueba.fecha, hoy))}</span></span>
+        {prueba.confirmar && <span class="chip-confirmar">(por confirmar)</span>}
+      </span>
+    )}
+  </div>
+  <div class="tema-rejilla">
+    <IndiceTema apartados={apartados} />
+    <main id="contenido" class="tema-articulo" data-indice-articulo data-pagefind-body
+      data-pagefind-filter={`asignatura:${asignatura.nombre}`}>
+      <header class="tema-cabecera">
+        <p class="tema-bloque">{tema.bloque}</p>
+        <h1>{tema.titulo}</h1>
+        <p class="entradilla">{tema.resumen}</p>
+      </header>
+      <slot />
+      {tema.fuentes && tema.fuentes.length > 0 && (
+        <p class="tema-fuentes">Material del curso usado: {tema.fuentes.join(' · ')}.</p>
+      )}
+      <PrevSig asignatura={asignatura.slug} anterior={anterior} siguiente={siguiente} />
+    </main>
+    <ListaSaber asignatura={asignatura.slug} tema={tema.slug} saber={tema.saber} />
+  </div>
+</BaseLayout>
+<script>
+  import './cliente/linea-tiempo';
+</script>

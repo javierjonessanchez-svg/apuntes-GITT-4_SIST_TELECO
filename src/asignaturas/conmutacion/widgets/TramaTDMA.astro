@@ -1,0 +1,176 @@
+---
+// Visor de trama y multitrama. Arriba, las 8 ranuras de una trama; al pulsar una
+// se ve la ráfaga que lleva (normal o de acceso, campo a campo). Abajo, la
+// multitrama de 26 (combinación I) o de 51 (combinación IV, bajada); al pulsar
+// una trama se ve su canal. La ranura 0 lleva la de 51; las demás, la de 26.
+import Widget from '../../../widgets/Widget.astro';
+import { fmt } from '../../../widgets/numeros';
+import { QUE_ES, RAFAGAS, RANURA_US, canalEnTrama } from './tdma';
+
+const CORTO: Record<string, string> = { TCH: 'T', SACCH: 'A', FCCH: 'F', SCH: 'S', BCCH: 'B', CCCH: 'C', libre: '–' };
+const tramas = (tipo: 26 | 51) => Array.from({ length: tipo }, (_, n) => canalEnTrama(n, tipo));
+const textoRanura = (n: number) =>
+  `Ranura ${n}: dura ${fmt(RANURA_US, 1)} µs, 156,25 tiempos de bit. ` +
+  (n === 0 ? 'En la portadora BCCH lleva la señalización común: multitrama de 51.' : 'Lleva un canal de tráfico: multitrama de 26.');
+const textoTrama = (n: number, canal: string) => `Trama ${n}: ${canal}. ${QUE_ES[canal]}`;
+---
+<Widget titulo="Trama, ráfaga y multitrama" tipo="entender">
+  <div class="tdma" data-tdma>
+    <p class="tdma-rotulo">Una trama TDMA: 8 ranuras</p>
+    <div class="tdma-ranuras" role="group" aria-label="Ranuras de la trama">
+      {Array.from({ length: 8 }, (_, n) => (
+        <button type="button" data-ranura={n} aria-pressed={n === 1 ? 'true' : 'false'}>{n}</button>
+      ))}
+    </div>
+    <p class="tdma-info" data-info-ranura>{textoRanura(1)}</p>
+
+    <div class="tdma-fila">
+      <p class="tdma-rotulo">La ráfaga</p>
+      <div class="tdma-opciones" role="group" aria-label="Tipo de ráfaga">
+        <button type="button" class="boton boton-secundario boton-pequeno" data-rafaga="normal" aria-pressed="true">Normal</button>
+        <button type="button" class="boton boton-secundario boton-pequeno" data-rafaga="acceso" aria-pressed="false">De acceso</button>
+      </div>
+    </div>
+    {Object.entries(RAFAGAS).map(([clave, r]) => (
+      <div class="desliza" data-campos={clave} hidden={clave !== 'normal'}>
+        <div class="tdma-rafaga" role="group" aria-label={`Campos de la ${r.nombre.toLowerCase()}`}>
+          {r.campos.map((c, i) => (
+            <button type="button" class={`campo ${c.tipo}`} style={`flex: ${c.bits} 1 0`} data-campo={i}
+              aria-label={`${c.nombre}, ${fmt(c.bits)} bits`}>
+              <b>{c.nombre}</b><small>{fmt(c.bits)}</small>
+            </button>
+          ))}
+        </div>
+      </div>
+    ))}
+    <p class="tdma-info" data-info-rafaga><b>{RAFAGAS.normal.nombre}.</b> {RAFAGAS.normal.resumen}</p>
+
+    <div class="tdma-fila">
+      <p class="tdma-rotulo">La multitrama</p>
+      <div class="tdma-opciones" role="group" aria-label="Multitrama">
+        <button type="button" class="boton boton-secundario boton-pequeno" data-multi="26" aria-pressed="true">De 26 (tráfico)</button>
+        <button type="button" class="boton boton-secundario boton-pequeno" data-multi="51" aria-pressed="false">De 51 (señalización)</button>
+      </div>
+    </div>
+    {([26, 51] as const).map((tipo) => (
+      <div class="tdma-tramas" data-tramas={tipo} hidden={tipo !== 26} role="group" aria-label={`Multitrama de ${tipo} tramas`}>
+        {tramas(tipo).map((canal, n) => (
+          <button type="button" class={`trama c-${canal}`} data-trama={n} data-canal={canal}
+            tabindex={n === 0 ? 0 : -1} aria-label={`Trama ${n}: ${canal}`}>
+            <small>{n}</small><b>{CORTO[canal]}</b>
+          </button>
+        ))}
+      </div>
+    ))}
+    <p class="tdma-info" data-info-trama>{textoTrama(12, 'SACCH')}</p>
+    <ul class="tdma-leyenda">
+      {Object.entries(CORTO).map(([canal, letra]) => <li><span class={`trama c-${canal}`}><b>{letra}</b></span>{canal}</li>)}
+    </ul>
+  </div>
+</Widget>
+<style>
+  .tdma-rotulo { margin: 0; font-weight: 700; }
+  .tdma-fila { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-top: 18px; }
+  .tdma-opciones { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tdma-opciones [aria-pressed="true"] { background: var(--resalte); color: var(--sobre-resalte); box-shadow: none; }
+  .tdma-info { margin: 8px 0 0; min-height: 3em; text-wrap: pretty; }
+  .tdma-ranuras { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 4px; margin-top: 8px; }
+  .tdma-ranuras button, .campo, .trama {
+    border: 0; border-radius: 8px; color: var(--texto); font: inherit; cursor: pointer;
+    transition-property: background-color, box-shadow, scale; transition-duration: .15s; transition-timing-function: ease-out;
+  }
+  .tdma-ranuras button:active, button.campo:active, button.trama:active { scale: .96; }
+  .tdma-ranuras button { min-height: 44px; background: color-mix(in srgb, var(--primario) 16%, transparent); font-variant-numeric: tabular-nums; }
+  .tdma-ranuras button:first-child { background: color-mix(in srgb, var(--resalte) 40%, transparent); }
+  .tdma-ranuras [aria-pressed="true"], .campo[aria-pressed="true"], .trama[aria-pressed="true"] { box-shadow: inset 0 0 0 2.5px var(--texto); font-weight: 700; }
+  /* La ráfaga, con el ancho de cada campo proporcional a sus bits */
+  .tdma-rafaga { display: flex; gap: 2px; min-width: 640px; margin-top: 8px; }
+  .campo { display: grid; place-items: center; min-width: 26px; min-height: 52px; padding: 4px 2px; border-radius: 6px; line-height: 1.15; }
+  .campo b { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .8rem; }
+  .campo small { font-size: .75rem; color: var(--suave); font-variant-numeric: tabular-nums; }
+  .campo.datos { background: color-mix(in srgb, var(--primario) 26%, transparent); }
+  .campo.entrenamiento { background: color-mix(in srgb, var(--acento2) 26%, transparent); }
+  .campo.bandera { background: color-mix(in srgb, var(--resalte) 45%, transparent); }
+  .campo.cola { background: color-mix(in srgb, var(--texto) 12%, transparent); }
+  .campo.guarda { min-width: 58px; background: transparent; box-shadow: inset 0 0 0 1.5px var(--linea); }
+  /* Las tramas de la multitrama */
+  .tdma-tramas { display: grid; grid-template-columns: repeat(auto-fill, minmax(36px, 1fr)); gap: 3px; margin-top: 8px; }
+  .trama { display: grid; place-items: center; min-height: 44px; padding: 2px; line-height: 1.1; }
+  .trama small { font-size: .68rem; color: var(--suave); font-variant-numeric: tabular-nums; }
+  .trama b { font-size: .85rem; }
+  .c-TCH { background: color-mix(in srgb, var(--primario) 20%, transparent); }
+  .c-SACCH { background: color-mix(in srgb, var(--acento2) 32%, transparent); }
+  .c-FCCH { background: color-mix(in srgb, var(--resalte) 55%, transparent); }
+  .c-SCH { background: color-mix(in srgb, var(--resalte) 30%, transparent); }
+  .c-BCCH { background: color-mix(in srgb, var(--primario) 45%, transparent); }
+  .c-CCCH { background: color-mix(in srgb, var(--acento2) 14%, transparent); }
+  .c-libre { background: transparent; box-shadow: inset 0 0 0 1.5px var(--linea); }
+  .tdma-leyenda { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 12px 0 0; padding: 0; list-style: none; font-size: .85rem; color: var(--suave); }
+  .tdma-leyenda li { display: inline-flex; align-items: center; gap: 6px; }
+  .tdma-leyenda .trama { min-height: 24px; width: 24px; border-radius: 6px; cursor: default; }
+  [data-campos][hidden], [data-tramas][hidden] { display: none; }
+</style>
+<script>
+  import { montar } from '../../../widgets/cliente';
+  import { fmt } from '../../../widgets/numeros';
+  import { QUE_ES, RAFAGAS, RANURA_US } from './tdma';
+
+  montar('[data-tdma]', (caja) => {
+    const info = (q: string) => caja.querySelector<HTMLElement>(q)!;
+    const pulsar = (grupo: Iterable<Element>, elegido: Element) => {
+      for (const b of grupo) b.setAttribute('aria-pressed', String(b === elegido));
+    };
+    let rafaga: 'normal' | 'acceso' = 'normal';
+
+    const verRafaga = (r: 'normal' | 'acceso') => {
+      rafaga = r;
+      pulsar(caja.querySelectorAll('[data-rafaga]'), caja.querySelector(`[data-rafaga="${r}"]`)!);
+      for (const d of caja.querySelectorAll<HTMLElement>('[data-campos]')) d.hidden = d.dataset.campos !== r;
+      for (const c of caja.querySelectorAll('[data-campo]')) c.removeAttribute('aria-pressed');
+      info('[data-info-rafaga]').innerHTML = `<b>${RAFAGAS[r].nombre}.</b> ${RAFAGAS[r].resumen}`;
+    };
+    const verMulti = (tipo: string) => {
+      pulsar(caja.querySelectorAll('[data-multi]'), caja.querySelector(`[data-multi="${tipo}"]`)!);
+      for (const d of caja.querySelectorAll<HTMLElement>('[data-tramas]')) d.hidden = d.dataset.tramas !== tipo;
+      info('[data-info-trama]').textContent = 'Pulsa una trama para ver qué canal lleva.';
+    };
+    const verTrama = (b: HTMLElement) => {
+      const grupo = b.parentElement!.querySelectorAll<HTMLElement>('[data-trama]');
+      pulsar(grupo, b);
+      for (const t of grupo) t.tabIndex = t === b ? 0 : -1;
+      const canal = b.dataset.canal!;
+      info('[data-info-trama]').textContent = `Trama ${b.dataset.trama}: ${canal}. ${QUE_ES[canal]}`;
+    };
+
+    caja.addEventListener('click', (e) => {
+      const b = (e.target as Element).closest<HTMLElement>('button');
+      if (!b) return;
+      if (b.dataset.ranura !== undefined) {
+        const n = Number(b.dataset.ranura);
+        pulsar(caja.querySelectorAll('[data-ranura]'), b);
+        info('[data-info-ranura]').textContent = `Ranura ${n}: dura ${fmt(RANURA_US, 1)} µs, 156,25 tiempos de bit. `
+          + (n === 0 ? 'En la portadora BCCH lleva la señalización común: multitrama de 51.' : 'Lleva un canal de tráfico: multitrama de 26.');
+        verMulti(n === 0 ? '51' : '26');
+      } else if (b.dataset.rafaga) {
+        verRafaga(b.dataset.rafaga as 'normal' | 'acceso');
+      } else if (b.dataset.campo !== undefined) {
+        const c = RAFAGAS[rafaga].campos[Number(b.dataset.campo)];
+        pulsar(b.parentElement!.children, b);
+        info('[data-info-rafaga]').innerHTML = `<b>${c.nombre}, ${fmt(c.bits)} bits.</b> ${c.texto}`;
+      } else if (b.dataset.multi) {
+        verMulti(b.dataset.multi);
+      } else if (b.dataset.trama !== undefined) {
+        verTrama(b);
+      }
+    });
+    // Flechas para moverse por las tramas: un solo punto de tabulación por multitrama
+    caja.addEventListener('keydown', (e) => {
+      const b = (e.target as Element).closest<HTMLElement>('[data-trama]');
+      if (!b || (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft')) return;
+      const vecina = (e.key === 'ArrowRight' ? b.nextElementSibling : b.previousElementSibling) as HTMLElement | null;
+      if (vecina) { verTrama(vecina); vecina.focus(); }
+      e.preventDefault();
+    });
+    verTrama(caja.querySelector<HTMLElement>('[data-tramas="26"] [data-trama="12"]')!);
+  });
+</script>

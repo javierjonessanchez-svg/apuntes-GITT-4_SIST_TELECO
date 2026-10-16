@@ -1,0 +1,23 @@
+---
+// Botón "Buscar" (también Ctrl K) que abre un diálogo con resultados de
+// Pagefind, el índice estático que se genera al construir. Sin JavaScript el
+// botón no se ve (no funcionaría).
+import Icono from './Icono.astro';
+---
+<button type="button" class="boton-icono boton-buscar" data-boton-buscar aria-haspopup="dialog" aria-keyshortcuts="Control+K Meta+K" hidden>
+  <span class="sr">Buscar</span>
+  <Icono nombre="buscar" />
+</button>
+<dialog class="buscador" aria-labelledby="buscador-titulo" data-buscador>
+  <form method="dialog" class="buscador-cabecera" role="search" data-buscador-form>
+    <label id="buscador-titulo" for="buscador-texto" class="sr">Buscar en los apuntes</label>
+    <Icono nombre="buscar" />
+    <input id="buscador-texto" type="search" placeholder="Buscar en los apuntes…" autocomplete="off" spellcheck="false" data-buscador-texto />
+    <button type="button" class="boton-cerrar" data-buscador-cerrar>Cerrar</button>
+  </form>
+  <p class="buscador-estado" role="status" data-buscador-estado>Escribe al menos dos letras.</p>
+  <ul class="buscador-resultados" data-buscador-resultados></ul>
+</dialog>
+<script>
+  import './cliente/buscador';
+</script>
