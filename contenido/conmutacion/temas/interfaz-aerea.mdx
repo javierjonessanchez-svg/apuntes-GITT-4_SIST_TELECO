@@ -14,6 +14,11 @@ fuentes:
   - "Cx_ChuletaGSM-1920.pdf"
 ---
 
+import Racimo from '../../../src/asignaturas/conmutacion/widgets/Racimo.astro';
+import Jerarquia from '../../../src/asignaturas/conmutacion/widgets/Jerarquia.astro';
+import TramaTDMA from '../../../src/asignaturas/conmutacion/widgets/TramaTDMA.astro';
+import FlujoLlamada from '../../../src/asignaturas/conmutacion/widgets/FlujoLlamada.astro';
+
 Entre el móvil y la BTS no hay un cable: hay que repartir el espectro en frecuencia y en tiempo, y dentro de cada ranura de tiempo repartir otra vez entre los canales lógicos. Este tema es el que más cálculos genera.
 
 ## Espectro y portadoras
@@ -27,13 +32,29 @@ GSM es un sistema **FDD/TDMA**. *FDD* (duplexión por división en frecuencia) s
 
 {/* widget: Bandas */}
 
+### Reutilización de frecuencias
+
+Hay pocas portadoras, así que la misma frecuencia se vuelve a usar en células alejadas. Las células se agrupan en **racimos** (*clusters*) de $N$ células que se reparten todas las portadoras, y el racimo se repite como un mosaico. En una rejilla hexagonal solo valen los tamaños $N = i^2 + ij + j^2$: 1, 3, 4, 7, 9, 12, 13…
+
+Dos células cocanal (con las mismas portadoras) están a una distancia $D = R\sqrt{3N}$, con $R$ el radio de la célula. Con 6 interferentes cocanal a esa distancia y una pérdida de propagación de exponente $\gamma$:
+
+$$
+\frac{C}{I} = \frac{(D/R)^{\gamma}}{6} = \frac{\left(\sqrt{3N}\right)^{\gamma}}{6}
+$$
+
+Un $N$ grande mejora la C/I pero deja menos portadoras en cada célula: es el compromiso entre calidad y capacidad. Con $\gamma = 4$ y $N = 7$ sale $C/I \approx 18{,}7$ dB.
+
+<Racimo />
+
 ## Tiempo: tramas, multitramas y más
 
 Dentro de una portadora, **TDMA** reparte el tiempo en una trama que se repite continuamente, formada por 8 ranuras iguales numeradas de 0 a 7. Cada móvil transmite y recibe en una sola ranura. En teoría caben 8 comunicaciones, en la práctica 7, porque la ranura 0 se reserva para señalización (así lo dicen las diapositivas, y es lo que se usa en los problemas). Con varias portadoras hay una trama por portadora (16 ranuras con 2, 24 con 3…). Las portadoras se asignan en pares y el móvil conmuta entre la de transmisión y la de recepción en cada trama.
 
 Las tramas se agrupan en estructuras mayores. Toda la escala sale de un único dato: **la multitrama de 26 tramas dura 120 ms**.
 
-{/* widget: TramaTDMA */}
+<Jerarquia />
+
+<TramaTDMA />
 
 ## La ráfaga
 
@@ -57,7 +78,7 @@ Un **canal lógico** es un flujo de información, uni o bidireccional, de un tip
 
 Para ver cómo se encadenan en una llamada entrante:
 
-{/* widget: FlujoLlamada: canales en una llamada entrante (PCH, RACH, AGCH, SDCCH, TCH + SACCH) */}
+<FlujoLlamada id="llamada-entrante" />
 
 1. **PCH: aviso de llamada (paging).** La red avisa por el canal de aviso, en todas las células del área de localización. Es un canal común: todos los móviles lo escuchan.
 2. **RACH: petición de canal.** El móvil contesta pidiendo un canal dedicado. Es acceso aleatorio (ALOHA ranurado), así que puede haber colisión con otros móviles.
@@ -82,7 +103,7 @@ Hay una docena de canales lógicos y muchos de ellos con varias instancias (cada
 
 *La cheatsheet del profesor las llama C1 a C7. Son las mismas que I a VII.*
 
-{/* widget: mframe (visor de multitramas; parte de TramaTDMA) */}
+{/* widget: mframe (combinaciones II, III, V a VII y GPRS del visor antiguo; no está en la v1: la I y la IV están en TramaTDMA) */}
 
 > **Ojo.** Las multitramas de señalización se dibujan en la cheatsheet con las dos mitades de 51 tramas (102 en total) para las combinaciones V y VII, porque hay canales (A0 a A3 en la V, A0 a A7 en la VII) que solo aparecen una de cada dos multitramas. Al calcular capacidades hay que contar sobre el ciclo completo de 102 tramas.
 

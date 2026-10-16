@@ -13,6 +13,8 @@ fuentes:
   - "Cx_Red-Movilidad.pdf"
 ---
 
+import FlujoLlamada from '../../../src/asignaturas/conmutacion/widgets/FlujoLlamada.astro';
+
 El móvil se mueve y la red tiene que saber en qué zona está para poder encontrarlo, quién es (autenticación) y cómo protegerlo (cifrado). De eso se encarga la subcapa MM.
 
 ## Dónde encaja MM
@@ -122,7 +124,7 @@ La clave secreta **Ki** vive solo en la SIM y en el AuC y **nunca viaja** por el
 
 ### El mismo proceso, mensaje a mensaje
 
-{/* widget: FlujoLlamada: autenticación y cifrado */}
+<FlujoLlamada id="autenticacion" />
 
 | Paso | Sentido | Mensaje | Qué pasa |
 | --- | --- | --- | --- |
@@ -159,11 +161,11 @@ La clave secreta **Ki** vive solo en la SIM y en el AuC y **nunca viaja** por el
 
 El resultado puede incluir actualizar el LA en el VLR, asignar o cambiar el TMSI, y **cambiar de VLR y actualizar el HLR**. Hay tres casos con distinta cantidad de señalización.
 
-{/* widget: FlujoLlamada: actualización de posición (casos A, B y C) */}
-
 ### Caso A: registro completo (encendido)
 
 El más largo: hay que dar de alta al móvil en el VLR y el HLR le manda su perfil de abonado. Después se encadena **autenticación, cifrado y TMSI nuevo**, los procedimientos generales que ya conoces.
+
+<FlujoLlamada id="actualizacion-a" />
 
 | Paso | Sentido | Mensaje | Qué pasa |
 | --- | --- | --- | --- |
@@ -198,6 +200,8 @@ El más largo: hay que dar de alta al móvil en el VLR y el HLR le manda su perf
 
 El VLR **ya conoce** al móvil (le asignó el TMSI<sub>A</sub>). Solo tiene que anotar el LAI nuevo y **no se toca el HLR**, así que se ahorra casi toda la señalización.
 
+<FlujoLlamada id="actualizacion-b" />
+
 | Paso | Sentido | Mensaje | Qué pasa |
 | --- | --- | --- | --- |
 | | | **Conexión RR** | |
@@ -208,6 +212,8 @@ El VLR **ya conoce** al móvil (le asignó el TMSI<sub>A</sub>). Solo tiene que 
 ### Caso C: cambio de LA que cambia de VLR
 
 El VLR nuevo no conoce ese TMSI (lo asignó otro VLR). Le pregunta al **VLR anterior** quién es, y solo entonces crea el registro y avisa al HLR.
+
+<FlujoLlamada id="actualizacion-c" />
 
 | Paso | Sentido | Mensaje | Qué pasa |
 | --- | --- | --- | --- |

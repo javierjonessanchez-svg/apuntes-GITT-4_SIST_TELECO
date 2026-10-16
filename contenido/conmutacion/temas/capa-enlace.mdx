@@ -13,6 +13,8 @@ fuentes:
   - "Cx_Enlace.pdf"
 ---
 
+import FlujoLlamada from '../../../src/asignaturas/conmutacion/widgets/FlujoLlamada.astro';
+
 Cada salto de la red tiene su propio protocolo de enlace, pero casi todos son versiones recortadas de la misma familia, HDLC. Si entiendes HDLC, LAPD y LAPDm son cuestión de saber qué le quitaron.
 
 ## Visión global de la pila
@@ -81,7 +83,7 @@ El servicio fiable admite tres modos: **NRM** (no balanceado: un maestro sondea 
 
 > **Extra.** El ejemplo siguiente es mío, para ilustrar REJ; no es la figura de la diapositiva. Lo que sí está en las diapositivas es cada trama por separado.
 
-{/* widget: FlujoLlamada: tramas HDLC en modo ABM con un REJ */}
+<FlujoLlamada id="hdlc-rej" />
 
 | Paso | Sentido | Trama | Qué pasa |
 | --- | --- | --- | --- |
@@ -141,7 +143,7 @@ LAPDm deriva de Q.921 (el LAPD de la RDSI) y se adapta a la radio. En lugar de b
 
 Las tramas LAPDm no llevan identificador de terminal (TEI), así que ¿cómo sabe un móvil que el canal concedido es para él? Dos móviles pueden haber pedido canal a la vez por el RACH y recibir la misma asignación. La solución es que la petición de conexión lleve un **identificador del móvil**, normalmente un mensaje de capa 3 que incluye su identidad, y que la respuesta lo repita.
 
-{/* widget: FlujoLlamada: resolución de contienda en LAPDm */}
+<FlujoLlamada id="contienda-lapdm" />
 
 | Paso | Sentido | Mensaje | Qué pasa |
 | --- | --- | --- | --- |

@@ -1,0 +1,65 @@
+---
+// Escalera de tiempos de GSM: cada nivel con su duración en una barra de escala
+// logarítmica. Al pulsar un nivel se ve cómo se calcula. Sin JavaScript se ven
+// todos los niveles con su duración y la explicación de la multitrama de 26.
+import Widget from '../../../widgets/Widget.astro';
+import { fmt } from '../../../widgets/numeros';
+import { NIVELES } from './jerarquia';
+
+const tiempo = (ms: number) =>
+  ms < 10 ? `${fmt(ms, 3)} ms` : ms < 1000 ? `${fmt(ms, 2)} ms` : ms < 60000 ? `${fmt(ms / 1000, 2)} s` : `${fmt(ms / 1000, 1)} s`;
+// escala logarítmica de 0,4 ms a 14.000 s
+const [lo, hi] = [Math.log10(0.4), Math.log10(1.4e7)];
+const ancho = (ms: number) => `${(((Math.log10(ms) - lo) / (hi - lo)) * 100).toFixed(1)}%`;
+const INICIAL = 2;
+---
+<Widget titulo="Escalera de tiempos" tipo="entender">
+  <p class="escalera-ayuda">Pulsa un nivel. Las barras van en escala logarítmica: cada nivel agrupa al anterior.</p>
+  <div class="escalera" data-escalera role="group" aria-label="Niveles de tiempo de GSM">
+    {NIVELES.map((n, i) => (
+      <button type="button" class="escalera-nivel" data-nivel={i} aria-pressed={i === INICIAL ? 'true' : 'false'}>
+        <span class="escalera-nombre">{n.nombre}</span>
+        <span class="escalera-barra"><i style={`width: ${ancho(n.ms)}`} /></span>
+        <span class="escalera-tiempo">{tiempo(n.ms)}</span>
+      </button>
+    ))}
+  </div>
+  {NIVELES.map((n, i) => (
+    <p class="escalera-info" data-info={i} hidden={i !== INICIAL}>
+      <b>{n.nombre}.</b> {n.texto} Cálculo: <span class="escalera-calculo">{n.calculo}</span>. Tramas que contiene: <b>{n.tramas}</b>.
+    </p>
+  ))}
+</Widget>
+<style>
+  .escalera-ayuda { margin: 0 0 10px; color: var(--suave); font-size: .9rem; }
+  .escalera { display: grid; gap: 4px; }
+  .escalera-nivel {
+    display: grid; grid-template-columns: minmax(8.5em, 12em) minmax(0, 1fr) 6.5em; align-items: center; gap: 12px;
+    min-height: 44px; padding: 6px 10px; border: 0; border-radius: 10px; background: transparent; color: inherit;
+    font: inherit; text-align: left; cursor: pointer; transition-property: background-color; transition-duration: .15s;
+  }
+  .escalera-nivel:hover { background: color-mix(in srgb, var(--texto) 6%, transparent); }
+  .escalera-nivel[aria-pressed="true"] { background: var(--fondo); font-weight: 700; }
+  .escalera-barra { height: 10px; border-radius: 999px; background: color-mix(in srgb, var(--texto) 8%, transparent); overflow: hidden; }
+  .escalera-barra i { display: block; height: 100%; border-radius: inherit; background: var(--primario); }
+  .escalera-tiempo { text-align: right; font-variant-numeric: tabular-nums; }
+  .escalera-info { margin: 12px 0 0; text-wrap: pretty; }
+  .escalera-calculo { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  @media (max-width: 520px) {
+    .escalera-nivel { grid-template-columns: minmax(0, 1fr) auto; }
+    .escalera-barra { grid-column: 1 / -1; grid-row: 2; }
+  }
+</style>
+<script>
+  import { montar } from '../../../widgets/cliente';
+
+  montar('[data-escalera]', (escalera) => {
+    const widget = escalera.closest<HTMLElement>('.widget')!;
+    escalera.addEventListener('click', (e) => {
+      const boton = (e.target as Element).closest<HTMLElement>('[data-nivel]');
+      if (!boton) return;
+      for (const b of escalera.querySelectorAll('[data-nivel]')) b.setAttribute('aria-pressed', String(b === boton));
+      for (const p of widget.querySelectorAll<HTMLElement>('[data-info]')) p.hidden = p.dataset.info !== boton.dataset.nivel;
+    });
+  });
+</script>

@@ -36,7 +36,8 @@ const { pasos, acumular = false, etiqueta = 'Pasos' } = Astro.props;
       actual = Math.max(0, Math.min(total - 1, n));
       for (const el of caja.querySelectorAll<HTMLElement>('[data-paso]')) {
         const k = Number(el.dataset.paso);
-        el.hidden = acumular ? k > actual : k !== actual;
+        // atributo, no la propiedad: así también vale para grupos <g> de un SVG
+        el.toggleAttribute('hidden', acumular ? k > actual : k !== actual);
       }
       const titulo = caja.querySelector<HTMLElement>(`[data-paso="${actual}"]`)?.dataset.titulo;
       anuncio.textContent = `Paso ${actual + 1} de ${total}${titulo ? `: ${titulo}` : ''}`;

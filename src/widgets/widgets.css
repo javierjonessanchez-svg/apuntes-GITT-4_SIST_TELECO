@@ -48,6 +48,8 @@
 
 /* ---------- Paso a paso ---------- */
 .paso-a-paso { border-radius: 12px; }
+/* También los pasos que son grupos de un SVG (el atributo hidden no los oculta solo) */
+.paso-a-paso [data-paso][hidden] { display: none; }
 .paso-controles { display: flex; align-items: center; gap: 4px; margin-top: 12px; }
 .paso-controles[hidden] { display: none; }
 .paso-contador { margin-left: 8px; font-size: .9rem; color: var(--suave); font-variant-numeric: tabular-nums; }

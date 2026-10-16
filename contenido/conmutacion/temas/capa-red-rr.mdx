@@ -13,6 +13,8 @@ fuentes:
   - "Cx_Red-RecursosRadio.pdf"
 ---
 
+import FlujoLlamada from '../../../src/asignaturas/conmutacion/widgets/FlujoLlamada.astro';
+
 La capa 3 de la interfaz radio se divide en tres subcapas. Este tema cubre el formato de sus mensajes, la subcapa RR que reparte los recursos radio y, como caso estrella, el traspaso (handover).
 
 ## Las tres subcapas
@@ -95,7 +97,7 @@ Se hace en **cuatro fases**:
 
 Los mensajes que llevan el **identificador del traspaso** van marcados en la diapositiva.
 
-{/* widget: FlujoLlamada: traspaso entre BSC de un mismo MSC */}
+<FlujoLlamada id="traspaso-bsc" />
 
 | Paso | Sentido | Mensaje | Qué pasa |
 | --- | --- | --- | --- |
