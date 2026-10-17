@@ -1,0 +1,10 @@
+---
+// Avance de un tema en el mundo de Ópticas: una barra fina que se llena con el
+// espectro (sin empezar → leído → repasado → dominado). cliente/avance.ts pone data-nivel.
+interface Props { asignatura: string; tema: string; i?: number }
+const { asignatura, tema, i = 0 } = Astro.props;
+---
+<span class="op-avance" data-avance data-asig={asignatura} data-tema={tema} data-nivel="0" style={`--i:${i}`}>
+  <span class="op-avance-barra" aria-hidden="true"></span>
+  <span data-avance-texto>Sin empezar</span>
+</span>

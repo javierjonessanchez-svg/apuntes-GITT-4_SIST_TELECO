@@ -1,0 +1,29 @@
+---
+// Tarjeta de un tema en la portada de Ópticas: número, título, resumen
+// y la barra de avance. Un tema «próximo» (sin apuntes aún) va con borde a trazos y sin enlace.
+import Avance from './Avance.astro';
+import { ruta } from '../../comun/rutas';
+
+interface Props {
+  asignatura: string;
+  slug?: string;
+  orden: number;
+  titulo: string;
+  resumen?: string;
+  i: number;
+}
+const { asignatura, slug, orden, titulo, resumen, i } = Astro.props;
+const num = String(orden).padStart(2, '0');
+---
+{slug ? (
+  <a class="op-tarjeta" href={ruta(asignatura, slug)}>
+    <span class="op-tarjeta-titulo"><span class="op-tarjeta-num">{num}</span>{titulo}</span>
+    {resumen && <span class="op-tarjeta-sub">{resumen}</span>}
+    <span class="op-tarjeta-pie"><Avance asignatura={asignatura} tema={slug} i={i} /></span>
+  </a>
+) : (
+  <div class="op-tarjeta proxima">
+    <span class="op-tarjeta-titulo"><span class="op-tarjeta-num">{num}</span>{titulo}</span>
+    <span class="op-tarjeta-pie">En preparación</span>
+  </div>
+)}

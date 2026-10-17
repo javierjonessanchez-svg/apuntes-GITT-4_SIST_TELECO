@@ -40,4 +40,6 @@ const fmt = (nm: number) => `${nm.toLocaleString('es-ES')} nm`;
   .regla { display: block; width: 100%; height: auto; overflow: visible; }
   .regla-marca line { stroke: var(--texto); stroke-width: 2; }
   .regla-marca text { fill: var(--suave); font-size: 24px; font-weight: 600; text-anchor: middle; font-variant-numeric: tabular-nums; }
+  /* En un móvil la regla mide ~340 px: las etiquetas crecen para seguir legibles (≈ 11 px) */
+  @media (max-width: 600px) { .regla-marca text { font-size: 34px; } }
 </style>
