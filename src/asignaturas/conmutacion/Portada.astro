@@ -1,6 +1,6 @@
 ---
 // Portada de Conmutación: la centralita. Cada bloque es un panel esmaltado y cada
-// tema una clavija con su lámpara. Debajo, la repisa de la operadora: calendario,
+// tema una clavija con sus tres lámparas de avance. Debajo, la repisa de la operadora: calendario,
 // el boleto de la próxima prueba (con Empezar / Seguir por tema) y las herramientas.
 import Clavija from './Clavija.astro';
 import LineaTiempo from '../../comun/LineaTiempo.astro';
@@ -53,9 +53,9 @@ const herramientas = [
       ))}
       </div>
       <ul class="cx-leyenda" aria-label="Leyenda de las lámparas">
-        <li><span class="cx-avance" data-nivel="0" aria-hidden="true"><span class="lampara"></span></span> sin empezar</li>
-        <li><span class="cx-avance" data-nivel="1" aria-hidden="true"><span class="lampara"></span></span> leído o repasado</li>
-        <li><span class="cx-avance" data-nivel="3" aria-hidden="true"><span class="lampara"></span></span> dominado</li>
+        {['sin empezar', 'leído', 'repasado', 'dominado'].map((estado, n) => (
+          <li><span class="cx-pasos" data-nivel={n} aria-hidden="true"><span class="lampara"></span><span class="lampara"></span><span class="lampara"></span></span> {estado}</li>
+        ))}
       </ul>
       <p class="cx-nota" data-aviso-almacen hidden role="status">Tu avance no se está guardando en este navegador.</p>
       {a.nota && <p class="cx-nota">{a.nota}</p>}
