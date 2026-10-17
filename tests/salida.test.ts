@@ -54,21 +54,22 @@ describe('toda la web', () => {
   });
   test('las asignaturas pendientes no tienen páginas', () => {
     expect(existsSync(join(DIST, 'seda'))).toBe(false);
-    expect(existsSync(join(DIST, 'comunicaciones-opticas'))).toBe(false);
+    expect(existsSync(join(DIST, 'radiacion-radiocomunicacion'))).toBe(false);
   });
 });
 
 describe('selector de asignaturas', () => {
   const html = pagina('conmutacion/capa-enlace/index.html');
   test('las pendientes no son enlaces y dicen "En preparación"', () => {
-    for (const slug of ['comunicaciones-opticas', 'radiacion-radiocomunicacion', 'circuitos-comunicacion', 'seda']) {
+    for (const slug of ['radiacion-radiocomunicacion', 'circuitos-comunicacion', 'seda']) {
       expect(html).not.toMatch(new RegExp(`<a[^>]*data-chip="${slug}"`));
       const chip = new RegExp(`data-chip="${slug}"[^>]*>(.*?)</span>\\s*</span>`, 's').exec(html);
       expect(chip?.[1]).toContain('En preparación');
     }
   });
-  test('la activa es un enlace a su portada', () => {
+  test('las activas son enlaces a su portada', () => {
     expect(html).toMatch(new RegExp(`<a[^>]*href="${BASE}conmutacion/"[^>]*data-chip="conmutacion"`));
+    expect(html).toMatch(new RegExp(`<a[^>]*href="${BASE}comunicaciones-opticas/"[^>]*data-chip="comunicaciones-opticas"`));
   });
 });
 

@@ -23,6 +23,12 @@ const asignaturas = defineCollection({
       temas: z.array(z.string()),
       confirmar: z.boolean().optional(),
     })),
+    // Temas aún sin apuntes: la portada los enseña como «En preparación», sin enlace
+    proximos: z.array(z.object({
+      titulo: z.string().min(1),
+      orden: z.number(),
+      bloque: z.string().min(1),
+    })).optional(),
   }),
 });
 

@@ -40,6 +40,26 @@ export function validarPruebas(
   return errores;
 }
 
+export type Proximo = { titulo: string; orden: number; bloque: string };
+
+/** Mensajes de error si un tema próximo repite el número de un tema real o de otro próximo. */
+export function validarProximos(
+  asigs: { slug: string; archivo: string; proximos?: Proximo[] }[],
+  temas: { asignatura: string; slug: string; orden: number }[],
+): string[] {
+  const errores: string[] = [];
+  for (const a of asigs) {
+    const usados = new Set(temas.filter((t) => t.asignatura === a.slug).map((t) => t.orden));
+    for (const p of a.proximos ?? []) {
+      if (usados.has(p.orden)) {
+        errores.push(`${a.archivo}: el tema próximo "${p.titulo}" usa el número ${p.orden}, que ya tiene otro tema`);
+      }
+      usados.add(p.orden);
+    }
+  }
+  return errores;
+}
+
 // El id del cargador glob es "conmutacion/temas/arquitectura-gsm": nos quedamos
 // con la asignatura (primera parte) y el tema (última parte).
 function aTema(entrada: CollectionEntry<'temas'>): Tema {
@@ -59,8 +79,11 @@ export async function asignaturasOrdenadas(): Promise<Asignatura[]> {
   const asigs = (await getCollection('asignaturas'))
     .map((e) => ({ ...e.data, archivo: e.filePath ?? `contenido/${e.id}.md` }))
     .sort((x, y) => x.orden - y.orden);
-  const errores = validarPruebas(asigs, await todosLosTemas());
+  const temas = await todosLosTemas();
+  const errores = validarPruebas(asigs, temas);
   if (errores.length) throw new Error('Pruebas con temas inexistentes:\n' + errores.join('\n'));
+  const choques = validarProximos(asigs, temas);
+  if (choques.length) throw new Error('Temas próximos con número repetido:\n' + choques.join('\n'));
   return asigs;
 }
 
