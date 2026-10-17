@@ -4,6 +4,7 @@
 // bloque, en el orden del profesor; los que aún no tienen apuntes van a trazos.
 import Regla from '../../widgets/Regla.astro';
 import TarjetaTema from './TarjetaTema.astro';
+import Tarjetas from '../../widgets/Tarjetas.astro';
 import LineaTiempo from '../../comun/LineaTiempo.astro';
 import type { Asignatura, Tema } from '../../comun/datos';
 
@@ -62,6 +63,14 @@ const cadena = [
 
   <p class="op-nota" data-aviso-almacen hidden role="status">Tu avance no se está guardando en este navegador.</p>
   {a.nota && <p class="op-nota">{a.nota}</p>}
+
+  {temas.length > 0 && (
+    <section class="op-seccion" id="repaso" aria-labelledby="op-repaso">
+      <h2 id="op-repaso">Tarjetas de repaso</h2>
+      <p>Las preguntas de examen y la lista «Lo que tienes que saber» de todos los temas, de una en una.</p>
+      <Tarjetas asignatura={a.slug} />
+    </section>
+  )}
 
   <div class="op-seccion">
     {a.pruebas.length
