@@ -1,70 +1,71 @@
 /* Mundo de Conmutación: centralita manual de los años 60.
-   Esmalte verde, latón, lámparas ámbar y cordones rojos; Archivo de anchura variable. */
+   Esmalte verde salvia, latón, lámparas ámbar y cordones rojos; Archivo de anchura variable. */
 html[data-asignatura="conmutacion"] {
-  --fondo: #EEF1EA;
-  --superficie: #F8FAF6;
+  --fondo: #F1F4EF;
+  --superficie: #FAFCF8;
   --texto: #1A2420;
-  --suave: #53615A;
-  --linea: #C3CABF;
-  --primario: #2E4038;
-  --sobre-primario: #EEF1EA;
+  --suave: #4F5E57;
+  --linea: #C5D0C8;
+  --primario: #3B6B57;
+  --sobre-primario: #F6F9F4;
   --resalte: #F2A72E;
   --sobre-resalte: #2A1E04;
   --acento: #A87A2E;
   --acento2: #B3362B;
-  --marco: #2E4038;
-  --sobre-marco: #E6ECE4;
-  --esmalte: #D6DCD3;
-  --placa: #EEF1EA;
+  --marco: #4B7563;
+  --sobre-marco: #FFFFFF;
+  --esmalte: #DCE5DE;
+  --placa: #F1F4EF;
   --laton: #A87A2E;
   --lampara: #F2A72E;
   --cable: #B3362B;
-  --foco: #2E4038;
-  --foco-marco: #F2A72E;
+  --foco: #3B6B57;
+  /* ámbar claro: el ámbar de las lámparas no llega a 3:1 sobre el marco salvia */
+  --foco-marco: #FFD98A;
 }
 html[data-asignatura="conmutacion"][data-tema="oscuro"] {
-  --fondo: #141B18;
-  --superficie: #1C2521;
-  --texto: #E6ECE4;
-  --suave: #A3B0A8;
-  --linea: #34423B;
-  --primario: #9CC8B0;
+  --fondo: #1E2823;
+  --superficie: #283530;
+  --texto: #E9EFEA;
+  --suave: #AEBBB3;
+  --linea: #3A4A42;
+  --primario: #9DD0B6;
   --sobre-primario: #10201A;
   --resalte: #F2A72E;
   --sobre-resalte: #2A1E04;
   --acento: #D9A94F;
-  --acento2: #E06A5C;
-  --marco: #0E1411;
-  --sobre-marco: #E6ECE4;
-  --esmalte: #26322C;
-  --placa: #1C2521;
+  --acento2: #EE8274;
+  --marco: #253129;
+  --sobre-marco: #EEF3EF;
+  --esmalte: #33443C;
+  --placa: #283530;
   --laton: #C9973F;
   --lampara: #F2A72E;
-  --cable: #E06A5C;
-  --foco: #D9A94F;
+  --cable: #EE8274;
+  --foco: #E0B35C;
   --foco-marco: #F2A72E;
 }
 @media (prefers-color-scheme: dark) {
   html[data-asignatura="conmutacion"]:not([data-tema="claro"]) {
-    --fondo: #141B18;
-    --superficie: #1C2521;
-    --texto: #E6ECE4;
-    --suave: #A3B0A8;
-    --linea: #34423B;
-    --primario: #9CC8B0;
+    --fondo: #1E2823;
+    --superficie: #283530;
+    --texto: #E9EFEA;
+    --suave: #AEBBB3;
+    --linea: #3A4A42;
+    --primario: #9DD0B6;
     --sobre-primario: #10201A;
     --resalte: #F2A72E;
     --sobre-resalte: #2A1E04;
     --acento: #D9A94F;
-    --acento2: #E06A5C;
-    --marco: #0E1411;
-    --sobre-marco: #E6ECE4;
-    --esmalte: #26322C;
-    --placa: #1C2521;
+    --acento2: #EE8274;
+    --marco: #253129;
+    --sobre-marco: #EEF3EF;
+    --esmalte: #33443C;
+    --placa: #283530;
     --laton: #C9973F;
     --lampara: #F2A72E;
-    --cable: #E06A5C;
-    --foco: #D9A94F;
+    --cable: #EE8274;
+    --foco: #E0B35C;
     --foco-marco: #F2A72E;
   }
 }
@@ -105,19 +106,23 @@ html[data-asignatura="conmutacion"][data-tema="oscuro"] .cx-cuadro-dentro { box-
 }
 /* Los bloques van uno al lado del otro, cada uno tan ancho como sus clavijas (--n) */
 .cx-paneles { display: flex; flex-wrap: wrap; gap: 0 28px; }
-.cx-panel { flex: var(--n) 1 calc(var(--n) * 150px); min-width: 0; }
+.cx-panel { flex: var(--n) 1 calc(var(--n) * 150px); min-width: 0; display: flex; flex-direction: column; align-items: flex-start; }
+/* Las clavijas llenan el panel: así las lámparas de todos los bloques quedan a la misma altura */
+.cx-panel .cx-clavijas { flex: 1; align-self: stretch; }
 .cx-clavijas { list-style: none; margin: 10px 0 22px; padding: 0; display: grid; gap: 6px; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); }
 @media (max-width: 600px) { .cx-clavijas { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+/* Cada clavija es una placa clara sobre el esmalte; las lámparas van al pie para que se alineen */
 .clavija {
-  display: flex; flex-direction: column; align-items: center; height: 100%; padding: 12px 8px 14px;
-  border-radius: 10px; text-align: center; text-decoration: none; color: var(--texto);
+  display: flex; flex-direction: column; height: 100%; padding: 12px 12px 10px;
+  border-radius: 10px; text-decoration: none; color: var(--texto);
+  background: color-mix(in srgb, var(--superficie) 55%, transparent);
   transition-property: background-color; transition-duration: .15s; transition-timing-function: ease-out;
 }
-.clavija:hover { background: color-mix(in srgb, var(--texto) 8%, transparent); }
-.toma { width: 46px; height: 46px; margin: 10px 0; border-radius: 50%; background: radial-gradient(circle, #101512 0 8px, #3A3F3B 9px 11px, var(--laton) 12px 19px, #7C5A20 20px 23px); }
-.clavija-nombre { font-stretch: 112%; font-weight: 600; font-size: 1.05rem; line-height: 1.2; }
-.clavija-sub { margin-top: 3px; font-size: .8rem; line-height: 1.35; color: var(--suave); }
-.clavija-estado { margin-top: 6px; font-size: .8rem; color: var(--suave); }
+.clavija:hover { background: var(--superficie); }
+.clavija-nombre { font-stretch: 112%; font-weight: 600; font-size: 1.05rem; line-height: 1.2; text-wrap: balance; }
+.clavija-sub { margin-top: 3px; font-size: .8rem; line-height: 1.35; color: var(--suave); text-wrap: pretty; }
+.clavija-pie { display: flex; align-items: center; gap: 8px; margin-top: auto; padding-top: 10px; }
+.clavija-estado { font-size: .8rem; color: var(--suave); }
 .cx-leyenda { list-style: none; display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 0 0 12px; padding: 0; font-size: .85rem; color: var(--suave); }
 .cx-leyenda li { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
 .cx-nota { margin: 0 0 12px; font-size: .9rem; color: var(--suave); }
@@ -132,8 +137,20 @@ html[data-asignatura="conmutacion"][data-tema="oscuro"] .cx-cuadro-dentro { box-
   box-shadow: 0 0 12px 3px rgb(242 167 46 / .65);
   transition-property: opacity; transition-duration: .45s; transition-timing-function: ease-out; transition-delay: calc(var(--i, 0) * 70ms);
 }
-[data-nivel="1"] > .lampara::after, [data-nivel="2"] > .lampara::after { opacity: .5; box-shadow: none; }
-[data-nivel="3"] > .lampara::after { opacity: 1; }
+.cx-avance[data-nivel="1"] > .lampara::after, .cx-avance[data-nivel="2"] > .lampara::after { opacity: .5; box-shadow: none; }
+.cx-avance[data-nivel="3"] > .lampara::after { opacity: 1; }
+
+/* Tres lámparas por clavija, una por paso: se encienden de izquierda a derecha (--k)
+   y solo brillan cuando el tema está dominado. data-nivel va en la clavija o, en la leyenda, en la fila. */
+.cx-pasos { display: inline-flex; gap: 4px; flex: none; }
+.cx-pasos .lampara { width: 12px; height: 12px; }
+.cx-pasos .lampara:nth-child(2) { --k: 1; }
+.cx-pasos .lampara:nth-child(3) { --k: 2; }
+.cx-pasos .lampara::after { box-shadow: none; transition-delay: calc(var(--i, 0) * 70ms + var(--k, 0) * 90ms); }
+:is([data-nivel="1"] .cx-pasos, .cx-pasos[data-nivel="1"]) > .lampara:nth-child(-n+1)::after,
+:is([data-nivel="2"] .cx-pasos, .cx-pasos[data-nivel="2"]) > .lampara:nth-child(-n+2)::after,
+:is([data-nivel="3"] .cx-pasos, .cx-pasos[data-nivel="3"]) > .lampara::after { opacity: 1; }
+:is([data-nivel="3"] .cx-pasos, .cx-pasos[data-nivel="3"]) > .lampara::after { box-shadow: 0 0 8px 2px rgb(242 167 46 / .6); }
 
 /* Oferta de traer el avance antiguo */
 .cx-oferta { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 18px; padding: 14px 16px; border-radius: 12px; background: var(--placa); }
