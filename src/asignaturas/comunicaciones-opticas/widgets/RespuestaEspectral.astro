@@ -1,0 +1,25 @@
+---
+// Respuesta espectral: cada material solo detecta hasta su λ de corte (λc = hc/Eg). El silicio se
+// queda en la 1.ª ventana; el germanio y el InGaAs llegan a 1310 y 1550 nm.
+import Widget from '../../../widgets/Widget.astro';
+import Opciones from '../../../widgets/Opciones.astro';
+import Lienzo from './Lienzo.astro';
+import { dibujarRespuesta } from './dibujos-wdm';
+
+const uid = `respuesta-${Math.random().toString(36).slice(2, 7)}`;
+---
+<Widget titulo="Respuesta espectral de cada material" tipo="entender">
+  <Lienzo nombre="respuesta" uid={uid} alto={256} etiqueta="Margen de longitudes de onda al que responden el silicio, el germanio y el InGaAs, frente a las tres ventanas"
+    inicial={dibujarRespuesta({ material: 'Si' }, uid)}
+    nota="Márgenes aproximados, leídos de la gráfica de eficiencia cuántica de T31.">
+    <Fragment slot="controles">
+      <Opciones nombre="material" etiqueta="Material del fotodetector" opciones={[['Si', 'Silicio'], ['Ge', 'Germanio'], ['InGaAs', 'InGaAs']]} valor="Si" />
+    </Fragment>
+  </Lienzo>
+</Widget>
+<script>
+  import { montarDibujo, opcion } from './vivo';
+  import { dibujarRespuesta } from './dibujos-wdm';
+
+  montarDibujo('respuesta', (caja, uid) => dibujarRespuesta({ material: opcion(caja, 'material') as 'Si' | 'Ge' | 'InGaAs' }, uid));
+</script>

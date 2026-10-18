@@ -117,8 +117,21 @@ export function picosModos(tipo: 'FP' | 'DBR' | 'DFB'): number[] {
   return tipo === 'FP' ? [-3.3, -2.2, -1.1, 0, 1.1, 2.2, 3.3] : [0];
 }
 
-/** Gap (eV) de los materiales de los fotodetectores: su λ de corte es nmDeEv(gap). */
-export const GAP_DETECTOR = { Si: 1.12, Ge: 0.67, InGaAs: 0.75 } as const;
+/**
+ * Margen en el que responde cada material de fotodetector (nm), leído de la gráfica de eficiencia
+ * cuántica de T31. Por encima de la λ de corte (λc = hc/Eg) el fotón no tiene energía para crear un par.
+ */
+export const RESPUESTA_DETECTOR = {
+  Si: { desde: 400, corte: 1100 },
+  Ge: { desde: 600, corte: 1600 },
+  InGaAs: { desde: 1000, corte: 1700 },
+} as const;
+
+/** ¿Detecta el material la luz de λ nm? (dentro de su margen de respuesta). */
+export function detecta(material: keyof typeof RESPUESTA_DETECTOR, nm: number): boolean {
+  const m = RESPUESTA_DETECTOR[material];
+  return nm >= m.desde && nm <= m.corte;
+}
 
 /** Banda de ganancia del EDFA (nm): «solo en la banda de 1550 nm, unos 50 nm de ancho» (apuntes). */
 export const BANDA_EDFA = { desde: 1525, hasta: 1575 } as const;

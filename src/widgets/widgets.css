@@ -77,7 +77,7 @@
 .widget-opciones button:hover { color: var(--texto); }
 .widget-opciones button:active { transform: scale(.97); }
 .widget-opciones button[aria-pressed="true"] {
-  background: var(--superficie); color: var(--texto);
-  box-shadow: 0 0 0 1px var(--linea), 0 1px 3px rgb(0 0 0 / .08);
+  background: color-mix(in srgb, var(--primario) 14%, var(--superficie)); color: var(--texto);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--primario) 45%, var(--linea)), 0 1px 3px rgb(0 0 0 / .08);
 }
 @media (prefers-reduced-motion: reduce) { .widget-opciones button { transition-duration: 0s; } }

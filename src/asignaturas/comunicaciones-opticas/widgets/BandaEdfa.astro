@@ -1,0 +1,25 @@
+---
+// Banda de ganancia del EDFA: solo amplifica en la ventana de 1550 nm (≈ 50 nm), pero ahí amplifica
+// a la vez todos los canales DWDM. Un canal a 1310 nm queda fuera.
+import Widget from '../../../widgets/Widget.astro';
+import Deslizador from '../../../widgets/Deslizador.astro';
+import Lienzo from './Lienzo.astro';
+import { dibujarEdfa } from './dibujos-wdm';
+
+const uid = `edfa-${Math.random().toString(36).slice(2, 7)}`;
+---
+<Widget titulo="La banda del EDFA" tipo="real">
+  <Lienzo nombre="edfa" uid={uid} alto={276} etiqueta="Banda de ganancia del EDFA alrededor de 1550 nm con los canales DWDM dentro"
+    inicial={dibujarEdfa({ lambda: 1550 }, uid)}
+    nota="Banda según tus apuntes (≈ 50 nm en la ventana de 1550 nm). Forma de la ganancia esquemática.">
+    <Fragment slot="controles">
+      <Deslizador id={`${uid}-lambda`} etiqueta="Longitud de onda de un canal" min={1260} max={1640} paso={5} valor={1550} unidad="nm" decimales={0} />
+    </Fragment>
+  </Lienzo>
+</Widget>
+<script>
+  import { montarDibujo, numero } from './vivo';
+  import { dibujarEdfa } from './dibujos-wdm';
+
+  montarDibujo('edfa', (caja, uid) => dibujarEdfa({ lambda: numero(caja, `${uid}-lambda`) }, uid));
+</script>

@@ -113,6 +113,6 @@ export function barraEspectro(id: string, x: number, y: number, w: number, h: nu
 }
 
 /** Marca triangular que apunta hacia abajo, con la punta en (x, y). */
-export function marcaAbajo(x: number, y: number, col = COL.texto): string {
+export function marcaAbajo(x: number, y: number, col: string = COL.texto): string {
   return `<path d="M${n1(x)},${n1(y)} l-6,-9 l12,0 z" fill="${col}"/>`;
 }

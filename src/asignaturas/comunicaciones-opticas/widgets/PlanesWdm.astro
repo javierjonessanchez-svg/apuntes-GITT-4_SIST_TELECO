@@ -1,0 +1,25 @@
+---
+// Planes de canales DWDM (muy juntos en la ventana de 1550 nm) y CWDM (18 canales cada 20 nm),
+// y lo que exige cada uno al láser.
+import Widget from '../../../widgets/Widget.astro';
+import Opciones from '../../../widgets/Opciones.astro';
+import Lienzo from './Lienzo.astro';
+import { dibujarPlanes } from './dibujos-wdm';
+
+const uid = `planes-${Math.random().toString(36).slice(2, 7)}`;
+---
+<Widget titulo="DWDM frente a CWDM" tipo="real">
+  <Lienzo nombre="planes" uid={uid} alto={248} etiqueta="Canales de longitud de onda de DWDM y de CWDM entre 1260 y 1620 nm"
+    inicial={dibujarPlanes({ plan: 'dwdm' }, uid)}
+    nota="DWDM: separación de 12,5 a 100 GHz (ITU G.694.1). CWDM: plan de 1271 a 1611 nm.">
+    <Fragment slot="controles">
+      <Opciones nombre="plan" etiqueta="Tipo de WDM" opciones={[['dwdm', 'DWDM'], ['cwdm', 'CWDM']]} valor="dwdm" />
+    </Fragment>
+  </Lienzo>
+</Widget>
+<script>
+  import { montarDibujo, opcion } from './vivo';
+  import { dibujarPlanes } from './dibujos-wdm';
+
+  montarDibujo('planes', (caja, uid) => dibujarPlanes({ plan: opcion(caja, 'plan') as 'dwdm' | 'cwdm' }, uid));
+</script>

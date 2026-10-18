@@ -5,6 +5,7 @@ import {
   dibujarBandas, dibujarCoherencia, dibujarCurvaPI, dibujarDbrDfb, dibujarEspectros, dibujarHaz,
   dibujarModulacion, dibujarPozo, dibujarResonador,
 } from '../src/asignaturas/comunicaciones-opticas/widgets/dibujos-emisores';
+import { dibujarDeriva, dibujarEdfa, dibujarPlanes, dibujarRespuesta } from '../src/asignaturas/comunicaciones-opticas/widgets/dibujos-wdm';
 
 describe('nombreLuz', () => {
   test('visible, infrarrojo cercano e infrarrojo', () => {
@@ -56,5 +57,24 @@ describe('dibujos de los emisores', () => {
   test('modulación: la directa trae chirp; la externa lo evita', () => {
     expect(dibujarModulacion({ modo: 'directa' }).svg).toContain('chirp');
     expect(dibujarModulacion({ modo: 'externa' }).info).toContain('evita el chirp');
+  });
+});
+
+describe('dibujos de detectores, amplificación y WDM', () => {
+  test('respuesta espectral: el silicio solo sirve en 850 nm; el InGaAs, en 1310 y 1550 nm', () => {
+    expect(dibujarRespuesta({ material: 'Si' }).info).toContain('la ventana de 850 nm');
+    expect(dibujarRespuesta({ material: 'InGaAs' }).info).toContain('1310 nm y 1550 nm');
+  });
+  test('EDFA: amplifica 1550 nm, no 1310 nm', () => {
+    expect(dibujarEdfa({ lambda: 1550 }).info).toContain('dentro de la banda');
+    expect(dibujarEdfa({ lambda: 1310 }).info).toContain('no se amplifica');
+  });
+  test('planes: CWDM con 18 canales cada 20 nm; DWDM pide láseres monomodo', () => {
+    expect(dibujarPlanes({ plan: 'cwdm' }).svg).toContain('18 canales');
+    expect(dibujarPlanes({ plan: 'dwdm' }).info).toContain('monomodo');
+  });
+  test('deriva: sin cambio está en su canal; calentando mucho invade el vecino', () => {
+    expect(dibujarDeriva({ dT: 0 }).info).toContain('Dentro de su canal');
+    expect(dibujarDeriva({ dT: 8 }).info).toContain('Invade el canal vecino');
   });
 });

@@ -1,7 +1,7 @@
 // Física de los widgets de Ópticas: valores de los apuntes y comportamiento (qué sube, qué baja).
 import { describe, expect, test } from 'vitest';
 import {
-  acoploLambert, canalesCWDM, canalesDWDM, curvaFP, derivaLambda, estadoCanal, finezaMedida,
+  acoploLambert, canalesCWDM, canalesDWDM, curvaFP, derivaLambda, detecta, estadoCanal, finezaMedida,
   lambdaDeGHz, lambdaPozo, picosModos, potenciaPI, retrasoEncendido, sumaFasores, umbral,
 } from '../src/asignaturas/comunicaciones-opticas/widgets/fisica';
 
@@ -64,5 +64,17 @@ describe('WDM', () => {
     expect(estadoCanal(0.1)).toBe('ok');
     expect(estadoCanal(0.3)).toBe('peligro');
     expect(estadoCanal(-0.5)).toBe('choque');
+  });
+});
+
+describe('detectores', () => {
+  test('el silicio solo ve la 1.ª ventana; Ge e InGaAs, las tres (gráfica de T31)', () => {
+    expect(detecta('Si', 850)).toBe(true);
+    expect(detecta('Si', 1310)).toBe(false);
+    for (const nm of [1310, 1550]) {
+      expect(detecta('Ge', nm)).toBe(true);
+      expect(detecta('InGaAs', nm)).toBe(true);
+    }
+    expect(detecta('InGaAs', 1750)).toBe(false);
   });
 });
