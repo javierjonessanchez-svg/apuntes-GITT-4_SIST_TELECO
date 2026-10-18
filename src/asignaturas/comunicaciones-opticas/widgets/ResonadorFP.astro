@@ -1,0 +1,26 @@
+---
+// Fabry-Pérot: la reflectividad y el alineamiento de los espejos deciden cuántos rebotes da la
+// luz y lo finos que salen los picos (fineza y rango espectral libre, de forma cualitativa).
+import Widget from '../../../widgets/Widget.astro';
+import Deslizador from '../../../widgets/Deslizador.astro';
+import Lienzo from './Lienzo.astro';
+import { dibujarResonador } from './dibujos-emisores';
+
+const uid = `resonador-${Math.random().toString(36).slice(2, 7)}`;
+---
+<Widget titulo="Resonador Fabry-Pérot" tipo="entender">
+  <Lienzo nombre="resonador" uid={uid} alto={306} etiqueta="Dos espejos paralelos con un rayo que rebota y la curva de transmisión con sus picos"
+    inicial={dibujarResonador({ R: 0.9, alineamiento: 1 })}
+    nota="Fineza = rango espectral libre ÷ anchura del pico. Más reflectividad y mejor alineamiento → picos más finos.">
+    <Fragment slot="controles">
+      <Deslizador id={`${uid}-R`} etiqueta="Reflectividad de los espejos" min={0.5} max={0.995} paso={0.005} valor={0.9} decimales={3} />
+      <Deslizador id={`${uid}-alin`} etiqueta="Alineamiento (paralelismo)" min={0} max={100} paso={1} valor={100} unidad="%" decimales={0} />
+    </Fragment>
+  </Lienzo>
+</Widget>
+<script>
+  import { montarDibujo, numero } from './vivo';
+  import { dibujarResonador } from './dibujos-emisores';
+
+  montarDibujo('resonador', (caja, uid) => dibujarResonador({ R: numero(caja, `${uid}-R`), alineamiento: numero(caja, `${uid}-alin`) / 100 }));
+</script>

@@ -1,0 +1,35 @@
+/* Widgets de Ópticas. Hoja global (no «scoped»): el SVG se redibuja con innerHTML
+   y sus elementos no llevan el atributo de Astro. */
+.op-w-controles { display: flex; flex-wrap: wrap; align-items: end; gap: 12px 18px; margin: 0 0 12px; }
+.op-w-controles[hidden] { display: none; }
+.op-w-controles .deslizador { flex: 1 1 15em; }
+.op-w-casillas { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.op-w-casillas label { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; font-weight: 600; font-size: .92rem; cursor: pointer; }
+.op-w-casillas input { width: 18px; height: 18px; margin: 0; accent-color: var(--primario); }
+
+.op-w-dibujo {
+  display: block; width: 100%; height: auto; border-radius: 12px; background: var(--fondo);
+  font-family: var(--fuente-texto); font-variant-numeric: tabular-nums;
+}
+/* En el móvil el dibujo ocupa todo el ancho de la caja: las etiquetas se leen mejor */
+@media (max-width: 600px) { .op-w-dibujo { width: calc(100% + 28px); margin-inline: -14px; border-radius: 8px; } }
+.op-w-info { margin: 12px 0 0; min-height: 1.5em; font-size: 1rem; text-wrap: pretty; }
+.op-w-info b { font-variant-numeric: tabular-nums; }
+.op-w-nota { margin: 6px 0 0; font-size: .85rem; color: var(--suave); text-wrap: pretty; }
+
+/* El dibujo nuevo entra con un fundido corto al cambiar de opción */
+@keyframes op-w-entra { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+.op-w-entra { animation: op-w-entra .22s cubic-bezier(.2, .7, .2, 1); }
+
+/* Movimientos que cuentan la física (se repiten) */
+@keyframes op-cae { 0% { transform: translateY(0); } 55%, 100% { transform: translateY(var(--cae)); } }
+@keyframes op-luz { 0%, 45% { opacity: .25; } 70%, 100% { opacity: 1; } }
+@keyframes op-viaja { from { transform: translateX(0); } to { transform: translateX(var(--per)); } }
+.op-cae { animation: op-cae 3.2s ease-in infinite; }
+.op-luz { animation: op-luz 3.2s ease-out infinite; }
+.op-viaja { animation: op-viaja 3s linear infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .op-w-entra, .op-cae, .op-luz, .op-viaja { animation: none; }
+  .op-cae { transform: translateY(var(--cae)); }
+}

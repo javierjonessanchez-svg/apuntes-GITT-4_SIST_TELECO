@@ -1,0 +1,195 @@
+---
+titulo: "LED"
+orden: 6
+bloque: "Emisores"
+resumen: "Electroluminiscencia, gap directo, luz incoherente y ancha"
+saber:
+  - "Las fuentes de comunicaciones usan electroluminiscencia: corriente eléctrica convertida directamente en luz"
+  - "El fotón lleva la energía del gap: λ = hc/Eg (en nm, 1239,84/Eg con Eg en eV). Solo sirven los materiales de gap directo"
+  - "GaAs (1,42 eV) emite en ≈ 0,87 µm, la 1.ª ventana; para la 2.ª y la 3.ª se parte de InP"
+  - "La luz del LED es incoherente (emisión espontánea), ancha (≈ 50 nm, crece con λ²) y lambertiana: solo entra en la fibra ≈ 1 %"
+  - "Responsividad ≈ 0,01 W/A y velocidad de modulación de centenares de MHz (vida media de los portadores, 2–5 ns)"
+  - "Estructuras: homounión o heterounión (más eficiente); emisión superficial o lateral (la lateral acopla mejor)"
+fuentes:
+  - "Apuntes de clase (Javier)"
+  - "Apuntes de Miguel"
+  - "Comunicaciones Ópticas (PDF de clase), §5.1"
+  - "T21 – Emisores ópticos"
+---
+
+import BandasLed from '../../../src/asignaturas/comunicaciones-opticas/widgets/BandasLed.astro';
+import FormaHaz from '../../../src/asignaturas/comunicaciones-opticas/widgets/FormaHaz.astro';
+import Espectros from '../../../src/asignaturas/comunicaciones-opticas/widgets/Espectros.astro';
+
+**Idea clave.** Un LED es un diodo que convierte corriente en luz: cada electrón que se recombina con un hueco suelta un fotón con la energía del gap. Es pequeño, rápido y barato, pero su luz es incoherente, ancha en el espectro y sale hacia todas partes. Por eso sirve para enlaces cortos con fibra multimodo y no para multiplexar.
+
+## Cómo se produce la luz
+
+Hay muchas formas de producir luz:
+
+- **Térmica:** todo material caliente emite (radiación del cuerpo negro). Necesita mucha energía, tarda mucho en encenderse y apagarse y no produce luz coherente.
+- **Luminiscencia:** luz sin calentar. Hay varios tipos: fotoluminiscencia (fluorescencia, que se apaga en nanosegundos, y fosforescencia, que dura más), bioluminiscencia (luciérnagas, peces abisales), quimioluminiscencia (reacciones químicas), mecanoluminiscencia (al romper ciertos materiales) y **electroluminiscencia**.
+
+Las fuentes de comunicaciones ópticas usan **electroluminiscencia**: la conversión directa de una señal eléctrica en luz. Toda la electrónica de comunicaciones es eléctrica, así que este paso de eléctrico a óptico es el que necesitamos. Se consigue con diodos de semiconductor (LED y láseres), que reúnen lo que pide un sistema de comunicaciones:
+
+- Son **muy rápidos**: la conversión es casi inmediata y se pueden modular deprisa. Las otras luminiscencias son demasiado lentas.
+- Son **muy pequeños**, del orden del núcleo de una fibra monomodo (≈ 9 µm).
+- Dan **poca potencia**, pero con muy bajo consumo.
+- Funcionan a **temperatura ambiente** y hoy su **coste es bajo**.
+
+## Bandas, gap y fotón
+
+Un LED es una **unión PN en polarización directa**. En un semiconductor hay dos bandas de energía separadas por el **gap** (hueco de energía), donde no hay estados para los electrones:
+
+- **Banda de valencia (BV):** electrones ligados a sus átomos. Ahí quedan los **huecos**.
+- **Banda de conducción (BC):** electrones libres, que pueden moverse y conducir.
+
+La corriente en directa inyecta electrones de la zona n en la zona p. Cuando un electrón de la BC cae a un hueco de la BV (**recombinación**), suelta la energía del salto. Si sale como luz, el fotón tiene exactamente la energía del gap:
+
+$$
+E_g = h f = \frac{h c}{\lambda} \quad\Rightarrow\quad \lambda\,[\text{nm}] = \frac{1239{,}84}{E_g\,[\text{eV}]}
+$$
+
+A mayor gap, más energía, más frecuencia y **menor longitud de onda**.
+
+No todos los materiales valen. Solo los de **gap directo** (el mínimo de la BC y el máximo de la BV están en el mismo momento del cristal) emiten luz al recombinarse. En los de **gap indirecto**, como el **silicio** y el germanio, la recombinación da calor, no luz: no sirven para hacer LED ni láseres, aunque sean los más usados en electrónica. El **arseniuro de galio (GaAs)** tiene gap directo.
+
+<BandasLed />
+
+### Materiales
+
+Para los LED de comunicaciones se combinan elementos de los **grupos III** (boro, aluminio, galio, indio) y **V** (nitrógeno, fósforo, arsénico) de la tabla periódica. Cuanto más arriba en la tabla, más energía y luz más azulada; cuanto más abajo, más hacia el infrarrojo:
+
+- Los **nitruros** dan azul, violeta y ultravioleta (boro + nitrógeno da tanta energía que sale ultravioleta).
+- Los **fosfuros** dan amarillo y verde.
+- Los **arseniuros** dan rojo e infrarrojo.
+
+Nos interesa el **infrarrojo cercano**, así que se usa **GaAs**: gap de 1,42 eV, que da ≈ 0,87 µm, en la **1.ª ventana**. Para la 2.ª y la 3.ª ventana (1310 y 1550 nm) se parte de **InP**, combinando más elementos para ajustar el gap.
+
+## La luz de un LED
+
+### Espectral: ancha
+
+La emisión del LED no es monocromática: tiene una **anchura espectral de unos 50 nm**, y además **crece con λ²** (a mayor longitud de onda, más ancha). Por eso su uso se limita a sistemas sin multiplexación y a fibras multimodo: es justo lo contrario de lo que pide DWDM, con canales separados décimas de nm.
+
+<Espectros />
+
+### Espacial: lambertiana
+
+Un LED tiene **emisión lambertiana** (difusa): emite con la misma intensidad en todos los ángulos de un hemisferio. No tiene coherencia espacial. Para acoplarlo a una fibra hay que reducir su apertura numérica:
+
+- Los LED se montan dentro de una cubierta que actúa de **lente convergente**.
+- Se usan **pigtails** de índice gradual, que adaptan el índice del semiconductor (≈ 3,5) al de la fibra (≈ 1,46). Sin ellos, casi toda la luz se perdería por reflexión en la superficie.
+
+Aun así, solo se acopla a la fibra en torno al **1 %** de la luz del LED.
+
+<FormaHaz />
+
+### Temporal: incoherente
+
+La luz del LED sale por **emisión espontánea**: cada electrón se desexcita cuando le toca, así que cada fotón tiene su propia fase. Es luz **incoherente**: al final de la fibra se ve un disco de luz plano, sin información de fase. Si además la potencia es muy baja, el ruido shot (de Poisson) puede dominar sobre la señal. La comparación con la luz coherente del láser está en el tema siguiente.
+
+## Parámetros de un LED
+
+- **Eficiencia cuántica:** fracción de las recombinaciones que producen un fotón. El resto se pierde como calor por colisiones, así que **baja al subir la temperatura**.
+- **Responsividad:** potencia óptica emitida por unidad de corriente, $P/I$. En un LED es del orden de **0,01 W/A**, y baja con corrientes muy altas (más de 80 mA), al salir de la zona lineal de la curva P-I.
+- **Anchura espectral:** unos 50 nm, y crece con λ².
+- **Velocidad de modulación:** la limita la **vida media de los portadores** (2–5 ns), lo que da **centenares de MHz**. Los LED se modulan de forma directa (la luz sigue a la corriente), que es lo más sencillo pero no lo más rápido. El producto potencia × ancho de banda es constante.
+
+Que algo sea muy eficiente cuánticamente no quiere decir que lo sea en luz útil: aunque el LED genere muchos fotones, solo llega a la fibra en torno al 1 %. Tampoco hay que confundir **brillo** con **intensidad luminosa**: un LED es muy brillante (mucha luz desde una superficie diminuta) pero da poca intensidad total.
+
+Con todo esto, el LED da como mucho del orden de **1 Gbps en menos de 1 km**, con fibra multimodo de índice gradual. Su coste tan bajo lo hace buena opción para enlaces locales cortos.
+
+## Estructuras LED
+
+Para que un LED sirva en comunicaciones, además de gap directo y λ en una ventana, necesita: ser **transparente** a su propia luz, un **índice de refracción** lo más parecido posible al de la fibra (de ahí los pigtails), **constantes de red compatibles** entre capas (si no, las dilataciones térmicas rompen la estructura) y ser fácil y barato de fabricar.
+
+**Estructura interna:**
+
+- **Homounión:** el mismo material en todo el LED, con distintos niveles de dopado.
+- **Heterounión (heteroestructura):** capas de materiales distintos para aumentar la tasa de recombinación, hacer el medio más transparente y aguantar mejor la temperatura. Es más eficiente, y por eso se usa más.
+
+**Por dónde sale la luz:**
+
+- **Emisión superficial** (por ejemplo, el LED de Burrus): la luz sale perpendicular a la capa activa, con diagrama lambertiano. Da **más potencia**.
+- **Emisión lateral:** la luz sale por una de las caras estrechas, justo por la unión PN, guiada por capas de menor índice. **Acopla mejor** la luz en la fibra y se **modula más deprisa**.
+
+Para comunicaciones se usa más la emisión lateral: la fibra es estrecha, así que lo que importa es acoplar bien, no sacar más luz.
+
+> **⚠ Revisar.** En tus apuntes ponías «superficial (VCSEL)». El VCSEL es un **láser** de emisión superficial, no un LED; el LED de emisión superficial típico de comunicaciones es el de Burrus. Y que la emisión lateral sea «más barata» no aparece en el material.
+
+## Preguntas de examen
+
+<details>
+<summary>¿Qué tipo de luminiscencia se usa en las fuentes de comunicaciones ópticas y qué ventajas tiene frente a otros emisores de luz?</summary>
+
+La **electroluminiscencia**: conversión directa de una señal eléctrica en luz. Toda la electrónica de comunicaciones es eléctrica, y así se aprovechan a la vez las ventajas de la señal eléctrica y de la óptica. Se consigue con diodos de semiconductor (LED y láseres), que son:
+
+- **Muy rápidos:** retardo mínimo frente a la señal electrónica.
+- **Muy pequeños:** del orden del núcleo de una fibra monomodo.
+- De **poca potencia**, pero con muy bajo consumo.
+- **Baratos** hoy en día.
+
+Las fuentes térmicas necesitan mucha energía, tardan mucho en la conversión y no dan luz coherente. Las otras luminiscencias (quimioluminiscencia, bioluminiscencia…) se modulan muy despacio.
+
+> **⚠ Revisar.** El LED tampoco da luz coherente (su emisión es espontánea); la luz coherente es propia del láser.
+
+</details>
+
+<details>
+<summary>¿Cuáles son los mecanismos de emisión de luz en un LED, qué materiales se usan en los LED de comunicaciones y cuál es su rendimiento aproximado?</summary>
+
+**Mecanismo.** Un LED es un diodo semiconductor en polarización directa. La corriente inyecta electrones de la zona n en la p; cuando un electrón de la banda de conducción se recombina con un hueco de la banda de valencia, suelta un fotón con la energía del gap ($\lambda = hc/E_g$).
+
+**Materiales.** Solo los de **gap directo** (GaAs sí; el silicio, de gap indirecto, no: su recombinación da calor). Se combinan elementos de los grupos III y V: más arriba en la tabla, más energía y luz más azul; más abajo, más infrarroja. Para el infrarrojo cercano se usa **GaAs** (1,42 eV → 0,87 µm, 1.ª ventana); para la 2.ª y la 3.ª ventana, **InP** como base.
+
+**Rendimiento.** Responsividad del orden de **0,01 W/A**, y solo se acopla a la fibra en torno al **1 %** de la luz. Se modula hasta centenares de MHz (como mucho ≈ 1 Gbps en menos de 1 km), con fibras multimodo de índice gradual.
+
+> **⚠ Revisar.** En tus apuntes dabas «cientos de MHz, 1 Gbps» como rendimiento; eso es el ancho de banda (velocidad de modulación). El rendimiento lo dan la responsividad y el porcentaje que se acopla.
+
+</details>
+
+<details>
+<summary>Describe las características espectrales, espaciales y temporales de la luz emitida por un LED.</summary>
+
+- **Espectrales:** no es monocromática; anchura de unos **50 nm**, que crece con λ². Su uso queda restringido a sistemas sin multiplexación y a fibras multimodo.
+- **Espaciales:** emisión **lambertiana** (igual en todo el hemisferio), sin coherencia espacial. Para acoplarla hay que reducir la apertura numérica con lentes convergentes o pigtails; aun así entra en torno al 1 %.
+- **Temporales:** luz **incoherente**: cada fotón con su propia fase, porque cada electrón se desexcita en un instante distinto (emisión espontánea). Al final de la fibra se ve un disco de luz plano, sin información de fase, y con poca potencia domina el ruido shot.
+
+</details>
+
+<details>
+<summary>Tipos de estructuras LED, con sus ventajas e inconvenientes.</summary>
+
+**Estructura interna.**
+
+- **Homounión:** un mismo material con distintos dopados. Sencilla.
+- **Heterounión:** capas de materiales distintos: más recombinación, más transparencia, mejor comportamiento térmico. Más eficiente, por eso se usa más.
+
+**Por dónde sale la luz.**
+
+- **Emisión superficial** (LED de Burrus): la luz sale perpendicular a la capa activa. Ventaja: más potencia.
+- **Emisión lateral:** la luz sale por el borde de la unión, guiada. Ventajas: acopla mejor a la fibra y se modula más deprisa.
+
+En comunicaciones se prefiere la lateral, porque la fibra es estrecha y lo que importa es acoplar bien la luz.
+
+</details>
+
+<details>
+<summary>Describe las principales variables que definen las características de un LED.</summary>
+
+- **Eficiencia cuántica:** fracción de recombinaciones que dan fotón; el resto es calor. Baja con la temperatura.
+- **Potencia óptica y responsividad** ($P/I$): ≈ 0,01 W/A; baja con corrientes muy altas (más de 80 mA), fuera de la zona lineal de la curva P-I.
+- **Anchura espectral:** ≈ 50 nm, crece con λ².
+- **Velocidad de modulación:** limitada por la vida media de los portadores (2–5 ns): centenares de MHz. Potencia × ancho de banda es constante.
+
+Ser muy eficiente cuánticamente no significa serlo en luz útil: solo ≈ 1 % llega a la fibra.
+
+</details>
+
+<details>
+<summary>¿Por qué no se pueden fabricar LED de silicio?</summary>
+
+Porque el silicio tiene **gap indirecto**: el mínimo de la banda de conducción y el máximo de la de valencia no están en el mismo momento del cristal, y la recombinación libera la energía como calor, no como un fotón. Hacen falta materiales de gap directo, como el GaAs. *(Respuesta redactada a partir de los apuntes.)*
+
+</details>

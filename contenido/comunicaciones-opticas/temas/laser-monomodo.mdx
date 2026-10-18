@@ -1,0 +1,154 @@
+---
+titulo: "Láser monomodo, modulación y ruido"
+orden: 8
+bloque: "Emisores"
+resumen: "Pozos cuánticos, DBR y DFB, modulación directa y externa, ruidos del láser"
+saber:
+  - "DWDM separa los canales décimas de nm: hacen falta láseres monomodo (DFB, DBR) con la λ muy controlada"
+  - "Pozo cuántico: capas de ≈ 1 nm que cuantizan la energía del electrón; con la anchura del pozo se ajusta el gap y la λ"
+  - "DBR: los espejos son redes de Bragg. DFB: la red de Bragg va a lo largo de todo el medio activo; es el más usado en DWDM"
+  - "Modulación directa: barata, pero con retardo, chirp, jitter y estrés térmico. Externa: láser continuo + modulador, más cara, sin chirp y mucho más rápida"
+  - "El láser nunca se apaga del todo: se polariza por encima del umbral para evitar el jitter, así que un 0 no es «cero fotones»"
+  - "Ruidos: RIN (fluctuaciones de potencia), modal y salto de modos, shot, chirp y jitter. Temperatura y corriente son las causas principales"
+fuentes:
+  - "Apuntes de clase (Javier)"
+  - "Apuntes de Miguel"
+  - "Comunicaciones Ópticas (PDF de clase), §5.2.3–5.2.5"
+  - "T22 – Emisores ópticos láser"
+  - "T52 – WDM"
+---
+
+import PozoCuantico from '../../../src/asignaturas/comunicaciones-opticas/widgets/PozoCuantico.astro';
+import DbrDfb from '../../../src/asignaturas/comunicaciones-opticas/widgets/DbrDfb.astro';
+import Espectros from '../../../src/asignaturas/comunicaciones-opticas/widgets/Espectros.astro';
+import Modulacion from '../../../src/asignaturas/comunicaciones-opticas/widgets/Modulacion.astro';
+
+**Idea clave.** WDM mete muchos canales separados décimas de nanómetro en la misma fibra, así que cada láser tiene que emitir **un solo modo** y en una λ **muy precisa y estable**. Se consigue con pozos cuánticos (para ajustar el gap), redes de Bragg (DBR, DFB) para quedarse con un modo, sintonización fina y mucho control de la temperatura y de la corriente.
+
+## Por qué WDM necesita láseres tan precisos
+
+WDM combina varias longitudes de onda portadoras en una única fibra: es una multiplexación en frecuencia, expresada en longitud de onda. Se trabaja en la ventana de **1550 nm**, la de mínima atenuación, con canales separados solo **décimas de nm** (en DWDM, de 12,5 a 100 GHz; 100 GHz son ≈ 0,8 nm a 1550 nm). Con canales tan juntos:
+
+- un FP multimodo (≈ 4 nm) ocuparía varios canales a la vez;
+- la λ de cada láser tiene que estar controlada con fracciones de nm.
+
+Por defectos de fabricación no hay dos láseres iguales: de una oblea salen muchos láseres pequeños, se comprueban y luego se ajusta de forma más fina la λ de cada uno según el sistema WDM en el que se vaya a usar. Los planes DWDM y CWDM se ven en el tema de WDM.
+
+<Espectros />
+
+## Cómo se fabrica un láser monomodo
+
+### 1. Materiales
+
+Se usan compuestos **cuaternarios**, o incluso de cinco elementos, de los grupos III y V: combinándolos se ajustan el gap y la constante de red.
+
+### 2. Estructuras: heteroestructuras y pozos cuánticos
+
+- **Heteroestructuras:** en vez de un solo material, un emparedado de capas de materiales distintos, para sintonizar mejor el gap.
+- **Pozos cuánticos:** capas muy finas, del orden de la longitud de onda del propio electrón (≈ 1 nm), entre semiconductores distintos. El electrón queda **confinado** en un pozo de potencial y su función de onda forma una **onda estacionaria**, como la luz en una cavidad. Así su energía queda **cuantizada**: la diferencia de altura del pozo fija el salto de energía. Controlando la **anchura del pozo** se controla el gap y, por tanto, la λ emitida, con mucha precisión. Además estos láseres son más eficientes.
+
+<PozoCuantico />
+
+### 3. Filtrado: quedarse con un solo modo
+
+Una vez que el medio activo emite en la λ adecuada, hay que quedarse con un solo modo, un único pico. Las dos formas se basan en **redes de Bragg**: capas cuyo índice de refracción varía de forma periódica y que, por eso, solo reflejan una λ concreta (la de Bragg).
+
+- **DBR** (*Distributed Bragg Reflector*): los **espejos** del Fabry-Pérot se sustituyen por dos redes de Bragg, filtros que solo realimentan una única λ.
+- **DFB** (*Distributed Feedback*): el **propio medio activo** hace de filtro. El semiconductor donde se generan los fotones está estructurado como un hojaldre, con capas de índice distinto: la red de Bragg va a lo largo de toda la cavidad. Es el **más usado en DWDM**.
+
+<DbrDfb />
+
+> **⚠ Revisar.** En tus apuntes ponías que «la propia cavidad del láser puede tener otra depresión, creando o suprimiendo modos». La frase no está clara. Quizá se refiere a los láseres de **cavidad acoplada**, que usan una cavidad externa con un ligero desfase para seleccionar el modo.
+
+### 4. Sintonización
+
+Por la temperatura u otros efectos, el láser puede quedar ligeramente desviado de la λ que necesitamos. El ajuste fino se hace modificando la cavidad con un **actuador piezoeléctrico** (cuarzo u otros) en uno de los extremos, que presiona el láser con precisión atómica y lo corrige justo las centésimas de nm necesarias.
+
+## Modulación del láser
+
+Hay dos formas de imprimir los bits en la luz:
+
+- **Directa:** se varía la corriente que alimenta el propio láser, y con ella su potencia.
+- **Externa:** el láser funciona en **régimen continuo** (siempre la misma potencia) y un **modulador externo** varía la intensidad de la luz.
+
+| | Directa | Externa |
+| --- | --- | --- |
+| **Coste** | Barata: no hace falta ningún elemento óptico más | Hace falta un modulador externo, costoso |
+| **Problemas** | Retardo respecto al pulso eléctrico, **chirp**, algo de **jitter** y estrés térmico (el láser dura menos) | El láser no sufre: trabaja en continuo |
+| **Velocidad** | Menor | Mucho mayor (unos 100 Gbps) |
+| **Uso** | Sistemas sencillos | La mayoría de los sistemas actuales |
+
+<Modulacion />
+
+En la modulación directa el láser **no se apaga del todo**: siempre se mantiene un poco **por encima de la corriente umbral** (corriente de polarización o *bias*). Si se apagara, al volver a encenderlo tardaría en arrancar (tiempo de encendido) y aparecería el jitter. Por eso un **0** en comunicaciones ópticas no es «cero fotones», sino un nivel por encima del umbral; la diferencia entre el nivel del 1 y el del 0 es lo que lleva el bit.
+
+> **⚠ Revisar.** En tus apuntes la directa daba «unos 1 Gbps», pero el material da cifras más altas: unos 25 GHz de ancho de banda con 80 mA de polarización (PDF de clase) y «modulable hasta centenas de GHz» (T22). Comprueba de dónde sale el 1 Gbps. Y donde ponías «o algo»: la relación entre la potencia del 1 y la del 0 se llama **relación de extinción** (T22 la nombra, pero no la define).
+
+## Ruido en los láseres
+
+La mayor parte de los defectos no vienen del láser, sino de lo que le pasa desde fuera:
+
+- **Temperatura:** si sube, la cavidad se dilata y la λ aumenta. Una temperatura que fluctúa hace que la λ oscile y que las líneas espectrales salgan mucho más anchas. Además el umbral crece exponencialmente con la temperatura. Hay que estabilizarla (refrigeración Peltier).
+- **Corriente de la fuente:** una fluctuación mínima de la corriente provoca grandes variaciones de la potencia del láser.
+
+A partir de estas causas, los tipos de ruido son:
+
+1. **Ruido de intensidad relativa (RIN):** fluctuaciones del nivel de potencia por vibraciones en la cavidad o fluctuaciones del medio activo. Valores típicos de −130 a −160 dB/Hz.
+2. **Ruido modal y salto de modos:** interferencia entre modos próximos o con reflexiones externas (se evitan con un **aislador**), y saltos de un modo a otro (*mode hopping*) por cambios de temperatura que dilatan la cavidad.
+3. **Ruido shot (de Poisson):** se debe a la naturaleza fotónica de la luz. A mayor potencia de emisión, menor ruido.
+4. **Ruido de modulación:**
+   - **Chirp:** al aumentar la corriente disminuye el índice de refracción de la cavidad, y el espectro se ensancha al modular directamente. Soluciones: disminuir la relación de extinción o usar modulación externa.
+   - **Jitter:** retardo al modular directamente cuando se pasa de dejar el láser sin potencia a volver a encenderlo. Se evita polarizando por encima del umbral.
+
+> **⚠ Revisar.** En tus apuntes aparece también el **ruido térmico** como ruido del láser. En el PDF de clase (§5.2.5) no aparece así: allí la temperatura sale como causa del salto de modos, y el ruido térmico aparece en los fotodetectores. Compruébalo con tus notas de clase.
+
+## Preguntas de examen
+
+<details>
+<summary>Tipos de modulación de un láser, con sus ventajas e inconvenientes.</summary>
+
+Hay dos tipos básicos:
+
+- **Directa:** se varía la alimentación eléctrica del propio láser para construir la señal.
+- **Externa:** el láser trabaja en régimen continuo y un elemento óptico externo (modulador) varía la intensidad de la luz.
+
+**Directa.** Ventajas: barata, sin elementos ópticos adicionales. El láser no se apaga del todo: siempre trabaja por encima del umbral para evitar el jitter. Inconvenientes: retardo de la señal respecto al pulso eléctrico, estrés térmico (el láser dura menos) y ruidos, sobre todo chirp y algo de jitter.
+
+**Externa.** Ventajas: el láser no sufre gracias al régimen continuo, la velocidad de modulación es mucho mayor (unos 100 Gbps) y evita el chirp; por eso es la que se usa en la mayoría de los sistemas actuales. Inconveniente: hace falta un elemento externo costoso.
+
+> **⚠ Revisar.** Para la directa tenías «unos 1 Gbps»; el material habla de unos 25 GHz con 80 mA de polarización y de «centenas de GHz» en T22.
+
+</details>
+
+<details>
+<summary>Tipos de ruido que puede sufrir un láser.</summary>
+
+Las causas principales son externas: la **temperatura** (dilata la cavidad, mueve la λ y ensancha las líneas; sube el umbral) y las fluctuaciones de la **corriente** (grandes cambios de potencia). Los tipos de ruido:
+
+1. **RIN** (ruido de intensidad relativa): fluctuaciones de potencia por vibraciones en la cavidad o del medio activo; de −130 a −160 dB/Hz.
+2. **Ruido modal y salto de modos:** interferencia entre modos próximos o reflexiones (se evitan con un aislador) y saltos de modo por cambios de temperatura.
+3. **Ruido shot:** por la naturaleza fotónica de la luz; baja al subir la potencia.
+4. **Ruido de modulación:** **chirp** (el índice cambia con la corriente y el espectro se ensancha; se evita con modulación externa) y **jitter** (retardo al encender; se evita polarizando por encima del umbral).
+
+</details>
+
+<details>
+<summary>¿Por qué DWDM necesita láseres monomodo y cómo se consigue un solo modo?</summary>
+
+Porque los canales DWDM están separados décimas de nm (100 GHz ≈ 0,8 nm): un láser Fabry-Pérot, con varios modos en unos 4 nm, ocuparía varios canales. Hay que quedarse con un único modo filtrando con **redes de Bragg**: en los **DBR** los espejos son redes de Bragg; en los **DFB** la red de Bragg va a lo largo de todo el medio activo (los más usados en DWDM). *(Respuesta redactada a partir de los apuntes.)*
+
+</details>
+
+<details>
+<summary>¿Qué es un pozo cuántico y para qué sirve en un láser?</summary>
+
+Una capa muy fina (≈ 1 nm, del orden de la longitud de onda del electrón) entre semiconductores distintos. El electrón queda confinado como una onda estacionaria y su energía se cuantiza. Variando la anchura del pozo se ajusta el gap efectivo y, con él, la λ emitida con mucha precisión: más estrecho, más energía y λ más corta. *(Respuesta redactada a partir de los apuntes.)*
+
+</details>
+
+<details>
+<summary>¿Por qué en comunicaciones ópticas un 0 no es «cero fotones»?</summary>
+
+Porque en modulación directa el láser no se apaga del todo: se polariza siempre un poco por encima de la corriente umbral. Si se apagara, al volver a encenderlo tardaría en arrancar (tiempo de encendido) y aparecería jitter. El 0 es un nivel de potencia bajo pero por encima del umbral, y el bit es la diferencia entre ese nivel y el del 1. *(Respuesta redactada a partir de los apuntes.)*
+
+</details>

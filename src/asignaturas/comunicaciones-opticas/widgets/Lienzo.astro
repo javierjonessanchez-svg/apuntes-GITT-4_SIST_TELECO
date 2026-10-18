@@ -1,0 +1,16 @@
+---
+// Cuerpo común de los widgets de Ópticas: controles (ranura «controles», ocultos
+// hasta que arranca el script), el dibujo SVG y la frase que lo explica. El dibujo
+// inicial se genera al construir, así que sin JavaScript se ve el estado de partida.
+import './widgets-opticas.css';
+import type { Dibujo } from './dibujo';
+
+interface Props { nombre: string; uid: string; alto: number; etiqueta: string; inicial: Dibujo; nota?: string }
+const { nombre, uid, alto, etiqueta, inicial, nota } = Astro.props;
+---
+<div class="op-w" data-op-widget={nombre} data-uid={uid}>
+  {Astro.slots.has('controles') && <div class="op-w-controles" data-controles hidden><slot name="controles" /></div>}
+  <svg class="op-w-dibujo" viewBox={`0 0 480 ${alto}`} role="img" aria-label={etiqueta} set:html={inicial.svg} />
+  <p class="op-w-info" data-info aria-live="polite" set:html={inicial.info} />
+  {nota && <p class="op-w-nota">{nota}</p>}
+</div>

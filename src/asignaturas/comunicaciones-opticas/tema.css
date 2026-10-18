@@ -14,6 +14,12 @@ html[data-asignatura="comunicaciones-opticas"] {
   --acento: #4A3FB6;
   --acento2: #A8324A;
   --foco: #4A3FB6;
+  /* Colores de los dibujos de los widgets */
+  --op-naranja: #B4530F;
+  --op-azul: #2559C2;
+  --op-verde: #18794C;
+  --op-rojo: #B02A45;
+  --op-violeta: #6B3FA0;
 }
 html[data-asignatura="comunicaciones-opticas"][data-tema="oscuro"] {
   --fondo: #15151F;
@@ -28,6 +34,11 @@ html[data-asignatura="comunicaciones-opticas"][data-tema="oscuro"] {
   --acento: #9EA4FF;
   --acento2: #F0899B;
   --foco: #F2C230;
+  --op-naranja: #F2A65A;
+  --op-azul: #8DB4FF;
+  --op-verde: #5CCF97;
+  --op-rojo: #F0899B;
+  --op-violeta: #C3A6F0;
 }
 @media (prefers-color-scheme: dark) {
   html[data-asignatura="comunicaciones-opticas"]:not([data-tema="claro"]) {
@@ -43,6 +54,11 @@ html[data-asignatura="comunicaciones-opticas"][data-tema="oscuro"] {
     --acento: #9EA4FF;
     --acento2: #F0899B;
     --foco: #F2C230;
+    --op-naranja: #F2A65A;
+    --op-azul: #8DB4FF;
+    --op-verde: #5CCF97;
+    --op-rojo: #F0899B;
+    --op-violeta: #C3A6F0;
   }
 }
 
