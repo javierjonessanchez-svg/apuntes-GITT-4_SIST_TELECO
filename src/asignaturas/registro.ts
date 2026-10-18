@@ -8,12 +8,18 @@ import '@fontsource-variable/bricolage-grotesque';
 import './portada/tema.css';
 import '@fontsource-variable/archivo/wdth.css';
 import './conmutacion/tema.css';
+import '@fontsource-variable/fraunces';
+import '@fontsource-variable/inter';
+import './comunicaciones-opticas/tema.css';
 import PortadaBase from './base/Portada.astro';
 import AvanceBase from './base/Avance.astro';
 import DecoracionBase from './base/Decoracion.astro';
 import PortadaConmutacion from './conmutacion/Portada.astro';
 import AvanceConmutacion from './conmutacion/Avance.astro';
 import DecoracionConmutacion from './conmutacion/Decoracion.astro';
+import PortadaOpticas from './comunicaciones-opticas/Portada.astro';
+import AvanceOpticas from './comunicaciones-opticas/Avance.astro';
+import DecoracionOpticas from './comunicaciones-opticas/Decoracion.astro';
 
 // Un componente de Astro (se llama con sus props al pintarlo)
 type Componente = (props: any) => any;
@@ -28,6 +34,7 @@ export const mundoBase: Mundo = { Portada: PortadaBase, Avance: AvanceBase, Deco
 
 export const mundos: Record<string, Mundo> = {
   conmutacion: { Portada: PortadaConmutacion, Avance: AvanceConmutacion, Decoracion: DecoracionConmutacion },
+  'comunicaciones-opticas': { Portada: PortadaOpticas, Avance: AvanceOpticas, Decoracion: DecoracionOpticas },
 };
 
 export function mundoDe(slug: string): Mundo {

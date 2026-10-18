@@ -1,6 +1,7 @@
 // Mazo de tarjetas: preguntas de la «Autoevaluación» de cada tema y su orden de repaso.
+import { readdirSync, readFileSync } from 'node:fs';
 import { describe, expect, test } from 'vitest';
-import { extraerPreguntas, ordenarMazo, textoTarjeta } from '../src/asignaturas/conmutacion/widgets/tarjetas';
+import { extraerPreguntas, ordenarMazo, textoTarjeta } from '../src/widgets/tarjetas';
 
 const mdx = `
 ## Algo
@@ -52,5 +53,37 @@ describe('ordenarMazo', () => {
     const mazo = ['a', 'b', 'c', 'd'].map((pregunta) => ({ pregunta }));
     const notas = { a: 2 as const, b: 0 as const, d: 1 as const };
     expect(ordenarMazo(mazo, notas).map((t) => t.pregunta)).toEqual(['c', 'b', 'd', 'a']);
+  });
+});
+
+describe('mazo compartido entre asignaturas', () => {
+  test('también lee la sección «Preguntas de examen» (Ópticas)', () => {
+    const md = `
+## Preguntas de examen
+
+<details>
+<summary>¿Por qué el LED no sirve para DWDM?</summary>
+
+Su espectro es demasiado ancho.
+
+</details>
+
+<details>
+<summary>¿Qué es la electroluminiscencia?</summary>
+
+Luz a partir de una corriente.
+
+</details>
+`;
+    expect(extraerPreguntas(md).map((p) => p.pregunta)).toEqual([
+      '¿Por qué el LED no sirve para DWDM?', '¿Qué es la electroluminiscencia?',
+    ]);
+  });
+  test('Conmutación conserva sus 46 preguntas tras el cambio', () => {
+    let n = 0;
+    for (const f of readdirSync('contenido/conmutacion/temas')) {
+      n += extraerPreguntas(readFileSync(`contenido/conmutacion/temas/${f}`, 'utf8')).length;
+    }
+    expect(n).toBe(46);
   });
 });

@@ -1,0 +1,45 @@
+---
+// Regla de longitudes de onda: barra del violeta al infrarrojo con marcas (por
+// defecto, las tres ventanas). El contenido que se le pase se dibuja dentro del
+// mismo SVG, encima de la barra: x = posicion(nm, desde, hasta) · 1000.
+import { VENTANAS, paradas, posicion } from './espectro';
+
+interface Props {
+  desde?: number;
+  hasta?: number;
+  marcas?: readonly number[];
+  alto?: number;
+  etiqueta?: string;
+}
+const { desde = 380, hasta = 1700, marcas = VENTANAS, alto = 56, etiqueta } = Astro.props;
+// Un id distinto por regla: puede haber varias en la misma página
+const id = `regla-${desde}-${hasta}-${Math.random().toString(36).slice(2, 8)}`;
+const fmt = (nm: number) => `${nm.toLocaleString('es-ES')} nm`;
+---
+<svg class="regla" viewBox={`0 0 1000 ${alto}`} role="img"
+  aria-label={etiqueta ?? `Longitudes de onda de ${fmt(desde)} a ${fmt(hasta)}`}>
+  <defs>
+    <linearGradient id={id} x1="0" x2="1" y1="0" y2="0">
+      {paradas(desde, hasta).map((p) => <stop offset={p.offset} stop-color={p.color} />)}
+    </linearGradient>
+  </defs>
+  <rect class="regla-barra" x="0" y="0" width="1000" height="12" rx="4" fill={`url(#${id})`} />
+  {marcas.map((nm) => {
+    const x = posicion(nm, desde, hasta) * 1000;
+    return (
+      <g class="regla-marca">
+        <line x1={x} x2={x} y1="12" y2="22" />
+        <text x={Math.min(970, Math.max(30, x))} y="44">{fmt(nm)}</text>
+      </g>
+    );
+  })}
+  <slot />
+</svg>
+
+<style>
+  .regla { display: block; width: 100%; height: auto; overflow: visible; }
+  .regla-marca line { stroke: var(--texto); stroke-width: 2; }
+  .regla-marca text { fill: var(--suave); font-size: 24px; font-weight: 600; text-anchor: middle; font-variant-numeric: tabular-nums; }
+  /* En un móvil la regla mide ~340 px: las etiquetas crecen para seguir legibles (≈ 11 px) */
+  @media (max-width: 600px) { .regla-marca text { font-size: 34px; } }
+</style>

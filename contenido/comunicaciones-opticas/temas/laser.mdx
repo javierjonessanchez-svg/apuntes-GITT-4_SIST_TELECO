@@ -1,0 +1,181 @@
+---
+titulo: "Láser"
+orden: 7
+bloque: "Emisores"
+resumen: "Emisión estimulada, resonador Fabry-Pérot y curva P-I"
+saber:
+  - "La emisión estimulada copia el fotón que la provoca (misma fase, λ, polarización y dirección): por eso el láser da luz coherente"
+  - "Hace falta inversión de población: al menos tres niveles, con el intermedio metaestable"
+  - "Un láser = medio activo + fuente de energía + resonador. El de semiconductor es «un LED con espejos»"
+  - "El Fabry-Pérot deja pasar varios modos longitudinales (láser multimodo, ≈ 4 nm); su calidad la mide Q: más reflectividad, mejor pulido y mejor alineamiento dan más fineza"
+  - "Curva P-I: por debajo del umbral se comporta como un LED; por encima domina la emisión estimulada"
+  - "El umbral crece exponencialmente con la temperatura y por encima de ≈ 50 °C la emisión se degrada: se refrigera con un Peltier"
+fuentes:
+  - "Apuntes de clase (Javier)"
+  - "Apuntes de Miguel"
+  - "Comunicaciones Ópticas (PDF de clase), §5.2"
+  - "T22 – Emisores ópticos láser"
+---
+
+import Coherencia from '../../../src/asignaturas/comunicaciones-opticas/widgets/Coherencia.astro';
+import ResonadorFP from '../../../src/asignaturas/comunicaciones-opticas/widgets/ResonadorFP.astro';
+import CurvaPI from '../../../src/asignaturas/comunicaciones-opticas/widgets/CurvaPI.astro';
+import FormaHaz from '../../../src/asignaturas/comunicaciones-opticas/widgets/FormaHaz.astro';
+import SeConecta from '../../../src/asignaturas/comunicaciones-opticas/SeConecta.astro';
+
+**Idea clave.** El láser cambia la emisión espontánea del LED por **emisión estimulada**: cada fotón provoca otro idéntico, así que la luz sale en fase, estrecha y en una sola dirección. Para conseguirlo hacen falta tres cosas: un medio activo con inversión de población, una fuente de energía y un resonador (dos espejos) que realimente la luz.
+
+## Emisión espontánea y estimulada
+
+Cuando un electrón excitado baja de nivel, suelta un fotón con la diferencia de energía. Hay dos formas:
+
+- **Espontánea:** el electrón baja cuando quiere. Cada fotón sale con su propia fase y en cualquier dirección: luz **incoherente** y difusa. Es la del LED.
+- **Estimulada:** un fotón que pasa cerca de un electrón excitado lo hace bajar, y el fotón nuevo es una **copia** del que lo provocó: misma energía (λ), **misma fase**, misma polarización y misma dirección. Es el proceso contrario a la absorción. Solo la emisión estimulada produce luz **coherente**.
+
+<Coherencia />
+
+### Inversión de población
+
+En un material normal hay más electrones abajo que arriba, así que la absorción gana a la emisión estimulada. Para que gane la emisión hay que conseguir **inversión de población**: más electrones en el nivel excitado que en el fundamental.
+
+Para eso hacen falta **al menos tres niveles** de energía. Se bombea energía para subir los electrones al nivel más alto; de ahí caen a un nivel intermedio **metaestable**, donde se quedan mucho tiempo (del orden de microsegundos o más). Así se acumulan muchos electrones en ese nivel y, cuando bajan a la vez estimulados, sueltan muchos fotones idénticos. Cuanto más dura el nivel metaestable, más monocromático y coherente es el láser.
+
+En un láser de semiconductor no hay niveles sino **bandas**, y no hay nivel metaestable: los electrones se acumulan en la banda de conducción, bombeados con la corriente en polarización directa.
+
+## Las tres piezas de un láser
+
+$$
+\text{láser} = \text{medio activo} + \text{fuente de energía} + \text{resonador}
+$$
+
+1. **Medio activo** (con ganancia): amplifica la luz por emisión estimulada. En comunicaciones, un diodo semiconductor.
+2. **Fuente de energía** (bombeo): en comunicaciones, la corriente eléctrica.
+3. **Resonador óptico:** dos espejos que devuelven la luz al medio activo una y otra vez (realimentación), para que la emisión estimulada se mantenga.
+
+Por eso se suele decir que un láser de semiconductor es **un LED con espejos**. Los espejos no son perfectos a propósito: uno refleja lo más cerca posible del 100 % y el otro en torno al 99 %, para que por él salga el haz.
+
+## El resonador Fabry-Pérot
+
+Un **Fabry-Pérot** (FP) es una cavidad formada por **dos espejos planoparalelos**. Los espejos son dieléctricos (no metálicos), con reflectividades por encima del 99 %. En los láseres de comunicaciones las propias caras del semiconductor hacen de espejo (el GaAs tiene un índice ≈ 3,5, así que refleja una parte grande de la luz).
+
+Tiene dos usos:
+
+- **Como interferómetro:** la luz que entra rebota muchísimas veces e interfiere consigo misma. Solo sobreviven las longitudes de onda en fase (interferencia constructiva): funciona como un **analizador espectral**, que separa la luz en sus componentes.
+- **Como resonador de un láser:** alrededor del medio activo, se queda con las componentes que resuenan y hace la luz más coherente. La λ del láser tiene que coincidir con una resonancia de la cavidad: los **modos longitudinales**. Los modos **transversales** se eliminan con los espejos.
+
+¿Por qué aumenta la coherencia? Con tantos rebotes, el recorrido efectivo de la luz se multiplica enormemente, y en un recorrido tan largo solo sobreviven las ondas en fase. Pasa algo parecido con la luz de las estrellas: tras una distancia enorme, es muy coherente.
+
+Un FP deja pasar **varios modos longitudinales**: es un **láser multimodo**, con una anchura espectral de unos 4 nm. Para DWDM hacen falta láseres monomodo (DFB, DBR), que se ven en el tema siguiente.
+
+### Q, fineza y rango espectral libre
+
+La calidad del Fabry-Pérot se resume en su **factor Q**. Q es mayor cuanto mejores son:
+
+- la **reflectividad** de los espejos;
+- la **calidad óptica** de los espejos (lisos y bien pulidos);
+- el **alineamiento** (que sean bien paralelos);
+- la **distancia** entre los espejos.
+
+Un Q alto implica una **fineza** alta. Los picos de transmisión se describen con:
+
+- **Rango espectral libre (FSR):** la separación entre dos picos (dos anillos) consecutivos.
+- **Fineza:** el rango espectral libre dividido entre la anchura de cada pico a media altura. Cuanto más finos los picos, más fineza.
+
+Interesa maximizar los dos, lo que exige la máxima reflectividad, la mejor calidad óptica y el mejor alineamiento posibles. Con un FP malo los picos son anchos y caen despacio.
+
+<ResonadorFP />
+
+> **⚠ Revisar.** En tus apuntes ponías que un Q típico de alta calidad es 100 000 y el de un Fabry-Pérot de láser de comunicaciones, 1000 («bajo un diapasón»). Esas cifras no están en el material y no queda claro qué significa «bajo un diapasón»; compruébalo con tus notas.
+
+## La curva P-I
+
+El funcionamiento de un láser se resume en su **curva P-I**: potencia óptica frente a corriente.
+
+- **Por debajo de la corriente umbral** ($I_{th}$) domina la emisión espontánea: el láser se comporta **como un LED**, con poca luz y sin coherencia.
+- **Por encima del umbral** domina la emisión estimulada: la potencia crece deprisa (casi linealmente con la corriente, hasta cierto punto). Ahí es un láser.
+
+### La temperatura
+
+La temperatura es el gran enemigo del láser:
+
+- La **corriente umbral crece exponencialmente** con la temperatura: más temperatura, más colisiones de los portadores y más energía perdida como calor.
+- Por encima de **≈ 50 °C** la emisión láser se degrada rápidamente.
+- Al calentarse, la cavidad **se dilata**: el láser se hace «más grande», su λ aumenta (se va hacia el infrarrojo) y cambian sus modos.
+
+Por eso los láseres de comunicaciones se **refrigeran con enfriadores Peltier**, que convierten una corriente eléctrica en una diferencia de temperatura, y se estabilizan para que su λ no se mueva.
+
+<CurvaPI />
+
+## La luz de un láser
+
+### Espectral: estrecha
+
+Es luz muy **monocromática**: un láser monomodo como el DFB baja de 1 nm, unas 50 veces más estrecho que un LED. Eso permite usarlo en sistemas multiplexados y con fibras monomodo. Un FP multimodo, en cambio, ocupa unos 4 nm.
+
+### Espacial: un cono estrecho
+
+El láser tiene **coherencia espacial**: su emisión se concentra en un cono estrecho, así que se acopla a la fibra mucho mejor que un LED. Aun así, como la región activa es muy delgada, el haz diverge más que en otros tipos de láser.
+
+<FormaHaz />
+
+### Temporal: coherente
+
+La luz láser es **coherente**: todos los fotones van en fase. Por eso, ante cualquier defecto o alteración del medio produce interferencias que se ven como un **moteado** (*speckle*). Y como hay información de fase, resiste mejor el ruido shot: la señal se puede reconstruir con técnicas de detección coherente.
+
+> **⚠ Revisar.** La detección coherente y la idea de que «incluso con un único fotón se podría reconstruir la señal» no aparecen en el material de este tema; tómalo como comentario de clase.
+
+## Se conecta con
+
+<SeConecta tema="laser" />
+
+## Preguntas de examen
+
+<details>
+<summary>Describe las características espectrales, espaciales y temporales de la luz emitida por un láser de semiconductor.</summary>
+
+- **Espectrales:** muy monocromática, por debajo de 1 nm en un láser monomodo (unas 50 veces más que un LED). Sirve para sistemas multiplexados y fibras monomodo.
+- **Espaciales:** coherencia espacial: la emisión se concentra en un cono estrecho y se acopla a la fibra mucho mejor que la de un LED. Como la región activa es muy delgada, el haz diverge más que en otros láseres.
+- **Temporales:** luz coherente: todos los fotones en fase (solo la emisión estimulada la produce). Ante defectos del medio aparece el moteado (*speckle*). Al tener información de fase resiste mejor el ruido shot.
+
+> **⚠ Revisar.** Menos de 1 nm es para láseres monomodo como el DFB; un Fabry-Pérot multimodo tiene varios nm (unos 4 nm).
+
+</details>
+
+<details>
+<summary>Explica el funcionamiento y las aplicaciones de los interferómetros (resonadores) Fabry-Pérot.</summary>
+
+Un Fabry-Pérot es una cavidad resonante formada por **dos espejos paralelos** (dieléctricos, con reflectividades por encima del 99 %). Tiene dos usos:
+
+- **Como interferómetro:** la luz que se introduce interfiere consigo misma tras muchas reflexiones: funciona como **analizador espectral**.
+- **Como resonador de un láser:** rodeando el medio activo, se queda con las λ que resuenan (**modos longitudinales**) y hace la luz más coherente. Como deja pasar varios modos, para DWDM hacen falta láseres monomodo (DFB o DBR).
+
+**¿Por qué aumenta la coherencia?** Con las múltiples reflexiones el recorrido efectivo se multiplica y solo sobreviven las interferencias constructivas: lo que está en fase.
+
+**Variables que lo definen.** El **factor Q**, que crece con la reflectividad, la calidad óptica (pulido) y el alineamiento de los espejos, y depende de la distancia entre ellos. Un Q alto implica una **fineza** alta. La fineza es el **rango espectral libre** (separación entre picos) dividido entre la anchura de cada pico a media altura. Interesa maximizar los dos.
+
+</details>
+
+<details>
+<summary>¿Qué hace falta para construir un láser y qué es la inversión de población?</summary>
+
+Tres piezas: un **medio activo** con ganancia, una **fuente de energía** (bombeo; en comunicaciones, corriente eléctrica) y un **resonador** (dos espejos) que realimente la luz.
+
+La **inversión de población** es tener más electrones en el nivel excitado que en el inferior, para que la emisión estimulada gane a la absorción. Exige al menos tres niveles de energía, con el intermedio **metaestable** (vida media larga) para que se acumulen electrones y se desexciten a la vez. *(Respuesta redactada a partir de los apuntes.)*
+
+</details>
+
+<details>
+<summary>Dibuja la curva P-I de un láser y explica cómo le afecta la temperatura.</summary>
+
+La potencia óptica es muy baja hasta la **corriente umbral**: ahí domina la emisión espontánea y el láser actúa como un LED. Por encima del umbral domina la emisión estimulada y la potencia sube deprisa, casi linealmente con la corriente.
+
+Al subir la temperatura, el **umbral crece exponencialmente** (más colisiones, más pérdidas como calor), la cavidad se dilata (λ mayor) y por encima de ≈ 50 °C la emisión se degrada. Por eso los láseres de comunicaciones se refrigeran con **enfriadores Peltier**. *(Respuesta redactada a partir de los apuntes.)*
+
+</details>
+
+<details>
+<summary>¿Qué diferencia hay entre la emisión espontánea y la estimulada?</summary>
+
+En la **espontánea** el electrón excitado baja cuando quiere y el fotón sale con fase y dirección al azar: luz incoherente (LED). En la **estimulada** un fotón provoca la bajada y el fotón nuevo es una copia exacta (misma energía, fase, polarización y dirección): luz coherente (láser). *(Respuesta redactada a partir de los apuntes.)*
+
+</details>

@@ -1,0 +1,28 @@
+---
+// Curva P-I de un láser: la temperatura sube el umbral y la polarización decide si trabaja como
+// LED o como láser; en la vista «Bits», el retardo al encender desde debajo del umbral.
+import Widget from '../../../widgets/Widget.astro';
+import Opciones from '../../../widgets/Opciones.astro';
+import Deslizador from '../../../widgets/Deslizador.astro';
+import Lienzo from './Lienzo.astro';
+import { dibujarCurvaPI } from './dibujos-emisores';
+
+const uid = `curva-pi-${Math.random().toString(36).slice(2, 7)}`;
+---
+<Widget titulo="Curva P-I, temperatura y polarización" tipo="entender">
+  <Lienzo nombre="curva-pi" uid={uid} alto={290} etiqueta="Potencia óptica frente a corriente de un láser, con la zona LED y la zona láser"
+    inicial={dibujarCurvaPI({ vista: 'pi', T: 25, bias: 120 })}
+    nota="Al subir la temperatura sube el umbral: por eso los láseres de comunicaciones se refrigeran.">
+    <Fragment slot="controles">
+      <Opciones nombre="vista" etiqueta="Vista" opciones={[['pi', 'Curva P-I'], ['bits', 'Bits']]} valor="pi" />
+      <Deslizador id={`${uid}-T`} etiqueta="Temperatura" min={20} max={80} paso={1} valor={25} unidad="°C" decimales={0} />
+      <Deslizador id={`${uid}-bias`} etiqueta="Polarización (respecto al umbral)" min={0} max={200} paso={5} valor={120} unidad="%" decimales={0} />
+    </Fragment>
+  </Lienzo>
+</Widget>
+<script>
+  import { montarDibujo, opcion, numero } from './vivo';
+  import { dibujarCurvaPI } from './dibujos-emisores';
+
+  montarDibujo('curva-pi', (caja, uid) => dibujarCurvaPI({ vista: opcion(caja, 'vista') as 'pi' | 'bits', T: numero(caja, `${uid}-T`), bias: numero(caja, `${uid}-bias`) }));
+</script>

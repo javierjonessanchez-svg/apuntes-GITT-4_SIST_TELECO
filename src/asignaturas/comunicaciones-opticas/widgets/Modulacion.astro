@@ -1,0 +1,25 @@
+---
+// Modulación directa (se varía la corriente: retardo, chirp y jitter) frente a externa (láser
+// continuo y un modulador).
+import Widget from '../../../widgets/Widget.astro';
+import Opciones from '../../../widgets/Opciones.astro';
+import Lienzo from './Lienzo.astro';
+import { dibujarModulacion } from './dibujos-emisores';
+
+const uid = `modulacion-${Math.random().toString(36).slice(2, 7)}`;
+---
+<Widget titulo="Modulación directa y externa" tipo="entender">
+  <Lienzo nombre="modulacion" uid={uid} alto={290} etiqueta="Patrón de bits, montaje y potencia óptica a la salida del láser"
+    inicial={dibujarModulacion({ modo: 'directa' })}
+    nota="Dibujo esquemático.">
+    <Fragment slot="controles">
+      <Opciones nombre="modo" etiqueta="Tipo de modulación" opciones={[['directa', 'Directa'], ['externa', 'Externa']]} valor="directa" />
+    </Fragment>
+  </Lienzo>
+</Widget>
+<script>
+  import { montarDibujo, opcion } from './vivo';
+  import { dibujarModulacion } from './dibujos-emisores';
+
+  montarDibujo('modulacion', (caja) => dibujarModulacion({ modo: opcion(caja, 'modo') as 'directa' | 'externa' }));
+</script>

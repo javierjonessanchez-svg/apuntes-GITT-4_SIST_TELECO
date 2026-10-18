@@ -1,0 +1,108 @@
+---
+titulo: "Amplificadores ópticos"
+orden: 11
+bloque: "Amplificación"
+resumen: "SOA, EDFA y Raman: un láser sin espejos"
+saber:
+  - "Un amplificador óptico es «un láser sin espejos»: medio activo con emisión estimulada que clona los fotones de la señal, sin resonador"
+  - "Su principal ruido es la emisión espontánea de los átomos que amplifican (ruido ASE)"
+  - "SOA: semiconductor, como un láser con caras antirreflejantes. Amplifica poco, altera la polarización y solo sirve para una λ"
+  - "EDFA: fibra dopada con erbio y bombeada con un láser. Solo en la banda de 1550 nm, pero ahí amplifica mucho, todos los canales a la vez y sin tocar la polarización"
+  - "Raman: efecto no lineal en una fibra normal con un láser de bombeo muy potente. Amplifica en cualquier banda de la fibra"
+fuentes:
+  - "Apuntes de clase (Javier)"
+  - "Apuntes de Miguel"
+  - "Comunicaciones Ópticas (PDF de clase), §7"
+---
+
+import BandaEdfa from '../../../src/asignaturas/comunicaciones-opticas/widgets/BandaEdfa.astro';
+import SeConecta from '../../../src/asignaturas/comunicaciones-opticas/SeConecta.astro';
+
+**Idea clave.** Un amplificador óptico amplifica la luz **sin pasarla a electrónica**. Es un láser sin espejos: un medio activo donde la señal provoca emisión estimulada y sale con más fotones, todos clones de los suyos (misma λ, fase, polarización y dirección). Hay tres tipos: SOA, EDFA y Raman. El EDFA es el caballo de batalla de la ventana de 1550 nm.
+
+## Un láser sin espejos
+
+Un amplificador óptico es un **medio activo sin resonador**: consigue emisión estimulada, pero sin espejos, para que no aparezcan los modos de un resonador. Queremos **clones** de los fotones de la señal original, que conserven todas sus propiedades, incluida la fase.
+
+Para eso hay que inyectar energía en el medio activo, **eléctrica u óptica** (con un láser de bombeo), y que la señal la recoja creando fotones iguales a los suyos. La diferencia con un láser es justo esa: un láser necesita una cavidad resonante para limitar los modos; el amplificador no la quiere.
+
+El principal ruido de cualquier amplificador óptico es la **emisión espontánea** de los átomos que generan la amplificación (ruido **ASE**): fotones que no son clones de la señal.
+
+## SOA: amplificador de semiconductor
+
+Se fabrica igual que los láseres de semiconductor, pero sin espejos (caras antirreflejantes). Problemas:
+
+- **Amplifica poco:** sus dimensiones son muy reducidas, parecidas a las del láser.
+- Su índice de refracción es muy distinto al de la fibra, así que necesita un **recubrimiento** antirreflejante; si no, se refleja todo.
+- Los diodos producen luz polarizada linealmente, y al amplificar **altera la polarización** de la señal, que no queremos.
+- **Solo funciona para una λ determinada:** hace falta una matriz de SOA, uno por láser (por canal). Y hay que estabilizarlos en temperatura, porque si no cambia su λ.
+- La emisión espontánea de la luz mete ruido.
+
+## EDFA: fibra dopada con erbio
+
+Es un tramo de fibra óptica dopado con **iones de erbio**. Se inyectan en él la señal y la luz de un **láser de bombeo**, que excita los iones; la señal, al pasar, los hace desexcitarse por emisión estimulada y se amplifica.
+
+- **Solo funciona en la banda de 1550 nm**, pero en una banda de unos **50 nm**: justo la ventana de mínima atenuación, donde trabaja DWDM.
+- Lo hace **con una fibra**: no hace falta un «cacharro» aparte, y el acoplamiento con la fibra del enlace es directo, sin problemas de reflexiones.
+- **No afecta a la polarización** de la luz.
+- Da **amplificaciones muy altas**, y el sistema no es caro.
+- Amplifica **a la vez todos los canales** DWDM que caen en su banda.
+
+La amplificación no es completamente simétrica, así que se ponen amplificadores en ambos sentidos.
+
+**Cómo minimizar sus problemas.** El ruido principal es el ASE (emisión espontánea de los iones de erbio). Se reduce trabajando en **saturación de ganancia**: por encima de cierta potencia de entrada el EDFA ya no amplifica más, lo que además iguala el nivel de salida de todas las señales. Para que no se convierta en un láser, se ponen filtros antirreflejantes en los extremos de la fibra dopada (sin realimentación, no hay resonador).
+
+<BandaEdfa />
+
+> **⚠ Revisar.** Tus apuntes dan una banda de unos 50 nm; el PDF de clase habla de una banda de amplificación que «puede alcanzar los 30 nm». Comprueba qué cifra dio el profesor.
+
+## Raman
+
+Usa un **fenómeno no lineal** de la propia fibra: se mete un láser de bombeo **muy potente** en una fibra normal y, por esparcimiento Raman, la energía de los fotones del bombeo pasa a los de la señal (de mayor λ), que se clonan y amplifican.
+
+- **Ventaja:** sirve con la fibra ya instalada y puede amplificar en **todas las bandas** de la fibra (no es resonante como el EDFA o el SOA). Se puede amplificar a lo largo de todo el tramo de fibra.
+- **Inconvenientes:** necesita **mucha potencia** de bombeo, lo que trae fluctuaciones térmicas; la amplificación no es perfecta (vibraciones, problemas de fabricación) y la fibra puede no amplificar de forma homogénea.
+
+Se usa cuando hace falta amplificar **más bandas** que la de 1550 nm, o para ampliar la capacidad de un enlace ya instalado.
+
+## Se conecta con
+
+<SeConecta tema="amplificadores" />
+
+## Preguntas de examen
+
+<details>
+<summary>Tipos de amplificadores ópticos, con sus ventajas e inconvenientes. ¿Cuándo usarías cada uno?</summary>
+
+Los tres son un medio activo sin resonador que clona los fotones de la señal por emisión estimulada.
+
+- **SOA (semiconductor):** se fabrica como un láser. Ventaja: barato y alimentado eléctricamente. Inconvenientes: amplifica poco, necesita recubrimiento antirreflejante, altera la polarización y solo sirve para una λ (hace falta uno por canal, estabilizado en temperatura).
+- **EDFA (fibra dopada con erbio):** ventajas: es una fibra (acoplamiento directo, sin reflexiones), no afecta a la polarización, amplifica mucho y todos los canales a la vez, y no es caro. Inconveniente: solo funciona en la banda de 1550 nm (≈ 50 nm).
+- **Raman:** efecto no lineal en una fibra normal con un bombeo muy potente. Ventaja: amplifica en todas las bandas y con la fibra ya instalada. Inconvenientes: mucha potencia, fluctuaciones térmicas, amplificación no homogénea.
+
+**Cuándo:** EDFA para enlaces DWDM en la ventana de 1550 nm (lo habitual); Raman cuando hay que amplificar otras bandas o más ancho; SOA para una sola λ, integrado con los láseres. *(La última parte está redactada a partir de los apuntes.)*
+
+</details>
+
+<details>
+<summary>¿Cómo funciona un EDFA y cómo se minimizan sus problemas?</summary>
+
+Es un tramo de fibra dopada con iones de erbio en el que se inyectan la señal y un láser de bombeo. El bombeo excita los iones y la señal, al pasar, provoca su desexcitación por emisión estimulada: sale amplificada con las mismas propiedades. Funciona solo en la banda de 1550 nm (unos 50 nm), pero amplifica todos los canales DWDM de esa banda a la vez y sin cambiar la polarización.
+
+Su problema principal es el **ruido ASE** (emisión espontánea de los iones). Se minimiza trabajando en **saturación de ganancia**, que además iguala la salida de todas las señales; se ponen filtros antirreflejantes en los extremos para que no haga de láser, y amplificadores en ambos sentidos porque la amplificación no es simétrica. *(Completada con el PDF de clase.)*
+
+</details>
+
+<details>
+<summary>¿Cuándo usarías un amplificador Raman?</summary>
+
+Cuando hay que amplificar fuera de la banda de 1550 nm del EDFA, o varias bandas a la vez: el Raman no es resonante y amplifica en cualquier banda de la fibra, usando la propia fibra instalada. A cambio necesita un bombeo muy potente. *(Respuesta redactada a partir de los apuntes.)*
+
+</details>
+
+<details>
+<summary>¿Por qué se dice que un amplificador óptico es «un láser sin espejos»?</summary>
+
+Porque tiene medio activo y fuente de energía (bombeo), como un láser, y amplifica por emisión estimulada, pero no tiene resonador: no se quieren los modos propios de una cavidad, sino clones de los fotones de la señal que entra. *(Respuesta redactada a partir de los apuntes.)*
+
+</details>

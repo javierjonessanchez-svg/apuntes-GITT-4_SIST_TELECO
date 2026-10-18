@@ -1,0 +1,87 @@
+/* Mapa de conceptos de Ópticas y la lista «Se conecta con» de cada tema.
+   Las líneas del mapa se crean con JavaScript, por eso estos estilos son globales. */
+
+.op-mapa { display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr) minmax(240px, 300px); align-items: start; }
+@media (max-width: 760px) { .op-mapa { grid-template-columns: minmax(0, 1fr); } }
+
+.op-mapa-lienzo { position: relative; display: grid; gap: 22px; padding: 14px 14px 18px; border-radius: 12px; background: var(--superficie); box-shadow: inset 0 0 0 1px var(--linea); }
+.op-mapa-lineas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+.op-mapa-lineas path {
+  fill: none; stroke: var(--linea); stroke-width: 1.4; opacity: .9;
+  transition-property: stroke, stroke-width, opacity; transition-duration: .2s; transition-timing-function: ease-out;
+}
+.op-mapa-lineas path.pendiente { stroke-dasharray: 4 4; }
+.op-mapa[data-activo] .op-mapa-lineas path { opacity: .25; }
+.op-mapa[data-activo] .op-mapa-lineas path.activa { stroke: var(--primario); stroke-width: 2.2; opacity: 1; }
+
+.op-mapa-banda { position: relative; }
+.op-mapa-banda h3 {
+  display: inline-flex; align-items: center; gap: 7px; margin: 0 0 8px; padding-right: 6px;
+  font-family: var(--fuente-texto); font-size: .78rem; font-weight: 650; letter-spacing: .04em; text-transform: uppercase;
+  color: var(--suave); background: var(--superficie);
+}
+.op-mapa-banda h3::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--color-banda); }
+.op-mapa-banda ul { list-style: none; display: flex; flex-wrap: wrap; gap: 8px 10px; margin: 0; padding: 0; }
+
+/* Color de cada banda (el mismo en el punto del título y en el borde de los nodos) */
+.op-mapa-banda[data-banda="emisores"] { --color-banda: var(--op-naranja); }
+.op-mapa-banda[data-banda="fibra"] { --color-banda: var(--op-azul); }
+.op-mapa-banda[data-banda="dispositivos"] { --color-banda: var(--op-violeta); }
+.op-mapa-banda[data-banda="amplificacion"] { --color-banda: var(--op-verde); }
+.op-mapa-banda[data-banda="detectores"] { --color-banda: var(--op-rojo); }
+.op-mapa-banda[data-banda="redes"] { --color-banda: var(--suave); }
+
+.op-mapa-nodo {
+  position: relative; min-height: 36px; padding: 6px 12px 6px 14px; border: 0; border-radius: 999px;
+  font: inherit; font-size: .86rem; line-height: 1.2; color: var(--texto); text-align: left; cursor: pointer;
+  background: var(--fondo);
+  box-shadow: inset 3px 0 0 var(--color-banda), inset 0 0 0 1px var(--linea);
+  transition-property: background-color, box-shadow, color, transform; transition-duration: .18s; transition-timing-function: ease-out;
+}
+.op-mapa-nodo:hover { box-shadow: inset 3px 0 0 var(--color-banda), inset 0 0 0 1px color-mix(in srgb, var(--primario) 55%, var(--linea)); }
+.op-mapa-nodo:active { transform: scale(.97); }
+.op-mapa-nodo:focus-visible { outline: 2px solid var(--primario); outline-offset: 2px; }
+.op-mapa-nodo.pendiente { color: var(--suave); box-shadow: none; outline: 1.5px dashed var(--linea); outline-offset: -1.5px; }
+.op-mapa-nodo.pendiente:focus-visible { outline: 2px solid var(--primario); outline-offset: 2px; }
+/* Los que no se relacionan se apagan con el color, no con la opacidad: así las líneas no se ven a través */
+.op-mapa[data-activo] .op-mapa-nodo:not(.activo, .vecino) {
+  color: color-mix(in srgb, var(--texto) 40%, var(--fondo));
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--color-banda) 40%, var(--fondo)), inset 0 0 0 1px var(--linea);
+}
+.op-mapa[data-activo] .op-mapa-nodo.pendiente:not(.activo, .vecino) { box-shadow: none; }
+.op-mapa-nodo.activo, .op-mapa-nodo[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--primario) 14%, var(--fondo));
+  box-shadow: inset 3px 0 0 var(--color-banda), inset 0 0 0 1.5px var(--primario);
+}
+
+/* Panel con las relaciones del concepto elegido */
+.op-mapa-panel { position: sticky; top: 76px; padding: 14px 16px; border-radius: 12px; background: var(--superficie); box-shadow: inset 0 0 0 1px var(--linea); font-size: .9rem; }
+@media (max-width: 760px) { .op-mapa-panel { position: static; scroll-margin-bottom: 16px; } }
+.op-mapa-vacio { margin: 0; color: var(--suave); text-wrap: pretty; }
+.op-mapa-panel h3 { margin: 0 0 4px; font-size: 1.15rem; }
+.op-mapa-panel ul { margin: 10px 0 0; padding-left: 18px; display: grid; gap: 6px; }
+.op-mapa-panel li { line-height: 1.45; text-wrap: pretty; }
+.op-mapa-tema { display: inline-block; margin: 0; font-weight: 600; }
+.op-mapa-tema.pendiente { color: var(--suave); font-weight: 400; }
+.op-mapa-panel [data-panel]:not([hidden]) { animation: op-mapa-entra .22s ease-out; }
+@keyframes op-mapa-entra { from { opacity: 0; transform: translateY(4px); } }
+
+/* Sin JavaScript el mapa se ve, pero sin líneas ni panel: los temas tienen su «Se conecta con» */
+.op-mapa:not([data-listo]) .op-mapa-panel { display: none; }
+.op-mapa:not([data-listo]) { grid-template-columns: minmax(0, 1fr); }
+
+/* «Se conecta con» en cada tema */
+.op-conecta { list-style: none; display: grid; gap: 8px; margin: 0 0 8px; padding: 0; }
+.op-conecta li {
+  display: grid; gap: 2px; padding: 10px 14px; border-radius: 10px;
+  background: var(--superficie); box-shadow: inset 0 0 0 1px var(--linea);
+}
+.op-conecta a { font-weight: 600; text-decoration: none; }
+.op-conecta a:hover { text-decoration: underline; }
+.op-conecta-num { margin-right: 6px; font-variant-numeric: tabular-nums; font-weight: 500; color: var(--suave); }
+.op-conecta-porque { font-size: .9rem; color: var(--suave); line-height: 1.45; text-wrap: pretty; }
+
+@media (prefers-reduced-motion: reduce) {
+  .op-mapa-lineas path, .op-mapa-nodo { transition: none; }
+  .op-mapa-panel [data-panel]:not([hidden]) { animation: none; }
+}

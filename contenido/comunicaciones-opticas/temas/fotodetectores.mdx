@@ -1,0 +1,148 @@
+---
+titulo: "Fotodetectores"
+orden: 9
+bloque: "Detectores"
+resumen: "Fotodiodos PN, PIN y APD, sus parámetros y sus ruidos"
+saber:
+  - "Un fotodiodo es un emisor «al revés»: polarizado en inversa, cada fotón con energía mayor que el gap crea un par electrón-hueco que se recoge como corriente"
+  - "La absorción ocurre en la zona de depleción; el PIN la ensancha con una capa intrínseca, y el APD multiplica los electrones por avalancha con cientos de voltios"
+  - "Respuesta espectral: cada material detecta hasta su λ de corte, λc = hc/Eg. El silicio solo llega a la 1.ª ventana"
+  - "Eficiencia cuántica (portadores por fotón), responsividad (A/W), ganancia, corriente oscura, tiempo de respuesta (10–90 %) y sensibilidad"
+  - "Compromiso: sensibilidad frente a tiempo de respuesta; si una mejora, la otra empeora"
+  - "Ruidos: oscuridad, disparo (shot, de Poisson), fondo, amplificación y térmico (Johnson-Nyquist, gaussiano). Se suman de forma cuadrática"
+fuentes:
+  - "Apuntes de clase (Javier)"
+  - "Apuntes de Miguel"
+  - "Comunicaciones Ópticas (PDF de clase), §6"
+  - "T31 – Fotodetectores"
+---
+
+import RespuestaEspectral from '../../../src/asignaturas/comunicaciones-opticas/widgets/RespuestaEspectral.astro';
+import SeConecta from '../../../src/asignaturas/comunicaciones-opticas/SeConecta.astro';
+
+**Idea clave.** Al final del enlace hay que volver a convertir la luz en corriente. Un fotodiodo hace lo contrario que un LED: cada fotón absorbido crea un par electrón-hueco, y un campo eléctrico se lleva los portadores antes de que se recombinen. Interesa absorber muchos fotones (más corriente, más sensibilidad) y hacerlo deprisa (más velocidad), y esas dos cosas tiran en sentidos contrarios.
+
+## Un emisor «al revés»
+
+Un fotodiodo es un diodo semiconductor, como los láseres y los LED, pero trabajando al revés:
+
+- Se **polariza en inversa**. Cuando llega un fotón con energía igual o mayor que el gap, un electrón pasa de la banda de valencia a la de conducción y deja un hueco: se crea un **par electrón-hueco**.
+- El campo eléctrico de la polarización se lleva los electrones y los huecos hacia lados opuestos **antes de que se recombinen**, y eso es la corriente detectada. Se trabaja fuera del equilibrio: se van quitando electrones continuamente.
+- La fotocorriente es proporcional a la potencia óptica que llega: $I = \mathcal{R}\,P$, con $\mathcal{R}$ la responsividad.
+
+Como los materiales son parecidos o iguales a los del láser, hay que cambiar la estructura: en un emisor queremos un material transparente a su luz; en un detector, **lo más absorbente posible**.
+
+> **⚠ Revisar.** En tus apuntes ponías que al fotodiodo «le suministramos una corriente eléctrica polarizada en directo». Es al revés: el fotodiodo se **polariza en inversa**. En directa el diodo recombina pares y emite (como un LED).
+
+### La zona de depleción
+
+La absorción útil ocurre en la unión, en una zona muy fina llamada **zona de depleción**. Ahí la diferencia de potencial ha barrido las cargas libres: el material se vuelve aislante, con cargas fijas de un signo a un lado y del otro signo al otro (como un dieléctrico entre dos capas cargadas). La polarización inversa la **ensancha** y hace su campo más intenso, así que mueve las cargas más deprisa.
+
+Para mejorar la eficiencia cuántica hay que ensanchar esta zona y absorber más fotones. Eso lleva a los tipos de fotodiodo.
+
+> **⚠ Revisar.** En tus apuntes hablabas de «electrones pegados a un lado y electrones buenos o positrones al otro». En el semiconductor no hay positrones: a un lado quedan iones con carga positiva (zona n) y al otro iones con carga negativa (zona p); los portadores positivos móviles son los **huecos**.
+
+## Tipos de fotodiodo
+
+- **Fotodiodo PN:** una unión PN en inversa. Es el más simple, pero ya no se usa: su zona de depleción es demasiado fina.
+- **Fotodiodo PIN:** entre la zona p y la n se mete una **zona intrínseca** (I): semiconductor sin dopar. La zona de depleción queda dentro de ella, así que crece el **volumen efectivo** donde los fotones pueden crear portadores: más electrones, más corriente y menos amplificación necesaria. También responde más deprisa.
+- **Fotodiodo de avalancha (APD):** un PIN con una parte sometida a una diferencia de potencial **mucho mayor**, de cientos de voltios. Los electrones se aceleran, chocan con el material y arrancan más electrones, que a su vez arrancan más: una **avalancha** que multiplica la corriente. Es un fotodiodo con un amplificador de corriente incorporado. El problema: el ruido también se multiplica, y la avalancha alarga el tiempo de respuesta.
+
+Para aumentar la sensibilidad hay dos caminos, que se pueden usar a la vez: un **amplificador externo** (siempre hay uno de bajo ruido detrás del fotodiodo, pero mete bastante ruido) o hacer que el propio fotodiodo dé más electrones (APD).
+
+> **⚠ Revisar.** En tus apuntes ponías que en el APD los electrones «colisionan con neutrones del material» y que «incrementa exponencialmente el número de fotones». Chocan con los átomos (los electrones) del material, y lo que se multiplica son los **electrones**, no los fotones.
+
+## Parámetros de un fotodetector
+
+- **Respuesta espectral:** el margen de longitudes de onda que el fotodetector absorbe. Cada material responde según su gap: solo detecta fotones con energía mayor que el gap, es decir, hasta su **longitud de onda de corte**, $\lambda_c = hc/E_g$.
+- **Eficiencia cuántica** ($\eta$): número de portadores generados por cada fotón incidente.
+- **Responsividad** ($\mathcal{R}$): a escala macroscópica, la salida eléctrica respecto a la entrada óptica: cuántos **amperios** se obtienen por cada **vatio** de luz (A/W). Depende de la λ y del gap:
+
+$$
+\mathcal{R} = \frac{I}{P} = \frac{\eta\, q}{h f} = \frac{\eta\, \lambda\,[\mu\text{m}]}{1{,}24}
+$$
+
+- **Ganancia:** corriente que sale del fotodetector dividida entre la que crean directamente los fotones (mayor que 1 en un APD).
+- **Corriente oscura:** corriente que circula aunque no llegue luz, por fluctuaciones (radiación, temperatura). Nunca es cero del todo.
+- **Tiempo de respuesta:** el retardo de la señal eléctrica respecto a la llegada del fotón. Se mide como el tiempo que tarda en pasar del 10 % al 90 % de su valor final.
+- **Sensibilidad:** la mínima potencia óptica de entrada con la que se obtiene una señal eléctrica útil. Se mide para una tasa de bits (o una tasa de error de bits) dada.
+- **Potencia equivalente al ruido (NEP):** la potencia de luz que da una señal igual al ruido. Cuanto menor, más sensible.
+- **Detectividad:** relaciona el área del detector con la NEP.
+- **No linealidad:** el fotodiodo es lineal en un tramo; si le llegan demasiados fotones, deja de serlo.
+
+Lo más importante es el **compromiso entre sensibilidad y tiempo de respuesta**: se oponen. Una zona de absorción ancha capta más fotones (más sensible), pero los portadores tardan más en atravesarla (más lento).
+
+> **⚠ Revisar.** En tus apuntes la responsividad era «cuántos electrones obtengo por cada fotón». Eso es la **eficiencia cuántica**; la responsividad es corriente por potencia (A/W), aunque las dos están relacionadas por la fórmula de arriba.
+
+<RespuestaEspectral />
+
+## Ruido en un fotodetector
+
+1. **Ruido de oscuridad:** el de la corriente oscura, la que circula sin luz por la generación aleatoria de pares electrón-hueco (fluctuaciones térmicas, radiación…). Se podría reducir blindando el fotodiodo, pero en comunicaciones no compensa.
+2. **Ruido de disparo (shot):** se debe a la naturaleza discreta de la luz, formada por fotones. Sigue una **distribución de Poisson**, que no es gaussiana. Con pocos fotones cuesta reconstruir la señal; con muchos es más fácil.
+3. **Ruido de fondo:** parecido al de oscuridad, pero debido a radiación del ambiente (cósmica, natural o artificial).
+4. **Ruido de amplificación:** amplificar da más señal pero también más ruido. En un APD el ruido se multiplica por el mismo factor que la señal.
+5. **Ruido térmico (Johnson-Nyquist):** se debe a que la temperatura es alta (no a que fluctúe): aumenta la probabilidad de colisiones. Su distribución es **gaussiana**, como un ruido blanco. Bajando la temperatura se reduce, pero no necesariamente el de oscuridad.
+
+En la práctica se tienen en cuenta sobre todo el ruido de disparo y el térmico. Como son valores medios, se suman de forma **cuadrática**:
+
+$$
+R_{\text{total}} = \sqrt{R_T^2 + R_D^2}
+$$
+
+La **figura de ruido** compara la relación señal/ruido antes y después de amplificar: la SNR de entrada es mejor que la de salida, y la diferencia en dB es la figura de ruido. Se mide en el laboratorio y sirve para caracterizar un APD.
+
+> **⚠ Revisar.** En tus apuntes ponías «figura de ruido alta, mejor APD». Es al revés: la figura de ruido mide cuánto **empeora** la SNR al amplificar, así que un APD es mejor cuanto **menor** sea su figura de ruido.
+
+## Se conecta con
+
+<SeConecta tema="fotodetectores" />
+
+## Preguntas de examen
+
+<details>
+<summary>Características principales de los fotodetectores.</summary>
+
+- **Respuesta espectral:** margen de λ que el fotodetector puede absorber; cada material llega hasta su λ de corte ($hc/E_g$).
+- **Eficiencia cuántica:** portadores generados por cada fotón incidente.
+- **Ganancia:** corriente de salida dividida entre la creada directamente por los fotones.
+- **Corriente oscura:** la que circula aun sin luz, por radiación y otras fluctuaciones; nunca es nula.
+- **Tiempo de respuesta:** del 10 % al 90 % de la corriente final tras absorber la luz.
+- **Responsividad:** amperios obtenidos por cada vatio óptico (A/W).
+- **Sensibilidad:** mínima potencia óptica con la que se obtiene señal eléctrica, para una tasa de bits (o de error) dada.
+
+</details>
+
+<details>
+<summary>Tipos de fotodiodos.</summary>
+
+- **PN:** unión PN en inversa. Zona de depleción fina: ya no se usa.
+- **PIN:** añade una zona intrínseca (semiconductor sin dopar) en la unión. Aumenta el volumen efectivo donde los fotones crean portadores: más corriente y menos amplificación.
+- **APD (avalancha):** una parte del fotodiodo se somete a cientos de voltios; los electrones acelerados chocan con el material y crean una cascada de electrones. Es un fotodiodo con amplificador de corriente incorporado, pero multiplica también el ruido.
+
+</details>
+
+<details>
+<summary>Tipos de ruido de un fotodetector.</summary>
+
+1. **De oscuridad:** el de la corriente oscura, que existe aun sin luz por factores externos (fluctuaciones térmicas, radiación).
+2. **De disparo (shot, poissoniano):** por la naturaleza discreta de la luz; con pocos fotones la señal es más difícil de reconstruir.
+3. **Térmico (Johnson-Nyquist):** por la temperatura elevada, que aumenta las colisiones; es gaussiano. Bajar la temperatura lo reduce, pero no necesariamente el de oscuridad.
+
+También están el de **fondo** (radiación ambiental) y el de **amplificación**. Se suelen tener en cuenta el de disparo y el térmico, sumados de forma cuadrática: $\sqrt{R_T^2 + R_D^2}$.
+
+</details>
+
+<details>
+<summary>¿Por qué un fotodiodo de silicio no sirve para las ventanas de 1310 y 1550 nm?</summary>
+
+Porque un fotón solo crea un par electrón-hueco si su energía supera el gap: el material detecta hasta su longitud de onda de corte, $\lambda_c = hc/E_g$. La del silicio está en torno a 1,1 µm, así que solo sirve en la 1.ª ventana (850 nm). Para 1310 y 1550 nm se usan materiales de gap menor, como el germanio o el InGaAs. *(Respuesta redactada a partir de los apuntes y de T31.)*
+
+</details>
+
+<details>
+<summary>¿Qué compromiso hay entre la sensibilidad y el tiempo de respuesta de un fotodetector?</summary>
+
+Se oponen: si una mejora, la otra empeora. Una zona de absorción más ancha (o la avalancha de un APD) da más electrones por fotón y más sensibilidad, pero los portadores tardan más en recorrerla y la respuesta es más lenta. *(Respuesta redactada a partir de los apuntes.)*
+
+</details>

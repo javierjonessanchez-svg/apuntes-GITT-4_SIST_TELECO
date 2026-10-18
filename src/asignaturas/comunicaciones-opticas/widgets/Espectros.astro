@@ -1,0 +1,28 @@
+---
+// Anchura espectral de un LED, un láser Fabry-Pérot y un DFB frente a los canales DWDM:
+// cuántos canales ocuparía cada uno.
+import Widget from '../../../widgets/Widget.astro';
+import Lienzo from './Lienzo.astro';
+import { dibujarEspectros } from './dibujos-emisores';
+
+const uid = `espectros-${Math.random().toString(36).slice(2, 7)}`;
+---
+<Widget titulo="Anchura espectral de cada emisor" tipo="entender">
+  <Lienzo nombre="espectros" uid={uid} alto={270} etiqueta="Espectro de un LED, un láser Fabry-Pérot y un láser DFB sobre una rejilla de canales DWDM"
+    inicial={dibujarEspectros({ led: true, fp: true, dfb: true }, uid)}
+    nota="Esquema con las cifras de los apuntes: canales a ≈ 0,8 nm; LED ≈ 50 nm, FP ≈ 4 nm, DFB < 1 nm.">
+    <Fragment slot="controles">
+      <div class="op-w-casillas" role="group" aria-label="Emisores que se dibujan">
+        <label><input type="checkbox" id={`${uid}-led`} checked /> LED</label>
+        <label><input type="checkbox" id={`${uid}-fp`} checked /> Láser FP</label>
+        <label><input type="checkbox" id={`${uid}-dfb`} checked /> Láser DFB</label>
+      </div>
+    </Fragment>
+  </Lienzo>
+</Widget>
+<script>
+  import { montarDibujo, marcada } from './vivo';
+  import { dibujarEspectros } from './dibujos-emisores';
+
+  montarDibujo('espectros', (caja, uid) => dibujarEspectros({ led: marcada(caja, `${uid}-led`), fp: marcada(caja, `${uid}-fp`), dfb: marcada(caja, `${uid}-dfb`) }, uid));
+</script>

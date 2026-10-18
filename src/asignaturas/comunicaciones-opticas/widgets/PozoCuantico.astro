@@ -1,0 +1,24 @@
+---
+// Pozo cuántico: cuanto más estrecho, más energía de confinamiento, más gap efectivo y λ más corta.
+import Widget from '../../../widgets/Widget.astro';
+import Deslizador from '../../../widgets/Deslizador.astro';
+import Lienzo from './Lienzo.astro';
+import { dibujarPozo } from './dibujos-emisores';
+
+const uid = `pozo-${Math.random().toString(36).slice(2, 7)}`;
+---
+<Widget titulo="Pozo cuántico" tipo="entender">
+  <Lienzo nombre="pozo" uid={uid} alto={300} etiqueta="Perfil de energía de un pozo cuántico con el electrón atrapado y la luz que emite"
+    inicial={dibujarPozo({ ancho: 10 }, uid)}
+    nota="Controlando la anchura del pozo se controla el gap y, por tanto, la longitud de onda emitida.">
+    <Fragment slot="controles">
+      <Deslizador id={`${uid}-ancho`} etiqueta="Anchura del pozo" min={3} max={20} paso={0.5} valor={10} unidad="nm" decimales={1} />
+    </Fragment>
+  </Lienzo>
+</Widget>
+<script>
+  import { montarDibujo, numero } from './vivo';
+  import { dibujarPozo } from './dibujos-emisores';
+
+  montarDibujo('pozo', (caja, uid) => dibujarPozo({ ancho: numero(caja, `${uid}-ancho`) }, uid));
+</script>

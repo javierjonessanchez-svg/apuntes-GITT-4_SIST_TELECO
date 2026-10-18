@@ -1,0 +1,25 @@
+---
+// Emisión espontánea (cada fotón con su fase) frente a estimulada (todos en fase), y la onda
+// que resulta de sumar los doce fotones.
+import Widget from '../../../widgets/Widget.astro';
+import Opciones from '../../../widgets/Opciones.astro';
+import Lienzo from './Lienzo.astro';
+import { dibujarCoherencia } from './dibujos-emisores';
+
+const uid = `coherencia-${Math.random().toString(36).slice(2, 7)}`;
+---
+<Widget titulo="Luz coherente e incoherente" tipo="entender">
+  <Lienzo nombre="coherencia" uid={uid} alto={240} etiqueta="Doce ondas de luz y la onda que resulta de sumarlas"
+    inicial={dibujarCoherencia({ modo: 'espontanea' }, uid)}
+    nota="Solo la emisión estimulada produce luz coherente.">
+    <Fragment slot="controles">
+      <Opciones nombre="modo" etiqueta="Tipo de emisión" opciones={[['espontanea', 'Espontánea (LED)'], ['estimulada', 'Estimulada (láser)']]} valor="espontanea" />
+    </Fragment>
+  </Lienzo>
+</Widget>
+<script>
+  import { montarDibujo, opcion } from './vivo';
+  import { dibujarCoherencia } from './dibujos-emisores';
+
+  montarDibujo('coherencia', (caja, uid) => dibujarCoherencia({ modo: opcion(caja, 'modo') as 'espontanea' | 'estimulada' }, uid));
+</script>

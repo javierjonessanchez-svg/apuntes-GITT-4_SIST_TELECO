@@ -1,0 +1,27 @@
+---
+// Recombinación electrón-hueco: con gap directo sale un fotón con la energía del gap; con gap
+// indirecto, calor. El deslizador del gap mueve el color de la luz sobre la regla.
+import Widget from '../../../widgets/Widget.astro';
+import Opciones from '../../../widgets/Opciones.astro';
+import Deslizador from '../../../widgets/Deslizador.astro';
+import Lienzo from './Lienzo.astro';
+import { dibujarBandas } from './dibujos-emisores';
+
+const uid = `bandas-${Math.random().toString(36).slice(2, 7)}`;
+---
+<Widget titulo="¿Cómo emite luz un LED?" tipo="entender">
+  <Lienzo nombre="bandas" uid={uid} alto={296} etiqueta="Bandas de un semiconductor con un electrón que se recombina con un hueco"
+    inicial={dibujarBandas({ tipo: 'directo', gap: 1.42 }, uid)}
+    nota="Con GaAs (1,42 eV) la luz sale en el infrarrojo cercano, en la 1.ª ventana.">
+    <Fragment slot="controles">
+      <Opciones nombre="tipo" etiqueta="Tipo de gap" opciones={[['directo', 'Gap directo'], ['indirecto', 'Gap indirecto']]} valor="directo" />
+      <Deslizador id={`${uid}-gap`} etiqueta="Gap" min={0.6} max={3} paso={0.01} valor={1.42} unidad="eV" decimales={2} />
+    </Fragment>
+  </Lienzo>
+</Widget>
+<script>
+  import { montarDibujo, opcion, numero } from './vivo';
+  import { dibujarBandas } from './dibujos-emisores';
+
+  montarDibujo('bandas', (caja, uid) => dibujarBandas({ tipo: opcion(caja, 'tipo') as 'directo' | 'indirecto', gap: numero(caja, `${uid}-gap`) }, uid));
+</script>

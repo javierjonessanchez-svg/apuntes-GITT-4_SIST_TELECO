@@ -1,21 +1,24 @@
 ---
-// Tarjetas de repaso de Conmutación: las preguntas de la «Autoevaluación» de
-// cada tema y los puntos de su lista «saber». Se ven de una en una, primero las
-// nunca vistas y luego las peor sabidas; la nota se guarda en este navegador.
-import Widget from '../../../widgets/Widget.astro';
-import { temasDe } from '../../../comun/datos';
-import { ruta } from '../../../comun/rutas';
-import { conMates } from '../../../widgets/mates';
+// Tarjetas de repaso de una asignatura: las preguntas de la sección de preguntas
+// de cada tema («Autoevaluación» o «Preguntas de examen») y los puntos de su lista
+// «saber». Se ven de una en una, primero las nunca vistas y luego las peor sabidas;
+// la nota se guarda en este navegador.
+import Widget from './Widget.astro';
+import { temasDe } from '../comun/datos';
+import { ruta } from '../comun/rutas';
+import { conMates } from './mates';
 import { extraerPreguntas, textoTarjeta } from './tarjetas';
 
-const temas = await temasDe('conmutacion');
+interface Props { asignatura: string }
+const { asignatura } = Astro.props;
+const temas = await temasDe(asignatura);
 const mazo = temas.flatMap((t) => [
   ...extraerPreguntas(t.entrada.body ?? '').map((p) => ({ tema: t, ...p })),
   ...t.saber.map((s) => ({ tema: t, pregunta: s, respuesta: '' })),
 ]);
 ---
 <Widget titulo="Tarjetas de repaso" tipo="resolver">
-  <div class="repaso" data-tarjetas>
+  <div class="repaso" data-tarjetas data-asig={asignatura}>
     <form class="widget-campos">
       <label class="widget-campo">Tema
         <select data-filtro>
@@ -32,7 +35,7 @@ const mazo = temas.flatMap((t) => [
           <p class="repaso-pregunta" set:html={conMates(textoTarjeta(t.pregunta))} />
           {t.respuesta
             ? <p class="repaso-respuesta" data-respuesta hidden set:html={conMates(textoTarjeta(t.respuesta))} />
-            : <p class="repaso-respuesta" data-respuesta hidden>Explícalo en voz alta y compáralo con <a href={ruta('conmutacion', t.tema.slug)}>el tema</a>.</p>}
+            : <p class="repaso-respuesta" data-respuesta hidden>Explícalo en voz alta y compáralo con <a href={ruta(asignatura, t.tema.slug)}>el tema</a>.</p>}
         </li>
       ))}
     </ul>
@@ -59,11 +62,12 @@ const mazo = temas.flatMap((t) => [
   [data-notas][hidden], [data-ver][hidden], [data-otra-vez][hidden] { display: none; }
 </style>
 <script>
-  import { montar } from '../../../widgets/cliente';
-  import progreso from '../../../comun/progreso';
+  import { montar } from './cliente';
+  import progreso from '../comun/progreso';
   import { ordenarMazo } from './tarjetas';
 
   montar('[data-tarjetas]', (caja) => {
+    const asig = caja.dataset.asig!;
     const todas = [...caja.querySelectorAll<HTMLElement>('[data-tarjeta]')]
       .map((el) => ({ el, pregunta: el.dataset.pregunta!, tema: el.dataset.tema! }));
     const filtro = caja.querySelector<HTMLSelectElement>('[data-filtro]')!;
@@ -87,13 +91,13 @@ const mazo = temas.flatMap((t) => [
       const actual = cola[i];
       actual.el.hidden = false;
       actual.el.querySelector<HTMLElement>('[data-respuesta]')!.hidden = true;
-      const vistas = progreso.tarjetas('conmutacion');
+      const vistas = progreso.tarjetas(asig);
       const sinVer = cola.filter((t) => vistas[t.pregunta] === undefined).length;
       contador.textContent = `Tarjeta ${i + 1} de ${cola.length} · ${sinVer} sin ver nunca`;
     };
     const empezar = () => {
       const tema = filtro.value;
-      cola = ordenarMazo(todas.filter((t) => !tema || t.tema === tema), progreso.tarjetas('conmutacion'));
+      cola = ordenarMazo(todas.filter((t) => !tema || t.tema === tema), progreso.tarjetas(asig));
       i = 0;
       mostrar();
     };
@@ -106,7 +110,7 @@ const mazo = temas.flatMap((t) => [
     });
     for (const b of notas.querySelectorAll<HTMLButtonElement>('[data-nota]')) {
       b.addEventListener('click', () => {
-        progreso.guardarTarjeta('conmutacion', cola[i].pregunta, Number(b.dataset.nota) as 0 | 1 | 2);
+        progreso.guardarTarjeta(asig, cola[i].pregunta, Number(b.dataset.nota) as 0 | 1 | 2);
         i++;
         mostrar();
         (i < cola.length ? ver : otraVez).focus();

@@ -1,0 +1,25 @@
+---
+// Fabry-Pérot (varios modos) frente a DBR (redes de Bragg en los extremos) y DFB (red de Bragg
+// a lo largo de toda la cavidad), que se quedan con un solo modo.
+import Widget from '../../../widgets/Widget.astro';
+import Opciones from '../../../widgets/Opciones.astro';
+import Lienzo from './Lienzo.astro';
+import { dibujarDbrDfb } from './dibujos-emisores';
+
+const uid = `dbr-dfb-${Math.random().toString(36).slice(2, 7)}`;
+---
+<Widget titulo="¿Cómo se queda un láser con un solo modo?" tipo="entender">
+  <Lienzo nombre="dbr-dfb" uid={uid} alto={290} etiqueta="Cavidad de un láser Fabry-Pérot, DBR o DFB y su espectro de salida"
+    inicial={dibujarDbrDfb({ tipo: 'FP' })}
+    nota="Esquema, no a escala.">
+    <Fragment slot="controles">
+      <Opciones nombre="tipo" etiqueta="Tipo de láser" opciones={[['FP', 'Fabry-Pérot'], ['DBR', 'DBR'], ['DFB', 'DFB']]} valor="FP" />
+    </Fragment>
+  </Lienzo>
+</Widget>
+<script>
+  import { montarDibujo, opcion } from './vivo';
+  import { dibujarDbrDfb } from './dibujos-emisores';
+
+  montarDibujo('dbr-dfb', (caja) => dibujarDbrDfb({ tipo: opcion(caja, 'tipo') as 'FP' | 'DBR' | 'DFB' }));
+</script>

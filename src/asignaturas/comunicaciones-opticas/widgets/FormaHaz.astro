@@ -1,0 +1,26 @@
+---
+// LED (emisión lambertiana, en todo el hemisferio) frente a láser (cono estrecho) delante de
+// una fibra, con o sin lente. Del LED solo entra en torno al 1 % de la luz.
+import Widget from '../../../widgets/Widget.astro';
+import Opciones from '../../../widgets/Opciones.astro';
+import Lienzo from './Lienzo.astro';
+import { dibujarHaz } from './dibujos-emisores';
+
+const uid = `haz-${Math.random().toString(36).slice(2, 7)}`;
+---
+<Widget titulo="Forma del haz y acoplo a la fibra" tipo="entender">
+  <Lienzo nombre="haz" uid={uid} alto={270} etiqueta="Rayos que salen de un emisor hacia el núcleo de una fibra óptica"
+    inicial={dibujarHaz({ fuente: 'led', lente: false })}
+    nota="Dibujo esquemático, no a escala. Rayo continuo: entra en la fibra; discontinuo: se pierde.">
+    <Fragment slot="controles">
+      <Opciones nombre="fuente" etiqueta="Emisor" opciones={[['led', 'LED'], ['laser', 'Láser']]} valor="led" />
+      <Opciones nombre="lente" etiqueta="Lente" opciones={[['no', 'Sin lente'], ['si', 'Con lente o pigtail']]} valor="no" />
+    </Fragment>
+  </Lienzo>
+</Widget>
+<script>
+  import { montarDibujo, opcion } from './vivo';
+  import { dibujarHaz } from './dibujos-emisores';
+
+  montarDibujo('haz', (caja) => dibujarHaz({ fuente: opcion(caja, 'fuente') as 'led' | 'laser', lente: opcion(caja, 'lente') === 'si' }));
+</script>

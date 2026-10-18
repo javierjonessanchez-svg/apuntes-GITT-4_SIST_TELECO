@@ -1,0 +1,92 @@
+---
+titulo: "WDM"
+orden: 12
+bloque: "WDM"
+resumen: "Varias longitudes de onda en una fibra: DWDM y CWDM"
+saber:
+  - "WDM combina varias longitudes de onda portadoras en una única fibra: multiplexación en frecuencia, expresada en λ"
+  - "DWDM: canales muy juntos en la ventana de 1550 nm, de 12,5 a 100 GHz según la ITU (G.694.1); 100 GHz ≈ 0,8 nm"
+  - "DWDM exige láseres monomodo (DFB, DBR) con la λ controlada en fracciones de nm y la temperatura estabilizada"
+  - "CWDM: 18 canales de 1271 a 1611 nm cada 20 nm. Admite láseres sin refrigeración, tolerancias menos exigentes y filtros anchos: más barato"
+  - "Si el láser se calienta, su λ sube y puede invadir el canal vecino"
+fuentes:
+  - "Apuntes de clase (Javier)"
+  - "T52 – WDM"
+---
+
+import PlanesWdm from '../../../src/asignaturas/comunicaciones-opticas/widgets/PlanesWdm.astro';
+import DerivaTermica from '../../../src/asignaturas/comunicaciones-opticas/widgets/DerivaTermica.astro';
+import Espectros from '../../../src/asignaturas/comunicaciones-opticas/widgets/Espectros.astro';
+import SeConecta from '../../../src/asignaturas/comunicaciones-opticas/SeConecta.astro';
+
+**Idea clave.** Una fibra puede llevar muchas señales a la vez si cada una va en su propia longitud de onda. Cuanto más juntos los canales, más capacidad, pero más exigente tiene que ser cada láser: en DWDM, monomodo, preciso y con la temperatura bajo control; en CWDM, con canales más separados, todo es más barato.
+
+## Qué es WDM
+
+**WDM** (multiplexación por división en longitud de onda) consiste en combinar varias **longitudes de onda portadoras** dentro de una única fibra. Es una multiplexación en frecuencia, pero expresada en longitud de onda; en el fondo es lo mismo.
+
+La ventana de mínima atenuación es la de **1550 nm**. Los sistemas modernos trabajan en ella con canales separados solo décimas de nm, así que la λ de cada láser tiene que estar controlada con mucha precisión. Por defectos de fabricación no hay dos láseres iguales: de una oblea salen muchos láseres pequeños, se comprueban y luego se ajusta de forma más fina la λ de cada uno según el sistema WDM en el que se vaya a usar.
+
+Según lo separados que estén los canales, hay dos tipos de WDM.
+
+## DWDM y CWDM
+
+- **DWDM** (*Dense WDM*): agrupación **densa** de canales: muchas λ distintas, muy juntas, dentro de la misma ventana. Según la ITU (G.694.1), la separación va de **12,5 a 100 GHz**; en 1550 nm, 100 GHz son ≈ **0,8 nm**:
+
+$$
+\Delta\lambda = \frac{\lambda^2\,\Delta f}{c} = \frac{(1550\ \text{nm})^2 \cdot 100\ \text{GHz}}{3\cdot 10^8\ \text{m/s}} \approx 0{,}8\ \text{nm}
+$$
+
+  Como hay que controlar las λ con fracciones de nm, los láseres tienen que ser **monomodo** (DFB, DBR): láseres que filtran la luz para quedarse con un único modo, un único pico.
+
+- **CWDM** (*Coarse WDM*): agrupación **gruesa** de canales. El plan va de **1271 a 1611 nm**, con canales cada **20 nm** (18 canales). Como están mucho más separados, admite **láseres sin refrigeración**, **tolerancias de λ menos exigentes** y **filtros anchos**, así que es **más barato**.
+
+<PlanesWdm />
+
+Un LED no sirve para ninguno de los dos (≈ 50 nm de anchura); un Fabry-Pérot (≈ 4 nm) ocupa varios canales DWDM a la vez. Para DWDM hace falta un DFB o un DBR:
+
+<Espectros />
+
+> **⚠ Revisar.** En tus apuntes ponías que en CWDM se usan láseres «FP = Fabry-Pérot». Lo que dicen las diapositivas (T52) es que CWDM admite láseres sin refrigeración, tolerancias de λ menos exigentes y filtros anchos; comprueba con tus notas si el profesor nombró expresamente el Fabry-Pérot.
+
+## La temperatura, enemiga del DWDM
+
+Si aumenta la temperatura del láser, su cavidad se dilata y su **λ aumenta**. En DWDM, con canales a 0,8 nm, un láser que se calienta se va saliendo de su canal hasta **invadir el del vecino**. Por eso hay que estabilizar la temperatura (refrigeración Peltier) y afinar la λ con un actuador piezoeléctrico (ver el tema de láser monomodo).
+
+<DerivaTermica />
+
+## Amplificar todos los canales a la vez
+
+Una gran ventaja de trabajar en la ventana de 1550 nm es que un solo **EDFA** amplifica a la vez todos los canales DWDM que caen en su banda (≈ 50 nm), sin pasar ninguno a electrónica. Se ve en el tema de amplificadores.
+
+## Se conecta con
+
+<SeConecta tema="wdm" />
+
+## Preguntas de examen
+
+<details>
+<summary>¿Qué es WDM y qué diferencia hay entre DWDM y CWDM?</summary>
+
+WDM combina varias longitudes de onda portadoras en una sola fibra (multiplexación en frecuencia, expresada en λ).
+
+- **DWDM:** canales muy juntos en la ventana de 1550 nm, de 12,5 a 100 GHz (ITU G.694.1); 100 GHz ≈ 0,8 nm. Exige láseres monomodo (DFB, DBR) con la λ controlada en fracciones de nm.
+- **CWDM:** 18 canales de 1271 a 1611 nm cada 20 nm. Admite láseres sin refrigeración, tolerancias menos exigentes y filtros anchos: más barato.
+
+*(Respuesta redactada a partir de los apuntes.)*
+
+</details>
+
+<details>
+<summary>¿Por qué los sistemas DWDM necesitan láseres tan precisos y con la temperatura estabilizada?</summary>
+
+Porque los canales están separados décimas de nm: un láser multimodo o con una λ mal ajustada ocuparía varios canales. Además, si el láser se calienta, la cavidad se dilata y la λ sube hasta invadir el canal vecino. Por eso se usan láseres monomodo (DFB, DBR), se refrigeran y estabilizan en temperatura y se afinan con un piezoeléctrico. *(Respuesta redactada a partir de los apuntes.)*
+
+</details>
+
+<details>
+<summary>Calcula a cuántos nm equivale una separación de 100 GHz en la ventana de 1550 nm.</summary>
+
+$\Delta\lambda = \lambda^2 \Delta f / c = (1{,}55\cdot 10^{-6})^2 \cdot 10^{11} / (3\cdot 10^8) \approx 0{,}8\cdot 10^{-9}$ m, es decir, **≈ 0,8 nm**. *(Cálculo propio: no aparece en el material.)*
+
+</details>

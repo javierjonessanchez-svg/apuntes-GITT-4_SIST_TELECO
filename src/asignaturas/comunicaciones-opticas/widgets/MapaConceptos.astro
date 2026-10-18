@@ -1,0 +1,136 @@
+---
+// Mapa de conceptos de Ópticas: los conceptos en bandas (la cadena del enlace) y las
+// relaciones entre ellos. Al tocar un concepto se resaltan sus relaciones y al lado
+// aparece por qué se relaciona con cada uno y un enlace a su tema.
+// Las líneas se dibujan en el navegador, porque dependen de dónde caen los botones.
+import { BANDAS, NODOS, vecinos } from '../mapa';
+import { temasDe } from '../../../comun/datos';
+import { ruta } from '../../../comun/rutas';
+import '../mapa.css';
+
+const temas = await temasDe('comunicaciones-opticas');
+const temaDe = (slug?: string) => temas.find((t) => t.slug === slug);
+---
+<div class="op-mapa" data-op-mapa>
+  <div class="op-mapa-lienzo" data-lienzo>
+    <svg class="op-mapa-lineas" aria-hidden="true" data-lineas></svg>
+    {BANDAS.map((b) => (
+      <section class="op-mapa-banda" data-banda={b.id} aria-label={b.nombre}>
+        <h3>{b.nombre}</h3>
+        <ul>
+          {NODOS.filter((n) => n.banda === b.id).map((n) => (
+            <li>
+              <button type="button" class:list={['op-mapa-nodo', { pendiente: n.pendiente }]}
+                data-nodo={n.id} aria-pressed="false" aria-controls="op-mapa-panel">{n.nombre}</button>
+            </li>
+          ))}
+        </ul>
+      </section>
+    ))}
+  </div>
+
+  <div class="op-mapa-panel" id="op-mapa-panel" aria-live="polite">
+    <p class="op-mapa-vacio" data-vacio>Toca un concepto para ver con qué se relaciona y por qué. Los de trazo discontinuo llegan en la siguiente fase.</p>
+    {NODOS.map((n) => {
+      const t = temaDe(n.tema);
+      return (
+        <div data-panel={n.id} hidden>
+          <h3>{n.nombre}</h3>
+          {t
+            ? <a class="op-mapa-tema" href={ruta('comunicaciones-opticas', t.slug)}>Tema {t.orden}: {t.titulo} →</a>
+            : <p class="op-mapa-tema pendiente">Su tema llega en la siguiente fase.</p>}
+          <ul>
+            {vecinos(n.id).map((v) => <li><strong>{v.otro.nombre}.</strong> {v.porque}</li>)}
+          </ul>
+        </div>
+      );
+    })}
+  </div>
+</div>
+
+<script>
+  import { ARISTAS, nodo } from '../mapa';
+  import { montar } from '../../../widgets/cliente';
+
+  const NS = 'http://www.w3.org/2000/svg';
+
+  montar('[data-op-mapa]', (mapa) => {
+    const lienzo = mapa.querySelector<HTMLElement>('[data-lienzo]')!;
+    const svg = mapa.querySelector<SVGSVGElement>('[data-lineas]')!;
+    const botones = [...mapa.querySelectorAll<HTMLButtonElement>('[data-nodo]')];
+    const boton = new Map(botones.map((b) => [b.dataset.nodo!, b]));
+    const paneles = [...mapa.querySelectorAll<HTMLElement>('[data-panel]')];
+    const vacio = mapa.querySelector<HTMLElement>('[data-vacio]')!;
+
+    // Una curva por relación: entre filas baja en S; en la misma fila se arquea hacia arriba
+    const trazos = ARISTAS.map((a) => {
+      const el = document.createElementNS(NS, 'path');
+      el.dataset.de = a.de; el.dataset.a = a.a;
+      if (nodo(a.de).pendiente || nodo(a.a).pendiente) el.classList.add('pendiente');
+      svg.append(el);
+      return el;
+    });
+
+    function dibujar() {
+      const base = lienzo.getBoundingClientRect();
+      svg.setAttribute('viewBox', `0 0 ${base.width} ${base.height}`);
+      const centro = (id: string) => {
+        const r = boton.get(id)!.getBoundingClientRect();
+        return { x: r.left - base.left + r.width / 2, y: r.top - base.top + r.height / 2 };
+      };
+      for (const el of trazos) {
+        const p = centro(el.dataset.de!), q = centro(el.dataset.a!);
+        const d = Math.abs(p.y - q.y) < 4
+          ? `M${p.x},${p.y} C${p.x},${p.y - 34} ${q.x},${q.y - 34} ${q.x},${q.y}`
+          : `M${p.x},${p.y} C${p.x},${(p.y + q.y) / 2} ${q.x},${(p.y + q.y) / 2} ${q.x},${q.y}`;
+        el.setAttribute('d', d);
+      }
+    }
+
+    // Resalta las relaciones de un nodo; «fijo» es el elegido con un clic
+    let fijo: string | null = null;
+    function resaltar(id: string | null) {
+      mapa.toggleAttribute('data-activo', id !== null);
+      const vecinos = new Set<string>();
+      for (const el of trazos) {
+        const toca = id !== null && (el.dataset.de === id || el.dataset.a === id);
+        el.classList.toggle('activa', toca);
+        if (toca) { vecinos.add(el.dataset.de!); vecinos.add(el.dataset.a!); }
+      }
+      for (const b of botones) {
+        b.classList.toggle('activo', b.dataset.nodo === id);
+        b.classList.toggle('vecino', b.dataset.nodo !== id && vecinos.has(b.dataset.nodo!));
+      }
+    }
+
+    function elegir(id: string | null) {
+      fijo = id;
+      for (const b of botones) b.setAttribute('aria-pressed', String(b.dataset.nodo === id));
+      for (const p of paneles) p.hidden = p.dataset.panel !== id;
+      vacio.hidden = id !== null;
+      resaltar(id);
+    }
+
+    for (const b of botones) {
+      const id = b.dataset.nodo!;
+      b.addEventListener('click', () => {
+        elegir(fijo === id ? null : id);
+        // En el móvil el panel queda debajo del mapa: se acerca para que se vea
+        if (fijo && matchMedia('(max-width: 760px)').matches) {
+          const reducir = matchMedia('(prefers-reduced-motion: reduce)').matches;
+          mapa.querySelector('.op-mapa-panel')!.scrollIntoView({ block: 'nearest', behavior: reducir ? 'auto' : 'smooth' });
+        }
+      });
+      // Pasar por encima (o llegar con el teclado) solo enseña las relaciones, sin cambiar el panel
+      b.addEventListener('pointerenter', () => { if (!fijo) resaltar(id); });
+      b.addEventListener('pointerleave', () => { if (!fijo) resaltar(null); });
+      b.addEventListener('focus', () => { if (!fijo) resaltar(id); });
+      b.addEventListener('blur', () => { if (!fijo) resaltar(null); });
+    }
+    mapa.addEventListener('keydown', (e) => { if (e.key === 'Escape' && fijo) elegir(null); });
+
+    new ResizeObserver(dibujar).observe(lienzo);
+    dibujar();
+    mapa.setAttribute('data-listo', '');
+  });
+</script>

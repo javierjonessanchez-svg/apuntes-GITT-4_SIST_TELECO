@@ -1,0 +1,25 @@
+---
+// Deriva térmica: al calentarse, la cavidad se dilata y la λ del láser sube hasta invadir el canal
+// vecino. Por eso en DWDM se estabiliza la temperatura.
+import Widget from '../../../widgets/Widget.astro';
+import Deslizador from '../../../widgets/Deslizador.astro';
+import Lienzo from './Lienzo.astro';
+import { dibujarDeriva } from './dibujos-wdm';
+
+const uid = `deriva-${Math.random().toString(36).slice(2, 7)}`;
+---
+<Widget titulo="La temperatura mueve la longitud de onda" tipo="entender">
+  <Lienzo nombre="deriva" uid={uid} alto={236} etiqueta="Cinco canales DWDM y la raya de un láser que se desplaza con la temperatura"
+    inicial={dibujarDeriva({ dT: 0 })}
+    nota="Modelo ilustrativo: cuánto se mueve la λ por grado no está en los apuntes; lo que importa es la tendencia.">
+    <Fragment slot="controles">
+      <Deslizador id={`${uid}-dT`} etiqueta="Cambio de temperatura" min={-10} max={10} paso={1} valor={0} unidad="°C" decimales={0} />
+    </Fragment>
+  </Lienzo>
+</Widget>
+<script>
+  import { montarDibujo, numero } from './vivo';
+  import { dibujarDeriva } from './dibujos-wdm';
+
+  montarDibujo('deriva', (caja, uid) => dibujarDeriva({ dT: numero(caja, `${uid}-dT`) }));
+</script>

@@ -1,0 +1,88 @@
+---
+titulo: "Dispositivos ópticos pasivos"
+orden: 10
+bloque: "Dispositivos"
+resumen: "Aisladores, atenuadores, moduladores, redes de Bragg y acopladores"
+saber:
+  - "Un dispositivo pasivo cambia las propiedades de la luz (intensidad, polarización, modo, dirección) sin aporte de energía externa"
+  - "Aislador óptico: deja pasar la luz en un solo sentido (rotación de Faraday) y evita que las reflexiones vuelvan al láser"
+  - "Atenuador variable o modulador de cristal líquido (MHz); para modular mucho más deprisa, el efecto Kerr"
+  - "Red de Bragg en fibra: el índice del núcleo varía de forma periódica y refleja una única λ. Apodizada, elimina los lóbulos; estirada (chirp), compensa la dispersión"
+  - "Acopladores: por fusión o por acoplo evanescente, acercando dos núcleos para que la onda evanescente pase de uno a otro"
+fuentes:
+  - "Apuntes de Miguel"
+  - "Comunicaciones Ópticas (PDF de clase), §8"
+  - "T51 – Dispositivos ópticos pasivos"
+---
+
+import SeConecta from '../../../src/asignaturas/comunicaciones-opticas/SeConecta.astro';
+
+**Idea clave.** Para no tener que pasar a electrónica en cada paso, las señales se procesan directamente en el dominio óptico. Los dispositivos **pasivos** lo hacen sin aportar energía: atenúan, bloquean un sentido, filtran una longitud de onda o reparten la luz entre fibras. (Un EDFA, que sí aporta energía, es **activo**; una lente o un espejo, **pasivos**.)
+
+> **⚠ Revisar.** Este tema sale casi entero de los apuntes de Miguel: en los tuyos solo está el título (§5.1). Repásalo con tus notas de clase cuando las tengas.
+
+## Controlar la intensidad
+
+- **Atenuador permanente:** un material traslúcido que absorbe parte de la luz. También se hace con un empalme de fibras con los núcleos un poco desalineados.
+- **Aislador óptico:** deja pasar la luz **en un solo sentido**, como un diodo. Se pone al principio y al final del enlace. Se basa en la **rotación de Faraday**, que gira la polarización de la luz. Evita que las reflexiones vuelvan al láser y lo perturben (recuerda el ruido modal del tema de láser monomodo).
+- **Atenuador variable de cristal líquido:** el cristal líquido está formado por moléculas muy largas que, con luz polarizada, cambian su índice de refracción ($\Delta n$) al aplicarles una diferencia de potencial. Así se puede variar la atenuación, y usado sobre la luz de un láser es un **modulador de intensidad externo**, del orden de MHz.
+- **Modulador rápido (efecto Kerr):** un efecto no lineal que permite modular muchísimo más deprisa. Los moduladores externos en general permiten llegar a centenares de GHz.
+- **Polarizadores** (polaroides): dejan pasar una sola polarización.
+
+## Cambiar el modo o la trayectoria
+
+Cambiando el **diámetro del núcleo** de la fibra se puede cambiar el modo o la trayectoria de la luz.
+
+## Filtrar una longitud de onda: redes de Bragg
+
+Para quedarse con una única λ se usa una **red de Bragg en fibra** (FBG): un tramo de fibra en el que el índice de refracción del núcleo varía de forma periódica a lo largo del eje. La luz interfiere con esa variación (de forma constructiva o destructiva según la λ), así que solo se refleja la λ que corresponde al **periodo** de la red. Se comporta como un espejo dieléctrico muy selectivo, el mismo principio que en los láseres DBR y DFB.
+
+**Fabricación.** Se parte de una fibra normal dopada con hidrógeno (o con mucho germanio en el núcleo), que la hace fotosensible. Luego se graba el perfil con un láser ultravioleta: donde actúa, el índice $n$ sube.
+
+**Perfiles útiles:**
+
+- **Apodizado:** la variación del índice se anula de forma suave en los extremos. Así desaparecen las líneas laterales que tendría una red uniforme cerca de la λ filtrada: un canal muy fino y sin asimetrías.
+- **Estirado (chirp):** el periodo se va comprimiendo o estirando a lo largo de la red, como un muelle. Distintas λ se reflejan en distintos puntos, así que se puede usar para **compensar la dispersión** (fibra compensadora de dispersión).
+
+Como la red de Bragg **refleja** la λ filtrada hacia atrás, para recogerla hace falta un **circulador**, que lleva la luz reflejada a otra salida.
+
+## Cambiar la dirección: acopladores
+
+Los **acopladores ópticos** reparten la luz entre fibras o juntan varias señales en una (por ejemplo, para multiplexar).
+
+- **Por fusión:** se funden dos fibras juntas.
+- **Acoplo evanescente:** se pulen dos fibras hasta que sus núcleos casi se tocan. La **onda evanescente** que viaja por el revestimiento de una fibra pasa al núcleo de la otra, y con ella parte de la potencia. Según la distancia entre núcleos se controla cuánta potencia pasa.
+
+## Se conecta con
+
+<SeConecta tema="dispositivos-pasivos" />
+
+## Preguntas de examen
+
+<details>
+<summary>¿Qué es un dispositivo óptico pasivo? Pon ejemplos.</summary>
+
+Un dispositivo que cambia las propiedades de la luz (intensidad, polarización, modo, dirección o λ) **sin aporte de energía externa**. Ejemplos: atenuadores, aisladores, polarizadores, redes de Bragg, acopladores. Un amplificador EDFA, en cambio, es activo. *(Respuesta redactada a partir de los apuntes.)*
+
+</details>
+
+<details>
+<summary>¿Para qué sirve un aislador óptico y en qué se basa?</summary>
+
+Deja pasar la luz en un solo sentido, como un diodo. Se pone al principio y al final del enlace para que las reflexiones no vuelvan al láser y lo perturben. Se basa en la **rotación de Faraday**, que gira la polarización de la luz. *(Respuesta redactada a partir de los apuntes.)*
+
+</details>
+
+<details>
+<summary>¿Qué es una red de Bragg en fibra, cómo se fabrica y para qué sirve?</summary>
+
+Un tramo de fibra cuyo índice de refracción del núcleo varía de forma periódica a lo largo del eje: solo refleja la λ que corresponde al periodo de la red, así que es un **filtro** muy selectivo. Se fabrica haciendo la fibra fotosensible (dopándola con hidrógeno) y grabando el perfil con láser ultravioleta. Apodizada elimina las líneas laterales; estirada (chirp) compensa la dispersión. Para recoger la luz reflejada hace falta un circulador. *(Respuesta redactada a partir de los apuntes.)*
+
+</details>
+
+<details>
+<summary>¿Cómo funciona un acoplador de acoplo evanescente?</summary>
+
+Se pulen dos fibras hasta que sus núcleos casi se tocan. La onda evanescente que viaja por el revestimiento de una de ellas llega al núcleo de la otra y le pasa parte de la potencia; la distancia entre núcleos decide cuánta. *(Respuesta redactada a partir de los apuntes.)*
+
+</details>

@@ -1,0 +1,24 @@
+---
+// Grupo de botones excluyentes (un control segmentado). Guarda la opción elegida
+// en data-valor y lanza un «change» que sube hasta el widget, como un <select>.
+import './widgets.css';
+
+interface Props { nombre: string; etiqueta: string; opciones: [string, string][]; valor: string }
+const { nombre, etiqueta, opciones, valor } = Astro.props;
+---
+<div class="widget-opciones" role="group" aria-label={etiqueta} data-opciones={nombre} data-valor={valor}>
+  {opciones.map(([v, texto]) => (
+    <button type="button" data-opcion={v} aria-pressed={v === valor ? 'true' : 'false'}>{texto}</button>
+  ))}
+</div>
+<script>
+  for (const grupo of document.querySelectorAll<HTMLElement>('[data-opciones]')) {
+    grupo.addEventListener('click', (e) => {
+      const boton = (e.target as Element).closest<HTMLButtonElement>('[data-opcion]');
+      if (!boton || boton.getAttribute('aria-pressed') === 'true') return;
+      for (const b of grupo.querySelectorAll('[data-opcion]')) b.setAttribute('aria-pressed', String(b === boton));
+      grupo.dataset.valor = boton.dataset.opcion;
+      grupo.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+  }
+</script>

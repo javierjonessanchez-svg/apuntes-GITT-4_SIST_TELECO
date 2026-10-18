@@ -1,0 +1,96 @@
+---
+// Portada de Comunicaciones Ópticas: el cuaderno con la regla de longitudes de onda.
+// Debajo, la cadena del enlace (de dónde sale la luz y adónde llega) y los temas por
+// bloque, en el orden del profesor; los que aún no tienen apuntes van a trazos.
+import Regla from '../../widgets/Regla.astro';
+import TarjetaTema from './TarjetaTema.astro';
+import Tarjetas from '../../widgets/Tarjetas.astro';
+import MapaConceptos from './widgets/MapaConceptos.astro';
+import LineaTiempo from '../../comun/LineaTiempo.astro';
+import type { Asignatura, Tema } from '../../comun/datos';
+
+interface Props { asignatura: Asignatura; temas: Tema[] }
+const { asignatura: a, temas } = Astro.props;
+
+// Bloque del temario de cada grupo de temas (la etiqueta de las tarjetas)
+const BLOQUE_TEMARIO: Record<string, string> = {
+  Fibra: 'Bloque 1', Emisores: 'Bloque 2', Detectores: 'Bloque 2', Dispositivos: 'Bloque 3',
+  Amplificación: 'Bloque 4', WDM: 'Bloque 4', Redes: 'Bloque 5',
+};
+const id = (bloque: string) => `bloque-${bloque.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')}`;
+
+// Temas reales y próximos juntos, por número; los bloques salen en el orden en que aparecen
+const todos = [
+  ...temas.map((t) => ({ slug: t.slug, orden: t.orden, titulo: t.titulo, resumen: t.resumen, bloque: t.bloque })),
+  ...(a.proximos ?? []).map((p) => ({ slug: undefined, orden: p.orden, titulo: p.titulo, resumen: undefined, bloque: p.bloque })),
+].sort((x, y) => x.orden - y.orden);
+const bloques = [...new Set(todos.map((t) => t.bloque))];
+
+// La cadena del enlace: cada eslabón salta a su bloque (si existe)
+const cadena = [
+  { nombre: 'Emisores', bloque: 'Emisores' },
+  { nombre: 'Fibra', bloque: 'Fibra' },
+  { nombre: 'Dispositivos y amplificación', bloque: 'Dispositivos' },
+  { nombre: 'Detectores', bloque: 'Detectores' },
+  { nombre: 'Redes', bloque: 'Redes' },
+].filter((e) => bloques.includes(e.bloque));
+---
+<div class="op-portada envoltura">
+  <header class="op-cabecera">
+    <h1 id="op-titulo" tabindex="-1">{a.nombre}</h1>
+    <p>{a.descripcion}</p>
+    <Regla etiqueta="Regla de longitudes de onda con las tres ventanas: 850, 1310 y 1550 nm" />
+  </header>
+
+  <nav class="op-cadena" aria-label="La cadena del enlace óptico">
+    <ol>
+      {cadena.map((e) => <li><a href={`#${id(e.bloque)}`}>{e.nombre}</a></li>)}
+    </ol>
+  </nav>
+
+  {bloques.map((b) => (
+    <section class="op-bloque" id={id(b)} aria-labelledby={`${id(b)}-t`}>
+      <h2 id={`${id(b)}-t`}>{b} <small>{BLOQUE_TEMARIO[b] ?? ''}</small></h2>
+      <ul class="op-tarjetas">
+        {todos.filter((t) => t.bloque === b).map((t) => (
+          <li>
+            <TarjetaTema asignatura={a.slug} slug={t.slug} orden={t.orden} titulo={t.titulo}
+              resumen={t.resumen} i={todos.indexOf(t)} />
+          </li>
+        ))}
+      </ul>
+    </section>
+  ))}
+
+  {temas.length > 0 && (
+    <section class="op-seccion" id="mapa" aria-labelledby="op-mapa-t">
+      <h2 id="op-mapa-t">Mapa de conceptos</h2>
+      <p>Cómo se relacionan los conceptos de todos los temas, en el orden de la cadena del enlace.</p>
+      <MapaConceptos />
+    </section>
+  )}
+
+  <p class="op-nota" data-aviso-almacen hidden role="status">Tu avance no se está guardando en este navegador.</p>
+  {a.nota && <p class="op-nota">{a.nota}</p>}
+
+  {temas.length > 0 && (
+    <section class="op-seccion" id="repaso" aria-labelledby="op-repaso">
+      <h2 id="op-repaso">Tarjetas de repaso</h2>
+      <p>Las preguntas de examen y la lista «Lo que tienes que saber» de todos los temas, de una en una.</p>
+      <Tarjetas asignatura={a.slug} />
+    </section>
+  )}
+
+  <div class="op-seccion">
+    {a.pruebas.length
+      ? <LineaTiempo pruebas={a.pruebas.map((p) => ({ ...p, asignatura: a.corto }))} titulo="Calendario de pruebas" />
+      : <p class="op-nota">Aún no hay fechas de pruebas: la prueba parcial y el examen final se añadirán cuando se conozcan.</p>}
+  </div>
+</div>
+<script>
+  import '../../comun/cliente/avance';
+  import progreso from '../../comun/progreso';
+
+  // Sin almacén (bloqueado), la barra de avance no puede recordar nada: se avisa
+  if (!progreso.disponible) document.querySelector<HTMLElement>('[data-aviso-almacen]')!.hidden = false;
+</script>
