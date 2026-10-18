@@ -4,7 +4,7 @@
 // bloque, en el orden del profesor; los que aún no tienen apuntes van a trazos.
 import Regla from '../../widgets/Regla.astro';
 import TarjetaTema from './TarjetaTema.astro';
-import Tarjetas from '../../widgets/Tarjetas.astro';
+import ModoRepaso from '../../widgets/ModoRepaso.astro';
 import MapaConceptos from './widgets/MapaConceptos.astro';
 import LineaTiempo from '../../comun/LineaTiempo.astro';
 import type { Asignatura, Tema } from '../../comun/datos';
@@ -75,9 +75,9 @@ const cadena = [
 
   {temas.length > 0 && (
     <section class="op-seccion" id="repaso" aria-labelledby="op-repaso">
-      <h2 id="op-repaso">Tarjetas de repaso</h2>
-      <p>Las preguntas de examen y la lista «Lo que tienes que saber» de todos los temas, de una en una.</p>
-      <Tarjetas asignatura={a.slug} />
+      <h2 id="op-repaso">Modo repaso</h2>
+      <p>Para las dos partes del examen: preguntas de desarrollo en tarjetas, preguntas tipo test corregidas al momento y un simulacro con las dos cosas.</p>
+      <ModoRepaso asignatura={a.slug} />
     </section>
   )}
 

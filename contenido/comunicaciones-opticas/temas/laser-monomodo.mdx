@@ -16,6 +16,35 @@ fuentes:
   - "Comunicaciones Ópticas (PDF de clase), §5.2.3–5.2.5"
   - "T22 – Emisores ópticos láser"
   - "T52 – WDM"
+test:
+  - p: "¿Por qué DWDM necesita láseres monomodo?"
+    o: ["Porque los canales están separados décimas de nm", "Porque son más baratos", "Porque emiten en el visible", "Porque no necesitan refrigeración"]
+    c: 0
+    e: "Un láser multimodo ocuparía varios canales a la vez."
+  - p: "¿Cómo se queda un láser DFB con un único modo?"
+    o: ["Con una red de Bragg a lo largo de la zona activa", "Quitando los espejos", "Con una lente a la salida", "Trabajando por debajo del umbral"]
+    c: 0
+    e: "La red de Bragg es un espejo muy selectivo: solo realimenta una λ."
+  - p: "¿Para qué sirve el pozo cuántico en un láser?"
+    o: ["Para ajustar el gap efectivo y, con él, la λ", "Para detectar la luz", "Para aislarlo de las reflexiones", "Para modularlo a 1 THz"]
+    c: 0
+    e: "El electrón queda confinado y su energía se cuantiza: la anchura del pozo fija el salto de energía."
+  - p: "En modulación directa, el 0 lógico es…"
+    o: ["Un nivel de potencia bajo, pero por encima del umbral", "El láser apagado", "La potencia máxima", "Un nivel por debajo del umbral"]
+    c: 0
+    e: "Si se apagara, tardaría en volver a arrancar y aparecería el jitter."
+  - p: "¿Cómo se evita el chirp?"
+    o: ["Con modulación externa", "Polarizando por debajo del umbral", "Calentando el láser", "Usando un LED"]
+    c: 0
+    e: "El chirp aparece al modular directamente: la corriente cambia el índice de la cavidad y ensancha el espectro."
+  - p: "Velocidades orientativas de modulación de un láser:"
+    o: ["Directa, del orden de 1 Gbps; externa, unos 100 Gbps", "Directa, unos 100 Gbps; externa, 1 Gbps", "Las dos, del orden de 1 Mbps", "Las dos, del orden de 1 Tbps"]
+    c: 0
+    e: "La externa es mucho más rápida y por eso es la que usan casi todos los sistemas actuales."
+  - p: "¿Cuál de estos NO aparece entre los ruidos de un láser?"
+    o: ["Ruido ASE", "RIN", "Ruido modal y salto de modos", "Chirp y jitter"]
+    c: 0
+    e: "El ASE es el ruido de los amplificadores ópticos. Los del láser son: térmico, RIN, modal, shot y de modulación."
 ---
 
 import PozoCuantico from '../../../src/asignaturas/comunicaciones-opticas/widgets/PozoCuantico.astro';

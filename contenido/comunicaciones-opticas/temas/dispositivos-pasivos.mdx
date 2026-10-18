@@ -13,6 +13,39 @@ fuentes:
   - "Apuntes de Miguel"
   - "Comunicaciones Ópticas (PDF de clase), §8"
   - "T51 – Dispositivos ópticos pasivos"
+test:
+  - p: "¿Cuál de estos es un dispositivo activo?"
+    o: ["Un EDFA", "Un aislador", "Una red de Bragg", "Un acoplador"]
+    c: 0
+    e: "El EDFA aporta energía con su láser de bombeo; los pasivos no aportan energía."
+  - p: "¿En qué se basa un aislador óptico?"
+    o: ["En la rotación de Faraday", "En el efecto Raman", "En la emisión estimulada", "En la absorción del germanio"]
+    c: 0
+    e: "Gira la polarización para dejar pasar la luz en un solo sentido, como un diodo."
+  - p: "¿Qué hace una red de Bragg en fibra?"
+    o: ["Refleja la λ que corresponde al periodo de la red", "Amplifica todas las λ", "Deja pasar una sola polarización", "Convierte la luz en corriente"]
+    c: 0
+    e: "El índice del núcleo varía de forma periódica y solo interfiere de forma constructiva para una λ."
+  - p: "¿Para qué se apodiza una red de Bragg?"
+    o: ["Para eliminar las líneas laterales del filtro", "Para compensar la dispersión", "Para amplificar", "Para polarizar la luz"]
+    c: 0
+    e: "La variación del índice se anula suavemente en los extremos: el canal queda fino y sin asimetrías."
+  - p: "¿Para qué sirve una red de Bragg estirada (chirp)?"
+    o: ["Para compensar la dispersión", "Para eliminar las líneas laterales", "Para bloquear un sentido", "Para atenuar"]
+    c: 0
+    e: "Cada λ se refleja en un punto distinto de la red."
+  - p: "¿Qué hace falta para recoger la λ que refleja una red de Bragg?"
+    o: ["Un circulador", "Un polarizador", "Un SOA", "Un fotodiodo PIN"]
+    c: 0
+    e: "El circulador lleva la luz reflejada a otra salida."
+  - p: "En un acoplador evanescente, ¿qué decide cuánta potencia pasa de una fibra a otra?"
+    o: ["La distancia entre los núcleos", "El color de la cubierta", "La corriente de bombeo", "La temperatura del láser"]
+    c: 0
+    e: "La onda evanescente que va por el revestimiento de una fibra llega al núcleo de la otra."
+  - p: "¿Qué permite modular la luz mucho más deprisa?"
+    o: ["El efecto Kerr", "Un modulador de cristal líquido", "Un atenuador permanente", "Un polarizador"]
+    c: 0
+    e: "El cristal líquido se queda en el orden de MHz; el efecto Kerr, no lineal, es muchísimo más rápido."
 ---
 
 import SeConecta from '../../../src/asignaturas/comunicaciones-opticas/SeConecta.astro';

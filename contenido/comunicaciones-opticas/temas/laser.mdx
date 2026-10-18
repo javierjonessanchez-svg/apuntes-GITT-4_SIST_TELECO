@@ -15,6 +15,35 @@ fuentes:
   - "Apuntes de Miguel"
   - "Comunicaciones Ópticas (PDF de clase), §5.2"
   - "T22 – Emisores ópticos láser"
+test:
+  - p: "¿Qué tres piezas necesita un láser?"
+    o: ["Medio activo, bombeo y resonador", "Lente, fibra y detector", "Medio activo, aislador y filtro", "Diodo, fotodiodo y amplificador"]
+    c: 0
+    e: "El medio activo amplifica por emisión estimulada, el bombeo le da energía y el resonador realimenta la luz."
+  - p: "En la curva P-I de un láser, por encima de la corriente umbral…"
+    o: ["Domina la emisión estimulada y la potencia sube muy deprisa", "El láser se comporta como un LED", "La potencia deja de subir", "Domina la emisión espontánea"]
+    c: 0
+    e: "Por debajo del umbral el láser es un LED; por encima, la emisión estimulada gana a las pérdidas."
+  - p: "Si sube la temperatura de un láser, su corriente umbral…"
+    o: ["Sube", "Baja", "No cambia", "Se anula"]
+    c: 0
+    e: "Por eso los láseres de comunicaciones se refrigeran."
+  - p: "Un Fabry-Pérot con espejos más reflectantes, mejor pulidos y bien paralelos tiene…"
+    o: ["Más Q y más fineza: picos más finos", "Menos Q y picos más anchos", "El mismo Q", "Menos modos, pero más anchos"]
+    c: 0
+    e: "Q depende de la reflectividad, la calidad óptica y el alineamiento de los espejos."
+  - p: "¿Cuánto ocupa en el espectro un láser Fabry-Pérot multimodo, aproximadamente?"
+    o: ["Unos 4 nm", "Unos 50 nm", "Unos 0,01 nm", "Unos 400 nm"]
+    c: 0
+    e: "Oscila en varios modos longitudinales. Un DFB monomodo baja de 1 nm."
+  - p: "El moteado (speckle) aparece porque la luz láser es…"
+    o: ["Coherente", "Incoherente", "Polarizada al azar", "Infrarroja"]
+    c: 0
+    e: "Al ir todos los fotones en fase, cualquier defecto del medio produce interferencias."
+  - p: "¿De qué orden es el Q del Fabry-Pérot de un láser de comunicaciones?"
+    o: ["Unos 1000", "Unos 100 000", "Unos 10", "Unos mil millones"]
+    c: 0
+    e: "Es un Q bajo: un resonador de alta calidad ronda los 100 000."
 ---
 
 import Coherencia from '../../../src/asignaturas/comunicaciones-opticas/widgets/Coherencia.astro';

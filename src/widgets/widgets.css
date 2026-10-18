@@ -81,3 +81,68 @@
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--primario) 45%, var(--linea)), 0 1px 3px rgb(0 0 0 / .08);
 }
 @media (prefers-reduced-motion: reduce) { .widget-opciones button { transition-duration: 0s; } }
+
+/* ---------- Modo repaso: tipo test y simulacro (ModoRepaso.astro) ----------
+   Bien y mal se mezclan con el color del texto: así se leen en claro y en oscuro,
+   y siempre van con ✓ / ✗ para no depender solo del color. */
+.modo-repaso { --mr-bien: color-mix(in srgb, #1F9A57 72%, var(--texto)); --mr-mal: color-mix(in srgb, #D0384F 72%, var(--texto)); display: grid; gap: 14px; }
+.modo-repaso [hidden] { display: none !important; }
+.mr-panel { display: grid; gap: 12px; padding: 18px; border-radius: 14px; background: var(--superficie); box-shadow: inset 0 0 0 1px var(--linea); }
+.mr-barra { display: flex; flex-wrap: wrap; align-items: end; gap: 10px 16px; }
+.mr-barra label { display: grid; gap: 4px; font-size: .88rem; color: var(--suave); }
+.mr-barra select { min-height: 40px; padding: 6px 10px; border-radius: 10px; border: 0; box-shadow: inset 0 0 0 1px var(--linea); background: var(--fondo); color: var(--texto); font: inherit; }
+.mr-casilla { display: inline-flex !important; align-items: center; gap: 8px; min-height: 40px; font-size: .92rem; color: var(--texto) !important; cursor: pointer; }
+.mr-casilla input { width: 18px; height: 18px; accent-color: var(--primario); }
+.mr-contador { margin: 0; font-size: .9rem; color: var(--suave); font-variant-numeric: tabular-nums; }
+.mr-tarjeta { display: grid; gap: 10px; padding: 16px 18px; border-radius: 12px; background: var(--fondo); }
+.mr-tema, .mr-tema-item { margin: 0; font-size: .85rem; color: var(--suave); }
+.mr-enunciado { margin: 0; font-weight: 600; line-height: 1.45; text-wrap: pretty; }
+.mr-opciones { display: grid; gap: 8px; }
+.mr-opcion, .mr-radio {
+  display: flex; align-items: flex-start; gap: 10px; min-height: 44px; padding: 10px 14px; border: 0; border-radius: 10px;
+  background: var(--superficie); color: var(--texto); font: inherit; text-align: left; line-height: 1.4; cursor: pointer;
+  box-shadow: inset 0 0 0 1px var(--linea);
+  transition-property: box-shadow, background-color, scale; transition-duration: .16s; transition-timing-function: ease-out;
+}
+.mr-opcion:hover:not(:disabled), .mr-radio:hover { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--primario) 60%, var(--linea)); }
+.mr-opcion:active:not(:disabled) { scale: .99; }
+.mr-opcion:focus-visible { outline: 2px solid var(--foco, var(--acento)); outline-offset: 2px; }
+.mr-opcion:disabled { cursor: default; }
+.mr-letra { flex: none; display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 6px; font-size: .8rem; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--suave); box-shadow: inset 0 0 0 1px var(--linea); }
+.mr-opcion.bien, .mr-radio.bien { box-shadow: inset 0 0 0 2px var(--mr-bien); background: color-mix(in srgb, var(--mr-bien) 10%, var(--superficie)); }
+.mr-opcion.mal, .mr-radio.mal { box-shadow: inset 0 0 0 2px var(--mr-mal); background: color-mix(in srgb, var(--mr-mal) 9%, var(--superficie)); }
+.mr-opcion.bien .mr-letra::after, .mr-radio.bien .mr-letra::after { content: "✓"; }
+.mr-opcion.mal .mr-letra::after, .mr-radio.mal .mr-letra::after { content: "✗"; }
+.mr-opcion.bien .mr-letra, .mr-opcion.mal .mr-letra, .mr-radio.bien .mr-letra, .mr-radio.mal .mr-letra { font-size: 0; }
+.mr-opcion.bien .mr-letra::after, .mr-radio.bien .mr-letra::after { font-size: .9rem; color: var(--mr-bien); }
+.mr-opcion.mal .mr-letra::after, .mr-radio.mal .mr-letra::after { font-size: .9rem; color: var(--mr-mal); }
+.mr-porque { margin: 0; padding: 10px 14px; border-radius: 10px; background: var(--superficie); line-height: 1.5; text-wrap: pretty; animation: mr-entra .2s ease-out; }
+.mr-ok { color: var(--mr-bien); }
+.mr-ko { color: var(--mr-mal); }
+.mr-botones, .mr-autonota { display: flex; flex-wrap: wrap; gap: 8px; }
+.mr-autonota button[aria-pressed="true"] { box-shadow: inset 0 0 0 2px var(--primario); background: color-mix(in srgb, var(--primario) 12%, transparent); }
+.mr-final { display: grid; gap: 8px; animation: mr-entra .24s ease-out; }
+.mr-nota-final { margin: 0; font-size: 1.1rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.mr-suave { color: var(--suave); }
+.mr-final .mr-suave { margin: 0; }
+.mr-resumen { margin: 0; padding-left: 20px; display: grid; gap: 4px; }
+.mr-ajustes { display: grid; gap: 12px; }
+.mr-ajustes fieldset { margin: 0; padding: 0; border: 0; }
+.mr-ajustes legend { margin-bottom: 6px; font-weight: 600; }
+.mr-temas { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr)); gap: 0 14px; }
+.mr-nota { margin: 0; font-size: .88rem; color: var(--suave); text-wrap: pretty; }
+.mr-parte { margin: 8px 0 0; font-size: 1.1rem; }
+.mr-lista { margin: 0; padding-left: 22px; display: grid; gap: 16px; }
+.mr-item { display: grid; gap: 8px; }
+.mr-item fieldset { display: grid; gap: 6px; margin: 0; padding: 0; border: 0; }
+.mr-item legend { margin-bottom: 4px; }
+.mr-radio input { position: absolute; opacity: 0; pointer-events: none; }
+.mr-radio:has(input:checked) { box-shadow: inset 0 0 0 2px var(--primario); }
+.mr-radio:has(input:focus-visible) { outline: 2px solid var(--foco, var(--acento)); outline-offset: 2px; }
+.mr-radio:has(input:checked) .mr-letra { background: var(--primario); color: var(--sobre-primario); box-shadow: none; }
+.mr-texto { width: 100%; min-height: 96px; padding: 10px 12px; border: 0; border-radius: 10px; box-shadow: inset 0 0 0 1px var(--linea); background: var(--fondo); color: var(--texto); font: inherit; resize: vertical; }
+@keyframes mr-entra { from { opacity: 0; transform: translateY(4px); } }
+@media (prefers-reduced-motion: reduce) {
+  .mr-opcion, .mr-radio { transition: none; }
+  .mr-porque, .mr-final { animation: none; }
+}
