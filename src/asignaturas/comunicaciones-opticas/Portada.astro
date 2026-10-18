@@ -5,6 +5,7 @@
 import Regla from '../../widgets/Regla.astro';
 import TarjetaTema from './TarjetaTema.astro';
 import Tarjetas from '../../widgets/Tarjetas.astro';
+import MapaConceptos from './widgets/MapaConceptos.astro';
 import LineaTiempo from '../../comun/LineaTiempo.astro';
 import type { Asignatura, Tema } from '../../comun/datos';
 
@@ -60,6 +61,14 @@ const cadena = [
       </ul>
     </section>
   ))}
+
+  {temas.length > 0 && (
+    <section class="op-seccion" id="mapa" aria-labelledby="op-mapa-t">
+      <h2 id="op-mapa-t">Mapa de conceptos</h2>
+      <p>Cómo se relacionan los conceptos de todos los temas, en el orden de la cadena del enlace.</p>
+      <MapaConceptos />
+    </section>
+  )}
 
   <p class="op-nota" data-aviso-almacen hidden role="status">Tu avance no se está guardando en este navegador.</p>
   {a.nota && <p class="op-nota">{a.nota}</p>}

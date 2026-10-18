@@ -1,0 +1,23 @@
+---
+// «Se conecta con»: los temas relacionados con este, cada uno con una frase que dice por qué.
+// Sale de los datos del mapa de conceptos (mapa.ts), así que los dos dicen lo mismo.
+import { conexionesDeTema } from './mapa';
+import { temasDe } from '../../comun/datos';
+import { ruta } from '../../comun/rutas';
+import './mapa.css';
+
+interface Props { tema: string }
+const { tema } = Astro.props;
+const temas = await temasDe('comunicaciones-opticas');
+const conexiones = conexionesDeTema(tema).map((c) => ({ ...c, t: temas.find((t) => t.slug === c.tema)! }));
+---
+<ul class="op-conecta">
+  {conexiones.map((c) => (
+    <li>
+      <a href={ruta('comunicaciones-opticas', c.tema)}>
+        <span class="op-conecta-num">{String(c.t.orden).padStart(2, '0')}</span>{c.t.titulo}
+      </a>
+      <span class="op-conecta-porque">{c.porque}</span>
+    </li>
+  ))}
+</ul>

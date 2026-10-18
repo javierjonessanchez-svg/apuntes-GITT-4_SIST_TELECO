@@ -18,6 +18,7 @@ fuentes:
 ---
 
 import RespuestaEspectral from '../../../src/asignaturas/comunicaciones-opticas/widgets/RespuestaEspectral.astro';
+import SeConecta from '../../../src/asignaturas/comunicaciones-opticas/SeConecta.astro';
 
 **Idea clave.** Al final del enlace hay que volver a convertir la luz en corriente. Un fotodiodo hace lo contrario que un LED: cada fotón absorbido crea un par electrón-hueco, y un campo eléctrico se lleva los portadores antes de que se recombinen. Interesa absorber muchos fotones (más corriente, más sensibilidad) y hacerlo deprisa (más velocidad), y esas dos cosas tiran en sentidos contrarios.
 
@@ -92,6 +93,10 @@ $$
 La **figura de ruido** compara la relación señal/ruido antes y después de amplificar: la SNR de entrada es mejor que la de salida, y la diferencia en dB es la figura de ruido. Se mide en el laboratorio y sirve para caracterizar un APD.
 
 > **⚠ Revisar.** En tus apuntes ponías «figura de ruido alta, mejor APD». Es al revés: la figura de ruido mide cuánto **empeora** la SNR al amplificar, así que un APD es mejor cuanto **menor** sea su figura de ruido.
+
+## Se conecta con
+
+<SeConecta tema="fotodetectores" />
 
 ## Preguntas de examen
 

@@ -22,6 +22,7 @@ import PozoCuantico from '../../../src/asignaturas/comunicaciones-opticas/widget
 import DbrDfb from '../../../src/asignaturas/comunicaciones-opticas/widgets/DbrDfb.astro';
 import Espectros from '../../../src/asignaturas/comunicaciones-opticas/widgets/Espectros.astro';
 import Modulacion from '../../../src/asignaturas/comunicaciones-opticas/widgets/Modulacion.astro';
+import SeConecta from '../../../src/asignaturas/comunicaciones-opticas/SeConecta.astro';
 
 **Idea clave.** WDM mete muchos canales separados décimas de nanómetro en la misma fibra, así que cada láser tiene que emitir **un solo modo** y en una λ **muy precisa y estable**. Se consigue con pozos cuánticos (para ajustar el gap), redes de Bragg (DBR, DFB) para quedarse con un modo, sintonización fina y mucho control de la temperatura y de la corriente.
 
@@ -101,6 +102,10 @@ A partir de estas causas, los tipos de ruido son:
    - **Jitter:** retardo al modular directamente cuando se pasa de dejar el láser sin potencia a volver a encenderlo. Se evita polarizando por encima del umbral.
 
 > **⚠ Revisar.** En tus apuntes aparece también el **ruido térmico** como ruido del láser. En el PDF de clase (§5.2.5) no aparece así: allí la temperatura sale como causa del salto de modos, y el ruido térmico aparece en los fotodetectores. Compruébalo con tus notas de clase.
+
+## Se conecta con
+
+<SeConecta tema="laser-monomodo" />
 
 ## Preguntas de examen
 
