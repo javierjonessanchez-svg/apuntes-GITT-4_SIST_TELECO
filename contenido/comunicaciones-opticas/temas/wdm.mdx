@@ -7,7 +7,7 @@ saber:
   - "WDM combina varias longitudes de onda portadoras en una única fibra: multiplexación en frecuencia, expresada en λ"
   - "DWDM: canales muy juntos en la ventana de 1550 nm, de 12,5 a 100 GHz según la ITU (G.694.1); 100 GHz ≈ 0,8 nm"
   - "DWDM exige láseres monomodo (DFB, DBR) con la λ controlada en fracciones de nm y la temperatura estabilizada"
-  - "CWDM: 18 canales de 1271 a 1611 nm cada 20 nm. Admite láseres sin refrigeración, tolerancias menos exigentes y filtros anchos: más barato"
+  - "CWDM: 18 canales de 1271 a 1611 nm cada 20 nm. Admite láseres Fabry-Pérot sin refrigeración, tolerancias menos exigentes y filtros anchos: más barato"
   - "Si el láser se calienta, su λ sube y puede invadir el canal vecino"
 fuentes:
   - "Apuntes de clase (Javier)"
@@ -39,15 +39,13 @@ $$
 
   Como hay que controlar las λ con fracciones de nm, los láseres tienen que ser **monomodo** (DFB, DBR): láseres que filtran la luz para quedarse con un único modo, un único pico.
 
-- **CWDM** (*Coarse WDM*): agrupación **gruesa** de canales. El plan va de **1271 a 1611 nm**, con canales cada **20 nm** (18 canales). Como están mucho más separados, admite **láseres sin refrigeración**, **tolerancias de λ menos exigentes** y **filtros anchos**, así que es **más barato**.
+- **CWDM** (*Coarse WDM*): agrupación **gruesa** de canales. El plan va de **1271 a 1611 nm**, con canales cada **20 nm** (18 canales). Como están mucho más separados, admite láseres más sencillos, como los **Fabry-Pérot**, **sin refrigeración**, **tolerancias de λ menos exigentes** y **filtros anchos**, así que es **más barato**.
 
 <PlanesWdm />
 
 Un LED no sirve para ninguno de los dos (≈ 50 nm de anchura); un Fabry-Pérot (≈ 4 nm) ocupa varios canales DWDM a la vez. Para DWDM hace falta un DFB o un DBR:
 
 <Espectros />
-
-> **⚠ Revisar.** En tus apuntes ponías que en CWDM se usan láseres «FP = Fabry-Pérot». Lo que dicen las diapositivas (T52) es que CWDM admite láseres sin refrigeración, tolerancias de λ menos exigentes y filtros anchos; comprueba con tus notas si el profesor nombró expresamente el Fabry-Pérot.
 
 ## La temperatura, enemiga del DWDM
 
@@ -71,7 +69,7 @@ Una gran ventaja de trabajar en la ventana de 1550 nm es que un solo **EDFA** am
 WDM combina varias longitudes de onda portadoras en una sola fibra (multiplexación en frecuencia, expresada en λ).
 
 - **DWDM:** canales muy juntos en la ventana de 1550 nm, de 12,5 a 100 GHz (ITU G.694.1); 100 GHz ≈ 0,8 nm. Exige láseres monomodo (DFB, DBR) con la λ controlada en fracciones de nm.
-- **CWDM:** 18 canales de 1271 a 1611 nm cada 20 nm. Admite láseres sin refrigeración, tolerancias menos exigentes y filtros anchos: más barato.
+- **CWDM:** 18 canales de 1271 a 1611 nm cada 20 nm. Admite láseres Fabry-Pérot sin refrigeración, tolerancias menos exigentes y filtros anchos: más barato.
 
 *(Respuesta redactada a partir de los apuntes.)*
 
