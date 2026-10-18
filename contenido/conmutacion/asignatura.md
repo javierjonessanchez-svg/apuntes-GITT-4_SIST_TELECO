@@ -23,4 +23,13 @@ pruebas:
     peso: "0,15"
     temas: []
     confirmar: true
+  # Prueba de laboratorio (grupo A2) y PEI: calendario oficial de la EPS
+  - fecha: "2026-11-19"
+    nombre: "Prueba de laboratorio (A2) · 17:00"
+    peso: "0,1"
+    temas: []
+  - fecha: "2026-11-24"
+    nombre: "PEI · 15:00"
+    peso: "0,3"
+    temas: []
 ---

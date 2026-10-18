@@ -9,7 +9,7 @@ saber:
   - "DBR: los espejos son redes de Bragg. DFB: la red de Bragg va a lo largo de todo el medio activo; es el más usado en DWDM"
   - "Modulación directa: barata, pero con retardo, chirp, jitter y estrés térmico. Externa: láser continuo + modulador, más cara, sin chirp y mucho más rápida"
   - "El láser nunca se apaga del todo: se polariza por encima del umbral para evitar el jitter, así que un 0 no es «cero fotones»"
-  - "Ruidos: RIN (fluctuaciones de potencia), modal y salto de modos, shot, chirp y jitter. Temperatura y corriente son las causas principales"
+  - "Ruidos: térmico, RIN (fluctuaciones de potencia), modal y salto de modos, shot, chirp y jitter. Temperatura y corriente son las causas principales"
 fuentes:
   - "Apuntes de clase (Javier)"
   - "Apuntes de Miguel"
@@ -76,14 +76,14 @@ Hay dos formas de imprimir los bits en la luz:
 | --- | --- | --- |
 | **Coste** | Barata: no hace falta ningún elemento óptico más | Hace falta un modulador externo, costoso |
 | **Problemas** | Retardo respecto al pulso eléctrico, **chirp**, algo de **jitter** y estrés térmico (el láser dura menos) | El láser no sufre: trabaja en continuo |
-| **Velocidad** | Menor | Mucho mayor (unos 100 Gbps) |
+| **Velocidad** | Menor (del orden de 1 Gbps) | Mucho mayor (unos 100 Gbps) |
 | **Uso** | Sistemas sencillos | La mayoría de los sistemas actuales |
 
 <Modulacion />
 
 En la modulación directa el láser **no se apaga del todo**: siempre se mantiene un poco **por encima de la corriente umbral** (corriente de polarización o *bias*). Si se apagara, al volver a encenderlo tardaría en arrancar (tiempo de encendido) y aparecería el jitter. Por eso un **0** en comunicaciones ópticas no es «cero fotones», sino un nivel por encima del umbral; la diferencia entre el nivel del 1 y el del 0 es lo que lleva el bit.
 
-> **⚠ Revisar.** En tus apuntes la directa daba «unos 1 Gbps», pero el material da cifras más altas: unos 25 GHz de ancho de banda con 80 mA de polarización (PDF de clase) y «modulable hasta centenas de GHz» (T22). Comprueba de dónde sale el 1 Gbps. Y donde ponías «o algo»: la relación entre la potencia del 1 y la del 0 se llama **relación de extinción** (T22 la nombra, pero no la define).
+La relación entre la potencia del 1 y la del 0 se llama **relación de extinción**.
 
 ## Ruido en los láseres
 
@@ -94,14 +94,13 @@ La mayor parte de los defectos no vienen del láser, sino de lo que le pasa desd
 
 A partir de estas causas, los tipos de ruido son:
 
-1. **Ruido de intensidad relativa (RIN):** fluctuaciones del nivel de potencia por vibraciones en la cavidad o fluctuaciones del medio activo. Valores típicos de −130 a −160 dB/Hz.
-2. **Ruido modal y salto de modos:** interferencia entre modos próximos o con reflexiones externas (se evitan con un **aislador**), y saltos de un modo a otro (*mode hopping*) por cambios de temperatura que dilatan la cavidad.
-3. **Ruido shot (de Poisson):** se debe a la naturaleza fotónica de la luz. A mayor potencia de emisión, menor ruido.
-4. **Ruido de modulación:**
+1. **Ruido térmico:** la temperatura que fluctúa hace oscilar la λ y la potencia del láser, como se ve arriba.
+2. **Ruido de intensidad relativa (RIN):** fluctuaciones del nivel de potencia por vibraciones en la cavidad o fluctuaciones del medio activo. Valores típicos de −130 a −160 dB/Hz.
+3. **Ruido modal y salto de modos:** interferencia entre modos próximos o con reflexiones externas (se evitan con un **aislador**), y saltos de un modo a otro (*mode hopping*) por cambios de temperatura que dilatan la cavidad.
+4. **Ruido shot (de Poisson):** se debe a la naturaleza fotónica de la luz. A mayor potencia de emisión, menor ruido.
+5. **Ruido de modulación:**
    - **Chirp:** al aumentar la corriente disminuye el índice de refracción de la cavidad, y el espectro se ensancha al modular directamente. Soluciones: disminuir la relación de extinción o usar modulación externa.
    - **Jitter:** retardo al modular directamente cuando se pasa de dejar el láser sin potencia a volver a encenderlo. Se evita polarizando por encima del umbral.
-
-> **⚠ Revisar.** En tus apuntes aparece también el **ruido térmico** como ruido del láser. En el PDF de clase (§5.2.5) no aparece así: allí la temperatura sale como causa del salto de modos, y el ruido térmico aparece en los fotodetectores. Compruébalo con tus notas de clase.
 
 ## Se conecta con
 
@@ -117,11 +116,9 @@ Hay dos tipos básicos:
 - **Directa:** se varía la alimentación eléctrica del propio láser para construir la señal.
 - **Externa:** el láser trabaja en régimen continuo y un elemento óptico externo (modulador) varía la intensidad de la luz.
 
-**Directa.** Ventajas: barata, sin elementos ópticos adicionales. El láser no se apaga del todo: siempre trabaja por encima del umbral para evitar el jitter. Inconvenientes: retardo de la señal respecto al pulso eléctrico, estrés térmico (el láser dura menos) y ruidos, sobre todo chirp y algo de jitter.
+**Directa.** Ventajas: barata, sin elementos ópticos adicionales. El láser no se apaga del todo: siempre trabaja por encima del umbral para evitar el jitter. Inconvenientes: retardo de la señal respecto al pulso eléctrico, estrés térmico (el láser dura menos) y ruidos, sobre todo chirp y algo de jitter. Llega a unos 1 Gbps.
 
 **Externa.** Ventajas: el láser no sufre gracias al régimen continuo, la velocidad de modulación es mucho mayor (unos 100 Gbps) y evita el chirp; por eso es la que se usa en la mayoría de los sistemas actuales. Inconveniente: hace falta un elemento externo costoso.
-
-> **⚠ Revisar.** Para la directa tenías «unos 1 Gbps»; el material habla de unos 25 GHz con 80 mA de polarización y de «centenas de GHz» en T22.
 
 </details>
 
@@ -130,10 +127,11 @@ Hay dos tipos básicos:
 
 Las causas principales son externas: la **temperatura** (dilata la cavidad, mueve la λ y ensancha las líneas; sube el umbral) y las fluctuaciones de la **corriente** (grandes cambios de potencia). Los tipos de ruido:
 
-1. **RIN** (ruido de intensidad relativa): fluctuaciones de potencia por vibraciones en la cavidad o del medio activo; de −130 a −160 dB/Hz.
-2. **Ruido modal y salto de modos:** interferencia entre modos próximos o reflexiones (se evitan con un aislador) y saltos de modo por cambios de temperatura.
-3. **Ruido shot:** por la naturaleza fotónica de la luz; baja al subir la potencia.
-4. **Ruido de modulación:** **chirp** (el índice cambia con la corriente y el espectro se ensancha; se evita con modulación externa) y **jitter** (retardo al encender; se evita polarizando por encima del umbral).
+1. **Ruido térmico:** la temperatura que fluctúa hace oscilar la λ y la potencia.
+2. **RIN** (ruido de intensidad relativa): fluctuaciones de potencia por vibraciones en la cavidad o del medio activo; de −130 a −160 dB/Hz.
+3. **Ruido modal y salto de modos:** interferencia entre modos próximos o reflexiones (se evitan con un aislador) y saltos de modo por cambios de temperatura.
+4. **Ruido shot:** por la naturaleza fotónica de la luz; baja al subir la potencia.
+5. **Ruido de modulación:** **chirp** (el índice cambia con la corriente y el espectro se ensancha; se evita con modulación externa) y **jitter** (retardo al encender; se evita polarizando por encima del umbral).
 
 </details>
 
