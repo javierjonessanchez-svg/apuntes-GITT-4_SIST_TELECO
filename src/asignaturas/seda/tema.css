@@ -63,7 +63,8 @@ html[data-asignatura="seda"] {
   --fuente-mono: 'JetBrains Mono Variable', ui-monospace, 'Cascadia Mono', Consolas, monospace;
 }
 html[data-asignatura="seda"] :is(h1, h2) { letter-spacing: -0.02em; font-weight: 750; }
-html[data-asignatura="seda"] :is(code, kbd, pre) { font-family: var(--fuente-mono); font-size: .9em; }
+/* Sin ligaduras: en C hay que ver "->" y "<<" tal cual, no flechas */
+html[data-asignatura="seda"] :is(code, kbd, pre) { font-family: var(--fuente-mono); font-size: .9em; font-variant-ligatures: none; }
 html[data-asignatura="seda"] :not(pre) > code {
   padding: .08em .35em; border-radius: 5px;
   background: color-mix(in srgb, var(--primario) 9%, var(--superficie));
@@ -104,6 +105,8 @@ html[data-asignatura="seda"] .tema-articulo pre {
 .sd-pin > a { transition-property: background-color; transition-duration: .15s; transition-timing-function: ease-out; }
 .sd-pin > a:hover { background: color-mix(in srgb, var(--primario) 6%, var(--superficie)); }
 .sd-pin > a:active { background: color-mix(in srgb, var(--primario) 11%, var(--superficie)); }
+/* La lista recorta lo que sale de ella (overflow: hidden), así que el foco se dibuja por dentro */
+.sd-pin > a:focus-visible { outline-offset: -3px; }
 .sd-pad {
   display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%;
   font-family: var(--fuente-mono); font-size: .8rem; font-weight: 700; font-variant-numeric: tabular-nums;

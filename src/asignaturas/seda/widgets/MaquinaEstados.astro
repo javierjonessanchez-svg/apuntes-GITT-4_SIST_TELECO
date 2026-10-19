@@ -44,7 +44,7 @@ const EVENTOS: Record<string, string> = {
     transition-property: box-shadow, transform, opacity; transition-duration: .15s; transition-timing-function: ease-out;
   }
   .sd-maq-evento:hover:not(:disabled) { box-shadow: inset 0 0 0 1px var(--primario); }
-  .sd-maq-evento:active:not(:disabled) { transform: scale(.97); }
+  .sd-maq-evento:active:not(:disabled) { transform: scale(.96); }
   .sd-maq-evento:disabled { opacity: .45; cursor: not-allowed; }
   .sd-maq-evento:focus-visible { outline: 2px solid var(--foco); outline-offset: 2px; }
   .sd-maq-evento.reiniciar { color: var(--suave); }
@@ -60,6 +60,7 @@ const EVENTOS: Record<string, string> = {
 
   montar('[data-maquina]', (caja) => {
     let estado = microondas.inicial;
+    let n = 0; // número de evento: el más reciente va arriba, pero con su número real
     const registro = caja.querySelector<HTMLElement>('[data-registro]')!;
     const nombre = caja.querySelector<HTMLElement>('[data-nombre-estado]')!;
     const botones = [...caja.querySelectorAll<HTMLButtonElement>('[data-evento]')].filter((b) => b.tagName === 'BUTTON');
@@ -78,6 +79,7 @@ const EVENTOS: Record<string, string> = {
         const r = paso(microondas, estado, b.dataset.evento!);
         estado = r.estado;
         const li = document.createElement('li');
+        li.value = ++n;
         li.textContent = `${b.dataset.evento}: ${r.acciones.join(' → ') || 'sin acciones'}`;
         registro.prepend(li);
         while (registro.children.length > 5) registro.lastElementChild!.remove();
@@ -86,6 +88,7 @@ const EVENTOS: Record<string, string> = {
     }
     caja.querySelector('[data-reiniciar]')!.addEventListener('click', () => {
       estado = microondas.inicial;
+      n = 0;
       registro.replaceChildren();
       pintar();
     });

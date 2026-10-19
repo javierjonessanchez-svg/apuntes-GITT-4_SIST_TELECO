@@ -155,7 +155,7 @@ Salen **hasta 4 señales** por timer. Hay que mirar en IR **qué Match ha interr
 **Límite de frecuencia.** Entre dos conmutaciones tiene que dar tiempo a entrar en la ISR y ejecutarla. Si en el peor caso coinciden dos señales:
 
 $$
-2\cdot(t_{latencia} + t_{ejecución}) \le \frac{T_{out}}{2}
+2\cdot(t_{\text{latencia}} + t_{\text{ejecución}}) \le \frac{T_{out}}{2}
 $$
 
 De ahí sale $F_{max}$. Además, cuanto más alta la frecuencia, más tiempo de CPU se come la ISR.
