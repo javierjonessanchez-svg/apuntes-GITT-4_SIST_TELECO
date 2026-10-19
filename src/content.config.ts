@@ -3,6 +3,7 @@
 import { defineCollection } from 'astro:content';
 import { glob } from 'astro/loaders';
 import { z } from 'astro/zod';
+import { esquemaExamen } from './comun/examen';
 
 // Una asignatura por carpeta: contenido/<slug>/asignatura.md
 const asignaturas = defineCollection({
@@ -52,4 +53,10 @@ const temas = defineCollection({
   }),
 });
 
-export const collections = { asignaturas, temas };
+// Modo examen (opcional): contenido/<slug>/examen.yaml con fórmulas y flujos
+const examenes = defineCollection({
+  loader: glob({ base: './contenido', pattern: '*/examen.yaml' }),
+  schema: esquemaExamen,
+});
+
+export const collections = { asignaturas, temas, examenes };

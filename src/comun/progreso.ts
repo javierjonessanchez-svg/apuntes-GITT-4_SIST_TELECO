@@ -6,6 +6,7 @@
 //   gitt-<asig>-<tema>         nivel del tema: 0 nada, 1 leído, 2 repasado, 3 dominado
 //   gitt-<asig>-<tema>-saber   checklist "Lo que tienes que saber": JSON boolean[]
 //   gitt-<asig>-tarjetas       notas de las tarjetas: JSON { pregunta: 0|1|2 }
+//   gitt-<asig>-examen         marcas del modo examen: JSON { id: { mano: bool, matlab: bool } }
 //   gitt-importado-cx          '1' cuando ya se ofreció traer el avance antiguo
 //   gitt-tema                  'claro' u 'oscuro' (sin clave: lo que diga el sistema)
 //
@@ -37,6 +38,9 @@ const MAPA_CX: Record<string, string> = {
   trafico: 'trafico-colas',
   problemas: 'problemas-guiados',
 };
+
+/** Marca de una fórmula en el modo examen. */
+export interface MarcaExamen { mano: boolean; matlab: boolean }
 
 export function crearProgreso(almacen: Storage | null) {
   function leer(clave: string): string | null {
@@ -95,6 +99,18 @@ export function crearProgreso(almacen: Storage | null) {
     escribir(`gitt-${asig}-tarjetas`, JSON.stringify({ ...tarjetas(asig), [pregunta]: valor }));
   }
 
+  /** Marcas del modo examen: por cada fórmula, si ya sale «a mano» y «en MATLAB». */
+  function examen(asig: string): Record<string, MarcaExamen> {
+    const e = leerJson<unknown>(`gitt-${asig}-examen`, {});
+    return e && typeof e === 'object' && !Array.isArray(e) ? (e as Record<string, MarcaExamen>) : {};
+  }
+
+  function marcarExamen(asig: string, id: string, campo: keyof MarcaExamen, valor: boolean): void {
+    const todas = examen(asig);
+    const marca = { mano: todas[id]?.mano === true, matlab: todas[id]?.matlab === true, [campo]: valor };
+    escribir(`gitt-${asig}-examen`, JSON.stringify({ ...todas, [id]: marca }));
+  }
+
   // Lista de temas antiguos ya traducida a los nuevos; ignora lo que no se entienda
   function temasCx(clave: string): string[] {
     const lista = leerJson<unknown>(clave, []);
@@ -151,7 +167,7 @@ export function crearProgreso(almacen: Storage | null) {
     escribir('gitt-tema', t);
   }
 
-  return { disponible, nivel, marcar, checklist, marcarSaber, tarjetas, guardarTarjeta, cxPendiente, importarCx, rechazarCx, tema, guardarTema };
+  return { disponible, nivel, marcar, checklist, marcarSaber, tarjetas, guardarTarjeta, examen, marcarExamen, cxPendiente, importarCx, rechazarCx, tema, guardarTema };
 }
 
 export type Progreso = ReturnType<typeof crearProgreso>;

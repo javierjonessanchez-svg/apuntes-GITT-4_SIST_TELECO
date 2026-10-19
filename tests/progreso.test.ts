@@ -172,3 +172,36 @@ describe('tema claro/oscuro', () => {
     expect(crearProgreso(almacenFalso({ 'gitt-tema': 'rosa' })).tema()).toBeNull();
   });
 });
+
+// Marcas del modo examen: { id: { mano, matlab } } por asignatura
+describe('modo examen', () => {
+  test('guardar una marca y leerla', () => {
+    const p = crearProgreso(almacenFalso());
+    p.marcarExamen('radiacion-radiocomunicacion', 'pire', 'mano', true);
+    expect(p.examen('radiacion-radiocomunicacion')).toEqual({ pire: { mano: true, matlab: false } });
+  });
+  test('marcar un campo conserva el otro', () => {
+    const p = crearProgreso(almacenFalso());
+    p.marcarExamen('radiacion-radiocomunicacion', 'pire', 'matlab', true);
+    p.marcarExamen('radiacion-radiocomunicacion', 'pire', 'mano', true);
+    p.marcarExamen('radiacion-radiocomunicacion', 'pire', 'mano', false);
+    expect(p.examen('radiacion-radiocomunicacion').pire).toEqual({ mano: false, matlab: true });
+  });
+  test('se guarda en gitt-<asig>-examen', () => {
+    const a = almacenFalso();
+    crearProgreso(a).marcarExamen('radiacion-radiocomunicacion', 'prx', 'matlab', true);
+    expect(JSON.parse(a.getItem('gitt-radiacion-radiocomunicacion-examen')!)).toEqual({ prx: { mano: false, matlab: true } });
+  });
+  test('JSON roto o con otra forma da {}', () => {
+    expect(crearProgreso(almacenFalso({ 'gitt-x-examen': '{roto' })).examen('x')).toEqual({});
+    expect(crearProgreso(almacenFalso({ 'gitt-x-examen': '[1,2]' })).examen('x')).toEqual({});
+  });
+  test('sin almacén: {} y marcar no lanza', () => {
+    const p = crearProgreso(null);
+    expect(p.examen('x')).toEqual({});
+    expect(() => p.marcarExamen('x', 'pire', 'mano', true)).not.toThrow();
+  });
+  test('almacén bloqueado: marcar no lanza', () => {
+    expect(() => crearProgreso(almacenBloqueado()).marcarExamen('x', 'pire', 'mano', true)).not.toThrow();
+  });
+});

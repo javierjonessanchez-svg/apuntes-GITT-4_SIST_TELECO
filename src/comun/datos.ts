@@ -1,6 +1,7 @@
 // Acceso a las asignaturas y temas de contenido/, ya ordenados y validados.
 // validarPruebas es pura (se prueba sin Astro); las demás leen las colecciones.
 import type { CollectionEntry } from 'astro:content';
+import { validarExamen, type Examen } from './examen';
 
 export type Prueba = {
   fecha: string;
@@ -90,4 +91,14 @@ export async function asignaturasOrdenadas(): Promise<Asignatura[]> {
 /** Los temas de una asignatura, por su campo "orden". */
 export async function temasDe(slug: string): Promise<Tema[]> {
   return (await todosLosTemas()).filter((t) => t.asignatura === slug).sort((x, y) => x.orden - y.orden);
+}
+
+/** Datos del modo examen de una asignatura (contenido/<slug>/examen.yaml), o undefined si no tiene. */
+export async function examenDe(slug: string): Promise<Examen | undefined> {
+  const { getCollection } = await import('astro:content');
+  // El id del cargador glob es "<slug>/examen"
+  const entrada = (await getCollection('examenes')).find((e) => e.id.split('/')[0] === slug);
+  if (!entrada) return undefined;
+  validarExamen(entrada.data, entrada.filePath ?? `contenido/${entrada.id}.yaml`);
+  return entrada.data;
 }

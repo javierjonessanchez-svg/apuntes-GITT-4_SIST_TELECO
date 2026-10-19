@@ -1,0 +1,103 @@
+---
+// Modo examen de una asignatura: flujos por tipo de problema (cada paso apunta a
+// una fórmula) y la lista de todas las fórmulas con las marcas «a mano» / «en MATLAB».
+// Lógica en cliente/examen.ts (atributos data-*); estilos en modo-examen.css.
+import './modo-examen.css';
+import { formula } from '../widgets/mates';
+import { enlace, porTema, type Examen, type Formula } from './examen';
+import type { Asignatura } from './datos';
+
+interface Props { asignatura: Asignatura; examen: Examen }
+const { asignatura, examen } = Astro.props;
+const porId = new Map(examen.formulas.map((f) => [f.id, f]));
+const grupos = porTema(examen.formulas);
+const pruebas = [...new Set(examen.formulas.map((f) => f.prueba))].sort();
+const total = examen.formulas.length;
+// Pruebas que toca cada flujo (para el filtro)
+const pruebasDe = (pasos: { formula: string }[]) => [...new Set(pasos.map((p) => porId.get(p.formula)!.prueba))].join(' ');
+const codigo = (f: Formula) => ({ funcion: f.funcion, llamada: f.llamada, href: enlace(examen, f) });
+---
+<div class="envoltura examen" data-modo-examen data-asig={asignatura.slug}>
+  <header class="examen-cabecera">
+    <p class="examen-asig">{asignatura.nombre}</p>
+    <h1>Modo examen</h1>
+    <p class="entradilla">Arriba, cada tipo de problema con sus pasos en orden. Abajo, todas las fórmulas con su función de MATLAB: márcalas cuando te salgan a mano y en MATLAB.</p>
+    <div class="examen-barra">
+      <p class="examen-resumen" aria-live="polite">
+        <b data-cuenta="mano">0</b>/<span data-total>{total}</span> a mano · <b data-cuenta="matlab">0</b>/<span data-total>{total}</span> en MATLAB
+      </p>
+      {pruebas.length > 1 && (
+        <div class="examen-filtro" role="group" aria-label="Filtrar por prueba">
+          <button type="button" class="chip" data-filtro="" aria-pressed="true">Todas</button>
+          {pruebas.map((p) => <button type="button" class="chip" data-filtro={p} aria-pressed="false">{p}</button>)}
+        </div>
+      )}
+    </div>
+    <p class="examen-nota" role="status" data-nota hidden>Tu navegador no deja guardar el avance; las marcas se pierden al cerrar.</p>
+  </header>
+
+  <section aria-labelledby="flujos-titulo">
+    <h2 id="flujos-titulo">Flujos por tipo de problema</h2>
+    <div class="flujos">
+      {examen.flujos.map((fl) => (
+        <details class="panel flujo" data-flujo data-pruebas={pruebasDe(fl.pasos)}>
+          <summary>
+            <span class="flujo-titulo">{fl.titulo}</span>
+            <span class="flujo-cuando">Cuando el enunciado dice: {fl.cuando}</span>
+          </summary>
+          {fl.plantilla && (
+            <p class="codigo flujo-plantilla">Plantilla: <code class="codigo-funcion">{fl.plantilla.split('/').pop()}</code> <a class="ver-codigo" href={examen.repo + fl.plantilla} target="_blank" rel="noopener">ver código <span aria-hidden="true">↗</span><span class="sr"> (se abre en otra pestaña)</span></a></p>
+          )}
+          <ol class="flujo-pasos">
+            {fl.pasos.map((p) => {
+              const f = porId.get(p.formula)!;
+              const c = codigo(f);
+              return (
+                <li class="paso">
+                  <a class="paso-nombre" href={`#f-${f.id}`}>{f.nombre}</a>
+                  <div class="examen-tex" set:html={formula(f.tex, true)} />
+                  {p.nota && <p class="paso-nota">{p.nota}</p>}
+                  <p class="codigo"><code class="codigo-funcion">{c.funcion}</code> <a class="ver-codigo" href={c.href} target="_blank" rel="noopener">ver código <span aria-hidden="true">↗</span><span class="sr"> (se abre en otra pestaña)</span></a></p>
+                  <div class="llamada"><code>{c.llamada}</code><button type="button" class="boton-copiar" data-copiar aria-label={`Copiar la llamada a ${c.funcion}`}>Copiar</button></div>
+                </li>
+              );
+            })}
+          </ol>
+        </details>
+      ))}
+    </div>
+  </section>
+
+  <section aria-labelledby="formulas-titulo">
+    <h2 id="formulas-titulo">Todas las fórmulas</h2>
+    {grupos.map((g, i) => (
+      <section class="examen-tema" aria-labelledby={`tema-${i}`} data-grupo-tema>
+        <h3 id={`tema-${i}`}>{g.tema}</h3>
+        <ul class="formulas">
+          {g.formulas.map((f) => {
+            const c = codigo(f);
+            return (
+              <li class="panel formula" id={`f-${f.id}`} data-formula={f.id} data-prueba={f.prueba}>
+                <div class="formula-cabeza">
+                  <h4>{f.nombre}</h4>
+                  <span class="formula-prueba">{f.prueba}</span>
+                </div>
+                <div class="examen-tex" set:html={formula(f.tex, true)} />
+                {f.notas && <p class="formula-notas"><b>Ojo:</b> {f.notas}</p>}
+                <p class="codigo"><code class="codigo-funcion">{c.funcion}</code> <a class="ver-codigo" href={c.href} target="_blank" rel="noopener">ver código <span aria-hidden="true">↗</span><span class="sr"> (se abre en otra pestaña)</span></a></p>
+                <div class="llamada"><code>{c.llamada}</code><button type="button" class="boton-copiar" data-copiar aria-label={`Copiar la llamada a ${c.funcion}`}>Copiar</button></div>
+                <div class="formula-marcas">
+                  <label class="marca"><input type="checkbox" data-id={f.id} data-campo="mano" /><span><span class="sr">{f.nombre}: </span>a mano</span></label>
+                  <label class="marca"><input type="checkbox" data-id={f.id} data-campo="matlab" /><span><span class="sr">{f.nombre}: </span>en MATLAB</span></label>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      </section>
+    ))}
+  </section>
+</div>
+<script>
+  import './cliente/examen';
+</script>

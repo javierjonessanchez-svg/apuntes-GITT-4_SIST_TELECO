@@ -67,7 +67,7 @@ kbd { font: inherit; font-size: .85em; font-weight: 700; padding: 1px 6px; borde
 /* Toda la tarjeta es clicable; el nombre accesible es el de la asignatura */
 .tarjeta h3 a::after { content: ""; position: absolute; inset: 0; border-radius: inherit; }
 .tarjeta h3 a:focus-visible { outline: none; }
-.tarjeta:has(a:focus-visible) { outline: 3px solid var(--acento); outline-offset: 2px; }
+.tarjeta:has(h3 a:focus-visible) { outline: 3px solid var(--acento); outline-offset: 2px; }
 .tarjeta.activa { transition-property: translate; transition-duration: .15s; transition-timing-function: ease-out; }
 .tarjeta.activa:hover { translate: 0 -2px; }
 .tarjeta p { margin: 0; }
@@ -77,6 +77,15 @@ kbd { font: inherit; font-size: .85em; font-weight: 700; padding: 1px 6px; borde
 .tarjeta-barra-pista i { display: block; height: 100%; width: 100%; background: var(--primario); transform-origin: left; transform: scaleX(var(--p, 0)); transition-property: transform; transition-duration: .4s; transition-timing-function: cubic-bezier(.2, 0, 0, 1); }
 .tarjeta-barra small { color: var(--suave); font-variant-numeric: tabular-nums; }
 .tarjeta-accion { margin-top: auto; font-weight: 700; }
+/* Enlace al modo examen: por encima del enlace que cubre la tarjeta activa */
+.tarjeta-examen {
+  position: relative; z-index: 1; align-self: flex-start; display: inline-flex; align-items: center; gap: 6px;
+  min-height: 44px; padding: 0 16px; border-radius: 10px; font-weight: 700; text-decoration: none;
+  background: var(--superficie); color: var(--texto); box-shadow: inset 0 0 0 1.5px var(--primario);
+  transition-property: background-color, scale; transition-duration: .15s; transition-timing-function: ease-out;
+}
+.tarjeta-examen:hover { background: color-mix(in srgb, var(--primario) 10%, var(--superficie)); }
+.tarjeta-examen:active { scale: .96; }
 .tarjeta-etiqueta { margin-top: auto; align-self: flex-start; padding: 4px 10px; border-radius: 999px; box-shadow: inset 0 0 0 1px var(--linea); color: var(--suave); font-size: .9rem; font-weight: 600; }
 .tarjeta:not(.activa) { background: transparent; box-shadow: inset 0 0 0 1px var(--linea); }
 .aviso { margin: 16px 0 0; color: var(--suave); }
