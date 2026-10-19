@@ -55,15 +55,18 @@ describe('toda la web', () => {
   test('las asignaturas pendientes no tienen páginas', () => {
     expect(existsSync(join(DIST, 'seda'))).toBe(false);
   });
-  test('una pendiente con examen.yaml solo tiene el modo examen (ni portada ni temas)', () => {
-    expect(readdirSync(join(DIST, 'radiacion-radiocomunicacion'))).toEqual(['examen']);
+  test('una pendiente con examen.yaml solo tiene el modo examen y una portada que lleva a él', () => {
+    expect(readdirSync(join(DIST, 'radiacion-radiocomunicacion')).sort()).toEqual(['examen', 'index.html']);
+    const html = pagina('radiacion-radiocomunicacion/index.html');
+    expect(html).toMatch(new RegExp(`<meta http-equiv="refresh" content="0; url=${BASE}radiacion-radiocomunicacion/examen/"`));
+    expect(html).toContain(`href="${BASE}radiacion-radiocomunicacion/examen/"`);
   });
 });
 
 describe('selector de asignaturas', () => {
   const html = pagina('conmutacion/capa-enlace/index.html');
   test('las pendientes no son enlaces y dicen "En preparación"', () => {
-    for (const slug of ['radiacion-radiocomunicacion', 'circuitos-comunicacion', 'seda']) {
+    for (const slug of ['circuitos-comunicacion', 'seda']) {
       expect(html).not.toMatch(new RegExp(`<a[^>]*data-chip="${slug}"`));
       const chip = new RegExp(`data-chip="${slug}"[^>]*>(.*?)</span>\\s*</span>`, 's').exec(html);
       expect(chip?.[1]).toContain('En preparación');
@@ -72,6 +75,9 @@ describe('selector de asignaturas', () => {
   test('las activas son enlaces a su portada', () => {
     expect(html).toMatch(new RegExp(`<a[^>]*href="${BASE}conmutacion/"[^>]*data-chip="conmutacion"`));
     expect(html).toMatch(new RegExp(`<a[^>]*href="${BASE}comunicaciones-opticas/"[^>]*data-chip="comunicaciones-opticas"`));
+  });
+  test('una pendiente con modo examen enlaza a él', () => {
+    expect(html).toMatch(new RegExp(`<a[^>]*href="${BASE}radiacion-radiocomunicacion/examen/"[^>]*data-chip="radiacion-radiocomunicacion"`));
   });
 });
 
@@ -113,13 +119,20 @@ describe('portada', () => {
   test('cinco tarjetas de asignatura', () => {
     expect(tarjetas.map((t) => t[1])).toHaveLength(5);
   });
-  test('un enlace por tarjeta activa y ninguno en las pendientes', () => {
+  test('un enlace por tarjeta activa y ninguno en las pendientes sin modo examen', () => {
     for (const [, slug, estado, dentro] of tarjetas) {
+      if (slug === 'radiacion-radiocomunicacion') continue;
       // El enlace al modo examen va aparte (lo comprueba comprobar-hub.mjs, punto 10)
       const enlaces = dentro.match(/<a\s(?![^>]*class="tarjeta-examen")/g) ?? [];
       expect(enlaces.length, slug).toBe(estado === 'activa' ? 1 : 0);
       if (estado !== 'activa') expect(dentro, slug).toContain('En preparación');
     }
+  });
+  test('la tarjeta de una pendiente con modo examen es un solo enlace, al modo examen', () => {
+    const dentro = tarjetas.find((t) => t[1] === 'radiacion-radiocomunicacion')![3];
+    expect(dentro.match(/<a\s/g)).toHaveLength(1);
+    expect(dentro).toContain(`href="${BASE}radiacion-radiocomunicacion/examen/"`);
+    expect(dentro).toContain('en preparación');
   });
   test('cada prueba de la línea de tiempo tiene una data-fecha válida', () => {
     const linea = /<section[^>]*data-linea-tiempo[^>]*>(.*?)<\/section>/s.exec(html)?.[1] ?? '';

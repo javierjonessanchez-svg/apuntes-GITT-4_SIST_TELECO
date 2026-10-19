@@ -1,21 +1,43 @@
 ---
 // Portada de cada asignatura activa, dibujada por su mundo.
+// Una asignatura pendiente con modo examen aún no tiene portada: su dirección
+// lleva directamente al modo examen hasta que tenga apuntes.
 import BaseLayout from '../../comun/BaseLayout.astro';
-import { asignaturasOrdenadas, temasDe, type Asignatura } from '../../comun/datos';
+import { asignaturasOrdenadas, examenDe, temasDe, type Asignatura } from '../../comun/datos';
 import { mundoDe } from '../../asignaturas/registro';
+import { ruta } from '../../comun/rutas';
 
 export async function getStaticPaths() {
-  return (await asignaturasOrdenadas())
-    .filter((a) => a.estado === 'activa')
-    .map((a) => ({ params: { asignatura: a.slug }, props: { asignatura: a } }));
+  const rutas: { params: { asignatura: string }; props: { asignatura: Asignatura; aExamen: boolean } }[] = [];
+  for (const a of await asignaturasOrdenadas()) {
+    if (a.estado === 'activa') rutas.push({ params: { asignatura: a.slug }, props: { asignatura: a, aExamen: false } });
+    else if (await examenDe(a.slug)) rutas.push({ params: { asignatura: a.slug }, props: { asignatura: a, aExamen: true } });
+  }
+  return rutas;
 }
 
-const { asignatura } = Astro.props as { asignatura: Asignatura };
-const temas = await temasDe(asignatura.slug);
+const { asignatura, aExamen } = Astro.props;
+const temas = aExamen ? [] : await temasDe(asignatura.slug);
 const { Portada } = mundoDe(asignatura.slug);
+const examen = ruta(asignatura.slug, 'examen');
 ---
-<BaseLayout titulo={asignatura.nombre} asignatura={asignatura.slug} descripcion={asignatura.descripcion}>
-  <main id="contenido">
-    <Portada asignatura={asignatura} temas={temas} />
-  </main>
-</BaseLayout>
+{aExamen ? (
+  <html lang="es">
+    <head>
+      <meta charset="utf-8" />
+      <meta name="viewport" content="width=device-width,initial-scale=1" />
+      <title>{asignatura.nombre} · Modo examen · Apuntes GITT 4º</title>
+      <meta http-equiv="refresh" content={`0; url=${examen}`} />
+      <meta name="robots" content="noindex" />
+    </head>
+    <body>
+      <p>Los apuntes de {asignatura.nombre} están en preparación. <a href={examen}>Ir al modo examen</a>.</p>
+    </body>
+  </html>
+) : (
+  <BaseLayout titulo={asignatura.nombre} asignatura={asignatura.slug} descripcion={asignatura.descripcion}>
+    <main id="contenido">
+      <Portada asignatura={asignatura} temas={temas} />
+    </main>
+  </BaseLayout>
+)}

@@ -1,8 +1,8 @@
 ---
 // Tarjeta de una asignatura en la portada: un anticipo de su mundo (el avance de
 // cada tema dibujado a su manera) y una barra con los temas dominados.
-// Activa: toda la tarjeta lleva a la asignatura. En preparación: no es enlace.
-// Con examen.yaml (activa o no): además, un enlace al modo examen.
+// Activa: toda la tarjeta lleva a la asignatura (y, si tiene examen.yaml, un botón al modo examen).
+// En preparación con examen.yaml: toda la tarjeta lleva al modo examen. Sin él: no es enlace.
 import { mundoDe } from '../registro';
 import { ruta } from '../../comun/rutas';
 import type { Asignatura, Tema } from '../../comun/datos';
@@ -11,9 +11,11 @@ interface Props { asignatura: Asignatura; temas: Tema[]; examen: boolean }
 const { asignatura: a, temas, examen } = Astro.props;
 const { Avance } = mundoDe(a.slug);
 const activa = a.estado === 'activa';
+const soloExamen = !activa && examen;
+const destino = activa ? ruta(a.slug) : soloExamen ? ruta(a.slug, 'examen') : undefined;
 ---
-<li class:list={['tarjeta', { activa }]} data-tarjeta={a.slug} data-estado={a.estado} data-asignatura={a.slug}>
-  <h3>{activa ? <a href={ruta(a.slug)}>{a.nombre}</a> : a.nombre}</h3>
+<li class:list={['tarjeta', { activa: Boolean(destino) }]} data-tarjeta={a.slug} data-estado={a.estado} data-asignatura={a.slug}>
+  <h3>{destino ? <a href={destino}>{a.nombre}</a> : a.nombre}</h3>
   <p>{a.descripcion}</p>
   {activa && temas.length > 0 && (
     <>
@@ -28,6 +30,9 @@ const activa = a.estado === 'activa';
     </>
   )}
   {a.nota && <p class="tarjeta-nota">{a.nota}</p>}
-  {examen && <a class="tarjeta-examen" href={ruta(a.slug, 'examen')}>Modo examen <span aria-hidden="true">→</span></a>}
-  {activa ? <span class="tarjeta-accion" aria-hidden="true">Abrir →</span> : <span class="tarjeta-etiqueta">En preparación</span>}
+  {soloExamen && <p class="tarjeta-nota">Apuntes en preparación; ya puedes repasar con el modo examen.</p>}
+  {activa && examen && <a class="tarjeta-examen" href={ruta(a.slug, 'examen')}>Modo examen <span aria-hidden="true">→</span></a>}
+  {activa ? <span class="tarjeta-accion" aria-hidden="true">Abrir →</span>
+    : soloExamen ? <span class="tarjeta-accion" aria-hidden="true">Modo examen →</span>
+    : <span class="tarjeta-etiqueta">En preparación</span>}
 </li>
