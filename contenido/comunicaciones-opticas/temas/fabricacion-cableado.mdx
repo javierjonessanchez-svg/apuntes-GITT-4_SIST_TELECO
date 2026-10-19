@@ -1,0 +1,141 @@
+---
+titulo: "Fabricación y cableado"
+orden: 5
+bloque: "Fibra"
+resumen: "Preforma, estirado, tipos ITU de fibra, cableado, tendido y OTDR"
+saber:
+  - "Preforma: un cilindro de vidrio cuya sección es la de la fibra ampliada a escala. Hoy se hace por deposición en fase vapor: OVD (por fuera de una varilla), IVD (dentro de un tubo: MCVD y PCVD) y VAD (crecimiento axial)"
+  - "Los dopantes entran como cloruros (SiCl₄, GeCl₄…) que con oxígeno pasan a óxidos; la preforma se lava con cloro para quitar el agua"
+  - "Estirado: la preforma en vertical, el extremo calentado a ≈ 2000 °C; la velocidad fija el diámetro. Justo después se recubre y se bobina"
+  - "Tipos ITU: G.651 multimodo, G.652 monomodo estándar, G.653 dispersión desplazada, G.655 dispersión desplazada no nula, G.657 insensible a curvaturas"
+  - "Cableado holgado: las fibras van sueltas en tubos con gel antihumedad, formando una ligera sinusoide (sobrelongitud), con elemento resistente central y cubierta de polietileno"
+  - "OTDR: mide la luz retrodispersada (Rayleigh) y las reflexiones de Fresnel. Da los dB/km, las pérdidas de empalmes y conectores, roturas y el fin de la fibra; la distancia sale de d = v·t/2"
+fuentes:
+  - "T13 – Fabricación y cableado de fibras ópticas"
+  - "Apuntes de Miguel"
+test:
+  - p: "¿Qué es la preforma?"
+    o: ["Un cilindro de vidrio cuya sección es la de la fibra ampliada a escala", "El molde de plástico del cable", "La bobina donde se enrolla la fibra", "El recubrimiento acrílico"]
+    c: 0
+    e: "Después se estira hasta el diámetro de la fibra."
+  - p: "En el método MCVD, ¿dónde se depositan los vapores?"
+    o: ["En el interior de un tubo de cuarzo que gira", "Sobre el exterior de una varilla", "En el extremo de una varilla que crece en axial", "En el exterior del cable"]
+    c: 0
+    e: "Es un método IVD: el tubo hará de recubrimiento y lo depositado, de núcleo. OVD deposita por fuera; VAD, en el extremo."
+  - p: "¿Para qué se lava la preforma con cloro?"
+    o: ["Para eliminar el agua, que absorbe en 1383 nm", "Para subir el índice del núcleo", "Para colorear la fibra", "Para endurecer el vidrio"]
+    c: 0
+    e: "El agua (OH⁻) es uno de los contaminantes que más atenúan."
+  - p: "¿Qué fija el diámetro de la fibra durante el estirado?"
+    o: ["La velocidad de estirado", "El color del recubrimiento", "La longitud de la preforma", "La λ de trabajo"]
+    c: 0
+    e: "La preforma se calienta a ≈ 2000 °C y se estira; el diámetro se controla con la velocidad."
+  - p: "¿Qué recomendación ITU corresponde a la fibra de dispersión desplazada no nula?"
+    o: ["G.655", "G.652", "G.651", "G.657"]
+    c: 0
+    e: "G.652 es la monomodo estándar; G.653, la de dispersión desplazada; G.657, la insensible a curvaturas."
+  - p: "¿Por qué las fibras van holgadas dentro del cable?"
+    o: ["Para que, si el cable se estira, no tire de la fibra", "Para que la luz vaya más rápido", "Para reducir la dispersión", "Para que el cable pese menos"]
+    c: 0
+    e: "Forman una ligera sinusoide dentro del tubo: es la sobrelongitud (extra-length)."
+  - p: "En una traza de OTDR, ¿qué indica la pendiente?"
+    o: ["La atenuación de la fibra (dB/km)", "La dispersión", "La potencia del láser", "La temperatura"]
+    c: 0
+    e: "Los picos son reflexiones de Fresnel (conectores, fin de fibra) y los escalones, pérdidas de empalmes."
+---
+
+import TrazaOtdr from '../../../src/asignaturas/comunicaciones-opticas/widgets/TrazaOtdr.astro';
+import SeConecta from '../../../src/asignaturas/comunicaciones-opticas/SeConecta.astro';
+import Practica from '../../../src/asignaturas/comunicaciones-opticas/Practica.astro';
+
+**Idea clave.** La fibra se fabrica en dos pasos: una **preforma** (un cilindro de vidrio que es la sección de la fibra a escala) y su **estirado**. Después se protege dentro de un **cable**, se tiende y se comprueba con un **OTDR**.
+
+## La preforma
+
+Es un **cilindro o varilla de vidrio** cuya sección es una **ampliación a escala** de la sección que tendrá la fibra: núcleo y recubrimiento, con sus índices.
+
+Los primeros métodos fundían vidrios (una varilla de núcleo dentro de un tubo de recubrimiento), pero las imperfecciones en la frontera entre los dos atenuaban mucho. Hoy se usa la **deposición de vidrio a partir de una fase gaseosa**:
+
+- **OVD** (*Outside Vapor Deposition*): los vapores se depositan sobre la **superficie externa** de una varilla que gira.
+- **IVD** (*Inside Vapor Deposition*): se depositan en el **interior de un tubo** de cuarzo que gira. El tubo será el recubrimiento, y lo depositado, el núcleo. Hay dos variantes: **MCVD**, calentando el tubo por fuera con un quemador, y **PCVD**, con un plasma generado por microondas, que permite más de 1000 capas finas y un perfil de índice muy exacto.
+- **VAD** (*Vapor Axial Deposition*): la varilla **crece a lo largo de su eje** al depositar los vapores en su extremo.
+
+Los dopantes entran como **cloruros** (SiCl₄, GeCl₄…); con oxígeno se convierten en **óxidos**, que se depositan capa a capa. Durante el proceso la preforma se **lava con cloro** para quitar el agua (tema 2).
+
+## El estirado
+
+- La preforma se coloca en **vertical** y su extremo inferior se calienta hasta unos **2000 °C**, para que tenga la viscosidad justa: el vidrio cae como la miel.
+- La **velocidad de estirado** se ajusta para que el diámetro de la fibra quede dentro de tolerancias.
+- Justo después se aplica el **recubrimiento** de plástico y se **bobina** en un tambor.
+
+## Tipos comerciales (ITU-T)
+
+| Recomendación | Fibra |
+|---|---|
+| G.651 | Multimodo de índice gradual, 50/125 µm |
+| G.652 | Monomodo estándar (la G.652.D, sin pico de agua) |
+| G.653 | Monomodo de dispersión desplazada |
+| G.655 | Monomodo de dispersión desplazada no nula |
+| G.657 | Monomodo insensible a curvaturas (red de acceso) |
+
+## Cableado y tendido
+
+<Practica n={2} nombre="Empalmes por fusión" />
+
+La fibra se protege con una cubierta; se fabrica de forma parecida a los cables de cobre. Hoy se usa sobre todo el **recubrimiento holgado**: las fibras van **sueltas dentro de tubos**, formando una ligera **sinusoide** (sobrelongitud o *extra-length*), para que si el cable se estira no tire de ellas. Un cable típico lleva:
+
+- **Elemento resistente central.**
+- **Fibras coloreadas** dentro de **tubos holgados rellenos de compuesto antihumedad.**
+- **Protección** frente al exterior: hilaturas de **aramida** (cables aéreos) o una cinta corrugada de **acero** (cables enterrados).
+- **Cubiertas de polietileno.**
+
+Al tenderlo hay que respetar la **tracción máxima** y el **radio de curvatura mínimo** del cable (si no, macrocurvaturas), tender la mayor longitud posible **sin empalmes**, dejar **reserva de cable** en los puntos de empalme y evitar puntos de **presión** sobre el cable.
+
+## El OTDR
+
+<Practica n={3} nombre="OTDR" />
+
+El **OTDR** (reflectómetro óptico en el dominio del tiempo) caracteriza una fibra instalada: manda pulsos de luz y representa la **potencia que vuelve frente a la distancia**. Se basa en dos fenómenos:
+
+- **Esparcimiento Rayleigh:** a lo largo de toda la fibra, una pequeña parte de la luz vuelve hacia atrás (retrodispersión). Da la **pendiente** de la traza.
+- **Reflexiones de Fresnel:** en las discontinuidades (cambio brusco del índice: conectores, roturas, el final de la fibra) aparece un **pico**.
+
+Con la traza se mide el **coeficiente de atenuación** (dB/km), las **pérdidas de empalmes y conectores**, y se **localizan roturas** y el **fin de la fibra**. La distancia sale del tiempo de ida y vuelta: $d = v \cdot t / 2$, con $v = c/n$.
+
+<TrazaOtdr />
+
+Justo después de cada reflexión fuerte el detector tarda en recuperarse: es la **zona muerta**, donde no se distinguen eventos. Con pulsos más anchos el OTDR llega más lejos, pero con menos resolución.
+
+## Se conecta con
+
+<SeConecta tema="fabricacion-cableado" />
+
+## Preguntas de examen
+
+<details>
+<summary>¿Qué es una preforma y qué métodos hay para fabricarla?</summary>
+
+Es un cilindro de vidrio cuya sección es la de la fibra ampliada a escala. Hoy se fabrica por **deposición en fase vapor**: **OVD** (los vapores se depositan sobre el exterior de una varilla que gira), **IVD** (en el interior de un tubo de cuarzo que gira: **MCVD** con quemador y **PCVD** con plasma de microondas) y **VAD** (la varilla crece en dirección axial). Los dopantes entran como cloruros que, con oxígeno, se convierten en óxidos; la preforma se lava con cloro para eliminar el agua. *(Respuesta redactada a partir de las diapositivas T13.)*
+
+</details>
+
+<details>
+<summary>¿Cómo se estira la fibra a partir de la preforma?</summary>
+
+La preforma se coloca en vertical y su extremo inferior se calienta hasta ≈ 2000 °C. La velocidad de estirado se ajusta para que el diámetro quede dentro de tolerancias; justo después se aplica el recubrimiento y la fibra se bobina en un tambor. *(Respuesta redactada a partir de las diapositivas T13.)*
+
+</details>
+
+<details>
+<summary>¿Por qué se usa el cableado holgado y qué elementos tiene un cable de fibra?</summary>
+
+Las fibras van sueltas en tubos, formando una ligera sinusoide (sobrelongitud), para que los esfuerzos del cable no lleguen a la fibra. Un cable lleva un elemento resistente central, tubos holgados con compuesto antihumedad, protección de aramida (aéreo) o acero corrugado (enterrado) y cubiertas de polietileno. *(Respuesta redactada a partir de las diapositivas T13.)*
+
+</details>
+
+<details>
+<summary>¿Qué mide un OTDR y en qué se basa?</summary>
+
+Representa la potencia retrodispersada frente a la distancia. Se basa en el **esparcimiento Rayleigh** (la luz que vuelve a lo largo de la fibra, que da la pendiente) y en las **reflexiones de Fresnel** en las discontinuidades. Permite medir la atenuación (dB/km) y las pérdidas de empalmes y conectores, y localizar roturas y el fin de la fibra, con $d = v \cdot t/2$. *(Respuesta redactada a partir de las diapositivas T13.)*
+
+</details>

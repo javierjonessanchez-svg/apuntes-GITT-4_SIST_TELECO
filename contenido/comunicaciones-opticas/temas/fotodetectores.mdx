@@ -15,10 +15,40 @@ fuentes:
   - "Apuntes de Miguel"
   - "Comunicaciones Ópticas (PDF de clase), §6"
   - "T31 – Fotodetectores"
+test:
+  - p: "¿Cómo se polariza un fotodiodo?"
+    o: ["En inversa", "En directa", "Sin polarizar", "Con corriente alterna"]
+    c: 0
+    e: "En inversa, el campo de la zona de deplexión separa los pares que crea cada fotón. En directa recombinaría y emitiría, como un LED."
+  - p: "¿Por qué un fotodiodo de silicio no sirve para 1550 nm?"
+    o: ["Su gap es demasiado grande: deja de absorber hacia 1100 nm", "Absorbe demasiado", "Es demasiado rápido", "Su gap es directo"]
+    c: 0
+    e: "Un fotón solo se absorbe si su energía supera el gap. Para 1310 y 1550 nm se usa InGaAs o Ge."
+  - p: "¿Qué es la responsividad de un fotodetector?"
+    o: ["La corriente que da por cada vatio de luz (A/W)", "Los electrones que da por cada fotón", "La potencia que emite por amperio", "Su ancho de banda"]
+    c: 0
+    e: "Electrones por fotón es la eficiencia cuántica; las dos están relacionadas."
+  - p: "¿Qué gana un APD frente a un PIN?"
+    o: ["Ganancia interna por avalancha: más sensibilidad", "Menos ruido", "No necesita polarización", "Es más barato"]
+    c: 0
+    e: "A cambio, la avalancha también multiplica el ruido."
+  - p: "En la avalancha de un APD, lo que se multiplica es…"
+    o: ["El número de electrones", "El número de fotones", "El número de neutrones", "La λ de la luz"]
+    c: 0
+    e: "Los electrones acelerados chocan con los átomos del material y liberan más electrones."
+  - p: "Un APD es mejor cuanto…"
+    o: ["Menor es su figura de ruido", "Mayor es su figura de ruido", "Más se acerca su figura de ruido a 100", "Mayor es su capacidad"]
+    c: 0
+    e: "La figura de ruido mide cuánto empeora la SNR al amplificar."
+  - p: "Si se ensancha la zona de absorción de un fotodiodo…"
+    o: ["Absorbe más fotones, pero responde más despacio", "Responde más deprisa y absorbe menos", "No cambia nada", "Desaparece el ruido"]
+    c: 0
+    e: "Es el compromiso entre sensibilidad y velocidad: los portadores tardan más en atravesarla."
 ---
 
 import RespuestaEspectral from '../../../src/asignaturas/comunicaciones-opticas/widgets/RespuestaEspectral.astro';
 import SeConecta from '../../../src/asignaturas/comunicaciones-opticas/SeConecta.astro';
+import Practica from '../../../src/asignaturas/comunicaciones-opticas/Practica.astro';
 
 **Idea clave.** Al final del enlace hay que volver a convertir la luz en corriente. Un fotodiodo hace lo contrario que un LED: cada fotón absorbido crea un par electrón-hueco, y un campo eléctrico se lleva los portadores antes de que se recombinen. Interesa absorber muchos fotones (más corriente, más sensibilidad) y hacerlo deprisa (más velocidad), y esas dos cosas tiran en sentidos contrarios.
 
@@ -53,6 +83,8 @@ Para aumentar la sensibilidad hay dos caminos, que se pueden usar a la vez: un *
 > **⚠ Revisar.** En tus apuntes ponías que en el APD los electrones «colisionan con neutrones del material» y que «incrementa exponencialmente el número de fotones». Chocan con los átomos (los electrones) del material, y lo que se multiplica son los **electrones**, no los fotones.
 
 ## Parámetros de un fotodetector
+
+<Practica n={4} nombre="Comunicación óptica entre dos PC" />
 
 - **Respuesta espectral:** el margen de longitudes de onda que el fotodetector absorbe. Cada material responde según su gap: solo detecta fotones con energía mayor que el gap, es decir, hasta su **longitud de onda de corte**, $\lambda_c = hc/E_g$.
 - **Eficiencia cuántica** ($\eta$): número de portadores generados por cada fotón incidente.

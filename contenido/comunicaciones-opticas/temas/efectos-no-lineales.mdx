@@ -1,0 +1,120 @@
+---
+titulo: "Efectos no lineales"
+orden: 4
+bloque: "Fibra"
+resumen: "n(λ, I): mezcla de cuatro ondas y esparcimiento Raman y Brillouin"
+saber:
+  - "A potencias altas (del orden de 1 W) el índice depende también de la intensidad: n(λ, I). Dos fotones se juntan y excitan la molécula de SiO₂: se absorben dos fotones en lugar de uno"
+  - "Mezcla de cuatro ondas (FWM): canales muy próximos (pocos nm, DWDM) y en fase se mezclan; las sumas y restas de sus frecuencias caen sobre otros canales y pueden destruir las señales"
+  - "Es el efecto no lineal más grave. Se minimiza reduciendo la potencia todo lo posible y no dejando D = 0 (fibra de dispersión desplazada no nula)"
+  - "Esparcimiento: la luz choca con la estructura molecular (no es absorción). Elástico (Rayleigh, misma f) o inelástico (cambia la f)"
+  - "Tres líneas: roja (Stokes, la luz cede energía), verde (elástica) y violeta (anti-Stokes, la molécula le da energía)"
+  - "Raman: vibración de las moléculas (fonones ópticos, THz); estimulado sirve para amplificar. Brillouin: sonido en el vidrio (fonones acústicos, GHz); se usa en filtros y demoduladores"
+fuentes:
+  - "Apuntes de Miguel"
+  - "Comunicaciones Ópticas (PDF de clase), §2.4"
+test:
+  - p: "¿Qué tienen en común los efectos no lineales de la fibra?"
+    o: ["El índice de refracción depende de la intensidad de la luz", "El índice depende solo de la λ", "La fibra se calienta y se dilata", "Solo aparecen en fibras multimodo"]
+    c: 0
+    e: "n(λ, I): aparecen a potencias altas, del orden de 1 W."
+  - p: "¿Cuál es el efecto no lineal más grave en sistemas multiplexados?"
+    o: ["La mezcla de cuatro ondas", "El esparcimiento Brillouin", "El esparcimiento Rayleigh", "La dispersión de modo polarizado"]
+    c: 0
+    e: "Sus productos caen sobre otros canales y pueden destruir las señales."
+  - p: "¿Qué condiciones favorecen la mezcla de cuatro ondas?"
+    o: ["Canales muy juntos, en fase (D ≈ 0) y con mucha potencia", "Canales muy separados y poca potencia", "Fibra multimodo y LED", "Temperaturas bajas"]
+    c: 0
+    e: "Por eso aparece en DWDM y se evita con poca potencia y D no nula."
+  - p: "¿Cómo se minimiza la mezcla de cuatro ondas?"
+    o: ["Reduciendo la potencia y sin dejar D = 0", "Subiendo la potencia", "Usando fibra con D = 0", "Juntando más los canales"]
+    c: 0
+    e: "La fibra de dispersión desplazada no nula deja un poco de dispersión para que los canales no vayan en fase."
+  - p: "En el esparcimiento, la línea Stokes…"
+    o: ["Tiene menor frecuencia: la luz cede energía a la molécula", "Tiene mayor frecuencia: la luz gana energía", "Tiene la misma frecuencia", "No existe en la fibra"]
+    c: 0
+    e: "Es la línea roja; la anti-Stokes (violeta) gana energía; la verde es la elástica."
+  - p: "¿Para qué se usa el esparcimiento Raman estimulado?"
+    o: ["Para amplificar la señal óptica", "Para filtrar y demodular", "Para medir la atenuación", "Para fabricar la preforma"]
+    c: 0
+    e: "Es la base del amplificador Raman. El Brillouin se usa en filtros y demoduladores."
+  - p: "¿Qué diferencia al esparcimiento Brillouin del Raman?"
+    o: ["Brillouin interactúa con el sonido del vidrio (fonones acústicos, GHz); Raman, con la vibración de las moléculas (THz)", "Brillouin es elástico y Raman no", "Brillouin solo ocurre en el vacío", "No hay diferencia"]
+    c: 0
+    e: "Las líneas del Brillouin quedan muy cerca (GHz) de la central; las del Raman, lejos (THz)."
+---
+
+import MezclaOndas from '../../../src/asignaturas/comunicaciones-opticas/widgets/MezclaOndas.astro';
+import LineasEsparcimiento from '../../../src/asignaturas/comunicaciones-opticas/widgets/LineasEsparcimiento.astro';
+import SeConecta from '../../../src/asignaturas/comunicaciones-opticas/SeConecta.astro';
+
+**Idea clave.** A potencias altas, el índice de refracción depende también de la **intensidad** de la luz: $n(\lambda, I)$. De ahí salen dos familias de efectos: la **mezcla de cuatro ondas**, el más grave en sistemas WDM, y el **esparcimiento inelástico** (Raman y Brillouin), que además se puede aprovechar.
+
+## El índice depende de la intensidad
+
+Hasta ahora, $n$ dependía de la λ (dispersión). Con potencias del orden de **1 W** depende también de la intensidad de la fuente: $n(\lambda, I)$. Como el núcleo es tan estrecho (≈ 8 µm), la intensidad se dispara aunque la potencia no parezca tan grande.
+
+A esas intensidades, **dos fotones se juntan y excitan la molécula de SiO₂**: se absorben dos fotones en lugar de uno.
+
+## Mezcla de cuatro ondas
+
+Cuando hay varios canales muy próximos (pocos nm, como en **DWDM**) y van **en fase**, se mezclan: aparecen señales nuevas en las **sumas y restas de sus frecuencias** ($f_i + f_j - f_k$), y esas señales caen **encima de otros canales**. El resultado es diafonía y trasvase de potencia, y puede llegar a **destruir las señales**.
+
+De todos los efectos no lineales en la fibra, es **el más grave**. Se minimiza:
+
+- **Reduciendo la potencia** todo lo posible.
+- **No dejando D = 0:** con algo de dispersión entre canales próximos, dejan de ir en fase. Por eso se usa fibra de **dispersión desplazada no nula** (tema 3).
+
+<MezclaOndas />
+
+## Esparcimiento elástico e inelástico
+
+En el esparcimiento, la luz sufre **colisiones con la estructura molecular** del medio. **No es absorción**: la luz sigue siendo luz, aunque cambie de dirección y, a veces, de frecuencia. Las moléculas de SiO₂ están en continua vibración, como muelles:
+
+- Si el choque es **elástico**, la luz sale con la **misma frecuencia** (Rayleigh).
+- Si es **inelástico**, hay intercambio de energía. Si la molécula le **quita** energía a la luz, la frecuencia baja; si se la **da** (el muelle estaba comprimido y la suelta), la frecuencia sube.
+
+Así salen **tres líneas**: la **roja** (Stokes: la luz pierde energía, f ↓), la **verde** (colisiones elásticas, la central) y la **violeta** (anti-Stokes: la molécula le da energía a la luz, f ↑).
+
+<LineasEsparcimiento />
+
+### Raman y Brillouin
+
+- **Raman:** la luz interactúa con la **vibración de las moléculas** (fonones ópticos). Las líneas quedan a **THz** de la central. Cuando se hace **estimulado** sirve para **amplificar**: es el amplificador Raman.
+- **Brillouin:** la luz interactúa con el **sonido** dentro del vidrio (fonones acústicos), una vibración coherente que aparece por la excitación térmica, de forma instantánea. Las líneas quedan a solo **GHz**. Se usa para **filtros y demoduladores**.
+
+**Esparcimiento estimulado:** si se bombardea la fibra con luz, muchas moléculas quedan vibrando en un estado excitado. Si después pasa luz a la frecuencia adecuada, las moléculas se desexcitan y le dan fotones iguales a los que pasan: la señal gana potencia.
+
+## Se conecta con
+
+<SeConecta tema="efectos-no-lineales" />
+
+## Preguntas de examen
+
+<details>
+<summary>Descríbeme el fenómeno de la mezcla de cuatro ondas. ¿Cómo influye en las comunicaciones ópticas y cómo se minimiza la degradación que introduce?</summary>
+
+Es un fenómeno **no lineal**: se debe a que el índice depende de la intensidad del láser a potencias altas (del orden de 1 W). Influye en los sistemas **DWDM**, donde los canales están muy próximos (pocos nm) y, además, en fase: dos señales se mezclan y dan señales en la **suma y la resta de sus frecuencias**, que pueden coincidir con otros canales y **destruir las señales**.
+
+Se minimiza **reduciendo la potencia** todo lo posible y **no dejando D = 0**: con algo de dispersión entre canales próximos dejan de ir en fase. Por eso la fibra de dispersión desplazada se hace sin dispersión nula, con una dispersión baja que no destruya la multiplexación. *(Respuesta redactada a partir de los apuntes.)*
+
+</details>
+
+<details>
+<summary>Explica lo que es el esparcimiento inelástico y cuáles son sus aplicaciones.</summary>
+
+El esparcimiento es un proceso en el que la luz sufre múltiples colisiones con la estructura molecular del medio; **no es absorción**. Las moléculas de SiO₂ están vibrando: si la molécula está comprimida, le da energía a la luz (línea anti-Stokes, f ↑); si está descomprimida, gana energía y la luz la pierde (línea Stokes, f ↓). En el **elástico** (Rayleigh) la frecuencia no cambia.
+
+- **Brillouin:** la energía se intercambia con vibraciones de sonido (fonones acústicos), a GHz. Se usa en **demoduladores y filtros**.
+- **Raman:** con la vibración de las moléculas (fonones ópticos), a THz. Estimulado, se usa para **amplificación óptica**.
+
+*(Respuesta redactada a partir de los apuntes.)*
+
+</details>
+
+<details>
+<summary>¿Por qué en la fibra aparecen efectos no lineales con potencias que no parecen tan grandes?</summary>
+
+Porque lo que cuenta es la **intensidad** (potencia por área), y el núcleo de una monomodo es tan estrecho (≈ 8 µm) que la intensidad es muy alta. Con potencias del orden de 1 W el índice ya depende de la intensidad. *(Respuesta redactada a partir de los apuntes y del PDF de clase.)*
+
+</details>

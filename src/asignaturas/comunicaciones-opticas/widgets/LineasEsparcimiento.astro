@@ -1,0 +1,25 @@
+---
+// Esparcimiento: Rayleigh es elástico (misma frecuencia); Raman y Brillouin son inelásticos y
+// dejan una línea Stokes (f ↓) y otra anti-Stokes (f ↑).
+import Widget from '../../../widgets/Widget.astro';
+import Opciones from '../../../widgets/Opciones.astro';
+import Lienzo from './Lienzo.astro';
+import { dibujarEsparcimiento } from './dibujos-fibra';
+
+const uid = `esparce-${Math.random().toString(36).slice(2, 7)}`;
+---
+<Widget titulo="Rayleigh, Raman y Brillouin" tipo="entender">
+  <Lienzo nombre="esparce" uid={uid} alto={256} etiqueta="Espectro de la luz esparcida: línea elástica en el centro y líneas Stokes y anti-Stokes a los lados"
+    inicial={dibujarEsparcimiento({ tipo: 'raman' })}
+    nota="Separaciones sin escala: Raman a THz y Brillouin a GHz de la línea central.">
+    <Fragment slot="controles">
+      <Opciones nombre="tipo" etiqueta="Esparcimiento" opciones={[['rayleigh', 'Rayleigh'], ['raman', 'Raman'], ['brillouin', 'Brillouin']]} valor="raman" />
+    </Fragment>
+  </Lienzo>
+</Widget>
+<script>
+  import { montarDibujo, opcion } from './vivo';
+  import { dibujarEsparcimiento } from './dibujos-fibra';
+
+  montarDibujo('esparce', (caja) => dibujarEsparcimiento({ tipo: opcion(caja, 'tipo') as 'rayleigh' | 'raman' | 'brillouin' }));
+</script>

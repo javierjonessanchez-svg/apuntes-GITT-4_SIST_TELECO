@@ -13,6 +13,35 @@ fuentes:
   - "Apuntes de clase (Javier)"
   - "Apuntes de Miguel"
   - "Comunicaciones Ópticas (PDF de clase), §7"
+test:
+  - p: "Un amplificador óptico es «un láser sin…»"
+    o: ["Espejos: sin resonador", "Medio activo", "Bombeo", "Emisión estimulada"]
+    c: 0
+    e: "Amplifica por emisión estimulada, pero sin cavidad: no quiere modos propios, sino clones de la señal."
+  - p: "¿Cuál es el ruido principal de un amplificador óptico?"
+    o: ["La emisión espontánea amplificada (ASE)", "El ruido shot del bombeo", "El ruido térmico del fotodiodo", "El chirp"]
+    c: 0
+    e: "Son fotones espontáneos que no son clones de la señal."
+  - p: "¿En qué banda trabaja un EDFA?"
+    o: ["En la de 1550 nm, una banda del orden de 50 nm", "En todas las bandas de la fibra", "En la de 850 nm", "En la de 1310 nm"]
+    c: 0
+    e: "Justo la ventana de mínima atenuación, donde trabaja DWDM."
+  - p: "¿Qué ventaja tiene el amplificador Raman?"
+    o: ["Amplifica en cualquier banda, con la fibra ya instalada", "Es el más barato", "No necesita bombeo", "Es de semiconductor"]
+    c: 0
+    e: "A cambio necesita un bombeo muy potente."
+  - p: "¿Cuál es un inconveniente del SOA?"
+    o: ["Altera la polarización y solo sirve para una λ", "Necesita un bombeo muy potente", "Solo funciona en la banda de 1550 nm", "No se puede fabricar en semiconductor"]
+    c: 0
+    e: "Hace falta un SOA por canal, y estabilizado en temperatura."
+  - p: "Para reducir el ruido ASE e igualar la salida de todas las señales, el EDFA trabaja…"
+    o: ["En saturación de ganancia", "Por debajo del umbral", "En régimen pulsado", "Con modulación directa"]
+    c: 0
+    e: "Por encima de cierta potencia de entrada ya no amplifica más, y todas las salidas quedan al mismo nivel."
+  - p: "¿Cuántos canales DWDM amplifica a la vez un EDFA?"
+    o: ["Todos los que caen en su banda", "Uno solo", "Dos, uno por sentido", "Ninguno: solo amplifica señales eléctricas"]
+    c: 0
+    e: "Es su gran ventaja frente al SOA."
 ---
 
 import BandaEdfa from '../../../src/asignaturas/comunicaciones-opticas/widgets/BandaEdfa.astro';

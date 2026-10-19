@@ -1,0 +1,423 @@
+---
+// Modo repaso de una asignatura, para las dos partes del examen:
+// · Desarrollo: las tarjetas de siempre (preguntas de examen y lista «saber»).
+// · Tipo test: preguntas de opción múltiple con corrección al momento y su porqué.
+// · Simulacro: un examen corto con test y desarrollo, corregido al final.
+// Las preguntas tipo test salen del campo «test» de cada tema.
+import Tarjetas from './Tarjetas.astro';
+import Opciones from './Opciones.astro';
+import { temasDe } from '../comun/datos';
+import { ruta } from '../comun/rutas';
+import { conMates } from './mates';
+import { extraerPreguntas, textoTarjeta } from './tarjetas';
+import { idPregunta, type ItemDesarrollo, type ItemTest } from './test';
+import './widgets.css';
+
+interface Props { asignatura: string }
+const { asignatura } = Astro.props;
+const temas = await temasDe(asignatura);
+
+const test: ItemTest[] = temas.flatMap((t) =>
+  (t.test ?? []).map((q) => ({ ...q, id: idPregunta(t.slug, q.p), tema: t.slug, titulo: t.titulo })));
+const desarrollo: ItemDesarrollo[] = temas.flatMap((t) =>
+  extraerPreguntas(t.entrada.body ?? '').map((d) => ({
+    tema: t.slug, titulo: t.titulo, pregunta: d.pregunta, respuesta: conMates(textoTarjeta(d.respuesta)),
+  })));
+const enlaces = Object.fromEntries(temas.map((t) => [t.slug, ruta(asignatura, t.slug)]));
+const datos = JSON.stringify({ test, desarrollo, enlaces });
+---
+<div class="modo-repaso" data-modo-repaso data-asig={asignatura}>
+  <Opciones nombre="modo" etiqueta="Modo de repaso" valor="desarrollo"
+    opciones={[['desarrollo', 'Desarrollo'], ['test', `Tipo test (${test.length})`], ['simulacro', 'Simulacro']]} />
+
+  <div data-panel="desarrollo">
+    <Tarjetas asignatura={asignatura} />
+  </div>
+
+  <!-- Tipo test: de una en una, con la corrección y su porqué al momento -->
+  <section class="mr-panel" data-panel="test" hidden aria-label="Preguntas tipo test">
+    <form class="mr-barra" data-test-ajustes>
+      <label>Tema
+        <select data-test-tema>
+          <option value="">Todos</option>
+          {temas.filter((t) => t.test?.length).map((t) => <option value={t.slug}>{t.orden}. {t.titulo}</option>)}
+        </select>
+      </label>
+      <label class="mr-casilla"><input type="checkbox" data-test-falladas /> Solo las que he fallado <span data-test-nfalladas></span></label>
+    </form>
+    <p class="mr-contador" data-test-contador aria-live="polite"></p>
+    <div class="mr-tarjeta" data-test-tarjeta>
+      <p class="mr-tema" data-test-tema-actual></p>
+      <p class="mr-enunciado" data-test-enunciado></p>
+      <div class="mr-opciones" data-test-opciones role="group"></div>
+      <div class="mr-porque" data-test-porque hidden aria-live="polite"></div>
+    </div>
+    <div class="mr-botones">
+      <button type="button" class="boton" data-test-siguiente hidden>Siguiente</button>
+    </div>
+    <div class="mr-final" data-test-final hidden aria-live="polite"></div>
+  </section>
+
+  <!-- Simulacro: varias preguntas tipo test y de desarrollo, corregidas al entregar -->
+  <section class="mr-panel" data-panel="simulacro" hidden aria-label="Simulacro de examen">
+    <form class="mr-ajustes" data-sim-ajustes>
+      <fieldset>
+        <legend>Temas que entran</legend>
+        <div class="mr-temas">
+          {temas.map((t) => (
+            <label class="mr-casilla"><input type="checkbox" value={t.slug} checked /> {t.orden}. {t.titulo}</label>
+          ))}
+        </div>
+      </fieldset>
+      <div class="mr-barra">
+        <label>Preguntas tipo test
+          <select data-sim-ntest><option>10</option><option selected>15</option><option>20</option></select>
+        </label>
+        <label>De desarrollo
+          <select data-sim-ndes><option>1</option><option selected>2</option><option>3</option></select>
+        </label>
+        <button type="submit" class="boton">Empezar el simulacro</button>
+      </div>
+      <p class="mr-nota">Cada fallo en el test resta un tercio de pregunta (con cuatro opciones), como en muchos tipo test; en blanco no resta. Las preguntas de desarrollo las corriges tú con la respuesta modelo.</p>
+    </form>
+    <div data-sim-examen hidden>
+      <p class="mr-contador" data-sim-reloj aria-live="off"></p>
+      <h3 class="mr-parte">Parte 1 · Tipo test</h3>
+      <ol class="mr-lista" data-sim-test></ol>
+      <h3 class="mr-parte">Parte 2 · Desarrollo</h3>
+      <p class="mr-nota">Escribe o di en voz alta tu respuesta antes de entregar. Lo que escribas aquí no se guarda.</p>
+      <ol class="mr-lista" data-sim-des></ol>
+      <div class="mr-botones">
+        <button type="button" class="boton" data-sim-entregar>Entregar y corregir</button>
+        <button type="button" class="boton boton-secundario" data-sim-otro hidden>Otro simulacro</button>
+      </div>
+      <div class="mr-final" data-sim-final hidden aria-live="polite"></div>
+    </div>
+  </section>
+
+  <script type="application/json" data-repaso-datos set:html={datos.replace(/</g, '\\u003c')} />
+</div>
+
+<script>
+  import { montar } from './cliente';
+  import { almacenDelNavegador } from '../comun/progreso';
+  import { barajar, elegirSimulacro, mezclarOpciones, notaTest, resumenPorTema, type ItemDesarrollo, type ItemTest, type Respuesta } from './test';
+
+  type Datos = { test: ItemTest[]; desarrollo: ItemDesarrollo[]; enlaces: Record<string, string> };
+  const LETRAS = 'ABCD';
+  const coma = (n: number) => n.toLocaleString('es-ES', { maximumFractionDigits: 1 });
+
+  /** Crea un elemento con clase y texto (el texto nunca se interpreta como HTML). */
+  function el<K extends keyof HTMLElementTagNameMap>(tag: K, clase = '', texto = ''): HTMLElementTagNameMap[K] {
+    const e = document.createElement(tag);
+    if (clase) e.className = clase;
+    if (texto) e.textContent = texto;
+    return e;
+  }
+
+  /** Lista de temas de peor a mejor, con enlace a cada uno. */
+  function listaTemas(items: { tema: string; titulo: string; acierto: boolean | null }[], enlaces: Record<string, string>): HTMLElement {
+    const ul = el('ul', 'mr-resumen');
+    for (const r of resumenPorTema(items)) {
+      const li = el('li');
+      const a = el('a', '', r.titulo);
+      a.href = enlaces[r.tema];
+      li.append(a, el('span', 'mr-suave', ` · ${r.bien} de ${r.total}`));
+      ul.append(li);
+    }
+    return ul;
+  }
+
+  montar('[data-modo-repaso]', (caja) => {
+    const datos: Datos = JSON.parse(caja.querySelector('[data-repaso-datos]')!.textContent!);
+    const asig = caja.dataset.asig!;
+    const q = <T extends Element>(s: string) => caja.querySelector<T>(s)!;
+
+    // ---------- Cambiar de modo ----------
+    const paneles = [...caja.querySelectorAll<HTMLElement>('[data-panel]')];
+    q<HTMLElement>('[data-opciones="modo"]').addEventListener('change', (e) => {
+      const modo = (e.currentTarget as HTMLElement).dataset.valor;
+      for (const p of paneles) p.hidden = p.dataset.panel !== modo;
+    });
+
+    // ---------- Falladas, guardadas en este navegador ----------
+    const almacen = almacenDelNavegador();
+    const CLAVE = `test-falladas:${asig}`;
+    const falladas = new Set<string>();
+    try { for (const id of JSON.parse(almacen?.getItem(CLAVE) ?? '[]')) falladas.add(id); } catch { /* sin almacén: se empieza vacío */ }
+    const guardarFalladas = () => { try { almacen?.setItem(CLAVE, JSON.stringify([...falladas])); } catch { /* no se guarda */ } };
+
+    // ---------- Tipo test ----------
+    const selTema = q<HTMLSelectElement>('[data-test-tema]');
+    const soloFalladas = q<HTMLInputElement>('[data-test-falladas]');
+    const nFalladas = q<HTMLElement>('[data-test-nfalladas]');
+    const contador = q<HTMLElement>('[data-test-contador]');
+    const tarjeta = q<HTMLElement>('[data-test-tarjeta]');
+    const temaActual = q<HTMLElement>('[data-test-tema-actual]');
+    const enunciado = q<HTMLElement>('[data-test-enunciado]');
+    const opciones = q<HTMLElement>('[data-test-opciones]');
+    const porque = q<HTMLElement>('[data-test-porque]');
+    const siguiente = q<HTMLButtonElement>('[data-test-siguiente]');
+    const final = q<HTMLElement>('[data-test-final]');
+    let cola: ItemTest[] = [];
+    let i = 0;
+    let hechas: (Respuesta & { tema: string; titulo: string })[] = [];
+
+    const contarFalladas = () => {
+      const n = datos.test.filter((t) => falladas.has(t.id)).length;
+      nFalladas.textContent = `(${n})`;
+      soloFalladas.disabled = n === 0 && !soloFalladas.checked;
+    };
+
+    function mostrarPregunta() {
+      const t = cola[i];
+      tarjeta.hidden = false;
+      final.hidden = true;
+      siguiente.hidden = true;
+      porque.hidden = true;
+      contador.textContent = `Pregunta ${i + 1} de ${cola.length}`;
+      temaActual.textContent = t.titulo;
+      enunciado.textContent = t.p;
+      opciones.replaceChildren();
+      opciones.setAttribute('aria-label', t.p);
+      mezclarOpciones(t).forEach((op, k) => {
+        const b = el('button', 'mr-opcion');
+        b.type = 'button';
+        b.dataset.correcta = String(op.correcta);
+        b.append(el('span', 'mr-letra', LETRAS[k]), el('span', '', op.texto));
+        b.addEventListener('click', () => responder(b));
+        opciones.append(b);
+      });
+    }
+
+    function responder(elegida: HTMLButtonElement) {
+      const t = cola[i];
+      const acierto = elegida.dataset.correcta === 'true';
+      for (const b of opciones.querySelectorAll<HTMLButtonElement>('button')) {
+        b.disabled = true;
+        if (b.dataset.correcta === 'true') b.classList.add('bien');
+        else if (b === elegida) b.classList.add('mal');
+      }
+      if (acierto) falladas.delete(t.id); else falladas.add(t.id);
+      guardarFalladas();
+      contarFalladas();
+      hechas.push({ opciones: t.o.length, acierto, tema: t.tema, titulo: t.titulo });
+      porque.replaceChildren(el('strong', acierto ? 'mr-ok' : 'mr-ko', acierto ? '✓ Correcto. ' : '✗ No es esa. '));
+      if (t.e) porque.append(t.e + ' ');
+      const a = el('a', '', 'Repasar en el tema');
+      a.href = datos.enlaces[t.tema];
+      porque.append(a);
+      porque.hidden = false;
+      siguiente.hidden = false;
+      siguiente.textContent = i + 1 < cola.length ? 'Siguiente' : 'Ver el resultado';
+      siguiente.focus();
+    }
+
+    function terminar() {
+      tarjeta.hidden = true;
+      siguiente.hidden = true;
+      contador.textContent = '';
+      const bien = hechas.filter((h) => h.acierto).length;
+      final.replaceChildren(
+        el('p', 'mr-nota-final', `${bien} de ${hechas.length} bien · nota ${coma(notaTest(hechas))} sobre 10 con penalización (${coma(notaTest(hechas, false))} sin ella)`),
+        el('p', 'mr-suave', 'Por temas, de peor a mejor:'),
+        listaTemas(hechas, datos.enlaces),
+      );
+      const otra = el('button', 'boton', 'Otra ronda');
+      otra.type = 'button';
+      otra.addEventListener('click', empezarTest);
+      const botones = el('div', 'mr-botones');
+      botones.append(otra);
+      if (hechas.some((h) => !h.acierto)) {
+        const rep = el('button', 'boton boton-secundario', 'Repetir las falladas');
+        rep.type = 'button';
+        rep.addEventListener('click', () => { soloFalladas.checked = true; empezarTest(); });
+        botones.append(rep);
+      }
+      final.append(botones);
+      final.hidden = false;
+      contarFalladas();
+      otra.focus();
+    }
+
+    function empezarTest() {
+      const tema = selTema.value;
+      cola = barajar(datos.test.filter((t) => (!tema || t.tema === tema) && (!soloFalladas.checked || falladas.has(t.id))));
+      i = 0;
+      hechas = [];
+      contarFalladas();
+      if (!cola.length) {
+        tarjeta.hidden = true;
+        siguiente.hidden = true;
+        final.hidden = true;
+        contador.textContent = soloFalladas.checked ? 'No te queda ninguna fallada aquí. ¡Bien!' : 'Este tema aún no tiene preguntas tipo test.';
+        return;
+      }
+      mostrarPregunta();
+    }
+
+    siguiente.addEventListener('click', () => { i++; if (i < cola.length) { mostrarPregunta(); opciones.querySelector('button')?.focus(); } else terminar(); });
+    selTema.addEventListener('change', empezarTest);
+    soloFalladas.addEventListener('change', empezarTest);
+    q('[data-test-ajustes]').addEventListener('submit', (e) => e.preventDefault());
+    // Atajos: 1-4 o A-D para responder
+    q('[data-panel="test"]').addEventListener('keydown', (e) => {
+      const k = (e as KeyboardEvent).key.toUpperCase();
+      const n = '1234'.includes(k) ? Number(k) - 1 : LETRAS.indexOf(k);
+      if (n < 0 || (e.target as HTMLElement).matches('select, input')) return;
+      const b = opciones.querySelectorAll<HTMLButtonElement>('button')[n];
+      if (b && !b.disabled) { e.preventDefault(); b.click(); }
+    });
+    empezarTest();
+
+    // ---------- Simulacro ----------
+    const ajustes = q<HTMLFormElement>('[data-sim-ajustes]');
+    const examen = q<HTMLElement>('[data-sim-examen]');
+    const listaTest = q<HTMLOListElement>('[data-sim-test]');
+    const listaDes = q<HTMLOListElement>('[data-sim-des]');
+    const entregar = q<HTMLButtonElement>('[data-sim-entregar]');
+    const otro = q<HTMLButtonElement>('[data-sim-otro]');
+    const simFinal = q<HTMLElement>('[data-sim-final]');
+    const reloj = q<HTMLElement>('[data-sim-reloj]');
+    let simTest: ItemTest[] = [];
+    let simDes: ItemDesarrollo[] = [];
+    let inicio = 0;
+    let tic = 0;
+
+    const pintarReloj = () => {
+      const s = Math.round((Date.now() - inicio) / 1000);
+      reloj.textContent = `Tiempo: ${Math.floor(s / 60)} min ${String(s % 60).padStart(2, '0')} s`;
+    };
+
+    ajustes.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const elegidos = new Set([...ajustes.querySelectorAll<HTMLInputElement>('input[type=checkbox]:checked')].map((c) => c.value));
+      const r = elegirSimulacro(
+        datos.test.filter((t) => elegidos.has(t.tema)), datos.desarrollo.filter((d) => elegidos.has(d.tema)),
+        Number(q<HTMLSelectElement>('[data-sim-ntest]').value), Number(q<HTMLSelectElement>('[data-sim-ndes]').value));
+      simTest = r.test;
+      simDes = r.desarrollo;
+      if (!simTest.length && !simDes.length) { reloj.textContent = 'Elige al menos un tema con preguntas.'; examen.hidden = false; return; }
+
+      listaTest.replaceChildren(...simTest.map((t, n) => {
+        const li = el('li', 'mr-item');
+        const fs = el('fieldset');
+        fs.append(el('legend', 'mr-enunciado', t.p));
+        mezclarOpciones(t).forEach((op, k) => {
+          const lab = el('label', 'mr-radio');
+          const inp = el('input');
+          inp.type = 'radio';
+          inp.name = `sim-${n}`;
+          inp.dataset.correcta = String(op.correcta);
+          lab.append(inp, el('span', 'mr-letra', LETRAS[k]), el('span', '', op.texto));
+          fs.append(lab);
+        });
+        li.append(fs, el('p', 'mr-suave mr-tema-item', t.titulo));
+        return li;
+      }));
+      listaDes.replaceChildren(...simDes.map((d) => {
+        const li = el('li', 'mr-item');
+        const area = el('textarea', 'mr-texto');
+        area.rows = 4;
+        area.setAttribute('aria-label', 'Tu respuesta (no se guarda)');
+        li.append(el('p', 'mr-enunciado', d.pregunta), el('p', 'mr-suave mr-tema-item', d.titulo), area);
+        return li;
+      }));
+
+      ajustes.hidden = true;
+      examen.hidden = false;
+      entregar.hidden = false;
+      otro.hidden = true;
+      simFinal.hidden = true;
+      inicio = Date.now();
+      pintarReloj();
+      clearInterval(tic);
+      tic = window.setInterval(pintarReloj, 1000);
+      examen.scrollIntoView({ block: 'start', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+    });
+
+    entregar.addEventListener('click', () => {
+      clearInterval(tic);
+      pintarReloj();
+      // Test: marcar cada pregunta y sumar
+      const res: (Respuesta & { tema: string; titulo: string })[] = [];
+      [...listaTest.children].forEach((li, n) => {
+        const t = simTest[n];
+        const elegida = li.querySelector<HTMLInputElement>('input:checked');
+        const acierto = elegida ? elegida.dataset.correcta === 'true' : null;
+        for (const inp of li.querySelectorAll<HTMLInputElement>('input')) {
+          inp.disabled = true;
+          const lab = inp.closest('label')!;
+          if (inp.dataset.correcta === 'true') lab.classList.add('bien');
+          else if (inp === elegida) lab.classList.add('mal');
+        }
+        if (acierto === true) falladas.delete(t.id);
+        if (acierto === false) falladas.add(t.id);
+        const p = el('p', 'mr-porque');
+        p.append(el('strong', acierto ? 'mr-ok' : 'mr-ko', acierto === null ? 'En blanco. ' : acierto ? '✓ ' : '✗ '));
+        if (t.e) p.append(t.e);
+        li.append(p);
+        res.push({ opciones: t.o.length, acierto, tema: t.tema, titulo: t.titulo });
+      });
+      guardarFalladas();
+      contarFalladas();
+
+      // Desarrollo: enseñar la respuesta modelo y que cada uno se ponga nota
+      const notasDes: (number | null)[] = simDes.map(() => null);
+      const pintarFinal = () => {
+        const bien = res.filter((r) => r.acierto).length;
+        const blanco = res.filter((r) => r.acierto === null).length;
+        const partes: HTMLElement[] = [
+          el('p', 'mr-nota-final', `Test: ${coma(notaTest(res))} sobre 10 (${bien} bien, ${res.length - bien - blanco} mal, ${blanco} en blanco).`),
+        ];
+        if (simDes.length) {
+          const puestas = notasDes.filter((x) => x !== null) as number[];
+          partes.push(el('p', 'mr-nota-final', puestas.length === simDes.length
+            ? `Desarrollo: ${coma(puestas.reduce((s, x) => s + x, 0))} de ${simDes.length}.`
+            : 'Desarrollo: ponte nota en cada pregunta para ver el total.'));
+        }
+        const items = [
+          ...res.map((r) => ({ tema: r.tema, titulo: r.titulo, acierto: r.acierto })),
+          ...simDes.flatMap((d, n) => notasDes[n] === null ? [] : [{ tema: d.tema, titulo: d.titulo, acierto: notasDes[n]! >= 0.5 }]),
+        ];
+        if (items.length) partes.push(el('p', 'mr-suave', 'Temas para repasar, de peor a mejor:'), listaTemas(items, datos.enlaces));
+        simFinal.replaceChildren(...partes);
+        simFinal.hidden = false;
+      };
+      [...listaDes.children].forEach((li, n) => {
+        const modelo = el('div', 'mr-porque');
+        modelo.append(el('strong', '', 'Respuesta modelo. '));
+        const cuerpo = el('span');
+        cuerpo.innerHTML = simDes[n].respuesta; // HTML propio, generado al compilar la web
+        modelo.append(cuerpo);
+        const grupo = el('div', 'mr-autonota');
+        grupo.setAttribute('role', 'group');
+        grupo.setAttribute('aria-label', '¿Cómo te ha salido?');
+        for (const [texto, valor] of [['Mal', 0], ['Regular', 0.5], ['Bien', 1]] as const) {
+          const b = el('button', 'boton boton-secundario boton-pequeno', texto);
+          b.type = 'button';
+          b.setAttribute('aria-pressed', 'false');
+          b.addEventListener('click', () => {
+            notasDes[n] = valor;
+            for (const x of grupo.querySelectorAll('button')) x.setAttribute('aria-pressed', String(x === b));
+            pintarFinal();
+          });
+          grupo.append(b);
+        }
+        li.querySelector('textarea')!.readOnly = true;
+        li.append(modelo, grupo);
+      });
+
+      entregar.hidden = true;
+      otro.hidden = false;
+      pintarFinal();
+      simFinal.scrollIntoView({ block: 'nearest' });
+    });
+
+    otro.addEventListener('click', () => {
+      examen.hidden = true;
+      ajustes.hidden = false;
+      ajustes.querySelector<HTMLButtonElement>('button[type=submit]')!.focus();
+    });
+  });
+</script>

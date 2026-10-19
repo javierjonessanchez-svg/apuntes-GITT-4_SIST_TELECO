@@ -15,12 +15,42 @@ fuentes:
   - "Apuntes de Miguel"
   - "Comunicaciones Ópticas (PDF de clase), §5.1"
   - "T21 – Emisores ópticos"
+test:
+  - p: "¿Por qué el silicio no sirve para fabricar un LED?"
+    o: ["Porque su gap es indirecto: la recombinación da calor, no luz", "Porque su gap es demasiado grande", "Porque no conduce la corriente", "Porque solo emite en ultravioleta"]
+    c: 0
+    e: "Con gap indirecto la energía de la recombinación se pierde como calor. Hace falta un gap directo, como el del GaAs."
+  - p: "¿Qué anchura espectral tiene, aproximadamente, un LED de comunicaciones?"
+    o: ["Unos 50 nm", "Menos de 1 nm", "Unos 4 nm", "Unos 500 nm"]
+    c: 0
+    e: "Un LED ronda los 50 nm; un láser Fabry-Pérot, unos 4 nm, y un DFB baja de 1 nm."
+  - p: "La luz que emite un LED es…"
+    o: ["Espontánea e incoherente", "Estimulada y coherente", "Espontánea y coherente", "Estimulada e incoherente"]
+    c: 0
+    e: "El LED solo tiene emisión espontánea, así que su luz no es coherente: eso es propio del láser."
+  - p: "¿Qué limita la velocidad de modulación de un LED?"
+    o: ["La vida media de los portadores (2–5 ns)", "La longitud de la cavidad", "El ruido shot", "La apertura numérica de la fibra"]
+    c: 0
+    e: "Con 2–5 ns de vida media, el LED llega a centenares de MHz: como mucho, del orden de 1 Gbps en menos de 1 km."
+  - p: "¿Qué parte de la luz de un LED llega a acoplarse a la fibra, aproximadamente?"
+    o: ["En torno al 1 %", "En torno al 50 %", "Casi toda", "Nada"]
+    c: 0
+    e: "Su haz es muy ancho, así que la fibra solo recoge en torno al 1 %."
+  - p: "Al subir la temperatura, la eficiencia cuántica de un LED…"
+    o: ["Baja", "Sube", "No cambia", "Se hace igual a 1"]
+    c: 0
+    e: "Con más temperatura hay más recombinaciones que se pierden como calor por colisiones."
+  - p: "¿Qué material se usa para un LED de la primera ventana (unos 850 nm)?"
+    o: ["GaAs", "Silicio", "Germanio", "Carbono"]
+    c: 0
+    e: "El GaAs (1,42 eV) emite en torno a 0,87 µm. Para la 2.ª y la 3.ª ventana se usa InP como base."
 ---
 
 import BandasLed from '../../../src/asignaturas/comunicaciones-opticas/widgets/BandasLed.astro';
 import FormaHaz from '../../../src/asignaturas/comunicaciones-opticas/widgets/FormaHaz.astro';
 import Espectros from '../../../src/asignaturas/comunicaciones-opticas/widgets/Espectros.astro';
 import SeConecta from '../../../src/asignaturas/comunicaciones-opticas/SeConecta.astro';
+import Practica from '../../../src/asignaturas/comunicaciones-opticas/Practica.astro';
 
 **Idea clave.** Un LED es un diodo que convierte corriente en luz: cada electrón que se recombina con un hueco suelta un fotón con la energía del gap. Es pequeño, rápido y barato, pero su luz es incoherente, ancha en el espectro y sale hacia todas partes. Por eso sirve para enlaces cortos con fibra multimodo y no para multiplexar.
 
@@ -91,6 +121,8 @@ Aun así, solo se acopla a la fibra en torno al **1 %** de la luz del LED.
 La luz del LED sale por **emisión espontánea**: cada electrón se desexcita cuando le toca, así que cada fotón tiene su propia fase. Es luz **incoherente**: al final de la fibra se ve un disco de luz plano, sin información de fase. Si además la potencia es muy baja, el ruido shot (de Poisson) puede dominar sobre la señal. La comparación con la luz coherente del láser está en el tema siguiente.
 
 ## Parámetros de un LED
+
+<Practica n={4} nombre="Comunicación óptica entre dos PC" />
 
 - **Eficiencia cuántica:** fracción de las recombinaciones que producen un fotón. El resto se pierde como calor por colisiones, así que **baja al subir la temperatura**.
 - **Responsividad:** potencia óptica emitida por unidad de corriente, $P/I$. En un LED es del orden de **0,01 W/A**, y baja con corrientes muy altas (más de 80 mA), al salir de la zona lineal de la curva P-I.

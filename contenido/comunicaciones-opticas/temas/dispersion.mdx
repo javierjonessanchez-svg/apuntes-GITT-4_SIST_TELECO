@@ -1,0 +1,150 @@
+---
+titulo: "Dispersión"
+orden: 3
+bloque: "Fibra"
+resumen: "Velocidad de grupo, Δτ = D·L·Δλ, dispersión desplazada y cómo compensarla"
+saber:
+  - "Dispersión: el índice de refracción depende de la λ, n(λ). Los colores de un pulso no llegan a la vez y el pulso se ensancha"
+  - "La velocidad de fase (ondas planas monocromáticas) puede superar c sin violar la relatividad, porque no se puede modular. La dispersión afecta a la velocidad de grupo, la de la modulación"
+  - "El ensanchamiento depende del coeficiente de dispersión D, de la longitud L y de la anchura espectral Δλ: Δτ = D·L·Δλ. Cuanto mayores los tres, peor; de ahí los láseres monomodo"
+  - "Dispersión material (del vidrio y sus dopantes) + de guía de onda (de la geometría del núcleo) = dispersión cromática. La de modo polarizado (PMD) es muy baja"
+  - "Fibra de dispersión desplazada: cambiando el dopado y el índice del núcleo, el mínimo de dispersión pasa de 1310 a 1550 nm, donde está el mínimo de atenuación"
+  - "D = 0 no interesa en sistemas multiplexados (provoca mezcla de cuatro ondas): se usa dispersión desplazada no nula"
+  - "Compensación: fibra compensadora de dispersión (núcleo más estrecho; pierde potencia y necesita amplificador) y redes de Bragg. La regeneración optoelectrónica es muy lenta"
+fuentes:
+  - "Apuntes de Miguel"
+  - "Comunicaciones Ópticas (PDF de clase), §2.3"
+test:
+  - p: "¿Qué es la dispersión en una fibra?"
+    o: ["Que el índice de refracción dependa de la λ, así que el pulso se ensancha", "Que la fibra pierda potencia con la distancia", "Que la luz se escape en las curvas", "Que el índice dependa de la intensidad"]
+    c: 0
+    e: "n(λ): los colores de un pulso no llegan a la vez. Lo de la intensidad son los efectos no lineales."
+  - p: "¿A qué velocidad afecta la dispersión?"
+    o: ["A la velocidad de grupo, la de la modulación", "A la velocidad de fase", "A la velocidad del sonido en el vidrio", "A ninguna: solo a la potencia"]
+    c: 0
+    e: "La velocidad de grupo es la de la envolvente, que es donde va la información."
+  - p: "¿Por qué la velocidad de fase puede ser mayor que c sin violar la relatividad?"
+    o: ["Porque no se puede modular: no lleva información", "Porque en la fibra c es mayor", "Porque solo pasa en el vacío", "No puede: siempre es menor que c"]
+    c: 0
+    e: "Es la de una onda plana monocromática ideal; la información viaja con la velocidad de grupo."
+  - p: "Según Δτ = D·L·Δλ, ¿qué fuente ensancha menos el pulso?"
+    o: ["Un láser DFB (Δλ ≈ 0,1 nm)", "Un láser Fabry-Pérot (Δλ ≈ 4 nm)", "Un LED (Δλ ≈ 50 nm)", "Todas igual"]
+    c: 0
+    e: "Cuanto menor la anchura espectral, menos ensanchamiento: de ahí los láseres monomodo."
+  - p: "¿Qué es una fibra de dispersión desplazada?"
+    o: ["Una fibra con el mínimo de dispersión movido de 1310 a 1550 nm", "Una fibra que compensa la atenuación", "Una fibra multimodo de índice gradual", "Una fibra dopada con erbio"]
+    c: 0
+    e: "Se consigue cambiando el dopado y el índice del núcleo (la dispersión de guía de onda)."
+  - p: "¿Por qué no interesa una dispersión exactamente nula en un sistema WDM?"
+    o: ["Porque los canales van en fase y aparece la mezcla de cuatro ondas", "Porque aumenta la atenuación", "Porque el láser deja de funcionar", "Porque la fibra se rompe"]
+    c: 0
+    e: "Por eso se usa fibra de dispersión desplazada no nula."
+  - p: "¿Qué inconveniente tiene la fibra compensadora de dispersión?"
+    o: ["Su núcleo es más estrecho y pierde mucha potencia: necesita amplificador", "Solo funciona en 850 nm", "Aumenta la dispersión", "Es multimodo"]
+    c: 0
+    e: "Como el diafragma de una cámara: deja pasar menos."
+---
+
+import Ensanchamiento from '../../../src/asignaturas/comunicaciones-opticas/widgets/Ensanchamiento.astro';
+import CurvaD from '../../../src/asignaturas/comunicaciones-opticas/widgets/CurvaD.astro';
+import SeConecta from '../../../src/asignaturas/comunicaciones-opticas/SeConecta.astro';
+import Practica from '../../../src/asignaturas/comunicaciones-opticas/Practica.astro';
+
+**Idea clave.** El índice de refracción depende de la longitud de onda, así que los colores de un pulso no llegan a la vez y el pulso se **ensancha**. El ensanchamiento crece con el coeficiente de dispersión, con la longitud y con la anchura espectral de la fuente: cuanto mayores los tres, peor.
+
+## Qué es la dispersión
+
+Es la **variación del índice de refracción con la λ** (o con la frecuencia): $n(\lambda)$. No existe ningún material sin dispersión.
+
+Un pulso nunca es de una sola λ: lleva un pequeño margen de frecuencias. Como cada una ve un índice distinto, **no llegan en fase** y el pulso llega **ensanchado**. Si el ensanchamiento es grande, los pulsos de bits vecinos se pisan.
+
+## Velocidad de fase y velocidad de grupo
+
+- **Velocidad de fase:** la de una onda plana monocromática (la de un láser ideal). Puede ser **mayor que c** sin violar la relatividad, porque **no se puede modular**: no lleva información. Por sí sola no produce dispersión.
+- **Velocidad de grupo:** la de la **modulación**, es decir, la de la envolvente de una superposición de ondas planas. Es la que lleva la información.
+
+La dispersión **afecta a la modulación**, es decir, a la velocidad de grupo: si $v_g$ cambia con la λ ($\partial v_g / \partial \lambda \neq 0$), hay dispersión.
+
+## De qué depende el ensanchamiento
+
+<Practica n={4} nombre="Comunicación óptica entre dos PC" />
+
+$$
+\Delta\tau = D \cdot L \cdot \Delta\lambda
+$$
+
+- **D**, el coeficiente de dispersión de la fibra (ps/(nm·km)).
+- **L**, la longitud de la fibra: cuanto más corta, mejor.
+- **Δλ**, la anchura espectral de la fuente: cuanto menos monocromática, peor.
+
+Cuanto mayores los tres, peor. Por eso interesa que la fuente sea casi monocromática: **láseres monomodo**.
+
+<Ensanchamiento />
+
+## Tipos de dispersión
+
+- **Material:** depende del vidrio (SiO₂) y de los dopantes.
+- **De guía de onda:** depende de la **geometría del núcleo**: la propia fibra cambia la forma de la señal.
+- **Cromática:** la acumulación de todas, sobre todo material + guía de onda.
+- **De modo polarizado (PMD):** muy baja.
+- **Modal:** solo en fibras multimodo, porque cada modo sigue su camino (tema 1). La monomodo no la tiene.
+
+<CurvaD />
+
+## Dispersión desplazada
+
+En una fibra estándar, la banda de **mínima dispersión** está en **1310–1360 nm**, y la de **mínima atenuación**, en **1550 nm**. Cambiando el **dopado y el índice del núcleo** (es decir, la dispersión de guía de onda), el mínimo de dispersión se desplaza a 1550 nm: es la **fibra de dispersión desplazada**. Así se juntan lo mejor de las dos ventanas.
+
+Incluso se puede conseguir **D = 0**, pero no interesa en sistemas multiplexados: con los canales en fase aparecen efectos peores, como la **mezcla de cuatro ondas** (tema 4). Por eso se usa fibra de **dispersión desplazada no nula**, que deja un poco de dispersión en 1550 nm.
+
+## Cómo compensarla
+
+- **Fibra compensadora de dispersión (FCD):** tiene un **núcleo más estrecho** y compensa la dispersión acumulada. A cambio **pierde mucha potencia**, así que necesita un **amplificador**. Es como el diafragma de una cámara: cierra para enfocar mejor, pero entra menos luz.
+- **Redes de Bragg:** variando el índice de refracción de forma periódica, se comportan como un filtro que **reduce la anchura de los pulsos** por difracción (tema de dispositivos pasivos).
+- **Regeneración optoelectrónica:** pasar a electrónica, rehacer el pulso, transmitirlo e inyectarlo otra vez en la fibra. Funciona, pero los regeneradores son **muy lentos**.
+
+## Se conecta con
+
+<SeConecta tema="dispersion" />
+
+## Preguntas de examen
+
+<details>
+<summary>Dime todos los tipos posibles de dispersión cromática y cómo pueden minimizarse o utilizarse para modificar las propiedades de la fibra.</summary>
+
+La dispersión cromática viene de que $n = n(\lambda)$: la velocidad de grupo depende de la λ.
+
+- **Dispersión material:** depende de los dopantes y del vidrio de SiO₂.
+- **Dispersión de guía de onda:** depende de la geometría del núcleo. Cambiándola (dopado e índice del núcleo) se **desplaza el mínimo de dispersión de 1310 a 1550 nm**: fibra de dispersión desplazada.
+
+Para minimizarla se actúa sobre los tres factores de $\Delta\tau = D \cdot L \cdot \Delta\lambda$: el **coeficiente D** (tipo de fibra), la **longitud del enlace** y la **anchura espectral** de la fuente (láseres monomodo). También se puede compensar con fibra compensadora o redes de Bragg. *(Respuesta redactada a partir de los apuntes.)*
+
+</details>
+
+<details>
+<summary>¿Qué diferencia hay entre velocidad de fase y velocidad de grupo? ¿A cuál afecta la dispersión?</summary>
+
+La de **fase** es la de una onda plana monocromática: puede superar c sin violar la relatividad porque no se puede modular. La de **grupo** es la de la envolvente, es decir, la de la modulación, que lleva la información. La dispersión afecta a la **velocidad de grupo**. *(Respuesta redactada a partir de los apuntes.)*
+
+</details>
+
+<details>
+<summary>¿Qué es una fibra de dispersión desplazada y por qué no se lleva la dispersión a cero en sistemas WDM?</summary>
+
+Es una fibra en la que, cambiando el dopado y el índice del núcleo, el mínimo de dispersión se mueve de 1310–1360 nm a **1550 nm**, donde está el mínimo de atenuación. Con **D = 0** los canales WDM van en fase y aparece la **mezcla de cuatro ondas**, que mete interferencias entre canales; por eso se usa dispersión desplazada **no nula**. *(Respuesta redactada a partir de los apuntes.)*
+
+</details>
+
+<details>
+<summary>¿Cómo se puede compensar la dispersión?</summary>
+
+Con **fibra compensadora de dispersión** (núcleo más estrecho; pierde mucha potencia y necesita amplificador), con **redes de Bragg** (filtro que estrecha los pulsos variando n de forma periódica) o con **regeneración optoelectrónica** (pasar a electrónica, rehacer el pulso y reinyectarlo), que es muy lenta. *(Respuesta redactada a partir de los apuntes.)*
+
+</details>
+
+<details>
+<summary>Un láser Fabry-Pérot (Δλ ≈ 4 nm) transmite por 10 km de fibra con D = 17 ps/(nm·km). ¿Cuánto se ensancha el pulso?</summary>
+
+$\Delta\tau = 17 \cdot 10 \cdot 4 = 680$ ps. A 1 Gbit/s (bit de 1 ns) los pulsos ya empiezan a pisarse; con un DFB (≈ 0,1 nm) serían solo 17 ps. *(Cálculo propio: no aparece en el material.)*
+
+</details>

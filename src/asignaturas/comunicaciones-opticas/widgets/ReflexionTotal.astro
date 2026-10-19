@@ -1,0 +1,26 @@
+---
+// Reflexión total interna: por encima del ángulo crítico la luz no sale del núcleo.
+// Al subir n₁ el ángulo crítico (desde la normal) baja y el cono de aceptación crece.
+import Widget from '../../../widgets/Widget.astro';
+import Deslizador from '../../../widgets/Deslizador.astro';
+import Lienzo from './Lienzo.astro';
+import { dibujarReflexion } from './dibujos-fibra';
+
+const uid = `reflexion-${Math.random().toString(36).slice(2, 7)}`;
+---
+<Widget titulo="Reflexión total interna" tipo="entender">
+  <Lienzo nombre="reflexion" uid={uid} alto={268} etiqueta="Un rayo llega desde el núcleo a la frontera con el recubrimiento: si su ángulo supera el crítico se refleja entero; si no, parte se escapa"
+    inicial={dibujarReflexion({ angulo: 80, n1: 1.48 })}
+    nota="Recubrimiento fijo en n₂ = 1,44. Ángulos medidos desde la normal a la frontera.">
+    <Fragment slot="controles">
+      <Deslizador id={`${uid}-angulo`} etiqueta="Ángulo de incidencia θ" min={0} max={89} paso={1} valor={80} unidad="°" decimales={0} />
+      <Deslizador id={`${uid}-n1`} etiqueta="Índice del núcleo n₁" min={1.45} max={1.6} paso={0.01} valor={1.48} unidad="" decimales={2} />
+    </Fragment>
+  </Lienzo>
+</Widget>
+<script>
+  import { montarDibujo, numero } from './vivo';
+  import { dibujarReflexion } from './dibujos-fibra';
+
+  montarDibujo('reflexion', (caja, uid) => dibujarReflexion({ angulo: numero(caja, `${uid}-angulo`), n1: numero(caja, `${uid}-n1`) }));
+</script>

@@ -42,6 +42,13 @@ const temas = defineCollection({
     resumen: z.string().min(1),
     saber: z.array(z.string().min(1)).min(1, 'la lista "saber" necesita al menos un punto'),
     fuentes: z.array(z.string()).optional(),
+    // Preguntas tipo test: enunciado, opciones, índice de la correcta y explicación
+    test: z.array(z.object({
+      p: z.string().min(1),
+      o: z.array(z.string().min(1)).min(2).max(4),
+      c: z.number().int().min(0),
+      e: z.string().optional(),
+    }).refine((q) => q.c < q.o.length, { message: 'test: el índice «c» de la correcta se sale de las opciones' })).optional(),
   }),
 });
 

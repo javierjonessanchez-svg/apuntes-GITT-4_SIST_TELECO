@@ -12,16 +12,44 @@ saber:
 fuentes:
   - "Apuntes de clase (Javier)"
   - "T52 – WDM"
+test:
+  - p: "¿A cuántos nm equivale una separación de 100 GHz en la ventana de 1550 nm?"
+    o: ["Unos 0,8 nm", "Unos 8 nm", "Unos 0,08 nm", "Unos 20 nm"]
+    c: 0
+    e: "Δλ = λ²·Δf / c = (1550 nm)² · 100 GHz / (3·10⁸ m/s) ≈ 0,8 nm."
+  - p: "¿Cómo es el plan de CWDM?"
+    o: ["18 canales de 1271 a 1611 nm, cada 20 nm", "80 canales cada 0,8 nm", "4 canales cada 100 nm", "Un único canal en 1550 nm"]
+    c: 0
+    e: "Canales muy separados: todo es más barato."
+  - p: "¿Qué láseres admite CWDM?"
+    o: ["Fabry-Pérot, sin refrigeración", "Solo DFB refrigerados", "Solo LED", "Ninguno: usa amplificadores"]
+    c: 0
+    e: "Con canales cada 20 nm, unos 4 nm de anchura caben de sobra."
+  - p: "Si un láser de un sistema DWDM se calienta…"
+    o: ["Su λ sube y puede invadir el canal vecino", "Su λ baja", "Su potencia se duplica", "No pasa nada"]
+    c: 0
+    e: "La cavidad se dilata. Por eso se refrigera y se estabiliza la temperatura."
+  - p: "WDM es una multiplexación por…"
+    o: ["Longitud de onda (es decir, en frecuencia)", "Tiempo", "Código", "Espacio, con varias fibras"]
+    c: 0
+    e: "Cada señal va en su propia λ portadora dentro de la misma fibra."
+  - p: "Según la ITU (G.694.1), ¿qué separación tienen los canales DWDM?"
+    o: ["De 12,5 a 100 GHz", "De 1 a 10 MHz", "20 nm", "De 1 a 10 THz"]
+    c: 0
+    e: "En 1550 nm, 100 GHz son unos 0,8 nm."
 ---
 
 import PlanesWdm from '../../../src/asignaturas/comunicaciones-opticas/widgets/PlanesWdm.astro';
 import DerivaTermica from '../../../src/asignaturas/comunicaciones-opticas/widgets/DerivaTermica.astro';
 import Espectros from '../../../src/asignaturas/comunicaciones-opticas/widgets/Espectros.astro';
 import SeConecta from '../../../src/asignaturas/comunicaciones-opticas/SeConecta.astro';
+import Practica from '../../../src/asignaturas/comunicaciones-opticas/Practica.astro';
 
 **Idea clave.** Una fibra puede llevar muchas señales a la vez si cada una va en su propia longitud de onda. Cuanto más juntos los canales, más capacidad, pero más exigente tiene que ser cada láser: en DWDM, monomodo, preciso y con la temperatura bajo control; en CWDM, con canales más separados, todo es más barato.
 
 ## Qué es WDM
+
+<Practica n={1} nombre="Circuitos ópticos pasivos" />
 
 **WDM** (multiplexación por división en longitud de onda) consiste en combinar varias **longitudes de onda portadoras** dentro de una única fibra. Es una multiplexación en frecuencia, pero expresada en longitud de onda; en el fondo es lo mismo.
 

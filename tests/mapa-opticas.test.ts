@@ -36,6 +36,11 @@ describe('mapa de conceptos de Ópticas', () => {
     expect(wdm?.porque).toMatch(/ancho/);
   });
 
+  it('la dispersión conecta con los efectos no lineales por la mezcla de cuatro ondas', () => {
+    const fwm = conexionesDeTema('dispersion').find((c) => c.tema === 'efectos-no-lineales');
+    expect(fwm?.porque).toMatch(/cuatro ondas/);
+  });
+
   it('vecinos devuelve las dos direcciones de las aristas', () => {
     const v = vecinos('dwdm').map((x) => x.otro.id);
     expect(v).toContain('dfb');
