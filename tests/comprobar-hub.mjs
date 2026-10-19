@@ -141,3 +141,18 @@ if (!conExamen.length) {
   if (problemas.length) fallo(9, 'modo examen: ' + problemas.join('; '));
   else ok(9, `modo examen correcto en ${conExamen.length} asignatura(s)`);
 }
+
+// 10) la portada enlaza el modo examen desde la tarjeta de cada asignatura que lo tiene
+//     (aunque esté pendiente), y solo desde esas
+if (portada) {
+  const problemas = [];
+  for (const { md } of fichas) {
+    const slug = campo(md, 'slug');
+    const tarjeta = portada.texto.match(new RegExp(`<li\\b[^>]*data-tarjeta="${slug}"[\\s\\S]*?</li>`))?.[0] ?? '';
+    const enlaza = new RegExp(`href="[^"]*/${slug}/examen/"`).test(tarjeta);
+    if (conExamen.includes(slug) && !enlaza) problemas.push(`${slug}: tiene modo examen pero su tarjeta no lo enlaza`);
+    if (!conExamen.includes(slug) && enlaza) problemas.push(`${slug}: su tarjeta enlaza un modo examen que no existe`);
+  }
+  if (problemas.length) fallo(10, 'portada: ' + problemas.join('; '));
+  else ok(10, 'las tarjetas enlazan el modo examen solo donde existe');
+}

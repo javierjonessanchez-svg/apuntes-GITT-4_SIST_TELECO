@@ -2,12 +2,13 @@
 // Tarjeta de una asignatura en la portada: un anticipo de su mundo (el avance de
 // cada tema dibujado a su manera) y una barra con los temas dominados.
 // Activa: toda la tarjeta lleva a la asignatura. En preparación: no es enlace.
+// Con examen.yaml (activa o no): además, un enlace al modo examen.
 import { mundoDe } from '../registro';
 import { ruta } from '../../comun/rutas';
 import type { Asignatura, Tema } from '../../comun/datos';
 
-interface Props { asignatura: Asignatura; temas: Tema[] }
-const { asignatura: a, temas } = Astro.props;
+interface Props { asignatura: Asignatura; temas: Tema[]; examen: boolean }
+const { asignatura: a, temas, examen } = Astro.props;
 const { Avance } = mundoDe(a.slug);
 const activa = a.estado === 'activa';
 ---
@@ -27,5 +28,6 @@ const activa = a.estado === 'activa';
     </>
   )}
   {a.nota && <p class="tarjeta-nota">{a.nota}</p>}
+  {examen && <a class="tarjeta-examen" href={ruta(a.slug, 'examen')}>Modo examen <span aria-hidden="true">→</span></a>}
   {activa ? <span class="tarjeta-accion" aria-hidden="true">Abrir →</span> : <span class="tarjeta-etiqueta">En preparación</span>}
 </li>

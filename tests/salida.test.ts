@@ -115,7 +115,8 @@ describe('portada', () => {
   });
   test('un enlace por tarjeta activa y ninguno en las pendientes', () => {
     for (const [, slug, estado, dentro] of tarjetas) {
-      const enlaces = dentro.match(/<a\s/g) ?? [];
+      // El enlace al modo examen va aparte (lo comprueba comprobar-hub.mjs, punto 10)
+      const enlaces = dentro.match(/<a\s(?![^>]*class="tarjeta-examen")/g) ?? [];
       expect(enlaces.length, slug).toBe(estado === 'activa' ? 1 : 0);
       if (estado !== 'activa') expect(dentro, slug).toContain('En preparación');
     }

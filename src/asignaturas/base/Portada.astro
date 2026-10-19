@@ -3,15 +3,17 @@
 // Cada mundo la sustituye por la suya (la centralita de Conmutación, por ejemplo).
 import Avance from './Avance.astro';
 import { ruta } from '../../comun/rutas';
-import type { Asignatura, Tema } from '../../comun/datos';
+import { examenDe, type Asignatura, type Tema } from '../../comun/datos';
 
 interface Props { asignatura: Asignatura; temas: Tema[] }
 const { asignatura, temas } = Astro.props;
 const bloques = [...new Set(temas.map((t) => t.bloque))];
+const examen = Boolean(await examenDe(asignatura.slug));
 ---
 <div class="envoltura">
   <h1>{asignatura.nombre}</h1>
   <p class="entradilla">{asignatura.descripcion}</p>
+  {examen && <p><a class="boton" href={ruta(asignatura.slug, 'examen')}>Modo examen <span aria-hidden="true">→</span></a></p>}
   <section class="panel" aria-labelledby="avance-titulo">
     <h2 id="avance-titulo">Tu avance</h2>
     {bloques.map((b) => (
