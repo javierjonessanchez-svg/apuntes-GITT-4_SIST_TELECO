@@ -54,7 +54,9 @@ describe('toda la web', () => {
   });
   test('las asignaturas pendientes no tienen páginas', () => {
     expect(existsSync(join(DIST, 'seda'))).toBe(false);
-    expect(existsSync(join(DIST, 'radiacion-radiocomunicacion'))).toBe(false);
+  });
+  test('una pendiente con examen.yaml solo tiene el modo examen (ni portada ni temas)', () => {
+    expect(readdirSync(join(DIST, 'radiacion-radiocomunicacion'))).toEqual(['examen']);
   });
 });
 

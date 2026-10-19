@@ -1,0 +1,46 @@
+# PROVISIONAL: copia del ejemplo de tests/fixtures hasta tener las fórmulas reales.
+# Solo fórmulas, nombres de función, llamadas de ejemplo y rutas de funciones/ o plantillas/.
+repo: https://github.com/javierjonessanchez-svg/radiacion-radiocom/blob/main/
+formulas:
+  - id: pire
+    tema: Propagación
+    prueba: PEI1
+    nombre: PIRE
+    tex: 'PIRE = P_t - L_t + G_t'
+    funcion: Calcular_PIRE
+    llamada: 'PIRE_dBm = Calcular_PIRE(Pt_dBm, Lt_dB, Gt_dB)'
+    archivo: funciones/propagacion/Calcular_PIRE.m
+  - id: lb-espacio-libre
+    tema: Propagación
+    prueba: PEI1
+    nombre: Pérdida básica en espacio libre y gases
+    tex: 'L_{bf} = 32{,}45 + 20\log_{10} f_{\mathrm{MHz}} + 20\log_{10} d_{\mathrm{km}}'
+    funcion: Calcular_Lb_std
+    llamada: '[Lbf, Latm] = Calcular_Lb_std(f_Hz, d_m)'
+    archivo: funciones/propagacion/Calcular_Lb_std.m
+    notas: 'Entradas en Hz y metros, no en MHz y km.'
+  - id: prx
+    tema: Propagación
+    prueba: PEI1
+    nombre: Potencia recibida (Friis)
+    tex: 'P_{rx} = PIRE - L_b + G_r - L_r'
+    funcion: Calcular_Prx
+    llamada: 'Prx_dBm = Calcular_Prx(PIRE_dBm, Lb_dB, Gr_dB, Lr_dB)'
+    archivo: funciones/propagacion/Calcular_Prx.m
+  - id: g-desapuntado
+    tema: Antenas
+    prueba: PEI1
+    nombre: Ganancia con desapuntamiento
+    tex: 'G(\theta) = G_{max} - 12\left(\frac{\theta}{\theta_{3dB}}\right)^2'
+    funcion: Calcular_G_desapuntado
+    llamada: 'G_dB = Calcular_G_desapuntado(Gmax_dB, theta3dB_deg, theta_deg)'
+    archivo: funciones/antenas/Calcular_G_desapuntado.m
+flujos:
+  - id: espacio-libre
+    titulo: 'Espacio libre: potencia recibida'
+    cuando: '«visibilidad directa», «sin obstáculos», «espacio libre»'
+    pasos:
+      - formula: pire
+      - formula: lb-espacio-libre
+        nota: 'Suma también los gases si f ≥ 1 GHz.'
+      - formula: prx

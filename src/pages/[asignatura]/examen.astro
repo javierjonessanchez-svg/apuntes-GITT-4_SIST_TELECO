@@ -1,0 +1,25 @@
+---
+// Modo examen: una página por asignatura con contenido/<slug>/examen.yaml,
+// esté activa o pendiente. El segmento fijo «examen» gana a [tema].
+import BaseLayout from '../../comun/BaseLayout.astro';
+import ModoExamen from '../../comun/ModoExamen.astro';
+import { asignaturasOrdenadas, examenDe, type Asignatura } from '../../comun/datos';
+import type { Examen } from '../../comun/examen';
+
+export async function getStaticPaths() {
+  const rutas: { params: { asignatura: string }; props: { asignatura: Asignatura; examen: Examen } }[] = [];
+  for (const asignatura of await asignaturasOrdenadas()) {
+    const examen = await examenDe(asignatura.slug);
+    if (examen) rutas.push({ params: { asignatura: asignatura.slug }, props: { asignatura, examen } });
+  }
+  return rutas;
+}
+
+const { asignatura, examen } = Astro.props;
+---
+<BaseLayout titulo={`Modo examen · ${asignatura.nombre}`} asignatura={asignatura.slug}
+  descripcion={`Fórmulas y pasos por tipo de problema de ${asignatura.nombre}, con su función de MATLAB.`}>
+  <main id="contenido">
+    <ModoExamen asignatura={asignatura} examen={examen} />
+  </main>
+</BaseLayout>

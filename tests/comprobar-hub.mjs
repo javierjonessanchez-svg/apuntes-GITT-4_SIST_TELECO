@@ -118,3 +118,26 @@ if (!hojas.length) {
 const lab = buscar([/grupo\//i, /plantilla_profesor/i, /MEMORIA_/, /proyecto-final/i, /\bP[123]\//]);
 if (lab.length) fallo(8, 'material de prácticas en: ' + lab.join('; '));
 else ok(8, 'nada de material de prácticas en lo publicado');
+
+// 9) modo examen: cada asignatura con examen.yaml tiene su página, los «ver código» solo
+//    apuntan a funciones/ o plantillas/ de un repo de GitHub, y cada casilla tiene su etiqueta
+const conExamen = fichas.filter(({ carpeta }) => existsSync(join(dirContenido, carpeta, 'examen.yaml'))).map(({ md }) => campo(md, 'slug'));
+if (!conExamen.length) {
+  ok(9, 'ninguna asignatura tiene modo examen (nada que comprobar)');
+} else {
+  const problemas = [];
+  for (const slug of conExamen) {
+    const pagina = textos.find((t) => t.ruta === `${slug}/examen/index.html`);
+    if (!pagina) { problemas.push(`${slug}: tiene examen.yaml pero falta ${slug}/examen/index.html`); continue; }
+    const enlaces = [...pagina.texto.matchAll(/<a\b[^>]*class="ver-codigo"[^>]*>/g)].map((m) => m[0].match(/href="([^"]*)"/)?.[1] ?? '');
+    if (!enlaces.length) problemas.push(`${slug}: la página no tiene ningún «ver código»`);
+    for (const href of enlaces) {
+      if (!/^https:\/\/github\.com\/[^/]+\/[^/]+\/blob\/main\/(funciones|plantillas)\//.test(href) || href.includes('..')) problemas.push(`${slug}: enlace «${href}»`);
+    }
+    for (const m of pagina.texto.matchAll(/<input\b[^>]*type="checkbox"[^>]*>/g)) {
+      if (!/<label\b[^>]*>$/.test(pagina.texto.slice(0, m.index))) problemas.push(`${slug}: casilla sin etiqueta: ${m[0]}`);
+    }
+  }
+  if (problemas.length) fallo(9, 'modo examen: ' + problemas.join('; '));
+  else ok(9, `modo examen correcto en ${conExamen.length} asignatura(s)`);
+}

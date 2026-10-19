@@ -1,0 +1,79 @@
+/* Modo examen (ModoExamen.astro). Solo usa los tokens del esqueleto, así que
+   se ve bien en cualquier mundo, en claro y en oscuro. */
+
+.examen h1 { font-size: clamp(2rem, 5vw, 3rem); letter-spacing: -.02em; margin: 0 0 12px; }
+.examen h2 { font-size: 1.6rem; margin: 48px 0 16px; color: var(--primario); }
+.examen-asig { margin: 0 0 4px; color: var(--suave); font-weight: 600; }
+.examen-barra { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; }
+.examen-resumen { margin: 0; color: var(--suave); font-variant-numeric: tabular-nums; }
+.examen-resumen b { color: var(--texto); }
+.examen-filtro { display: flex; flex-wrap: wrap; gap: 6px; }
+.examen-filtro .chip { border: 0; font: inherit; font-weight: 600; font-size: .95rem; cursor: pointer; }
+.examen-filtro .chip:hover { background: color-mix(in srgb, var(--primario) 10%, var(--superficie)); }
+.examen-filtro .chip[aria-pressed="true"] { background: var(--primario); color: var(--sobre-primario); box-shadow: none; }
+.examen-nota { margin: 12px 0 0; color: var(--suave); font-size: .92rem; }
+
+/* Fórmulas en bloque: si no caben (móvil), se desplazan dentro de su caja */
+.examen-tex { overflow-x: auto; overflow-y: hidden; }
+.examen-tex .katex-display { margin: 8px 0; }
+
+/* Función, enlace y llamada de ejemplo */
+.examen code { font-family: ui-monospace, 'Cascadia Code', Consolas, monospace; font-size: .9em; }
+.codigo { display: flex; flex-wrap: wrap; align-items: center; gap: 0 12px; margin: 0; }
+.codigo-funcion { font-weight: 600; }
+.ver-codigo { display: inline-flex; align-items: center; gap: 4px; min-height: 44px; color: var(--primario); font-weight: 600; }
+/* Radio exterior 12 = 8 del botón + 4 de relleno */
+.llamada { display: flex; align-items: center; gap: 8px; padding: 4px 4px 4px 12px; border-radius: 12px; background: var(--fondo); }
+.llamada code { flex: 1; min-width: 0; overflow-x: auto; white-space: nowrap; padding: 6px 0; user-select: all; }
+.boton-copiar {
+  flex: none; min-height: 40px; padding: 0 12px; border: 0; border-radius: 8px;
+  background: var(--superficie); color: var(--texto); box-shadow: inset 0 0 0 1px var(--linea);
+  font: inherit; font-size: .88rem; font-weight: 600; cursor: pointer;
+  transition-property: scale, background-color; transition-duration: .15s; transition-timing-function: ease-out;
+}
+.boton-copiar:hover { background: color-mix(in srgb, var(--primario) 10%, var(--superficie)); }
+.boton-copiar:active { scale: .96; }
+
+/* Flujos: un desplegable por tipo de problema */
+.flujos { display: grid; gap: 12px; }
+.flujo { padding: 0; }
+.flujo[hidden] { display: none; }
+.flujo summary {
+  position: relative; display: grid; gap: 2px; min-height: 44px; padding: 16px 52px 16px 20px;
+  border-radius: var(--radio); cursor: pointer; list-style: none;
+}
+.flujo summary::-webkit-details-marker { display: none; }
+/* Flecha: un ángulo dibujado con dos bordes que gira al abrir */
+.flujo summary::after {
+  content: ""; position: absolute; right: 22px; top: 24px; width: 9px; height: 9px;
+  border-right: 2px solid var(--suave); border-bottom: 2px solid var(--suave); rotate: 45deg;
+  transition-property: rotate, translate; transition-duration: .2s; transition-timing-function: ease-out;
+}
+.flujo[open] summary::after { rotate: 225deg; translate: 0 4px; }
+.flujo-titulo { font-family: var(--fuente-titulos); font-weight: 700; font-size: 1.12rem; line-height: 1.3; text-wrap: balance; }
+.flujo-cuando { color: var(--suave); font-size: .95rem; text-wrap: pretty; }
+.flujo-pasos { list-style: none; margin: 0; padding: 0 20px 20px; counter-reset: paso; display: grid; gap: 16px; }
+.paso { counter-increment: paso; display: grid; grid-template-columns: 28px minmax(0, 1fr); column-gap: 12px; row-gap: 4px; padding-top: 16px; border-top: 1px solid var(--linea); }
+.paso > * { grid-column: 2; }
+.paso::before {
+  content: counter(paso); grid-column: 1; grid-row: 1 / span 5; display: grid; place-items: center;
+  width: 28px; height: 28px; border-radius: 50%; background: var(--primario); color: var(--sobre-primario);
+  font-weight: 700; font-size: .9rem; font-variant-numeric: tabular-nums;
+}
+.paso-nombre { font-weight: 700; line-height: 1.3; justify-self: start; }
+.paso-nota { margin: 0; color: var(--suave); font-size: .95rem; }
+
+/* Lista de todas las fórmulas, por tema */
+.examen-tema[hidden], .formula[hidden] { display: none; }
+.examen-tema h3 { font-size: 1.25rem; margin: 32px 0 12px; }
+.formulas { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr)); }
+.formula { display: flex; flex-direction: column; gap: 6px; min-width: 0; scroll-margin-top: 80px; }
+.formula:target { box-shadow: var(--sombra), 0 0 0 3px var(--acento); }
+.formula-cabeza { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.formula-cabeza h4 { margin: 0; font-size: 1.05rem; line-height: 1.3; text-wrap: balance; }
+.formula-prueba { flex: none; padding: 2px 8px; border-radius: 999px; box-shadow: inset 0 0 0 1px var(--linea); color: var(--suave); font-size: .8rem; font-weight: 700; }
+.formula-notas { margin: 0; color: var(--suave); font-size: .92rem; }
+.formula-notas b { color: var(--texto); }
+.formula-marcas { display: flex; flex-wrap: wrap; gap: 0 24px; margin-top: auto; padding-top: 6px; border-top: 1px solid var(--linea); }
+.marca { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; cursor: pointer; font-weight: 600; }
+.marca input { flex: none; width: 22px; height: 22px; margin: 0; accent-color: var(--primario); cursor: pointer; }
