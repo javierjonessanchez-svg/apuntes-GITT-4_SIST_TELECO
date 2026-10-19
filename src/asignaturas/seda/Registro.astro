@@ -1,0 +1,27 @@
+---
+// Un registro del LPC1768 como en la hoja de datos: nombre, para qué sirve y sus campos
+// (bits, nombre del campo y qué hace). Los nombres van en monoespaciada.
+interface Campo { bits: string; nombre: string; que: string }
+interface Props { nombre: string; descripcion?: string; campos: Campo[] }
+const { nombre, descripcion, campos } = Astro.props;
+---
+<div class="sd-registro">
+  <table>
+    <caption><code>{nombre}</code>{descripcion && <span> · {descripcion}</span>}</caption>
+    <thead><tr><th scope="col">Bits</th><th scope="col">Campo</th><th scope="col">Qué hace</th></tr></thead>
+    <tbody>
+      {campos.map((c) => (
+        <tr><td class="bits">{c.bits}</td><td><code>{c.nombre}</code></td><td set:html={c.que} /></tr>
+      ))}
+    </tbody>
+  </table>
+</div>
+
+<style>
+  .sd-registro { margin: 18px 0; }
+  .sd-registro table { margin: 0; border-radius: 10px; background: var(--superficie); box-shadow: inset 0 0 0 1px var(--linea); }
+  caption { caption-side: top; text-align: left; padding: 0 0 8px; color: var(--suave); font-size: .92rem; }
+  caption code { font-weight: 700; color: var(--texto); }
+  .bits { font-family: var(--fuente-mono); font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--suave); }
+  td code { white-space: nowrap; }
+</style>
