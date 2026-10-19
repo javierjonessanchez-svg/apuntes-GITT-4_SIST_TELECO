@@ -234,7 +234,7 @@ formulas:
 flujos:
   - id: obstaculos-disponibilidad
     titulo: 'Radioenlace con obstáculos → Prx → margen dinámico → disponibilidad'
-    cuando: 'Da un perfil con obstáculos (distancias y cotas), la latitud y longitud, una cadena de recepción, la modulación y Eb/N0, y pregunta por la calidad de disponibilidad.'
+    cuando: '«obstáculos» o «perfil del terreno», «margen dinámico», «indisponibilidad» o «calidad de disponibilidad».'
     pasos:
       - formula: lb-espacio-libre
       - formula: bullington
@@ -254,7 +254,7 @@ flujos:
       - formula: disponibilidad
   - id: interferencia-xpd
     titulo: 'Interferencia y XPD por lluvia'
-    cuando: 'Habla de polarización copolar y contrapolar, del diagrama de radiación del fabricante (RPE), de una tercera estación o de un objetivo de indisponibilidad con MTTR.'
+    cuando: '«polarización cruzada» o «XPD», «diagrama de radiación», «interferente», «MTTR».'
     pasos:
       - formula: lb-espacio-libre
       - formula: pire
