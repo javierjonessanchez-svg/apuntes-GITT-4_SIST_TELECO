@@ -53,7 +53,7 @@ formulas:
     tema: Propagación
     prueba: PEI1
     nombre: Pérdida básica en espacio libre y gases
-    tex: 'L_{bf} = 20\log_{10}\frac{4\pi d}{\lambda}, \qquad L_b = L_{bf} + L_{ad}'
+    tex: '\begin{gathered} L_{bf} = 20\log_{10}\frac{4\pi d}{\lambda} \\ L_b = L_{bf} + L_{ad} \end{gathered}'
     funcion: Calcular_Lb_std
     llamada: '[Lbf, Latm] = Calcular_Lb_std(f_Hz, d_m)'
     archivo: funciones/propagacion/Calcular_Lb_std.m
@@ -79,7 +79,7 @@ formulas:
     tema: Propagación
     prueba: PEI1
     nombre: Difracción en filo de cuchillo
-    tex: 'J(\nu) = 6{,}9 + 20\log_{10}\left(\sqrt{(\nu-0{,}1)^2+1}+\nu-0{,}1\right), \qquad \nu = \frac{\sqrt{2}\,c}{R_1}'
+    tex: '\begin{gathered} J(\nu) = 6{,}9 + 20\log_{10}\left(\sqrt{(\nu-0{,}1)^2+1}+\nu-0{,}1\right) \\ \nu = \frac{\sqrt{2}\,c}{R_1} \end{gathered}'
     funcion: Calcular_Lcuch
     llamada: 'Lcuch = Calcular_Lcuch(v)'
     archivo: funciones/propagacion/Calcular_Lcuch.m
@@ -97,7 +97,7 @@ formulas:
     tema: Propagación
     prueba: PEI1
     nombre: Reflexión en tierra lisa o mar (dos rayos)
-    tex: 'L_{ad} = -20\log_{10}\left|1 + R_e\, e^{-j 2\pi \Delta l/\lambda}\right|, \qquad \Delta l \approx \frac{2\,h''_1 h''_2}{d}'
+    tex: '\begin{gathered} L_{ad} = -20\log_{10}\left|1 + R_e\, e^{-j 2\pi \Delta l/\lambda}\right| \\ \Delta l \approx \frac{2\,h''_1 h''_2}{d} \end{gathered}'
     funcion: Calcular_Lad_ref
     llamada: '[Lad_ref, caso] = Calcular_Lad_ref(f_Hz, d_m, K, het1_m, ee_et1_m, het2_m, ee_et2_m, sigma_Sm, epsr, pol, sigma_ee_m)'
     archivo: funciones/propagacion/Calcular_Lad_ref.m
@@ -126,7 +126,7 @@ formulas:
     tema: Desvanecimientos
     prueba: PEI1
     nombre: Coeficientes k y α de la lluvia (UIT-R P.838)
-    tex: 'k_C = \frac{k_H + k_V}{2}, \qquad \alpha_C = \frac{k_H\alpha_H + k_V\alpha_V}{2k_C}'
+    tex: '\begin{gathered} k_C = \frac{k_H + k_V}{2} \\ \alpha_C = \frac{k_H\alpha_H + k_V\alpha_V}{2k_C} \end{gathered}'
     funcion: Calcular_k_alfa
     llamada: '[k, alfa] = Calcular_k_alfa(f_GHz, "V")'
     archivo: funciones/desvanecimientos/Calcular_k_alfa.m
@@ -135,7 +135,7 @@ formulas:
     tema: Desvanecimientos
     prueba: PEI1
     nombre: Atenuación por lluvia superada el 0,01 % del tiempo
-    tex: '\gamma_R = k\, R_{0{,}01}^{\alpha}, \qquad F_{0{,}01} = \gamma_R\, d_{eff}'
+    tex: '\begin{gathered} \gamma_R = k\, R_{0{,}01}^{\alpha} \\ F_{0{,}01} = \gamma_R\, d_{eff} \end{gathered}'
     funcion: Calcular_F001
     llamada: '[F001_dB, deff_km, gammaR_dBkm] = Calcular_F001(f_GHz, d_km, R001_mmh, k, alfa)'
     archivo: funciones/desvanecimientos/Calcular_F001.m
@@ -153,7 +153,7 @@ formulas:
     tema: Desvanecimientos
     prueba: PEI1
     nombre: Indisponibilidad por lluvia (q para un margen dado)
-    tex: 'C_3 x^2 + C_2 x + \log_{10}\frac{FM}{F_{0{,}01}\, C_1} = 0, \qquad q = 10^{x_{max}}'
+    tex: '\begin{gathered} C_3 x^2 + C_2 x + \log_{10}\frac{FM}{F_{0{,}01}\, C_1} = 0 \\ q = 10^{x_{max}} \end{gathered}'
     funcion: Calcular_q_lluvia
     llamada: 'U_lluvia_pct = Calcular_q_lluvia(FM_dB, F001_dB, f_GHz)'
     archivo: funciones/desvanecimientos/Calcular_q_lluvia.m
@@ -171,7 +171,7 @@ formulas:
     tema: Desvanecimientos
     prueba: PEI1
     nombre: MTTR máximo para un objetivo de indisponibilidad
-    tex: 'u = \frac{U_{eq,max}}{100\, N}, \qquad MTTR = \frac{u\, MTBF}{1 - u}'
+    tex: '\begin{gathered} u = \frac{U_{eq,max}}{100\, N} \\ MTTR = \frac{u\, MTBF}{1 - u} \end{gathered}'
     funcion: Calcular_MTTR_max
     llamada: 'MTTR_h = Calcular_MTTR_max(U_obj_pct - U_lluvia_pct, MTBF_h, N_equipos)'
     archivo: funciones/desvanecimientos/Calcular_MTTR_max.m
@@ -180,7 +180,7 @@ formulas:
     tema: Desvanecimientos
     prueba: PEI1
     nombre: Calidad de disponibilidad
-    tex: 'U_{total} = U_{lluvia} + U_{eq}, \qquad Disp = 100 - U_{total}\ (\%)'
+    tex: '\begin{gathered} U_{total} = U_{lluvia} + U_{eq} \\ Disp = 100 - U_{total}\ (\%) \end{gathered}'
     funcion: Calcular_Disponibilidad
     llamada: 'r = Calcular_Disponibilidad(U_lluvia_pct, U_eq_pct, U_obj_pct)'
     archivo: funciones/desvanecimientos/Calcular_Disponibilidad.m
@@ -189,7 +189,7 @@ formulas:
     tema: Desvanecimientos
     prueba: PEI1
     nombre: Discriminación por polarización cruzada (XPD) por lluvia
-    tex: 'XPD = U - V \log_{10} F_q, \qquad U = 15 + 30\log_{10} f, \quad V = \begin{cases} 12{,}8\, f^{0{,}19} & 8 < f \le 20\ \mathrm{GHz} \\ 22{,}6 & 20 < f \le 35\ \mathrm{GHz} \end{cases}'
+    tex: '\begin{gathered} XPD = U - V \log_{10} F_q \\ U = 15 + 30\log_{10} f, \quad V = \begin{cases} 12{,}8\, f^{0{,}19} & 8 < f \le 20\ \mathrm{GHz} \\ 22{,}6 & 20 < f \le 35\ \mathrm{GHz} \end{cases} \end{gathered}'
     funcion: Calcular_XPD_lluvia
     llamada: 'XPD_dB = Calcular_XPD_lluvia(f_GHz, Fq_dB)'
     archivo: funciones/desvanecimientos/Calcular_XPD_lluvia.m
@@ -199,7 +199,7 @@ formulas:
     tema: Ruido e interferencias
     prueba: PEI1
     nombre: Temperatura de ruido de una cadena (Friis)
-    tex: 'T_{ent} = T_1 + \frac{T_2}{g_1} + \frac{T_3}{g_1 g_2} + \cdots, \qquad T_{pasiva} = (l - 1)\cdot 290\ \mathrm{K}'
+    tex: '\begin{gathered} T_{ent} = T_1 + \frac{T_2}{g_1} + \frac{T_3}{g_1 g_2} + \cdots \\ T_{pasiva} = (l - 1)\cdot 290\ \mathrm{K} \end{gathered}'
     funcion: Calcular_T_cadena
     llamada: '[Tent_K, Tsal_K] = Calcular_T_cadena([T1_K T2_K T3_K], [G1_dB G2_dB G3_dB])'
     archivo: funciones/ruido_interferencias/Calcular_T_cadena.m
@@ -208,7 +208,7 @@ formulas:
     tema: Ruido e interferencias
     prueba: PEI1
     nombre: Umbral del receptor
-    tex: 'TH = 10\log_{10}(k\, T\, R_b) + 30 + \frac{E_b}{N_0} + Degr, \qquad B = \frac{R_b}{\log_2 M}(1 + \alpha)'
+    tex: '\begin{gathered} TH = 10\log_{10}(k\, T\, R_b) + 30 + \frac{E_b}{N_0} + Degr \\ B = \frac{R_b}{\log_2 M}(1 + \alpha) \end{gathered}'
     funcion: Calcular_Umbral
     llamada: '[TH_dBm, B_Hz, N_dBm] = Calcular_Umbral(T_K, Rb_bps, M, rolloff, EbN0_dB, Degr_dB)'
     archivo: funciones/ruido_interferencias/Calcular_Umbral.m
@@ -226,7 +226,7 @@ formulas:
     tema: Ruido e interferencias
     prueba: PEI1
     nombre: Potencia interferente y C/I
-    tex: 'P_I = PIRE - D_{tx} - L_b - F_q - XPD_{ll} + G_r - D_{rx} - XPD_{ant} - L_r, \qquad \frac{C}{I} = P_{rx} - P_I'
+    tex: '\begin{gathered} P_I = PIRE - D_{tx} - L_b - F_q - XPD_{ll} + G_r - D_{rx} - XPD_{ant} - L_r \\ \frac{C}{I} = P_{rx} - P_I \end{gathered}'
     funcion: Calcular_Interferencia
     llamada: 'P_I_dBm = Calcular_Interferencia(PIRE_dBm, Lb_dB, Gr_dB, Lr_dB, D_tx_dB=Dtx, D_rx_dB=Drx)'
     archivo: funciones/ruido_interferencias/Calcular_Interferencia.m

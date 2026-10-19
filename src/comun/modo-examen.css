@@ -16,6 +16,8 @@
 /* Fórmulas en bloque: si no caben (móvil), se desplazan dentro de su caja */
 .examen-tex { overflow-x: auto; overflow-y: hidden; }
 .examen-tex .katex-display { margin: 8px 0; }
+@media (max-width: 500px) { .examen-tex .katex-display { font-size: .9em; } }
+.examen-tex, .llamada code { scrollbar-width: thin; scrollbar-color: var(--linea) transparent; }
 
 /* Función, enlace y llamada de ejemplo */
 .examen code { font-family: ui-monospace, 'Cascadia Code', Consolas, monospace; font-size: .9em; }
