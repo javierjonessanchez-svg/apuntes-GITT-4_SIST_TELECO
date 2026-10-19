@@ -1,0 +1,51 @@
+---
+// Calculadora de baudios de la UART: velocidad y F_PCLK → DLM, DLL, DivAddVal y MulVal,
+// con la velocidad real y el error. Sin JavaScript se ve el ejemplo ya resuelto.
+import Widget from '../../../widgets/Widget.astro';
+import Desarrollo from '../../../widgets/Desarrollo.astro';
+import { fmt } from '../../../widgets/numeros';
+import { calcularBaudios, pasosBaudios } from './uart';
+
+interface Props { baudios?: number; fpclk?: number }
+const { baudios = 115200, fpclk = 25e6 } = Astro.props;
+const r = calcularBaudios(fpclk, baudios);
+---
+<Widget titulo="Calculadora de baudios de la UART" tipo="resolver">
+  <div data-calc-baudios>
+    <form class="widget-campos">
+      <label class="widget-campo">Velocidad, V (bit/s)
+        <input name="v" inputmode="numeric" value={baudios} autocomplete="off" spellcheck="false" />
+      </label>
+      <label class="widget-campo">F<sub>PCLK</sub> (MHz)
+        <input name="f" inputmode="decimal" value={fmt(fpclk / 1e6, 4)} autocomplete="off" spellcheck="false" />
+      </label>
+    </form>
+    <p class="widget-aviso" data-aviso role="status" hidden></p>
+    <p class="widget-resultado" data-resultado aria-live="polite"></p>
+    <Desarrollo />
+  </div>
+  <Fragment slot="estatico">
+    {r && <p class="widget-resultado">Con V = {baudios} bit/s y F<sub>PCLK</sub> = {fmt(fpclk / 1e6)} MHz: <b>DLM = {r.dlm}</b>, <b>DLL = {r.dll}</b>, <b>DivAddVal = {r.divAddVal}</b>, <b>MulVal = {r.mulVal}</b> (error {fmt(r.error * 100, 3)} %).</p>}
+    <Desarrollo pasos={pasosBaudios(fpclk, baudios)} />
+  </Fragment>
+</Widget>
+<script>
+  import { montar } from '../../../widgets/cliente';
+  import { calculadora } from '../../../widgets/calculadora';
+  import { fmt } from '../../../widgets/numeros';
+  import { calcularBaudios, pasosBaudios } from './uart';
+
+  montar('[data-calc-baudios]', (caja) => calculadora(caja, [
+    { nombre: 'v', etiqueta: 'Velocidad', reglas: { entero: true, min: 1, max: 10_000_000 } },
+    { nombre: 'f', etiqueta: 'F_PCLK', reglas: { positivo: true, max: 1000 } },
+  ], ({ v, f }) => {
+    const fpclk = f! * 1e6;
+    const r = calcularBaudios(fpclk, v!);
+    return {
+      resultado: r
+        ? `**DLM = ${r.dlm}**, **DLL = ${r.dll}**, **DivAddVal = ${r.divAddVal}**, **MulVal = ${r.mulVal}** (error ${fmt(r.error * 100, 3)} %)`
+        : 'Con este F_PCLK no se puede generar esa velocidad: el divisor sale menor que 1.',
+      pasos: pasosBaudios(fpclk, v!),
+    };
+  }));
+</script>
