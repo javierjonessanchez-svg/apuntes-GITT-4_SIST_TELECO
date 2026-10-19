@@ -16,7 +16,7 @@ const r = calcularTimer(fpclk, T);
       <label class="widget-campo">Periodo, T (ms)
         <input name="t" inputmode="decimal" value={fmt(T * 1e3, 6)} autocomplete="off" spellcheck="false" />
       </label>
-      <label class="widget-campo">F<sub>PCLK</sub> (MHz)
+      <label class="widget-campo"><span>F<sub>PCLK</sub> (MHz)</span>
         <input name="f" inputmode="decimal" value={fmt(fpclk / 1e6, 4)} autocomplete="off" spellcheck="false" />
       </label>
     </form>

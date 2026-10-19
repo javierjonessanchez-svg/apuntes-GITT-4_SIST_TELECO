@@ -1,0 +1,185 @@
+---
+titulo: "Timers: Match e interrupciones periódicas"
+orden: 2
+bloque: "Temporizadores"
+resumen: "TC, PR, MR0 = Ftick·T − 1, MCR, IR y EMR"
+saber:
+  - "Cada Timer (0–3) tiene un contador de 32 bits, TC, que avanza a F_tick = F_PCLK/(PR+1). Con PR = 0, F_tick = 25 MHz"
+  - "Hay 4 registros de Match (MR0–MR3): cuando TC = MRx puede interrumpir, reiniciar TC o pararlo, según los 3 bits de MRx en MCR (MRxI, MRxR, MRxS)"
+  - "Interrupción periódica con reset en MR0: MR0 = F_tick·T − 1, porque TC cuenta de 0 a MR0 (MR0 + 1 cuentas)"
+  - "Sin reset, el TC corre libre y en la ISR se suma MRx = MRx + N, con N = F_tick·T. Así cada Match lleva su propio periodo"
+  - "En la ISR se borra el flag escribiendo un 1 en su bit de IR: LPC_TIM0->IR = (1 << 0) para MR0"
+  - "EMR: los bits EMCx eligen qué hace el pin MATn.x en cada Match (01 lo pone a 0, 10 a 1, 11 lo conmuta). Los bits EMx dicen el nivel actual"
+  - "Señal cuadrada por hardware (toggle con reset): MR0 = F_tick/(2·F_out) − 1. Solo vale una frecuencia por timer"
+  - "Con interrupción se generan hasta 4 señales por timer (N = F_tick/(2·F_out)); la frecuencia máxima la limitan la latencia y el tiempo de la ISR"
+fuentes:
+  - "Apuntes de Miguel"
+  - "Temporizadores del LPC17xx (diapositivas de clase)"
+  - "UM10360 (manual del LPC17xx), cap. 21"
+test:
+  - p: "Con F_PCLK = 25 MHz y PR = 0, ¿qué MR0 da una interrupción cada 1 ms (con reset en MR0)?"
+    o: ["24 999", "25 000", "2 499", "25 000 000"]
+    c: 0
+    e: "MR0 = F_tick·T − 1 = 25·10⁶·10⁻³ − 1. El TC cuenta de 0 a MR0, que son MR0 + 1 cuentas."
+  - p: "¿Qué bits de MCR hay que poner a 1 para que MR0 interrumpa y reinicie el TC?"
+    o: ["Bit 0 (MR0I) y bit 1 (MR0R)", "Bit 0 y bit 2", "Solo el bit 1", "Bits 4 y 5"]
+    c: 0
+    e: "Cada Match usa 3 bits: I (interrumpir), R (reiniciar) y S (parar). Para MR0 son los bits 0, 1 y 2."
+  - p: "¿Cómo se borra el flag del Match 1 del Timer 0 en su ISR?"
+    o: ["LPC_TIM0->IR = (1 << 1);", "LPC_TIM0->IR &= ~(1 << 1);", "LPC_TIM0->MCR = 0;", "No hace falta borrarlo"]
+    c: 0
+    e: "Los flags de IR se borran escribiendo un 1 en su bit; escribir 0 no hace nada."
+  - p: "¿Por qué con «toggle + reset en MR0» solo sale una frecuencia por timer?"
+    o: ["Porque el reset del TC en MR0 afecta a todos los Match del timer", "Porque solo hay un pin MAT por timer", "Porque EMR solo tiene un bit", "Porque PR solo admite un valor"]
+    c: 0
+    e: "Al reiniciar el TC en MR0, todos los Match comparan contra el mismo ciclo: el periodo lo marca MR0."
+  - p: "Generas dos señales con un timer sumando N en la ISR. ¿Qué limita la frecuencia máxima?"
+    o: ["La latencia de la interrupción y el tiempo de ejecución de la ISR", "El número de bits del TC", "El valor de PR", "La prioridad del NVIC"]
+    c: 0
+    e: "Cada semiperiodo hay que entrar en la ISR; si el semiperiodo es menor que latencia + ejecución, se pierden Match."
+---
+import Practica from '../../../src/asignaturas/seda/Practica.astro';
+import Registro from '../../../src/asignaturas/seda/Registro.astro';
+import CalculadoraTimer from '../../../src/asignaturas/seda/widgets/CalculadoraTimer.astro';
+
+**Idea clave.** Un Timer es un **contador que avanza solo** a un ritmo conocido. Cuando llega a un valor que tú eliges (un **Match**), puede interrumpir, reiniciarse o cambiar un pin. Casi todo se reduce a una cuenta: cuántos «tics» caben en el tiempo que quieres.
+
+## Cómo está hecho un Timer
+
+El LPC1768 tiene **cuatro Timers** (0–3), iguales. Cada uno tiene:
+
+- **PR** (*Prescaler*) y **PC**: dividen el reloj. El contador avanza a $F_{tick} = \dfrac{F_{PCLK}}{PR + 1}$. Con PR = 0 (el de reset), $F_{tick} = F_{PCLK} = 25$ MHz.
+- **TC** (*Timer Counter*): el contador de **32 bits**.
+- **MR0–MR3**: cuatro registros de **Match**. Un comparador mira en cada tic si TC = MRx.
+- **CR0–CR1**: dos registros de **captura** (tema 4).
+- Pines: salidas **MATn.0–MATn.3** y entradas **CAPn.0–CAPn.1**.
+
+<Registro nombre="TnTCR" descripcion="control del contador" campos={[
+  { bits: '0', nombre: 'Counter Enable', que: '1 = el TC y el PC cuentan; 0 = parados' },
+  { bits: '1', nombre: 'Counter Reset', que: '1 = TC y PC a 0 (y se quedan a 0 hasta volver a escribir 0)' },
+]} />
+
+## Qué pasa en un Match: MCR
+
+Cada Match tiene **tres bits** en MCR. Con cuatro Match son 12 bits:
+
+<Registro nombre="TnMCR" descripcion="acción en cada Match (MR0; MR1–MR3 siguen igual de 3 en 3)" campos={[
+  { bits: '0', nombre: 'MR0I', que: 'Interrumpir cuando TC = MR0' },
+  { bits: '1', nombre: 'MR0R', que: 'Reiniciar el TC (vuelve a 0)' },
+  { bits: '2', nombre: 'MR0S', que: 'Parar el TC (pone a 0 el bit 0 de TCR)' },
+  { bits: '5:3', nombre: 'MR1I, MR1R, MR1S', que: 'Lo mismo para MR1' },
+  { bits: '11:9', nombre: 'MR3I, MR3R, MR3S', que: 'Lo mismo para MR3' },
+]} />
+
+Y los flags de cada fuente están en **IR**: bits 0–3 para MR0–MR3 y bits 4–5 para CR0–CR1. Se borran **escribiendo un 1**.
+
+## a) Interrupción periódica
+
+<Practica n={3} nombre="Servomotor con un Timer" />
+
+Con **MR0I y MR0R** activos, el TC sube de 0 a MR0, interrumpe y vuelve a 0. Cuenta $MR0 + 1$ tics, así que:
+
+$$
+T_{int} = \frac{MR0 + 1}{F_{tick}} \quad\Longrightarrow\quad MR0 = F_{tick}\cdot T_{int} - 1
+$$
+
+```c
+LPC_TIM0->PR  = 0;                     // F_tick = F_PCLK = 25 MHz
+LPC_TIM0->MR0 = 25000000 / 1000 - 1;   // 1 ms
+LPC_TIM0->MCR = (1 << 0) | (1 << 1);   // MR0I y MR0R
+NVIC_EnableIRQ(TIMER0_IRQn);
+LPC_TIM0->TCR = 1;                     // arranca
+
+void TIMER0_IRQHandler(void) {
+  LPC_TIM0->IR = (1 << 0);             // borrar el flag de MR0
+  // … lo que toque cada 1 ms
+}
+```
+
+Es lo mismo que el SysTick, pero con cualquier Timer y con 32 bits. Si $F_{tick}\cdot T$ no cabe en 32 bits (periodos de minutos), se sube PR.
+
+<CalculadoraTimer T={0.001} fpclk={25000000} />
+
+### Sin reset: el TC corre libre
+
+Si no se reinicia el TC, en cada interrupción se **adelanta el Match**:
+
+```c
+void TIMER0_IRQHandler(void) {
+  LPC_TIM0->IR = (1 << 0);
+  LPC_TIM0->MR0 += N;                  // N = F_tick · T
+}
+```
+
+Aquí $N = F_{tick}\cdot T$, sin el −1: ya no se cuenta desde 0, sino desde el Match anterior. La ventaja es que **cada Match lleva su propio periodo**, porque ninguno reinicia el contador. Cuando el TC llega a $2^{32}-1$ da la vuelta a 0, y la suma también, así que sigue funcionando.
+
+## b) Señal cuadrada por hardware (sin interrupción)
+
+**EMR** conecta cada Match con su pin MATn.x. Sin entrar en ninguna ISR, el pin puede ponerse a 0, a 1 o conmutar:
+
+<Registro nombre="TnEMR" descripcion="salidas de Match" campos={[
+  { bits: '0–3', nombre: 'EM0–EM3', que: 'Nivel actual de cada salida (se puede leer y escribir)' },
+  { bits: '5:4', nombre: 'EMC0', que: 'En el Match 0: <code>00</code> nada, <code>01</code> a 0, <code>10</code> a 1, <code>11</code> conmuta' },
+  { bits: '7:6', nombre: 'EMC1', que: 'Igual para el Match 1' },
+  { bits: '9:8', nombre: 'EMC2', que: 'Igual para el Match 2' },
+  { bits: '11:10', nombre: 'EMC3', que: 'Igual para el Match 3' },
+]} />
+
+Con **toggle** y reset en MR0, el pin cambia cada $MR0 + 1$ tics: dos cambios por periodo.
+
+$$
+\frac{T_{out}}{2} = \frac{MR0 + 1}{F_{tick}} \quad\Longrightarrow\quad MR0 = \frac{F_{tick}}{2\cdot F_{out}} - 1
+$$
+
+El problema: el reset en MR0 **reinicia el TC para todos los Match**. Con este método sale **una sola frecuencia por timer**.
+
+## c) Varias señales con un timer
+
+Para tener varias frecuencias se juntan los dos trucos: **toggle sin reset** y sumar $N$ en la ISR. Cada Match conmuta su pin y se adelanta medio periodo:
+
+```c
+void TIMER0_IRQHandler(void) {
+  if (LPC_TIM0->IR & (1 << 0)) {       // ¿ha sido MR0?
+    LPC_TIM0->IR = (1 << 0);
+    LPC_TIM0->MR0 += N0;               // N0 = F_tick / (2 · F_0)
+  }
+  if (LPC_TIM0->IR & (1 << 1)) {       // ¿ha sido MR1?
+    LPC_TIM0->IR = (1 << 1);
+    LPC_TIM0->MR1 += N1;
+  }
+}
+```
+
+Salen **hasta 4 señales** por timer. Hay que mirar en IR **qué Match ha interrumpido**, porque todos comparten la misma ISR. Las señales rápidas interrumpen más veces, y si todas las frecuencias son múltiplos, pueden coincidir y entrar en todos los `if` de una vez.
+
+**Límite de frecuencia.** Entre dos conmutaciones tiene que dar tiempo a entrar en la ISR y ejecutarla. Si en el peor caso coinciden dos señales:
+
+$$
+2\cdot(t_{latencia} + t_{ejecución}) \le \frac{T_{out}}{2}
+$$
+
+De ahí sale $F_{max}$. Además, cuanto más alta la frecuencia, más tiempo de CPU se come la ISR.
+
+## Preguntas de examen
+
+<details>
+<summary>Calcula MR0 para generar con MAT0.0 una señal cuadrada de 1 kHz por hardware (F_PCLK = 25 MHz, PR = 0) y di cómo configurarías MCR y EMR.</summary>
+
+Un semiperiodo son 0,5 ms: $MR0 = \dfrac{25\cdot 10^6}{2\cdot 1000} - 1 = 12\,499$.
+MCR: solo **MR0R** (bit 1), sin interrupción. EMR: **EMC0 = 11** (bits 5:4, conmutar). Y el pin de MAT0.0 (P1.28 o P3.25) en esa función con PINSEL. *(Respuesta redactada a partir de los apuntes.)*
+
+</details>
+
+<details>
+<summary>¿Por qué en la interrupción periódica es MR0 = F_tick·T − 1, pero al sumar en la ISR es N = F_tick·T?</summary>
+
+Con reset, el TC pasa por 0, 1, …, MR0: son $MR0 + 1$ cuentas por periodo, de ahí el −1. Sin reset, el siguiente Match está **N cuentas después** del anterior, así que el periodo es exactamente $N$ tics. *(Respuesta redactada a partir de los apuntes.)*
+
+</details>
+
+<details>
+<summary>Quieres dos señales de 1 kHz y 3 kHz con el mismo timer. ¿Qué método usas y qué valores de N?</summary>
+
+Toggle sin reset y suma en la ISR. Con $F_{tick} = 25$ MHz: $N_0 = \dfrac{25\cdot 10^6}{2\cdot 1000} = 12\,500$ y $N_1 = \dfrac{25\cdot 10^6}{2\cdot 3000} \approx 4\,167$ (redondeando, 2,9994 kHz). Con toggle y reset no se podría, porque MR0 marcaría el periodo de las dos. *(Respuesta redactada a partir de los apuntes.)*
+
+</details>
