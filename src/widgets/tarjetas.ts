@@ -1,11 +1,11 @@
 // Mazo de tarjetas de repaso. Las preguntas salen de la sección de preguntas
-// de cada tema («Autoevaluación» en Conmutación, «Preguntas de examen» en Ópticas) (bloques <details>) y de su lista «saber»; las notas (0 no la sé,
+// de cada tema («Autoevaluación» en Conmutación, «Preguntas de examen» en Ópticas, «Preguntas de repaso» en Radiación) (bloques <details>) y de su lista «saber»; las notas (0 no la sé,
 // 1 más o menos, 2 la sé) se guardan con progreso.guardarTarjeta.
 
 export type Pregunta = { pregunta: string; respuesta: string };
 
 /** Pares pregunta/respuesta de los <details> de las secciones «## <nombre>» indicadas. */
-export function extraerPreguntas(cuerpo: string, secciones = ['Autoevaluación', 'Preguntas de examen']): Pregunta[] {
+export function extraerPreguntas(cuerpo: string, secciones = ['Autoevaluación', 'Preguntas de examen', 'Preguntas de repaso']): Pregunta[] {
   return secciones.flatMap((nombre) => {
     const titulo = new RegExp(`^## ${nombre}\\s*$`, 'm');
     const inicio = cuerpo.search(titulo);

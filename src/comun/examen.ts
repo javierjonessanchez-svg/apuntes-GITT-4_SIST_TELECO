@@ -83,3 +83,11 @@ export function porTema(formulas: Formula[]): { tema: string; formulas: Formula[
 export function enlace(e: Examen, f: Formula): string {
   return e.repo + f.archivo;
 }
+
+/** Fórmulas con esos ids, en el mismo orden. Lanza un error que nombra cada id que no existe. */
+export function formulasPorId(e: Examen, ids: string[]): Formula[] {
+  const porId = new Map(e.formulas.map((f) => [f.id, f]));
+  const faltan = ids.filter((i) => !porId.has(i));
+  if (faltan.length) throw new Error(`EnExamen: no existe${faltan.length > 1 ? 'n' : ''} ${faltan.map((i) => `la fórmula «${i}»`).join(', ')} en examen.yaml`);
+  return ids.map((i) => porId.get(i)!);
+}
