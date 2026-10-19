@@ -1,0 +1,182 @@
+---
+titulo: "PWM y servos"
+orden: 3
+bloque: "Temporizadores"
+resumen: "PWM con un Timer, el periférico PWM1 y el control de un servo"
+saber:
+  - "PWM: señal de periodo fijo T_PWM cuyo tiempo en alto T_H cambia. Ciclo de trabajo D = T_H/T_PWM, entre 0 y 1"
+  - "Con un Timer y toggle: en la ISR se suma N_H o N_L según el nivel del pin (N_L = N_T − N_H). Falla si T_H o T_L son más cortos que lo que tarda la ISR"
+  - "Con un Timer y dos Match: MR0 marca el periodo y pone el pin a 1 (reset y EMC0 = set); MR1 interrumpe y la ISR baja el pin. D ≈ MR1/MR0"
+  - "El periférico PWM1 tiene 7 Match: MR0 marca el periodo de las 6 salidas y MR1–MR6 el ancho de cada una. PWM1MR0 = F_tick/F_PWM − 1"
+  - "Flanco único: la salida sube al empezar el periodo y baja en MRx, así que D = MRx/(MR0+1). PCR habilita cada salida (PWMENA1–6, bits 9–14)"
+  - "Los Match del PWM1 tienen registros sombra: el valor nuevo no se usa hasta poner su bit en LER y llegar al siguiente MR0. Así no hay periodos cortados"
+  - "Servo: el ancho del pulso fija el ángulo. En clase, T_H = 0,4 + 2·grados/180 ms con T_PWM = 15 ms. Cada servo se calibra con sus T_H mínimo y máximo"
+fuentes:
+  - "Apuntes de Miguel"
+  - "Temporizadores del LPC17xx (diapositivas de clase)"
+  - "UM10360 (manual del LPC17xx), cap. 21 y 24"
+test:
+  - p: "Con F_tick = 25 MHz, ¿qué PWM1MR0 da una PWM de 50 Hz?"
+    o: ["499 999", "500 000", "49 999", "24 999"]
+    c: 0
+    e: "PWM1MR0 = F_tick/F_PWM − 1 = 25·10⁶/50 − 1. El contador cuenta de 0 a MR0."
+  - p: "Escribes un valor nuevo en PWM1MR5 y la salida no cambia. ¿Qué falta?"
+    o: ["Poner el bit 5 de PWM1LER", "Reiniciar el TC", "Poner PWMSEL5", "Borrar el flag de MR5"]
+    c: 0
+    e: "Los Match del PWM1 son registros sombra: el valor pasa a usarse al poner su bit en LER y llegar al siguiente MR0."
+  - p: "En modo flanco único, ¿cuándo sube y cuándo baja la salida PWM1.x?"
+    o: ["Sube al empezar el periodo (MR0) y baja en MRx", "Sube en MRx y baja en MR0", "Sube y baja en MRx", "Depende de EMR"]
+    c: 0
+    e: "Por eso T_H = MRx/F_tick y D = MRx/(MR0+1)."
+  - p: "Con el PWM por interrupción y toggle, ¿qué pasa si pides D = 0,001 a una frecuencia alta?"
+    o: ["T_H es más corto que la ISR y se pierden flancos", "Nada: el hardware lo resuelve", "El TC se desborda", "La salida queda fija a 1 siempre"]
+    c: 0
+    e: "Entre dos flancos hay que entrar y salir de la ISR. Si T_H es menor que latencia + ejecución, el siguiente Match ya ha pasado."
+  - p: "Según la fórmula de clase, ¿qué T_H hay que dar para 90°?"
+    o: ["1,4 ms", "1,5 ms", "0,9 ms", "2,4 ms"]
+    c: 0
+    e: "T_H = 0,4 + 2·90/180 = 1,4 ms."
+---
+import Practica from '../../../src/asignaturas/seda/Practica.astro';
+import Registro from '../../../src/asignaturas/seda/Registro.astro';
+
+**Idea clave.** Una **PWM** es una señal de periodo fijo en la que solo cambia cuánto tiempo está en alto. Con eso se regula el brillo de una pantalla o se le dice a un servo a qué ángulo ir. Se puede generar con un Timer normal (gastando interrupciones) o con el periférico **PWM1**, que lo hace todo en hardware.
+
+## Qué es una PWM
+
+$$
+D = \frac{T_H}{T_{PWM}} \qquad 0 \le D \le 1
+$$
+
+$T_{PWM}$ es el periodo (fijo) y $T_H$ el tiempo en alto. En cuentas del timer: $N_T = F_{tick}\cdot T_{PWM}$, $N_H = D\cdot N_T$ y $N_L = N_T - N_H$.
+
+## PWM con un Timer y toggle
+
+Es el método de las varias señales del tema 2, pero sumando una cantidad distinta según el nivel del pin. Con **EMCx = 11** (conmutar) y sin reset:
+
+```c
+void TIMER0_IRQHandler(void) {
+  LPC_TIM0->IR = (1 << 0);
+  if (LPC_TIM0->EMR & (1 << 0))   // EM0: el pin acaba de pasar a 1
+    LPC_TIM0->MR0 += N_H;         // la próxima conmutación, dentro de T_H
+  else
+    LPC_TIM0->MR0 += N_L;
+}
+```
+
+El bit **EM0** de EMR dice el nivel actual de MAT0.0, así que no hace falta leer el pin. El límite: si $T_H$ o $T_L$ son más cortos que **latencia + ejecución** de la ISR, cuando se suma el Match ya ha pasado y se pierde un flanco. Los ciclos de trabajo muy pequeños o muy grandes (D ≈ 0,001 o D ≈ 1) a frecuencia alta no salen.
+
+## PWM con un Timer y dos Match
+
+Una alternativa con **una sola interrupción por periodo**:
+
+- **MR0** marca el periodo: reset del TC (**MR0R**) y, con **EMC0 = 10**, pone **MATn.0 a 1** al empezar cada periodo.
+- **MR1** marca el ancho: interrumpe (**MR1I**) y la ISR **baja el pin a mano**.
+
+$$
+MR0 = \frac{F_{tick}}{F_{PWM}} - 1 \qquad 0 \le MR1 \le MR0 \qquad D \approx \frac{MR1}{MR0}
+$$
+
+```c
+void TIMER0_IRQHandler(void) {
+  LPC_TIM0->IR  = (1 << 1);       // flag de MR1
+  LPC_TIM0->EMR &= ~(1 << 0);     // MAT0.0 a 0
+}
+```
+
+Con MR2 y MR3 se pueden sacar más PWM **con el mismo periodo** (cada una en su pin y con su parte de código en la ISR). Con periodos distintos, no: el periodo lo marca MR0 para todo el timer.
+
+## El periférico PWM1
+
+<Practica n={2} nombre="PWM para el brillo del LCD" />
+
+Para no gastar CPU, el LPC1768 tiene un periférico dedicado: **PWM1**. Es un Timer con **7 Match** (MR0–MR6) y **6 salidas** (PWM1.1–PWM1.6):
+
+- **MR0** marca el periodo de **todas** las salidas: misma frecuencia para las 6.
+- **MR1–MR6** marcan el ancho de cada salida.
+
+$$
+PWM1MR0 = \frac{F_{tick}}{F_{PWM}} - 1
+\qquad
+0 \le PWM1MRx \le PWM1MR0
+$$
+
+En **flanco único** (*single edge*, el de reset), la salida **sube al empezar el periodo** y **baja cuando TC = MRx**:
+
+$$
+T_H = \frac{MRx}{F_{tick}} \qquad D = \frac{MRx}{MR0 + 1}
+$$
+
+En **doble flanco** (bits PWMSEL de PCR), la subida y la bajada las marcan dos Match. Así se pueden desplazar los pulsos, pero solo salen 3 salidas.
+
+<Registro nombre="PWM1TCR" descripcion="control" campos={[
+  { bits: '0', nombre: 'Counter Enable', que: '1 = contar' },
+  { bits: '1', nombre: 'Counter Reset', que: '1 = TC y PC a 0' },
+  { bits: '3', nombre: 'PWM Enable', que: '1 = modo PWM (activa los registros sombra)' },
+]} />
+
+<Registro nombre="PWM1PCR" descripcion="tipo y habilitación de cada salida" campos={[
+  { bits: '2–6', nombre: 'PWMSEL2–6', que: '1 = doble flanco en esa salida; 0 = flanco único' },
+  { bits: '9–14', nombre: 'PWMENA1–6', que: '1 = salida PWM1.1…PWM1.6 habilitada' },
+]} />
+
+<Registro nombre="PWM1LER" descripcion="cargar los registros sombra" campos={[
+  { bits: '0–6', nombre: 'Enable PWM Match 0–6 Latch', que: 'El valor escrito en MRx se usa a partir del siguiente MR0' },
+]} />
+
+**Por qué hay registros sombra.** Si se cambiase MRx a mitad de periodo, podría salir un pulso cortado o doble. Con LER, el valor nuevo espera al **siguiente MR0** y el cambio siempre empieza en un periodo limpio.
+
+```c
+void set_ciclo(float ciclo) {          // ciclo en %, de 0 a 100
+  LPC_PWM1->MR5 = ciclo * LPC_PWM1->MR0 / 100;
+  LPC_PWM1->LER = (1 << 5);            // se aplica en el próximo periodo
+}
+```
+
+La configuración inicial: alimentar (PWM1 ya está encendido tras el reset), llevar el pin a su función PWM1.x con PINSEL, escribir MR0 con **MR0R** en MCR, habilitar la salida en PCR, poner los bits de LER y arrancar con **Counter Enable + PWM Enable** en TCR.
+
+## Servos
+
+<Practica n={3} nombre="Servomotor con un Timer" />
+
+Un servo de radiocontrol lleva dentro un motor, una reductora y un **control de lazo cerrado**: compara su posición con la que le pide la señal y se mueve hasta igualarlas. Tiene tres cables (alimentación, masa y control), y por el de control recibe una **PWM**: el **ancho del pulso** dice el ángulo.
+
+- Nominalmente, de **1 ms (0°) a 2 ms (180°)**, con 1,5 ms en el centro, repitiendo cada 20 ms.
+- En clase se usó un servo con un rango más amplio, $T_{PWM} = 15$ ms y:
+
+$$
+T_H = 0{,}4 + 2\cdot\frac{grados}{180}\ \text{ms}
+$$
+
+```c
+void set_servo(float grados) {
+  LPC_PWM1->MR5 = Ftick * 0.4e-3 + Ftick * 2e-3 * grados / 180;
+  LPC_PWM1->LER = (1 << 5);
+}
+```
+
+Cada servo tiene sus extremos reales algo distintos, así que se **calibran** los anchos mínimo y máximo (por ejemplo, en pasos de 0,1 ms) antes de fijar la fórmula.
+
+## Preguntas de examen
+
+<details>
+<summary>Genera con PWM1 una señal de 1 kHz con D = 30 % (F_PCLK = 25 MHz). Da MR0, MRx y los registros que tocas.</summary>
+
+$PWM1MR0 = 25\cdot 10^6/1000 - 1 = 24\,999$. $MRx = 0{,}3\cdot(MR0+1) = 7\,500$.
+MCR: MR0R (bit 1). PCR: PWMENAx. LER: bits 0 y x. TCR: bits 0 y 3. Y el pin en su función PWM1.x con PINSEL. *(Respuesta redactada a partir de los apuntes.)*
+
+</details>
+
+<details>
+<summary>¿Qué ventajas tiene PWM1 frente a generar la PWM con un Timer e interrupciones?</summary>
+
+No gasta CPU (no hay ISR por flanco), no tiene el límite de latencia (D muy pequeños o muy grandes salen bien), da hasta 6 salidas con la misma frecuencia y, gracias a los registros sombra, cambiar el ciclo de trabajo no corta ningún periodo. La pega: todas sus salidas comparten frecuencia. *(Respuesta redactada a partir de los apuntes.)*
+
+</details>
+
+<details>
+<summary>Escribe set_servo(grados) para un servo de 0,4–2,4 ms y explica cada término.</summary>
+
+`MR5 = Ftick*0.4e-3 + Ftick*2e-3*grados/180`: el primer término son las cuentas del ancho mínimo (0,4 ms, 0°); el segundo añade la parte proporcional al ángulo, hasta 2 ms más a 180°. Luego `LER = (1 << 5)` para que se aplique en el siguiente periodo. *(Respuesta redactada a partir de los apuntes.)*
+
+</details>
