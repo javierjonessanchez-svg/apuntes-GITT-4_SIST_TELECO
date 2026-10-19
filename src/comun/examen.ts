@@ -24,6 +24,8 @@ export const esquemaExamen = z.object({
     id,
     titulo: z.string().min(1),
     cuando: z.string().min(1),
+    // Plantilla del repo que resuelve este tipo de problema entero (opcional)
+    plantilla: z.string().min(1).optional(),
     pasos: z.array(z.object({
       formula: z.string().min(1),
       nota: z.string().min(1).optional(),
@@ -53,6 +55,9 @@ export function validarExamen(e: Examen, archivo: string): void {
     }
   }
   for (const flujo of e.flujos) {
+    if (flujo.plantilla !== undefined && (!flujo.plantilla.startsWith('plantillas/') || flujo.plantilla.includes('..'))) {
+      errores.push(`el flujo "${flujo.id}" enlaza la plantilla "${flujo.plantilla}": solo se permiten rutas dentro de plantillas/`);
+    }
     flujo.pasos.forEach((p, i) => {
       if (!vistos.has(p.formula)) errores.push(`el flujo "${flujo.id}" (paso ${i + 1}) cita la fórmula "${p.formula}", que no existe`);
     });

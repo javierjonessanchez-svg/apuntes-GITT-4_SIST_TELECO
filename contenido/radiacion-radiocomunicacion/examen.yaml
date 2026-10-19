@@ -235,6 +235,7 @@ flujos:
   - id: obstaculos-disponibilidad
     titulo: 'Radioenlace con obstáculos → Prx → margen dinámico → disponibilidad'
     cuando: '«obstáculos» o «perfil del terreno», «margen dinámico», «indisponibilidad» o «calidad de disponibilidad».'
+    plantilla: plantillas/plantilla_enlace_proteccion_disponibilidad.m
     pasos:
       - formula: lb-espacio-libre
       - formula: bullington
@@ -255,6 +256,7 @@ flujos:
   - id: interferencia-xpd
     titulo: 'Interferencia y XPD por lluvia'
     cuando: '«polarización cruzada» o «XPD», «diagrama de radiación», «interferente», «MTTR».'
+    plantilla: plantillas/plantilla_interferencia_xpd.m
     pasos:
       - formula: lb-espacio-libre
       - formula: pire
@@ -275,6 +277,7 @@ flujos:
   - id: espacio-libre
     titulo: 'Espacio libre: campo, flujo y potencia'
     cuando: '«Espacio libre», «visibilidad directa», da el campo E (V/m o dBµ) o la distancia y pide flujo, distancia, Prx o Lbf.'
+    plantilla: plantillas/plantilla_espacio_libre.m
     pasos:
       - formula: pire
       - formula: campo-dbu

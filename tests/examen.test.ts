@@ -36,6 +36,18 @@ describe('validarExamen', () => {
     e.formulas[0].archivo = 'funciones/../docs/apuntes.md';
     expect(() => validarExamen(e, FIXTURE)).toThrow(/\.\./);
   });
+  test('acepta la plantilla de un flujo dentro de plantillas/', () => {
+    const e = ejemplo();
+    e.flujos[0].plantilla = 'plantillas/plantilla_espacio_libre.m';
+    expect(() => validarExamen(e, FIXTURE)).not.toThrow();
+  });
+  test('falla con una plantilla fuera de plantillas/', () => {
+    const e = ejemplo();
+    e.flujos[0].plantilla = 'funciones/propagacion/Calcular_PIRE.m';
+    expect(() => validarExamen(e, FIXTURE)).toThrow(/espacio-libre/);
+    e.flujos[0].plantilla = 'plantillas/../examen/E1.md';
+    expect(() => validarExamen(e, FIXTURE)).toThrow(/\.\./);
+  });
   test('falla con texto de examen antiguo', () => {
     const e = ejemplo();
     e.formulas[1].notas = 'Como en la PEI 1 RADIO del curso 2025-2026';

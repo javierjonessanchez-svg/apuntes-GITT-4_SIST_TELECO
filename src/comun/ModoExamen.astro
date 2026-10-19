@@ -45,6 +45,9 @@ const codigo = (f: Formula) => ({ funcion: f.funcion, llamada: f.llamada, href: 
             <span class="flujo-titulo">{fl.titulo}</span>
             <span class="flujo-cuando">Cuando el enunciado dice: {fl.cuando}</span>
           </summary>
+          {fl.plantilla && (
+            <p class="codigo flujo-plantilla">Plantilla: <code class="codigo-funcion">{fl.plantilla.split('/').pop()}</code> <a class="ver-codigo" href={examen.repo + fl.plantilla} target="_blank" rel="noopener">ver código <span aria-hidden="true">↗</span><span class="sr"> (se abre en otra pestaña)</span></a></p>
+          )}
           <ol class="flujo-pasos">
             {fl.pasos.map((p) => {
               const f = porId.get(p.formula)!;
