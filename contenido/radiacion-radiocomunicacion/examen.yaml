@@ -1,7 +1,10 @@
-# PROVISIONAL: copia del ejemplo de tests/fixtures hasta tener las fórmulas reales.
-# Solo fórmulas, nombres de función, llamadas de ejemplo y rutas de funciones/ o plantillas/.
+# Modo examen de Radiación y Radiocomunicación (PEI1: temas 1–4).
+# Solo fórmulas, nombres de función, llamadas de ejemplo y rutas de funciones/ o plantillas/
+# del repo privado. Nada de código, ejercicios ni exámenes. Lo comprueban tests/examen.test.ts
+# y la construcción (src/comun/examen.ts).
 repo: https://github.com/javierjonessanchez-svg/radiacion-radiocom/blob/main/
 formulas:
+  # ---------- Propagación (tema 1) ----------
   - id: pire
     tema: Propagación
     prueba: PEI1
@@ -10,15 +13,51 @@ formulas:
     funcion: Calcular_PIRE
     llamada: 'PIRE_dBm = Calcular_PIRE(Pt_dBm, Lt_dB, Gt_dB)'
     archivo: funciones/propagacion/Calcular_PIRE.m
+    notas: 'Si dan «pérdidas de terminales», van en el transmisor y también en el receptor.'
+  - id: campo-dbu
+    tema: Propagación
+    prueba: PEI1
+    nombre: Campo en dBµ
+    tex: 'E_{\mathrm{dB\mu}} = 20\log_{10}\frac{E}{1\,\mu\mathrm{V/m}}'
+    funcion: Vm2dBu
+    llamada: 'E_dBu = Vm2dBu(E_Vm)'
+    archivo: funciones/comunes/Vm2dBu.m
+    notas: 'Es 20·log (amplitud), no 10·log. La inversa es dBu2Vm.'
+  - id: flujo
+    tema: Propagación
+    prueba: PEI1
+    nombre: Densidad de flujo de potencia
+    tex: '\Phi = \frac{E^2}{120\pi} = \frac{PIRE}{4\pi d^2}'
+    funcion: Calcular_Flujo
+    llamada: 'Phi = Calcular_Flujo(E_Vm)'
+    archivo: funciones/propagacion/Calcular_Flujo.m
+    notas: 'E en V/m eficaces: si viene en dBµ, pásalo antes con dBu2Vm.'
+  - id: sef
+    tema: Propagación
+    prueba: PEI1
+    nombre: Área efectiva de la antena
+    tex: 'S_{ef} = \frac{\lambda^2\, g}{4\pi}'
+    funcion: Calcular_Sef
+    llamada: 'Sef = Calcular_Sef(f_Hz, G_dB)'
+    archivo: funciones/propagacion/Calcular_Sef.m
+    notas: 'g en lineal en la fórmula; la función recibe la ganancia en dBi.'
+  - id: prx-flujo
+    tema: Propagación
+    prueba: PEI1
+    nombre: Potencia recibida a partir del flujo
+    tex: 'P_{rx} = \frac{\Phi\, S_{ef}}{l_r}'
+    funcion: Calcular_Prx_flujo
+    llamada: 'Prx_dBm = Calcular_Prx_flujo(Phi_Wm2, Sef_m2, Lr_dB)'
+    archivo: funciones/propagacion/Calcular_Prx_flujo.m
   - id: lb-espacio-libre
     tema: Propagación
     prueba: PEI1
     nombre: Pérdida básica en espacio libre y gases
-    tex: 'L_{bf} = 32{,}45 + 20\log_{10} f_{\mathrm{MHz}} + 20\log_{10} d_{\mathrm{km}}'
+    tex: 'L_{bf} = 20\log_{10}\frac{4\pi d}{\lambda}, \qquad L_b = L_{bf} + L_{ad}'
     funcion: Calcular_Lb_std
     llamada: '[Lbf, Latm] = Calcular_Lb_std(f_Hz, d_m)'
     archivo: funciones/propagacion/Calcular_Lb_std.m
-    notas: 'Entradas en Hz y metros, no en MHz y km.'
+    notas: 'Entradas en Hz y metros. Devuelve también los gases en atmósfera estándar (0 si f < 1 GHz).'
   - id: prx
     tema: Propagación
     prueba: PEI1
@@ -27,6 +66,43 @@ formulas:
     funcion: Calcular_Prx
     llamada: 'Prx_dBm = Calcular_Prx(PIRE_dBm, Lb_dB, Gr_dB, Lr_dB)'
     archivo: funciones/propagacion/Calcular_Prx.m
+  - id: k999
+    tema: Propagación
+    prueba: PEI1
+    nombre: Factor K superado el 99,9 % del peor mes
+    tex: 'K_{99{,}9} = \frac{157}{144 + 2670/d_{km}}'
+    funcion: Calcular_K999
+    llamada: 'K999 = Calcular_K999(d_km)'
+    archivo: funciones/propagacion/Calcular_K999.m
+    notas: 'Atmósfera estándar: K = 4/3. Cuanto más largo el vano, más se acerca K99,9 a 157/144.'
+  - id: filo-cuchillo
+    tema: Propagación
+    prueba: PEI1
+    nombre: Difracción en filo de cuchillo
+    tex: 'J(\nu) = 6{,}9 + 20\log_{10}\left(\sqrt{(\nu-0{,}1)^2+1}+\nu-0{,}1\right), \qquad \nu = \frac{\sqrt{2}\,c}{R_1}'
+    funcion: Calcular_Lcuch
+    llamada: 'Lcuch = Calcular_Lcuch(v)'
+    archivo: funciones/propagacion/Calcular_Lcuch.m
+    notas: 'J = 0 si ν ≤ −0,78. R1 = √(λ·d1·d2/d).'
+  - id: bullington
+    tema: Propagación
+    prueba: PEI1
+    nombre: Varios obstáculos (Bullington)
+    tex: 'L_{ad,dif} = L_{cu} + \left(1 - e^{-L_{cu}/6}\right)(10 + 0{,}02\,d_{km})'
+    funcion: Calcular_Lad_dif
+    llamada: '[Ld, Lcuch, caso] = Calcular_Lad_dif(f_Hz, d_m, K, het1_m, ee_et1_m, het2_m, ee_et2_m, do1_m, eeo_m)'
+    archivo: funciones/propagacion/Calcular_Lad_dif.m
+    notas: 'ee es la cota sin flecha: la función suma b = d1·d2/(2·K·RT). Si te dan la altura con flecha, réstala antes. Para ver el perfil: Dibujar_Bullington.'
+  - id: dos-rayos
+    tema: Propagación
+    prueba: PEI1
+    nombre: Reflexión en tierra lisa o mar (dos rayos)
+    tex: 'L_{ad} = -20\log_{10}\left|1 + R_e\, e^{-j 2\pi \Delta l/\lambda}\right|, \qquad \Delta l \approx \frac{2\,h''_1 h''_2}{d}'
+    funcion: Calcular_Lad_ref
+    llamada: '[Lad_ref, caso] = Calcular_Lad_ref(f_Hz, d_m, K, het1_m, ee_et1_m, het2_m, ee_et2_m, sigma_Sm, epsr, pol, sigma_ee_m)'
+    archivo: funciones/propagacion/Calcular_Lad_ref.m
+    notas: 'Alturas sobre el plano tangente: h′ = het + ee − d²/(2·K·RT). Hay reflexión si φ ≥ φmin = (5400/f_MHz)^(1/3) mrad; si no, difracción por tierra esférica (no programada).'
+  # ---------- Antenas (tema 2) ----------
   - id: g-desapuntado
     tema: Antenas
     prueba: PEI1
@@ -35,12 +111,189 @@ formulas:
     funcion: Calcular_G_desapuntado
     llamada: 'G_dB = Calcular_G_desapuntado(Gmax_dB, theta3dB_deg, theta_deg)'
     archivo: funciones/antenas/Calcular_G_desapuntado.m
+    notas: 'Mira qué estación está desapuntada: solo cambia la ganancia de esa antena. En θ = θ3dB/2 cae 3 dB.'
+  # ---------- Desvanecimientos (tema 3) ----------
+  - id: margen-dinamico
+    tema: Desvanecimientos
+    prueba: PEI1
+    nombre: Margen dinámico según el mecanismo de protección
+    tex: '\begin{aligned} \text{Atenuador: } & MD = P_{rx,CN} - TH \\ \text{CAG: } & P_{rx,CN} = TH,\ \ MD = G_{max} - G_{min} \\ \text{ATPC: } & P_{rx,CN} = TH,\ \ PIRE_{CMD} = PIRE_{CN} + MD \end{aligned}'
+    funcion: Calcular_MD
+    llamada: 'r = Calcular_MD("atenuador", TH_dBm=TH, Lb_dB=Lb, Gr_dB=Gr, Lr_dB=Lr, PIRE_dBm=PIRE)'
+    archivo: funciones/desvanecimientos/Calcular_MD.m
+    notas: 'En los tres, FM = MD. Mecanismo "atenuador", "CAG" o "ATPC"; devuelve r.MD_dB, r.FM_dB, r.PIRE_CN_dBm, r.PIRE_CMD_dBm y r.Prx_CN_dBm. Pt = PIRE + Lt − Gt.'
+  - id: k-alfa
+    tema: Desvanecimientos
+    prueba: PEI1
+    nombre: Coeficientes k y α de la lluvia (UIT-R P.838)
+    tex: 'k_C = \frac{k_H + k_V}{2}, \qquad \alpha_C = \frac{k_H\alpha_H + k_V\alpha_V}{2k_C}'
+    funcion: Calcular_k_alfa
+    llamada: '[k, alfa] = Calcular_k_alfa(f_GHz, "V")'
+    archivo: funciones/desvanecimientos/Calcular_k_alfa.m
+    notas: 'Polarización "H", "V" o "C" (circular). La fórmula de arriba es la de circular.'
+  - id: f001
+    tema: Desvanecimientos
+    prueba: PEI1
+    nombre: Atenuación por lluvia superada el 0,01 % del tiempo
+    tex: '\gamma_R = k\, R_{0{,}01}^{\alpha}, \qquad F_{0{,}01} = \gamma_R\, d_{eff}'
+    funcion: Calcular_F001
+    llamada: '[F001_dB, deff_km, gammaR_dBkm] = Calcular_F001(f_GHz, d_km, R001_mmh, k, alfa)'
+    archivo: funciones/desvanecimientos/Calcular_F001.m
+    notas: 'R0,01 viene en el enunciado o sale de itur_p0837_7_annex1 (UIT-R P.837-7) con la latitud y la longitud.'
+  - id: fq
+    tema: Desvanecimientos
+    prueba: PEI1
+    nombre: Atenuación por lluvia superada el q % del tiempo
+    tex: 'F_q = F_{0{,}01}\, C_1\, q^{-(C_2 + C_3 \log_{10} q)}'
+    funcion: Calcular_Fq
+    llamada: 'Fq_dB = Calcular_Fq(F001_dB, q_pct, f_GHz)'
+    archivo: funciones/desvanecimientos/Calcular_Fq.m
+    notas: 'Terrenal por defecto. Satélite: añade Tipo="espacial", Lat_deg=lat (solo si |lat| ≥ 36°).'
+  - id: q-lluvia
+    tema: Desvanecimientos
+    prueba: PEI1
+    nombre: Indisponibilidad por lluvia (q para un margen dado)
+    tex: 'C_3 x^2 + C_2 x + \log_{10}\frac{FM}{F_{0{,}01}\, C_1} = 0, \qquad q = 10^{x_{max}}'
+    funcion: Calcular_q_lluvia
+    llamada: 'U_lluvia_pct = Calcular_q_lluvia(FM_dB, F001_dB, f_GHz)'
+    archivo: funciones/desvanecimientos/Calcular_q_lluvia.m
+    notas: 'Es Fq = FM despejando q: ecuación de segundo grado en x = log q; quédate con la raíz mayor (roots). Satélite: x = ln q y q = e^x.'
+  - id: u-equipos
+    tema: Desvanecimientos
+    prueba: PEI1
+    nombre: Indisponibilidad por fallos de equipos
+    tex: 'U_{eq} = \sum_i \frac{MTTR}{MTBF_i + MTTR}\cdot 100\ (\%)'
+    funcion: Calcular_U_equipos
+    llamada: 'U_eq_pct = Calcular_U_equipos([MTBF1_h MTBF2_h MTBF3_h], MTTR_h)'
+    archivo: funciones/desvanecimientos/Calcular_U_equipos.m
+    notas: 'Equipos en serie: se suman todos los de las dos estaciones.'
+  - id: mttr-max
+    tema: Desvanecimientos
+    prueba: PEI1
+    nombre: MTTR máximo para un objetivo de indisponibilidad
+    tex: 'u = \frac{U_{eq,max}}{100\, N}, \qquad MTTR = \frac{u\, MTBF}{1 - u}'
+    funcion: Calcular_MTTR_max
+    llamada: 'MTTR_h = Calcular_MTTR_max(U_obj_pct - U_lluvia_pct, MTBF_h, N_equipos)'
+    archivo: funciones/desvanecimientos/Calcular_MTTR_max.m
+    notas: 'U_eq,max = U_objetivo − U_lluvia. Da error si la lluvia ya se come todo el objetivo.'
+  - id: disponibilidad
+    tema: Desvanecimientos
+    prueba: PEI1
+    nombre: Calidad de disponibilidad
+    tex: 'U_{total} = U_{lluvia} + U_{eq}, \qquad Disp = 100 - U_{total}\ (\%)'
+    funcion: Calcular_Disponibilidad
+    llamada: 'r = Calcular_Disponibilidad(U_lluvia_pct, U_eq_pct, U_obj_pct)'
+    archivo: funciones/desvanecimientos/Calcular_Disponibilidad.m
+    notas: 'Devuelve r.U_total_pct, r.Disp_pct y r.cumple.'
+  - id: xpd-lluvia
+    tema: Desvanecimientos
+    prueba: PEI1
+    nombre: Discriminación por polarización cruzada (XPD) por lluvia
+    tex: 'XPD = U - V \log_{10} F_q, \qquad U = 15 + 30\log_{10} f, \quad V = \begin{cases} 12{,}8\, f^{0{,}19} & 8 < f \le 20\ \mathrm{GHz} \\ 22{,}6 & 20 < f \le 35\ \mathrm{GHz} \end{cases}'
+    funcion: Calcular_XPD_lluvia
+    llamada: 'XPD_dB = Calcular_XPD_lluvia(f_GHz, Fq_dB)'
+    archivo: funciones/desvanecimientos/Calcular_XPD_lluvia.m
+    notas: 'Enlace terrenal. En desvanecimiento máximo, Fq = FM.'
+  # ---------- Ruido e interferencias (tema 4) ----------
+  - id: t-cadena
+    tema: Ruido e interferencias
+    prueba: PEI1
+    nombre: Temperatura de ruido de una cadena (Friis)
+    tex: 'T_{ent} = T_1 + \frac{T_2}{g_1} + \frac{T_3}{g_1 g_2} + \cdots, \qquad T_{pasiva} = (l - 1)\cdot 290\ \mathrm{K}'
+    funcion: Calcular_T_cadena
+    llamada: '[Tent_K, Tsal_K] = Calcular_T_cadena([T1_K T2_K T3_K], [G1_dB G2_dB G3_dB])'
+    archivo: funciones/ruido_interferencias/Calcular_T_cadena.m
+    notas: 'Una etapa pasiva de L dB tiene G = −L. Provisional: revisar con las transparencias del tema 4.'
+  - id: umbral
+    tema: Ruido e interferencias
+    prueba: PEI1
+    nombre: Umbral del receptor
+    tex: 'TH = 10\log_{10}(k\, T\, R_b) + 30 + \frac{E_b}{N_0} + Degr, \qquad B = \frac{R_b}{\log_2 M}(1 + \alpha)'
+    funcion: Calcular_Umbral
+    llamada: '[TH_dBm, B_Hz, N_dBm] = Calcular_Umbral(T_K, Rb_bps, M, rolloff, EbN0_dB, Degr_dB)'
+    archivo: funciones/ruido_interferencias/Calcular_Umbral.m
+    notas: 'TH sale referido al punto donde está T: compáralo con la Prx en ese mismo punto. Provisional: revisar con el tema 4.'
+  - id: angulo-triangulo
+    tema: Ruido e interferencias
+    prueba: PEI1
+    nombre: Ángulo de llegada del interferente (teorema del coseno)
+    tex: '\cos\theta = \frac{a^2 + b^2 - c^2}{2ab}'
+    funcion: Calcular_angulo_triangulo
+    llamada: 'ang_deg = Calcular_angulo_triangulo(a, b, c)'
+    archivo: funciones/comunes/Calcular_angulo_triangulo.m
+    notas: 'Ángulo entre los lados a y b (el opuesto a c). Con él se lee la discriminación en el diagrama de radiación.'
+  - id: interferencia
+    tema: Ruido e interferencias
+    prueba: PEI1
+    nombre: Potencia interferente y C/I
+    tex: 'P_I = PIRE - D_{tx} - L_b - F_q - XPD_{ll} + G_r - D_{rx} - XPD_{ant} - L_r, \qquad \frac{C}{I} = P_{rx} - P_I'
+    funcion: Calcular_Interferencia
+    llamada: 'P_I_dBm = Calcular_Interferencia(PIRE_dBm, Lb_dB, Gr_dB, Lr_dB, D_tx_dB=Dtx, D_rx_dB=Drx)'
+    archivo: funciones/ruido_interferencias/Calcular_Interferencia.m
+    notas: 'Si va en la polarización cruzada, lee la curva cross-polar del diagrama y no sumes además XPD_ant. Opciones: Fq_dB, XPD_ll_dB, XPD_ant_dB. Provisional: revisar con el tema 4.'
 flujos:
+  - id: obstaculos-disponibilidad
+    titulo: 'Radioenlace con obstáculos → Prx → margen dinámico → disponibilidad'
+    cuando: 'Da un perfil con obstáculos (distancias y cotas), la latitud y longitud, una cadena de recepción, la modulación y Eb/N0, y pregunta por la calidad de disponibilidad.'
+    pasos:
+      - formula: lb-espacio-libre
+      - formula: bullington
+        nota: 'K = 4/3 en condiciones normales, salvo que digan otra cosa.'
+      - formula: pire
+      - formula: prx
+        nota: 'Prx en condiciones normales.'
+      - formula: t-cadena
+      - formula: umbral
+      - formula: margen-dinamico
+        nota: 'FM = MD.'
+      - formula: k-alfa
+      - formula: f001
+      - formula: q-lluvia
+        nota: 'q con FM = MD: es la U por lluvia.'
+      - formula: u-equipos
+      - formula: disponibilidad
+  - id: interferencia-xpd
+    titulo: 'Interferencia y XPD por lluvia'
+    cuando: 'Habla de polarización copolar y contrapolar, del diagrama de radiación del fabricante (RPE), de una tercera estación o de un objetivo de indisponibilidad con MTTR.'
+    pasos:
+      - formula: lb-espacio-libre
+      - formula: pire
+      - formula: prx
+      - formula: margen-dinamico
+      - formula: k-alfa
+      - formula: f001
+      - formula: q-lluvia
+      - formula: mttr-max
+        nota: 'U_eq,max = U_objetivo − U_lluvia.'
+      - formula: fq
+        nota: 'En desvanecimiento máximo, Fq = FM.'
+      - formula: xpd-lluvia
+      - formula: angulo-triangulo
+      - formula: g-desapuntado
+        nota: 'Solo si no dan el diagrama: con el RPE, la discriminación se lee a ojo.'
+      - formula: interferencia
   - id: espacio-libre
-    titulo: 'Espacio libre: potencia recibida'
-    cuando: '«visibilidad directa», «sin obstáculos», «espacio libre»'
+    titulo: 'Espacio libre: campo, flujo y potencia'
+    cuando: '«Espacio libre», «visibilidad directa», da el campo E (V/m o dBµ) o la distancia y pide flujo, distancia, Prx o Lbf.'
     pasos:
       - formula: pire
+      - formula: campo-dbu
+      - formula: flujo
+      - formula: sef
+      - formula: prx-flujo
       - formula: lb-espacio-libre
-        nota: 'Suma también los gases si f ≥ 1 GHz.'
       - formula: prx
+        nota: 'Friis sirve de comprobación: tiene que salir la misma Prx.'
+  - id: mar-dos-rayos
+    titulo: 'Trayecto sobre el mar: dos rayos'
+    cuando: 'Sin obstáculos, pero con terreno liso o mar (σ, εr) y las alturas de las antenas.'
+    pasos:
+      - formula: lb-espacio-libre
+      - formula: k999
+        nota: 'Solo si piden el peor K del mes.'
+      - formula: dos-rayos
+      - formula: pire
+      - formula: prx
+      - formula: margen-dinamico
+      - formula: f001
+      - formula: q-lluvia
