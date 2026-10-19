@@ -9,7 +9,7 @@ descripcion: "El LPC1768 por dentro: timers, PWM, captura, UART, ADC/DAC y máqu
 pruebas:
   - fecha: "2026-11-09"
     nombre: "PEI1 · 19:00"
-    temas: [reloj-gpio-interrupciones, timers-match, pwm-servos, captura, uart, adc-dac]
+    temas: [reloj-gpio-interrupciones, timers-match, pwm-servos, captura, uart, adc-dac, maquinas-estados, problemas-examen]
   - fecha: "2026-12-14"
     nombre: "PEI2 · 19:00"
     temas: []
