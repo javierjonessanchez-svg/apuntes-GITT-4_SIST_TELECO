@@ -29,6 +29,14 @@ describe('calcularBaudios', () => {
   test('velocidad imposible: null', () => {
     expect(calcularBaudios(25e6, 25e6)).toBeNull();
   });
+  test('velocidad demasiado baja: el divisor no cabe en 16 bits, y los pasos lo dicen', () => {
+    expect(calcularBaudios(25e6, 10)).toBeNull(); // DL ≈ 156 250 > 65 535
+    expect(pasosBaudios(25e6, 10).at(-1)!.texto).toMatch(/65\s?535/);
+    expect(pasosBaudios(25e6, 25e6).at(-1)!.texto).toMatch(/menor que 1/);
+  });
+  test('sin fraccionario, la velocidad real no lleva el factor ·1', () => {
+    expect(pasosBaudios(25e6, 15625).at(-1)!.formula).not.toMatch(/\\cdot 1\}/);
+  });
   test('los pasos acaban en el error', () => {
     expect(pasosBaudios(25e6, 115200).at(-1)!.texto).toMatch(/error/i);
   });

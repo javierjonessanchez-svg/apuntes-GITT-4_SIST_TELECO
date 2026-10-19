@@ -15,6 +15,9 @@ describe('calcularTimer', () => {
   test('redondea al número entero de cuentas más cercano', () => {
     expect(calcularTimer(25e6, 1 / 3000).mr0).toBe(8332); // 8333,3 cuentas
   });
+  test('con un periodo menor que un tic, los pasos usan N = 1 como el cálculo', () => {
+    expect(pasosTimer(25e6, 1e-8)[0].formula).toMatch(/= 1$/); // 0,25 cuentas → 1
+  });
   test('los pasos acaban en el valor de MR0', () => {
     const pasos = pasosTimer(25e6, 1e-3);
     expect(pasos.length).toBeGreaterThan(0);

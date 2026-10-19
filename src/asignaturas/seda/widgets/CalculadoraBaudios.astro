@@ -33,7 +33,7 @@ const r = calcularBaudios(fpclk, baudios);
   import { montar } from '../../../widgets/cliente';
   import { calculadora } from '../../../widgets/calculadora';
   import { fmt } from '../../../widgets/numeros';
-  import { calcularBaudios, pasosBaudios } from './uart';
+  import { calcularBaudios, pasosBaudios, textoImposible } from './uart';
 
   montar('[data-calc-baudios]', (caja) => calculadora(caja, [
     { nombre: 'v', etiqueta: 'Velocidad', reglas: { entero: true, min: 1, max: 10_000_000 } },
@@ -44,7 +44,7 @@ const r = calcularBaudios(fpclk, baudios);
     return {
       resultado: r
         ? `**DLM = ${r.dlm}**, **DLL = ${r.dll}**, **DivAddVal = ${r.divAddVal}**, **MulVal = ${r.mulVal}** (error ${fmt(r.error * 100, 3)} %)`
-        : 'Con este F_PCLK no se puede generar esa velocidad: el divisor sale menor que 1.',
+        : textoImposible(fpclk / (16 * v!)),
       pasos: pasosBaudios(fpclk, v!),
     };
   }));

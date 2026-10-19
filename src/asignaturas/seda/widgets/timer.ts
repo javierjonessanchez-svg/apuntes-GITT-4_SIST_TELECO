@@ -20,7 +20,7 @@ export function calcularTimer(fpclk: number, t: number): Timer {
 /** El desarrollo que se escribe en el examen, paso a paso. */
 export function pasosTimer(fpclk: number, t: number): Paso[] {
   const { pr, mr0, tReal } = calcularTimer(fpclk, t);
-  const cuentas = Math.round(fpclk * t);
+  const cuentas = Math.max(1, Math.round(fpclk * t)); // igual que en calcularTimer
   const pasos: Paso[] = [
     { texto: 'Cuentas del TC en un periodo:', formula: `N = F_{PCLK}\\cdot T = ${fmt(fpclk / 1e6, 4)}\\,\\text{MHz}\\cdot ${fmt(t * 1e3, 6)}\\,\\text{ms} = ${cuentas}` },
   ];
