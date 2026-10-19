@@ -9,11 +9,9 @@ descripcion: "Propagación, antenas, desvanecimientos y radioenlaces, con funcio
 pruebas:
   - fecha: "2026-11-04"
     nombre: "PEI1 · 15:00"
-    temas: []
+    temas: [balance-enlace, atmosfera-factor-k]
 # Temas aún sin apuntes: salen a trazos en la portada; cada uno se quita al publicar su página
 proximos:
-  - { titulo: "Balance del enlace y espacio libre", orden: 1, bloque: "Tema 1 · Propagación" }
-  - { titulo: "Atmósfera y factor K", orden: 2, bloque: "Tema 1 · Propagación" }
   - { titulo: "Difracción y elipsoide de Fresnel", orden: 3, bloque: "Tema 1 · Propagación" }
   - { titulo: "Reflexión y modelo de dos rayos", orden: 4, bloque: "Tema 1 · Propagación" }
   - { titulo: "Antenas en los radioenlaces", orden: 5, bloque: "Tema 2 · Antenas" }

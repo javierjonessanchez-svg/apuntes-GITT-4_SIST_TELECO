@@ -1,0 +1,26 @@
+---
+// Escalera de potencias de un radioenlace: Pt, terminales, antenas y el vano (Lbf)
+// hasta la Prx. Se mueven la distancia y la frecuencia; las estaciones son fijas.
+import Widget from '../../../widgets/Widget.astro';
+import Deslizador from '../../../widgets/Deslizador.astro';
+import Lienzo from '../../comunicaciones-opticas/widgets/Lienzo.astro';
+import { dibujarEscalera } from './dibujos-propagacion';
+
+const uid = `escalera-${Math.random().toString(36).slice(2, 7)}`;
+---
+<Widget titulo="La escalera de potencias" tipo="entender">
+  <Lienzo nombre="escalera" uid={uid} alto={244} etiqueta="Niveles de potencia en dBm del transmisor al receptor: Pt, pérdidas de terminales, ganancia de la antena, PIRE, pérdidas en espacio libre, ganancia de la antena receptora y Prx"
+    inicial={dibujarEscalera({ d_km: 30, f_GHz: 10 })}
+    nota="Estaciones fijas: Pt = 30 dBm, Lt = Lr = 2 dB, Gt = Gr = 35 dBi. Solo espacio libre, sin gases ni obstáculos.">
+    <Fragment slot="controles">
+      <Deslizador id={`${uid}-d`} etiqueta="Distancia" min={1} max={100} paso={1} valor={30} unidad="km" decimales={0} />
+      <Deslizador id={`${uid}-f`} etiqueta="Frecuencia" min={1} max={40} paso={0.5} valor={10} unidad="GHz" decimales={1} />
+    </Fragment>
+  </Lienzo>
+</Widget>
+<script>
+  import { montarDibujo, numero } from '../../comunicaciones-opticas/widgets/vivo';
+  import { dibujarEscalera } from './dibujos-propagacion';
+
+  montarDibujo('escalera', (caja, uid) => dibujarEscalera({ d_km: numero(caja, `${uid}-d`), f_GHz: numero(caja, `${uid}-f`) }));
+</script>
