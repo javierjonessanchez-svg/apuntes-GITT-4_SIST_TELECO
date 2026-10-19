@@ -1,0 +1,25 @@
+---
+// Tipos de fibra: en multimodo cada modo sigue un camino y el pulso se ensancha (dispersión
+// modal); el índice gradual lo compensa y la monomodo lo elimina.
+import Widget from '../../../widgets/Widget.astro';
+import Opciones from '../../../widgets/Opciones.astro';
+import Lienzo from './Lienzo.astro';
+import { dibujarTipos } from './dibujos-fibra';
+
+const uid = `tipos-${Math.random().toString(36).slice(2, 7)}`;
+---
+<Widget titulo="Salto de índice, índice gradual y monomodo" tipo="entender">
+  <Lienzo nombre="tipos" uid={uid} alto={268} etiqueta="Perfil de índice, caminos de la luz y pulso a la entrada y a la salida de cada tipo de fibra"
+    inicial={dibujarTipos({ tipo: 'salto' })}
+    nota="Dibujo esquemático: el ensanchamiento no está a escala.">
+    <Fragment slot="controles">
+      <Opciones nombre="tipo" etiqueta="Tipo de fibra" opciones={[['salto', 'Salto de índice'], ['gradual', 'Índice gradual'], ['monomodo', 'Monomodo']]} valor="salto" />
+    </Fragment>
+  </Lienzo>
+</Widget>
+<script>
+  import { montarDibujo, opcion } from './vivo';
+  import { dibujarTipos } from './dibujos-fibra';
+
+  montarDibujo('tipos', (caja) => dibujarTipos({ tipo: opcion(caja, 'tipo') as 'salto' | 'gradual' | 'monomodo' }));
+</script>

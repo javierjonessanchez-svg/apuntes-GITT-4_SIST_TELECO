@@ -1,0 +1,27 @@
+---
+// Traza del OTDR: la pendiente es la atenuación (retrodispersión Rayleigh), los picos son
+// reflexiones de Fresnel y la distancia sale del tiempo de ida y vuelta: d = v·t/2.
+import Widget from '../../../widgets/Widget.astro';
+import Opciones from '../../../widgets/Opciones.astro';
+import Deslizador from '../../../widgets/Deslizador.astro';
+import Lienzo from './Lienzo.astro';
+import { dibujarOtdr } from './dibujos-fibra';
+
+const uid = `otdr-${Math.random().toString(36).slice(2, 7)}`;
+---
+<Widget titulo="Leer una traza de OTDR" tipo="real">
+  <Lienzo nombre="otdr" uid={uid} alto={246} etiqueta="Traza de un OTDR: potencia retrodispersada frente a la distancia, con un evento que se puede mover"
+    inicial={dibujarOtdr({ evento: 'conector', km: 10 })}
+    nota="Fibra de 25 km a ≈ 0,2 dB/km. Tamaño de los picos y escalones, esquemático.">
+    <Fragment slot="controles">
+      <Opciones nombre="evento" etiqueta="Evento" opciones={[['fusion', 'Empalme de fusión'], ['conector', 'Conector'], ['rotura', 'Rotura']]} valor="conector" />
+      <Deslizador id={`${uid}-km`} etiqueta="Distancia del evento" min={3} max={22} paso={1} valor={10} unidad="km" decimales={0} />
+    </Fragment>
+  </Lienzo>
+</Widget>
+<script>
+  import { montarDibujo, opcion, numero } from './vivo';
+  import { dibujarOtdr } from './dibujos-fibra';
+
+  montarDibujo('otdr', (caja, uid) => dibujarOtdr({ evento: opcion(caja, 'evento') as 'fusion' | 'conector' | 'rotura', km: numero(caja, `${uid}-km`) }));
+</script>

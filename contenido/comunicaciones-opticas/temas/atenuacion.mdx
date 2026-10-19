@@ -1,0 +1,135 @@
+---
+titulo: "Atenuación"
+orden: 2
+bloque: "Fibra"
+resumen: "Rayleigh, agua y metales, curvaturas; las tres ventanas"
+saber:
+  - "Atenuación: pérdida de potencia con la distancia, porque la luz se absorbe o se esparce (scattering). Se mide en dB/km"
+  - "Una monomodo moderna pierde ≈ 0,2 dB/km: la mitad de la potencia (3 dB) cada ≈ 15 km"
+  - "Esparcimiento Rayleigh: la luz choca con estructuras del tamaño de su λ (las moléculas del SiO₂ amorfo). Va con 1/λ⁴ y es el límite físico: no se puede eliminar"
+  - "Absorción por contaminantes: el agua (OH⁻, pico en 1383 nm; el cloro la elimina al fabricar y las G.652.C/D casi no tienen pico) y los metales del proceso de purificación y de los contenedores"
+  - "Pérdidas extrínsecas por curvatura: macrocurvaturas (instalación) y microcurvaturas (fabricación). La luz deja de cumplir la condición de ángulo crítico y se escapa"
+  - "Ventanas: 850 nm (histórica, mucha pérdida), 1310–1360 nm (mínima dispersión) y 1550 nm (mínima atenuación)"
+fuentes:
+  - "Apuntes de Miguel"
+  - "Comunicaciones Ópticas (PDF de clase), §2.1–2.2"
+test:
+  - p: "¿Cuál es, aproximadamente, la atenuación de una fibra monomodo moderna?"
+    o: ["≈ 0,2 dB/km", "≈ 2 dB/km", "≈ 20 dB/km", "≈ 0,002 dB/km"]
+    c: 0
+    e: "Con 0,2 dB/km se pierde la mitad de la potencia (3 dB) cada ≈ 15 km."
+  - p: "¿Por qué el esparcimiento Rayleigh es un límite físico?"
+    o: ["Lo producen las propias moléculas del vidrio: no se puede eliminar", "Lo produce el agua, que no se puede secar", "Depende de cómo se instale el cable", "Solo aparece a potencias muy altas"]
+    c: 0
+    e: "La estructura amorfa del SiO₂ tiene irregularidades del tamaño de la λ; mientras haya vidrio, habrá Rayleigh."
+  - p: "¿Cómo depende el esparcimiento Rayleigh de la longitud de onda?"
+    o: ["Con 1/λ⁴: mucho mayor en λ cortas", "Con λ²: mayor en λ largas", "No depende de λ", "Con 1/λ: muy poco"]
+    c: 0
+    e: "Por eso la 1.ª ventana (850 nm) atenúa mucho más que la 3.ª (1550 nm)."
+  - p: "¿Dónde está el pico de absorción del agua (OH⁻)?"
+    o: ["En 1383 nm", "En 850 nm", "En 1550 nm", "En 1310 nm"]
+    c: 0
+    e: "Las fibras G.652.C/D casi lo eliminan; al fabricar se lava la preforma con cloro."
+  - p: "¿Qué ventana tiene la mínima atenuación?"
+    o: ["La de 1550 nm", "La de 1310 nm", "La de 850 nm", "Las tres por igual"]
+    c: 0
+    e: "La de 1310–1360 nm es la de mínima dispersión."
+  - p: "¿Por qué una curvatura hace perder luz?"
+    o: ["La luz deja de cumplir la condición de ángulo crítico y se escapa", "Porque el vidrio absorbe más al doblarse", "Porque cambia la λ de la luz", "Por esparcimiento Rayleigh"]
+    c: 0
+    e: "Macrocurvaturas en la instalación; microcurvaturas en la fabricación."
+  - p: "Una pérdida de 3 dB significa que queda…"
+    o: ["La mitad de la potencia", "Un tercio de la potencia", "La décima parte", "El doble"]
+    c: 0
+    e: "10 dB son un factor 10; 3 dB, un factor 2."
+---
+
+import CurvaAtenuacion from '../../../src/asignaturas/comunicaciones-opticas/widgets/CurvaAtenuacion.astro';
+import SeConecta from '../../../src/asignaturas/comunicaciones-opticas/SeConecta.astro';
+import Practica from '../../../src/asignaturas/comunicaciones-opticas/Practica.astro';
+
+**Idea clave.** La fibra pierde potencia con la distancia: por **esparcimiento Rayleigh** (un límite físico), por **absorción** del agua y de los metales, y por **curvaturas**. Una monomodo moderna pierde ≈ 0,2 dB/km. Las **ventanas** son las zonas de λ donde se pierde poco.
+
+## Qué es la atenuación
+
+<Practica n={3} nombre="OTDR" />
+
+Es la **pérdida de potencia con la distancia**, porque la luz se **absorbe** o se **esparce** (*scattering*). Se mide en **dB/km**. Como la pérdida crece de forma exponencial con la longitud, en dB se suma: la pérdida total de un enlace es $\alpha \cdot L$ más las pérdidas de empalmes y conectores.
+
+Una fibra monomodo moderna tiene $\alpha \approx 0{,}2$ dB/km. Como 3 dB es la mitad de la potencia, pierde **la mitad cada ≈ 15 km** ($3 / 0{,}2$).
+
+$$
+P(L) = P_0 \cdot 10^{-\alpha L / 10}
+$$
+
+## Causas intrínsecas: Rayleigh y absorción
+
+Son pérdidas que vienen de la propia fibra: de su fabricación o de los contaminantes que lleva dentro.
+
+- **Esparcimiento Rayleigh.** Cuando la luz encuentra estructuras de un tamaño parecido a su λ, se esparce en todas direcciones. En la fibra, esas estructuras son las **moléculas de la red de óxido de silicio**, que es amorfo: por su propia estructura molecular produce Rayleigh. Es proporcional a $1/\lambda^4$ (longitud de onda pequeña, esparcimiento grande) y es el **límite físico**: mientras haya vidrio, habrá Rayleigh. Es la causa de casi todas las pérdidas (y la razón de que el cielo sea azul).
+- **Absorción del propio SiO₂:** en la banda de 1550 nm absorbe poco.
+- **Agua:** los iones OH⁻ absorben mucho, con un pico en **1383 nm**, entre las dos ventanas modernas. Al fabricar la fibra se lava con **cloro** para quitar la humedad; las fibras **G.652.C/D** casi no tienen pico.
+- **Metales:** contaminantes que vienen del proceso de purificación del silicio y de los contenedores.
+
+## Causas extrínsecas: curvaturas
+
+Si la fibra se curva, parte de la luz llega a la frontera núcleo-recubrimiento con un ángulo menor que el crítico: **deja de cumplir la condición de reflexión total y se escapa**.
+
+- **Macrocurvaturas:** curvas grandes, de la **instalación** (forzar el cable en una esquina).
+- **Microcurvaturas:** pequeñas ondulaciones del hilo cilíndrico, de la **fabricación**.
+
+## Las ventanas
+
+La atenuación cambia mucho con la λ, y de ahí salen las ventanas de trabajo:
+
+| Ventana | λ | Por qué |
+|---|---|---|
+| 1.ª | 850 nm | Histórica. Pierde mucho: solo para distancias cortas |
+| 2.ª | 1310–1360 nm | Mínima **dispersión** |
+| 3.ª | 1550 nm | Mínima **atenuación** (y la banda del EDFA) |
+
+<CurvaAtenuacion />
+
+## Se conecta con
+
+<SeConecta tema="atenuacion" />
+
+## Preguntas de examen
+
+<details>
+<summary>¿Cuál es la atenuación máxima que puede tener una fibra óptica monomodo moderna?</summary>
+
+**≈ 0,2 dB/km**: pierde la mitad de la potencia (3 dB) cada ≈ 15 km. *(Respuesta redactada a partir de los apuntes.)*
+
+</details>
+
+<details>
+<summary>¿Qué es el esparcimiento Rayleigh y por qué limita la atenuación mínima de una fibra?</summary>
+
+Es el esparcimiento de la luz al chocar con estructuras de tamaño parecido a su λ: en la fibra, las moléculas de la red amorfa de óxido de silicio. Es proporcional a $1/\lambda^4$, así que pesa mucho en λ cortas. Lo produce el propio vidrio, por lo que **no se puede eliminar**: es el límite físico de la atenuación. *(Respuesta redactada a partir de los apuntes.)*
+
+</details>
+
+<details>
+<summary>Explica las causas de atenuación en una fibra óptica.</summary>
+
+- **Intrínsecas** (fabricación o contaminación de la fibra): esparcimiento **Rayleigh** de las moléculas del SiO₂ ($\propto 1/\lambda^4$, límite físico); absorción del **agua** (OH⁻, pico en 1383 nm; se elimina con cloro y las G.652.C/D casi no lo tienen) y de **metales** del proceso de purificación y de los contenedores.
+- **Extrínsecas:** **macrocurvaturas** (instalación) y **microcurvaturas** (fabricación). La luz deja de cumplir la condición de ángulo crítico y se escapa.
+
+*(Respuesta redactada a partir de los apuntes.)*
+
+</details>
+
+<details>
+<summary>¿Qué son las ventanas de transmisión y por qué se usan esas λ?</summary>
+
+Son las zonas de λ donde la fibra pierde poco. La **1.ª, 850 nm**, es histórica y atenúa mucho (corta distancia). La **2.ª, 1310–1360 nm**, es la de mínima dispersión. La **3.ª, 1550 nm**, es la de mínima atenuación. *(Respuesta redactada a partir de los apuntes.)*
+
+</details>
+
+<details>
+<summary>Una fibra de 50 km pierde 0,2 dB/km. ¿Qué fracción de la potencia llega al final?</summary>
+
+$0{,}2 \cdot 50 = 10$ dB, es decir, un factor $10^{-10/10} = 0{,}1$: llega **la décima parte** (sin contar empalmes ni conectores). *(Cálculo propio: no aparece en el material.)*
+
+</details>

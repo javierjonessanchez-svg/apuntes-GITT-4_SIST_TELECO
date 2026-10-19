@@ -1,0 +1,27 @@
+---
+// Curva de atenuación: Rayleigh (∝ 1/λ⁴) manda en las λ cortas, el infrarrojo en las largas y el
+// agua (OH⁻) deja un pico en 1383 nm. El mínimo queda en 1550 nm.
+import Widget from '../../../widgets/Widget.astro';
+import Opciones from '../../../widgets/Opciones.astro';
+import Deslizador from '../../../widgets/Deslizador.astro';
+import Lienzo from './Lienzo.astro';
+import { dibujarAtenuacion } from './dibujos-fibra';
+
+const uid = `atenuacion-${Math.random().toString(36).slice(2, 7)}`;
+---
+<Widget titulo="La curva de atenuación" tipo="real">
+  <Lienzo nombre="atenuacion" uid={uid} alto={248} etiqueta="Atenuación de la fibra en dB/km frente a la longitud de onda, con la parte de Rayleigh, el pico del agua y las tres ventanas"
+    inicial={dibujarAtenuacion({ lambda: 1550, fibra: 'clasica' })}
+    nota="Modelo sencillo (Rayleigh + infrarrojo + pico del agua): da el orden de magnitud, no los datos de una fibra concreta.">
+    <Fragment slot="controles">
+      <Deslizador id={`${uid}-lambda`} etiqueta="Longitud de onda" min={800} max={1700} paso={5} valor={1550} unidad="nm" decimales={0} />
+      <Opciones nombre="fibra" etiqueta="Fibra" opciones={[['clasica', 'Con pico de agua'], ['g652d', 'G.652.D (sin pico)']]} valor="clasica" />
+    </Fragment>
+  </Lienzo>
+</Widget>
+<script>
+  import { montarDibujo, opcion, numero } from './vivo';
+  import { dibujarAtenuacion } from './dibujos-fibra';
+
+  montarDibujo('atenuacion', (caja, uid) => dibujarAtenuacion({ lambda: numero(caja, `${uid}-lambda`), fibra: opcion(caja, 'fibra') as 'clasica' | 'g652d' }));
+</script>

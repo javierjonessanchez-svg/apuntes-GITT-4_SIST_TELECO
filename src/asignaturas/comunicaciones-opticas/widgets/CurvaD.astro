@@ -1,0 +1,25 @@
+---
+// Dispersión cromática = material + guía de onda. Cambiando el núcleo cambia la guía de onda
+// y el cero se desplaza de 1310 a 1550 nm (dispersión desplazada).
+import Widget from '../../../widgets/Widget.astro';
+import Opciones from '../../../widgets/Opciones.astro';
+import Lienzo from './Lienzo.astro';
+import { dibujarCurvaD } from './dibujos-fibra';
+
+const uid = `curvad-${Math.random().toString(36).slice(2, 7)}`;
+---
+<Widget titulo="Material + guía de onda = cromática" tipo="entender">
+  <Lienzo nombre="curvad" uid={uid} alto={226} etiqueta="Parámetro de dispersión D frente a la longitud de onda: parte material, parte de guía de onda y su suma, para tres tipos de fibra"
+    inicial={dibujarCurvaD({ fibra: 'g652' })}
+    nota="Curvas esquemáticas: lo que importa es dónde cae el cero de cada fibra.">
+    <Fragment slot="controles">
+      <Opciones nombre="fibra" etiqueta="Fibra" opciones={[['g652', 'Estándar (G.652)'], ['g653', 'Desplazada (G.653)'], ['g655', 'Desplazada no nula (G.655)']]} valor="g652" />
+    </Fragment>
+  </Lienzo>
+</Widget>
+<script>
+  import { montarDibujo, opcion } from './vivo';
+  import { dibujarCurvaD } from './dibujos-fibra';
+
+  montarDibujo('curvad', (caja) => dibujarCurvaD({ fibra: opcion(caja, 'fibra') as 'g652' | 'g653' | 'g655' }));
+</script>

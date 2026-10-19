@@ -1,7 +1,7 @@
 // Mapa de conceptos de Ópticas: los conceptos de cada tema y por qué se relacionan.
 // Con estos datos se dibuja el mapa de la portada y se genera el «Se conecta con» de cada tema.
-// Las relaciones salen de los apuntes (de Javier y de Miguel); los conceptos de la fibra
-// y de redes van como pendientes hasta que tengan su tema.
+// Las relaciones salen de los apuntes (de Javier y de Miguel); los conceptos de redes van
+// como pendientes hasta que tengan su tema.
 
 /** Las bandas siguen la cadena del enlace: de dónde sale la luz hasta adónde llega. */
 export const BANDAS = [
@@ -35,11 +35,17 @@ export const NODOS: Nodo[] = [
   { id: 'temperatura', nombre: 'Temperatura y λ', banda: 'emisores', tema: 'laser-monomodo' },
   { id: 'modulacion', nombre: 'Modulación directa y externa', banda: 'emisores', tema: 'laser-monomodo' },
   { id: 'ruido-laser', nombre: 'Ruido del láser', banda: 'emisores', tema: 'laser-monomodo' },
-  // Fibra (fase 2)
-  { id: 'fibra', nombre: 'Estructura de la fibra', banda: 'fibra', pendiente: true },
-  { id: 'atenuacion', nombre: 'Atenuación y ventanas', banda: 'fibra', pendiente: true },
-  { id: 'dispersion', nombre: 'Dispersión', banda: 'fibra', pendiente: true },
-  { id: 'no-lineales', nombre: 'Efectos no lineales', banda: 'fibra', pendiente: true },
+  // Fibra
+  { id: 'fibra', nombre: 'Estructura de la fibra', banda: 'fibra', tema: 'estructura-fibra' },
+  { id: 'reflexion', nombre: 'Reflexión total y NA', banda: 'fibra', tema: 'estructura-fibra' },
+  { id: 'atenuacion', nombre: 'Atenuación y ventanas', banda: 'fibra', tema: 'atenuacion' },
+  { id: 'rayleigh', nombre: 'Esparcimiento Rayleigh', banda: 'fibra', tema: 'atenuacion' },
+  { id: 'dispersion', nombre: 'Dispersión cromática', banda: 'fibra', tema: 'dispersion' },
+  { id: 'desplazada', nombre: 'Dispersión desplazada', banda: 'fibra', tema: 'dispersion' },
+  { id: 'fwm', nombre: 'Mezcla de cuatro ondas', banda: 'fibra', tema: 'efectos-no-lineales' },
+  { id: 'no-lineales', nombre: 'Raman y Brillouin', banda: 'fibra', tema: 'efectos-no-lineales' },
+  { id: 'fabricacion', nombre: 'Preforma y estirado', banda: 'fibra', tema: 'fabricacion-cableado' },
+  { id: 'otdr', nombre: 'OTDR', banda: 'fibra', tema: 'fabricacion-cableado' },
   // Dispositivos y WDM
   { id: 'aislador', nombre: 'Aislador óptico', banda: 'dispositivos', tema: 'dispositivos-pasivos' },
   { id: 'bragg', nombre: 'Red de Bragg', banda: 'dispositivos', tema: 'dispositivos-pasivos' },
@@ -82,6 +88,13 @@ export const ARISTAS: Arista[] = [
   { de: 'temperatura', a: 'cwdm', porque: 'Con canales cada 20 nm, CWDM admite láseres sin refrigeración.' },
   { de: 'led', a: 'fotodiodo', porque: 'El fotodiodo es un emisor al revés: absorbe el fotón y crea un par electrón-hueco.' },
   { de: 'gap', a: 'material', porque: 'Un detector solo ve fotones con más energía que su gap: de ahí el corte de cada material.' },
+  // Dentro de la fibra
+  { de: 'reflexion', a: 'atenuacion', porque: 'Si una curvatura rompe la condición de ángulo crítico, la luz se escapa: atenuación por curvatura.' },
+  { de: 'fibra', a: 'dispersion', porque: 'En multimodo cada modo sigue su camino y el pulso se ensancha; la monomodo elimina esa dispersión modal.' },
+  { de: 'fibra', a: 'fabricacion', porque: 'El núcleo con más n (dopado con GeO₂) se forma al depositar los vapores en la preforma.' },
+  { de: 'rayleigh', a: 'otdr', porque: 'El OTDR mide la luz que el esparcimiento Rayleigh devuelve hacia atrás.' },
+  { de: 'atenuacion', a: 'desplazada', porque: 'La fibra de dispersión desplazada junta en 1550 nm la mínima dispersión y la mínima atenuación.' },
+  { de: 'desplazada', a: 'fwm', porque: 'Con D = 0 los canales van en fase y aparece la mezcla de cuatro ondas: por eso se deja un poco de dispersión.' },
   // Dispositivos y WDM
   { de: 'aislador', a: 'ruido-laser', porque: 'El aislador impide que las reflexiones vuelvan al láser y le causen ruido modal.' },
   { de: 'bragg', a: 'dfb', porque: 'La red de Bragg es el mismo espejo selectivo que usan los láseres DBR y DFB.' },
@@ -94,7 +107,9 @@ export const ARISTAS: Arista[] = [
   { de: 'ase', a: 'edfa', porque: 'El ruido principal del EDFA es la emisión espontánea de los iones de erbio (ASE).' },
   { de: 'edfa', a: 'dwdm', porque: 'Un EDFA amplifica a la vez todos los canales DWDM que caen en su banda.' },
   { de: 'edfa', a: 'atenuacion', porque: 'El EDFA trabaja en la banda de 1550 nm, la ventana de mínima atenuación.' },
-  { de: 'raman', a: 'no-lineales', porque: 'El Raman aprovecha un efecto no lineal de la propia fibra.' },
+  { de: 'raman', a: 'no-lineales', porque: 'El Raman aprovecha un efecto no lineal de la propia fibra: el esparcimiento Raman estimulado.' },
+  { de: 'fabricacion', a: 'edfa', porque: 'La fibra dopada con erbio del EDFA se fabrica igual, dopando el núcleo en la preforma.' },
+  { de: 'fwm', a: 'dwdm', porque: 'La mezcla de cuatro ondas solo aparece con canales muy juntos y potentes: es un problema del DWDM.' },
   { de: 'edfa', a: 'apd', porque: 'El EDFA amplifica la luz antes de detectarla; el APD gana dentro del detector, ya en electrónica.' },
   // Detectores
   { de: 'material', a: 'dwdm', porque: 'Para recibir en 1550 nm hace falta InGaAs o Ge: el Si corta hacia 1100 nm.' },

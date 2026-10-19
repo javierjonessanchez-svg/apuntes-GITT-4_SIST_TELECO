@@ -1,0 +1,27 @@
+---
+// Mezcla de cuatro ondas: canales juntos, en fase y con mucha potencia generan productos
+// fi + fj − fk que caen sobre otros canales. Se reduce bajando la potencia y sin D = 0.
+import Widget from '../../../widgets/Widget.astro';
+import Opciones from '../../../widgets/Opciones.astro';
+import Lienzo from './Lienzo.astro';
+import { dibujarFwm } from './dibujos-fibra';
+
+const uid = `fwm-${Math.random().toString(36).slice(2, 7)}`;
+---
+<Widget titulo="Mezcla de cuatro ondas" tipo="entender">
+  <Lienzo nombre="fwm" uid={uid} alto={220} etiqueta="Cuatro canales WDM y los productos de mezcla que generan; los que caen encima de un canal producen diafonía"
+    inicial={dibujarFwm({ potencia: 'alta', fibra: 'nula', sep: 'dwdm' })}
+    nota="Alturas esquemáticas: lo que importa es dónde caen los productos y qué los hace crecer.">
+    <Fragment slot="controles">
+      <Opciones nombre="potencia" etiqueta="Potencia por canal" opciones={[['alta', 'Alta'], ['baja', 'Baja']]} valor="alta" />
+      <Opciones nombre="fibra" etiqueta="Dispersión en 1550 nm" opciones={[['nula', 'D = 0 (en fase)'], ['nonula', 'D pequeña, no nula']]} valor="nula" />
+      <Opciones nombre="sep" etiqueta="Canales" opciones={[['dwdm', 'Muy juntos (DWDM)'], ['cwdm', 'Separados (CWDM)']]} valor="dwdm" />
+    </Fragment>
+  </Lienzo>
+</Widget>
+<script>
+  import { montarDibujo, opcion } from './vivo';
+  import { dibujarFwm } from './dibujos-fibra';
+
+  montarDibujo('fwm', (caja) => dibujarFwm({ potencia: opcion(caja, 'potencia') as 'alta' | 'baja', fibra: opcion(caja, 'fibra') as 'nula' | 'nonula', sep: opcion(caja, 'sep') as 'dwdm' | 'cwdm' }));
+</script>

@@ -1,0 +1,187 @@
+---
+titulo: "Estructura de la fibra y propagación"
+orden: 1
+bloque: "Fibra"
+resumen: "Núcleo, recubrimiento y revestimiento; reflexión total interna; monomodo y multimodo"
+saber:
+  - "La fibra es de sílice (SiO₂) ultrapura. El núcleo se dopa con óxido de germanio (GeO₂) para que su índice sea algo mayor que el del recubrimiento"
+  - "Tres capas: núcleo (n ≈ 1,45, ≈ 8 µm en monomodo), recubrimiento (≈ 125 µm) y revestimiento acrílico (hasta ≈ 400 µm), que protege del polvo, la humedad y las flexiones"
+  - "La luz se guía por reflexión total interna: hace falta n₁ > n₂ y un ángulo mayor que el crítico, θc = arcsen(n₂/n₁)"
+  - "Apertura numérica: NA = sen θmax = √(n₁² − n₂²). Una NA grande recoge más luz, pero no se usa en comunicaciones"
+  - "Monomodo: un solo modo (el fundamental), sin dispersión modal. Multimodo de salto de índice o de índice gradual (parábola), que compensa la dispersión modal"
+  - "En un medio con más n la luz va más lenta: v = c/n"
+  - "La fibra no se ve afectada por interferencias electromagnéticas: se puede tender en torres de alta tensión"
+fuentes:
+  - "Apuntes de Miguel"
+  - "Comunicaciones Ópticas (PDF de clase), §1"
+test:
+  - p: "¿De qué material base se fabrican las fibras monomodo?"
+    o: ["Sílice (óxido de silicio) ultrapura", "Plástico (PMMA)", "Arseniuro de galio", "Silicio cristalino"]
+    c: 0
+    e: "Sílice ultrapura; el núcleo se dopa con óxido de germanio para subirle el índice."
+  - p: "¿Cómo se consigue que el núcleo tenga un índice de refracción mayor que el recubrimiento?"
+    o: ["Dopándolo con óxido de germanio", "Dopándolo con erbio", "Haciéndolo más grueso", "Enfriándolo más rápido"]
+    c: 0
+    e: "El GeO₂ sube el índice del núcleo."
+  - p: "¿Qué función tiene la capa externa acrílica?"
+    o: ["Aislar del polvo y la humedad y dar estabilidad mecánica frente a flexiones", "Guiar la luz por reflexión total", "Amplificar la señal", "Compensar la dispersión"]
+    c: 0
+    e: "La luz se guía entre núcleo y recubrimiento; el revestimiento solo protege."
+  - p: "¿En qué mecanismo óptico se basa una pantalla táctil?"
+    o: ["En la reflexión interna total frustrada", "En la emisión estimulada", "En el efecto fotoeléctrico", "En la mezcla de cuatro ondas"]
+    c: 0
+    e: "El dedo frustra la reflexión total en el punto que toca y la luz escapa por ahí."
+  - p: "La velocidad de la luz en un medio de mayor índice de refracción es…"
+    o: ["Menor", "Mayor", "La misma, c", "Mayor solo en el vacío"]
+    c: 0
+    e: "v = c/n: cuanto mayor es n, más lenta va la luz."
+  - p: "¿Qué condición hace falta para la reflexión total interna?"
+    o: ["n₁ > n₂ y un ángulo mayor que el crítico", "n₁ < n₂ y cualquier ángulo", "n₁ = n₂", "Que la luz llegue perpendicular a la frontera"]
+    c: 0
+    e: "θc = arcsen(n₂/n₁), medido desde la normal."
+  - p: "¿Qué tiene de especial una fibra de índice gradual?"
+    o: ["El índice baja como una parábola hacia el borde y compensa la dispersión modal", "Solo deja pasar un modo", "Tiene el índice constante en el núcleo", "No tiene recubrimiento"]
+    c: 0
+    e: "Los rayos que se alejan del eje van por zonas de menor n, más rápidas, y llegan a la vez que los del centro."
+---
+
+import ReflexionTotal from '../../../src/asignaturas/comunicaciones-opticas/widgets/ReflexionTotal.astro';
+import TiposFibra from '../../../src/asignaturas/comunicaciones-opticas/widgets/TiposFibra.astro';
+import SeConecta from '../../../src/asignaturas/comunicaciones-opticas/SeConecta.astro';
+
+**Idea clave.** Una fibra óptica guía la luz por **reflexión total interna**: un núcleo de vidrio con un índice de refracción un poco mayor que el del recubrimiento que lo rodea. Si el núcleo es lo bastante estrecho, solo cabe un modo de propagación: es la fibra **monomodo**.
+
+## La luz que viaja por la fibra
+
+- **Intensidad:** el número de fotones; se mide en vatios.
+- **Energía de cada fotón:** $E = hf = hc/\lambda = \hbar\omega$, con $h$ la constante de Planck. A más frecuencia (menor λ, hacia el azul), más energía por fotón; si quitamos el azul, la luz se va hacia el rojo (λ mayor).
+- **Polarización:** también se puede usar para transmitir información (sobre todo en satélite).
+
+Para estudiar la luz hay tres modelos:
+
+1. **Óptica geométrica:** rayos (aproximación paraxial). Basta para entender la reflexión total y la fibra multimodo.
+2. **Óptica ondulatoria:** ecuaciones de Maxwell. Hace falta para la fibra monomodo y sus modos.
+3. **Óptica cuántica:** fotones.
+
+En un medio con más índice de refracción la luz va **más lenta**: $v = c/n$.
+
+## Núcleo, recubrimiento y revestimiento
+
+Las fibras de comunicaciones son de **sílice (óxido de silicio) ultrapura**. El **núcleo** se dopa con **óxido de germanio** (GeO₂) para subirle el índice de refracción.
+
+| Capa | Qué es | Tamaño (monomodo) |
+|---|---|---|
+| **Núcleo** | Por donde va la luz; el mayor índice, n ≈ 1,45 | ≈ 8 µm |
+| **Recubrimiento** | Vidrio con un índice algo menor; en su frontera con el núcleo se produce la reflexión total | ≈ 125 µm |
+| **Revestimiento** | Plástico (acrilato): aísla del polvo y la humedad y da estabilidad mecánica frente a flexiones | hasta ≈ 400 µm |
+
+¿Por qué hacen falta al menos **dos capas de vidrio**? Si la luz se reflejara en la superficie exterior de un hilo de vidrio, cualquier alteración o partícula en esa superficie haría que se fugara. Con el recubrimiento, la reflexión ocurre **dentro** del vidrio, protegida.
+
+Como la luz no se ve afectada por las **interferencias electromagnéticas**, una fibra se puede tender junto a cables eléctricos, incluso en una **torre de alta tensión**.
+
+## Reflexión total interna
+
+Cuando la luz pasa del núcleo ($n_1$) al recubrimiento ($n_2$), cumple la ley de Snell: $n_1 \sin\theta_1 = n_2 \sin\theta_2$. Si $n_1 > n_2$, el rayo refractado se abre más que el incidente, y a partir de un **ángulo crítico** ya no puede salir: se refleja entero.
+
+$$
+\theta_c = \arcsin\frac{n_2}{n_1} \qquad \text{(medido desde la normal a la frontera)}
+$$
+
+<ReflexionTotal />
+
+La **apertura numérica** dice con qué ángulo máximo, respecto al eje, puede entrar la luz en la fibra y quedarse guiada:
+
+$$
+NA = \sin\theta_{max} = \sqrt{n_1^2 - n_2^2}
+$$
+
+Cuanto mayor es la NA, más luz recoge la fibra, pero en comunicaciones no se usan fibras con NA grande: la diferencia de índices entre núcleo y recubrimiento no puede ser muy grande (entre otras cosas, por la dispersión modal).
+
+> **Ojo con cómo se mide el ángulo.** En los apuntes, a la pregunta «el ángulo crítico crece cuando…» la respuesta es «aumenta n del núcleo». Es así si se piensa en el ángulo respecto al **eje** de la fibra: al subir $n_1$, la luz se guía aunque vaya más inclinada (el cono de aceptación crece). Si el ángulo se mide desde la **normal**, $\theta_c = \arcsin(n_2/n_1)$ **baja** al subir $n_1$. Es la misma física; en el examen, di desde dónde lo mides. Pruébalo con el deslizador de $n_1$.
+
+Una **pantalla táctil** usa la **reflexión interna total frustrada**: la luz va atrapada en el cristal por reflexión total, y en el punto donde el dedo toca la superficie la reflexión deja de ser total y la luz escapa; el sensor detecta por dónde.
+
+## Tipos de fibra
+
+- **Monomodo:** el núcleo es tan estrecho (unas pocas λ) que solo viaja un modo, el fundamental.
+- **Multimodo:** el núcleo es mucho más ancho que la λ y viajan muchos modos.
+
+Según cómo cambia el índice dentro del núcleo:
+
+- **Salto de índice:** el índice cambia en escalón del núcleo al recubrimiento.
+- **Índice gradual:** el índice baja como una **parábola** desde el centro. Hace de lente: los rayos que se alejan del eje van por zonas de menor n, más rápidas, y llegan a la vez que los del centro. Compensa en gran parte la dispersión modal.
+- **Índices especiales:** perfiles a medida para compensar la dispersión, mantener la polarización o hacer sensores.
+
+<TiposFibra />
+
+## Los modos de una fibra monomodo
+
+La fibra es una **guía de onda de sección circular**. Monomodo significa que solo se propaga un modo.
+
+- Los modos de la fibra son **híbridos**: mezcla de componentes longitudinales y transversales del campo.
+- Se describen con **funciones de Bessel**, que se parecen a un seno amortiguado pero no son exactamente periódicas.
+- El **modo fundamental** es el único que se propaga por debajo del **primer cero de la función de Bessel**: la frecuencia normalizada de la fibra tiene que quedar por debajo de ese valor (V < 2,405, el primer cero de $J_0$; *dato de bibliografía, no viene en los apuntes*).
+- Como la diferencia de índices entre núcleo y recubrimiento es pequeña, los modos se aproximan por **modos linealmente polarizados** (LP), y las funciones de Bessel se tratan casi como senos.
+- La potencia del modo a la salida tiene forma de **gaussiana**, aunque por las irregularidades de la fibra se ven **motas** (*speckle*).
+
+## Se conecta con
+
+<SeConecta tema="estructura-fibra" />
+
+## Preguntas de examen
+
+<details>
+<summary>¿De qué material se fabrican las fibras monomodo y cómo se consigue que el núcleo tenga más índice que el recubrimiento?</summary>
+
+De **sílice (óxido de silicio) ultrapura**. El núcleo se **dopa con óxido de germanio** (GeO₂), que le sube el índice de refracción. *(Respuesta redactada a partir de los apuntes.)*
+
+</details>
+
+<details>
+<summary>¿Por qué hay que construir las fibras monomodo con al menos dos capas?</summary>
+
+Para que la luz no dependa de la superficie exterior del vidrio: si se guiara en esa superficie, cualquier alteración o partícula pegada a ella haría que se fugara luz. Con el recubrimiento, la reflexión total se produce en la frontera núcleo-recubrimiento, dentro del vidrio. *(Respuesta redactada a partir de los apuntes.)*
+
+</details>
+
+<details>
+<summary>¿Qué función desempeña la capa externa acrílica de una fibra óptica?</summary>
+
+Aísla la fibra del **polvo y la humedad** y le da **estabilidad mecánica** frente a flexiones. No interviene en el guiado de la luz. *(Respuesta redactada a partir de los apuntes.)*
+
+</details>
+
+<details>
+<summary>¿En qué mecanismo óptico se basa una pantalla táctil?</summary>
+
+En la **reflexión interna total frustrada**: el dedo, al tocar, rompe la reflexión total en ese punto y la luz escapa por ahí. *(Respuesta redactada a partir de los apuntes.)*
+
+</details>
+
+<details>
+<summary>¿Se puede poner una fibra óptica de comunicaciones en una torre de alta tensión?</summary>
+
+**Sí**, porque a la fibra no le afectan las interferencias electromagnéticas. *(Respuesta redactada a partir de los apuntes.)*
+
+</details>
+
+<details>
+<summary>Describe de forma cualitativa los modos de propagación de la luz en una fibra monomodo.</summary>
+
+La fibra es una guía de onda de sección circular; en la monomodo solo se propaga un modo. Los modos son **híbridos** (mezcla de componentes longitudinales y transversales) y se describen con **funciones de Bessel**, parecidas a un seno amortiguado pero no periódicas. El **modo fundamental** es el único por debajo del primer cero de la función de Bessel. Como la diferencia de índices es pequeña, se aproximan por **modos linealmente polarizados** (LP). La potencia del modo a la salida es casi **gaussiana**, aunque por las irregularidades se ven motas. *(Respuesta redactada a partir de los apuntes.)*
+
+</details>
+
+<details>
+<summary>El ángulo crítico crece cuando: a) aumenta n del núcleo; b) disminuye n del núcleo; c) aumenta n del recubrimiento; d) disminuye n del recubrimiento.</summary>
+
+**a)**, según los apuntes, pensando en el ángulo respecto al eje de la fibra: con más índice en el núcleo, la luz se guía con más inclinación. Si el ángulo se mide desde la normal, $\theta_c = \arcsin(n_2/n_1)$ baja al subir $n_1$, así que conviene decir en el examen desde dónde se mide. *(Respuesta redactada a partir de los apuntes.)*
+
+</details>
+
+<details>
+<summary>¿La velocidad de la luz en un medio de mayor índice de refracción es mayor o menor?</summary>
+
+**Menor**: $v = c/n$. *(Respuesta redactada a partir de los apuntes.)*
+
+</details>

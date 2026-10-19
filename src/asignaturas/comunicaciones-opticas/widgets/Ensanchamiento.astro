@@ -1,0 +1,28 @@
+---
+// Ensanchamiento por dispersión cromática: Δτ = D·L·Δλ. Si se acerca al periodo de bit, los
+// pulsos se pisan. Cuanto mayores D, L y Δλ, peor.
+import Widget from '../../../widgets/Widget.astro';
+import Opciones from '../../../widgets/Opciones.astro';
+import Deslizador from '../../../widgets/Deslizador.astro';
+import Lienzo from './Lienzo.astro';
+import { dibujarEnsanchamiento } from './dibujos-fibra';
+
+const uid = `ensancha-${Math.random().toString(36).slice(2, 7)}`;
+---
+<Widget titulo="Cuánto se ensancha el pulso" tipo="real">
+  <Lienzo nombre="ensancha" uid={uid} alto={246} etiqueta="Una ristra de bits a la entrada y tras recorrer la fibra: los pulsos se ensanchan según la fuente, la longitud y la velocidad"
+    inicial={dibujarEnsanchamiento({ fuente: 'fp', km: 10, gbps: 1 })}
+    nota="Supone la ventana de 1550 nm en fibra estándar, con D ≈ 17 ps/(nm·km): valor típico, no aparece en tus apuntes.">
+    <Fragment slot="controles">
+      <Opciones nombre="fuente" etiqueta="Fuente" opciones={[['led', 'LED (≈ 50 nm)'], ['fp', 'Fabry-Pérot (≈ 4 nm)'], ['dfb', 'DFB (≈ 0,1 nm)']]} valor="fp" />
+      <Deslizador id={`${uid}-km`} etiqueta="Longitud de la fibra" min={1} max={100} paso={1} valor={10} unidad="km" decimales={0} />
+      <Opciones nombre="tasa" etiqueta="Velocidad" opciones={[['1', '1 Gbit/s'], ['10', '10 Gbit/s']]} valor="1" />
+    </Fragment>
+  </Lienzo>
+</Widget>
+<script>
+  import { montarDibujo, opcion, numero } from './vivo';
+  import { dibujarEnsanchamiento } from './dibujos-fibra';
+
+  montarDibujo('ensancha', (caja, uid) => dibujarEnsanchamiento({ fuente: opcion(caja, 'fuente') as 'led' | 'fp' | 'dfb', km: numero(caja, `${uid}-km`), gbps: Number(opcion(caja, 'tasa')) }));
+</script>
