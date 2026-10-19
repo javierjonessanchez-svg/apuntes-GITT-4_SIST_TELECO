@@ -115,6 +115,11 @@ En **doble flanco** (bits PWMSEL de PCR), la subida y la bajada las marcan dos M
   { bits: '3', nombre: 'PWM Enable', que: '1 = modo PWM (activa los registros sombra)' },
 ]} />
 
+<Registro nombre="PWM1MCR" descripcion="qué hace cada Match" campos={[
+  { bits: '0, 1, 2', nombre: 'PWMMR0I, PWMMR0R, PWMMR0S', que: 'Interrumpir, poner el TC a 0 o parar en MR0. Para una PWM: <b>PWMMR0R</b>' },
+  { bits: '3–20', nombre: 'MR1–MR6', que: 'Lo mismo para cada Match, 3 bits por Match (para PWM se dejan a 0)' },
+]} />
+
 <Registro nombre="PWM1PCR" descripcion="tipo y habilitación de cada salida" campos={[
   { bits: '2–6', nombre: 'PWMSEL2–6', que: '1 = doble flanco en esa salida; 0 = flanco único' },
   { bits: '9–14', nombre: 'PWMENA1–6', que: '1 = salida PWM1.1…PWM1.6 habilitada' },

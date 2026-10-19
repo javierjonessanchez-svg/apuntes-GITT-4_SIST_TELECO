@@ -1,0 +1,155 @@
+---
+titulo: "ADC y DAC"
+orden: 6
+bloque: "Analógico"
+resumen: "Convertir tensiones a números con el ADC de 12 bits y números a tensión con el DAC de 10 bits"
+saber:
+  - "ADC: 12 bits, 8 canales (AD0.0–AD0.7) con un multiplexor y un solo convertidor. V = RESULT·(V_REFP − V_REFN)/4096; en la Mini-DK2, RESULT·3,3/4096"
+  - "El reloj del ADC es F_PCLK/(CLKDIV + 1) y no puede pasar de 13 MHz. Cada conversión tarda 65 ciclos: con 12,5 MHz, 5,2 µs"
+  - "AD0CR: SEL (bits 7:0) elige el canal, CLKDIV (15:8), BURST (16), PDN (21) enciende el convertidor y START (26:24) dice cuándo empezar"
+  - "START = 001 empieza ya (software). Otros valores lo disparan por hardware: EINT0 (P2.10), CAP0.1 (P1.27) o un Match (MAT0.1, MAT0.3, MAT1.0, MAT1.1)"
+  - "El resultado está en ADDRx (por canal) y en ADGDR (el último). RESULT ocupa los bits 15:4: (ADGDR >> 4) & 0xFFF. DONE (bit 31) se borra al leer"
+  - "ADINTEN se escribe con = y no con |=: tras el reset su bit 8 (ADGINTEN) está a 1 y haría interrumpir por cualquier canal"
+  - "DAC: 10 bits, salida AOUT en P0.26. DACR = valor << 6 y V = VALUE·3,3/1024. BIAS elige entre 1 µs (hasta 1 MHz) y 2,5 µs (hasta 400 kHz, menos consumo)"
+fuentes:
+  - "Apuntes de Miguel"
+  - "Periféricos del LPC1768 (diapositivas de clase)"
+  - "UM10360 (manual del LPC17xx), cap. 29 y 30"
+test:
+  - p: "El ADC devuelve RESULT = 2048 con V_REF = 3,3 V. ¿Qué tensión hay en el pin?"
+    o: ["1,65 V", "3,3 V", "2,048 V", "0,825 V"]
+    c: 0
+    e: "V = 2048·3,3/4096 = 1,65 V: la mitad del fondo de escala."
+  - p: "Con F_PCLK = 25 MHz, ¿qué CLKDIV es el menor válido?"
+    o: ["1", "0", "2", "24"]
+    c: 0
+    e: "CLKDIV = 0 daría 25 MHz, por encima de 13 MHz. Con 1, 25/2 = 12,5 MHz: vale."
+  - p: "¿Cómo se saca el resultado de 12 bits de AD0GDR?"
+    o: ["(AD0GDR >> 4) & 0xFFF", "AD0GDR & 0xFFF", "(AD0GDR >> 12) & 0xFFF", "AD0GDR >> 20"]
+    c: 0
+    e: "RESULT está en los bits 15:4: se desplaza 4 a la derecha y se enmascara con 12 unos."
+  - p: "Escribes AD0INTEN |= (1 << 2) y la ISR del ADC salta con cualquier canal. ¿Por qué?"
+    o: ["ADGINTEN (bit 8) sigue a 1 desde el reset", "Falta poner BURST", "El canal 2 no tiene interrupción", "El NVIC no distingue canales"]
+    c: 0
+    e: "Tras el reset ADGINTEN = 1: interrumpe cualquier canal. Con AD0INTEN = (1 << 2) se borra."
+  - p: "¿Qué escribes en DACR para sacar unos 1,65 V (V_REF = 3,3 V)?"
+    o: ["512 << 6", "512", "2048 << 4", "1023 << 6"]
+    c: 0
+    e: "VALUE = 1,65·1024/3,3 = 512, y VALUE va en los bits 15:6."
+---
+import Practica from '../../../src/asignaturas/seda/Practica.astro';
+import Registro from '../../../src/asignaturas/seda/Registro.astro';
+
+**Idea clave.** El **ADC** convierte una tensión del pin en un número de 12 bits (0–4095) y el **DAC** hace lo contrario con 10 bits (0–1023). Los dos van referidos a $V_{REF}$, que en la Mini-DK2 es 3,3 V. Con el ADC se leen sensores (una LDR, un potenciómetro, un micrófono); con el DAC se sacan señales analógicas, como audio.
+
+## El ADC
+
+El LPC1768 tiene **un convertidor** de 12 bits por aproximaciones sucesivas y un **multiplexor de 8 entradas** (AD0.0–AD0.7) delante. Solo convierte un canal cada vez.
+
+$$
+V_{in} = \frac{RESULT}{2^{12}}\,(V_{REFP} - V_{REFN}) = RESULT\cdot\frac{3{,}3}{4096}
+$$
+
+Algunos pines: **AD0.0 en P0.23**, AD0.1 en P0.24, AD0.2 en P0.25, AD0.3 en P0.26 (compartido con la salida del DAC), AD0.4 en P1.30 y AD0.5 en P1.31.
+
+**El reloj.** Sale del PCLK del ADC (PCLKSEL0, bits 25:24) dividido entre CLKDIV + 1, y **no puede pasar de 13 MHz**. Cada conversión tarda **65 ciclos**:
+
+$$
+F_{CLK\,ADC} = \frac{F_{PCLK}}{CLKDIV + 1} \le 13\ \text{MHz}
+\qquad
+t_{conv} = \frac{65}{F_{CLK\,ADC}}
+$$
+
+Con $F_{PCLK} = 25$ MHz, CLKDIV = 1 da 12,5 MHz y 5,2 µs por conversión (unas 190 000 por segundo). Cuanto más rápido el reloj, antes acaba.
+
+<Registro nombre="AD0CR" descripcion="control del ADC" campos={[
+  { bits: '7:0', nombre: 'SEL', que: 'Un 1 en el canal que se convierte (en modo software, solo uno)' },
+  { bits: '15:8', nombre: 'CLKDIV', que: 'Divisor del reloj: F_PCLK/(CLKDIV + 1) ≤ 13 MHz' },
+  { bits: '16', nombre: 'BURST', que: '1 = convierte sin parar todos los canales de SEL, uno tras otro' },
+  { bits: '21', nombre: 'PDN', que: '<b>1 = ADC encendido</b> (0 = apagado)' },
+  { bits: '26:24', nombre: 'START', que: '000 = no empezar; <b>001 = empezar ya</b>; 010 = flanco en EINT0 (P2.10); 011 = en CAP0.1 (P1.27); 100 = MAT0.1; 101 = MAT0.3; 110 = MAT1.0; 111 = MAT1.1' },
+  { bits: '27', nombre: 'EDGE', que: 'Con START ≥ 010: 0 = flanco de subida, 1 = de bajada' },
+]} />
+
+**Disparar con un Match** es la forma limpia de muestrear a ritmo fijo: el Timer marca la frecuencia de muestreo y cada conversión empieza en el instante exacto, sin depender de la latencia de ninguna ISR.
+
+<Registro nombre="AD0GDR" descripcion="último resultado (también AD0DR0–AD0DR7, uno por canal)" campos={[
+  { bits: '15:4', nombre: 'RESULT', que: 'El resultado de 12 bits' },
+  { bits: '26:24', nombre: 'CHN', que: 'Canal convertido (solo en ADGDR)' },
+  { bits: '30', nombre: 'OVERRUN', que: '1 = se ha pisado un resultado sin leerlo (modo ráfaga)' },
+  { bits: '31', nombre: 'DONE', que: '1 = conversión terminada. Se borra al leer el registro' },
+]} />
+
+<Registro nombre="AD0INTEN" descripcion="interrupciones del ADC" campos={[
+  { bits: '7:0', nombre: 'ADINTEN0–7', que: '1 = interrumpir al terminar ese canal' },
+  { bits: '8', nombre: 'ADGINTEN', que: '1 = interrumpir con DONE de ADGDR (cualquier canal). <b>Vale 1 tras el reset</b>' },
+]} />
+
+Por eso AD0INTEN se escribe con **=** (y no con |=): así se pone el canal deseado y se borra ADGINTEN de paso.
+
+```c
+void adc_init(void) {
+  LPC_SC->PCONP |= (1 << 12);                // alimentar el ADC (apagado tras el reset)
+  LPC_PINCON->PINSEL1 |= (1 << 14);          // P0.23 = AD0.0
+  LPC_PINCON->PINMODE1 |= (2 << 14);         // sin pull-up ni pull-down
+  LPC_ADC->ADCR = (1 << 0)                   // canal 0
+                | (1 << 8)                   // CLKDIV = 1: 12,5 MHz
+                | (1 << 21);                 // PDN: encendido
+  LPC_ADC->ADINTEN = (1 << 0);               // con =, para borrar ADGINTEN
+  NVIC_EnableIRQ(ADC_IRQn);
+}
+
+void ADC_IRQHandler(void) {
+  uint32_t r = LPC_ADC->ADGDR;               // leer borra DONE
+  muestra = (r >> 4) & 0xFFF;
+}
+```
+
+Para convertir: `LPC_ADC->ADCR |= (1 << 24);` (START = 001). Si la entrada no tiene pull-up ni pull-down, la resistencia interna no altera la tensión que se mide.
+
+<Practica n={6} nombre="Medida de señales analógicas" />
+
+## El DAC
+
+Un convertidor de **10 bits** con la salida **AOUT en P0.26** (función 10 de PINSEL1, bits 21:20). No necesita PCONP: basta con llevar el pin a su función.
+
+$$
+V_{out} = VALUE\cdot\frac{V_{REF}}{1024} = VALUE\cdot\frac{3{,}3}{1024}
+$$
+
+<Registro nombre="DACR" descripcion="valor y modo del DAC" campos={[
+  { bits: '15:6', nombre: 'VALUE', que: 'El valor de 10 bits' },
+  { bits: '16', nombre: 'BIAS', que: '0 = se estabiliza en 1 µs (hasta 1 MHz, 700 µA); 1 = 2,5 µs (hasta 400 kHz, 350 µA)' },
+]} />
+
+```c
+LPC_PINCON->PINSEL1 |= (2 << 20);            // P0.26 = AOUT
+LPC_DAC->DACR = (valor & 0x3FF) << 6;         // valor de 0 a 1023
+```
+
+**Generar una señal.** Se guarda un periodo en una tabla de N muestras y un Timer interrumpe a $f_s$; en cada interrupción se escribe la siguiente muestra en DACR. La frecuencia de salida es $f_{out} = f_s/N$. Lo mismo vale para reproducir audio grabado con el ADC: se muestrea y se reproduce a la misma $f_s$ (al menos 8 kHz para voz). Para no gastar CPU en cada muestra, se usa el **DMA**.
+
+<Practica n={7} nombre="Grabación y reproducción de audio" />
+
+## Preguntas de examen
+
+<details>
+<summary>Un potenciómetro en AD0.0 debe leerse cada 10 ms sin tocar el ADC desde el programa principal. ¿Cómo lo montas?</summary>
+
+Que el propio Timer dispare las conversiones. TIMER0 con MR1 = 5 ms·F_tick − 1, reset en MR1 y EMC1 = 11 (conmutar): MAT0.1 sube cada 10 ms. En AD0CR, START = 100 (MAT0.1) y EDGE = 0 (subida). `AD0INTEN = (1 << 0)` y en la ISR del ADC se guarda `(ADGDR >> 4) & 0xFFF`. El conmutar es lo que crea el flanco: por eso el Match va a la mitad del periodo de muestreo. *(Respuesta redactada a partir de los apuntes y del UM10360.)*
+
+</details>
+
+<details>
+<summary>¿Qué tensión mínima distinguen el ADC y el DAC con V_REF = 3,3 V?</summary>
+
+ADC: 3,3/4096 ≈ 0,81 mV. DAC: 3,3/1024 ≈ 3,2 mV. *(Respuesta redactada a partir de los apuntes.)*
+
+</details>
+
+<details>
+<summary>Con una tabla de 32 muestras de un seno, ¿a qué frecuencia debe interrumpir el Timer para sacar 500 Hz por el DAC? ¿Qué MR0?</summary>
+
+$f_s = 32\cdot 500 = 16$ kHz. Con F_PCLK = 25 MHz y reset en MR0: MR0 = 25·10⁶/16 000 − 1 = 1561,5, que no es entero: con 1561 o 1562 el error es de un 0,03 % (unos 500,2 o 499,8 Hz). *(Respuesta redactada a partir de los apuntes.)*
+
+</details>
