@@ -1,0 +1,28 @@
+---
+// Aviso de que una parte del tema sale en una práctica de laboratorio y conviene dominarla.
+// Solo el número y el nombre de la práctica: ningún dato ni paso de los guiones.
+interface Props { n: number; nombre: string }
+const { n, nombre } = Astro.props;
+---
+<p class="op-practica">
+  <span class="op-practica-icono" aria-hidden="true">🔬</span>
+  <span><b>Práctica {n}</b> ({nombre}) · conviene dominarlo</span>
+</p>
+
+<style>
+  .op-practica {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: -4px 0 14px;
+    padding: 4px 12px 4px 9px;
+    border-radius: 999px;
+    font-size: .85rem;
+    line-height: 1.4;
+    color: var(--texto);
+    background: color-mix(in srgb, var(--primario) 9%, var(--superficie));
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primario) 28%, var(--linea));
+  }
+  .op-practica b { font-weight: 650; color: var(--primario); }
+  .op-practica-icono { font-size: .95rem; }
+</style>

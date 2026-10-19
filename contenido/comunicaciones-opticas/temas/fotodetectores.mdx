@@ -48,6 +48,7 @@ test:
 
 import RespuestaEspectral from '../../../src/asignaturas/comunicaciones-opticas/widgets/RespuestaEspectral.astro';
 import SeConecta from '../../../src/asignaturas/comunicaciones-opticas/SeConecta.astro';
+import Practica from '../../../src/asignaturas/comunicaciones-opticas/Practica.astro';
 
 **Idea clave.** Al final del enlace hay que volver a convertir la luz en corriente. Un fotodiodo hace lo contrario que un LED: cada fotón absorbido crea un par electrón-hueco, y un campo eléctrico se lleva los portadores antes de que se recombinen. Interesa absorber muchos fotones (más corriente, más sensibilidad) y hacerlo deprisa (más velocidad), y esas dos cosas tiran en sentidos contrarios.
 
@@ -82,6 +83,8 @@ Para aumentar la sensibilidad hay dos caminos, que se pueden usar a la vez: un *
 > **⚠ Revisar.** En tus apuntes ponías que en el APD los electrones «colisionan con neutrones del material» y que «incrementa exponencialmente el número de fotones». Chocan con los átomos (los electrones) del material, y lo que se multiplica son los **electrones**, no los fotones.
 
 ## Parámetros de un fotodetector
+
+<Practica n={4} nombre="Comunicación óptica entre dos PC" />
 
 - **Respuesta espectral:** el margen de longitudes de onda que el fotodetector absorbe. Cada material responde según su gap: solo detecta fotones con energía mayor que el gap, es decir, hasta su **longitud de onda de corte**, $\lambda_c = hc/E_g$.
 - **Eficiencia cuántica** ($\eta$): número de portadores generados por cada fotón incidente.

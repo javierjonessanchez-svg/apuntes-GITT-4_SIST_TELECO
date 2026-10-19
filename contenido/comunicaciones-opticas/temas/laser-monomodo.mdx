@@ -52,6 +52,7 @@ import DbrDfb from '../../../src/asignaturas/comunicaciones-opticas/widgets/DbrD
 import Espectros from '../../../src/asignaturas/comunicaciones-opticas/widgets/Espectros.astro';
 import Modulacion from '../../../src/asignaturas/comunicaciones-opticas/widgets/Modulacion.astro';
 import SeConecta from '../../../src/asignaturas/comunicaciones-opticas/SeConecta.astro';
+import Practica from '../../../src/asignaturas/comunicaciones-opticas/Practica.astro';
 
 **Idea clave.** WDM mete muchos canales separados décimas de nanómetro en la misma fibra, así que cada láser tiene que emitir **un solo modo** y en una λ **muy precisa y estable**. Se consigue con pozos cuánticos (para ajustar el gap), redes de Bragg (DBR, DFB) para quedarse con un modo, sintonización fina y mucho control de la temperatura y de la corriente.
 
@@ -80,6 +81,8 @@ Se usan compuestos **cuaternarios**, o incluso de cinco elementos, de los grupos
 <PozoCuantico />
 
 ### 3. Filtrado: quedarse con un solo modo
+
+<Practica n={5} nombre="Caracterización espectral de fuentes" />
 
 Una vez que el medio activo emite en la λ adecuada, hay que quedarse con un solo modo, un único pico. Las dos formas se basan en **redes de Bragg**: capas cuyo índice de refracción varía de forma periódica y que, por eso, solo reflejan una λ concreta (la de Bragg).
 

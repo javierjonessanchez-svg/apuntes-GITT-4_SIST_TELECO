@@ -50,6 +50,7 @@ import BandasLed from '../../../src/asignaturas/comunicaciones-opticas/widgets/B
 import FormaHaz from '../../../src/asignaturas/comunicaciones-opticas/widgets/FormaHaz.astro';
 import Espectros from '../../../src/asignaturas/comunicaciones-opticas/widgets/Espectros.astro';
 import SeConecta from '../../../src/asignaturas/comunicaciones-opticas/SeConecta.astro';
+import Practica from '../../../src/asignaturas/comunicaciones-opticas/Practica.astro';
 
 **Idea clave.** Un LED es un diodo que convierte corriente en luz: cada electrón que se recombina con un hueco suelta un fotón con la energía del gap. Es pequeño, rápido y barato, pero su luz es incoherente, ancha en el espectro y sale hacia todas partes. Por eso sirve para enlaces cortos con fibra multimodo y no para multiplexar.
 
@@ -120,6 +121,8 @@ Aun así, solo se acopla a la fibra en torno al **1 %** de la luz del LED.
 La luz del LED sale por **emisión espontánea**: cada electrón se desexcita cuando le toca, así que cada fotón tiene su propia fase. Es luz **incoherente**: al final de la fibra se ve un disco de luz plano, sin información de fase. Si además la potencia es muy baja, el ruido shot (de Poisson) puede dominar sobre la señal. La comparación con la luz coherente del láser está en el tema siguiente.
 
 ## Parámetros de un LED
+
+<Practica n={4} nombre="Comunicación óptica entre dos PC" />
 
 - **Eficiencia cuántica:** fracción de las recombinaciones que producen un fotón. El resto se pierde como calor por colisiones, así que **baja al subir la temperatura**.
 - **Responsividad:** potencia óptica emitida por unidad de corriente, $P/I$. En un LED es del orden de **0,01 W/A**, y baja con corrientes muy altas (más de 80 mA), al salir de la zona lineal de la curva P-I.
