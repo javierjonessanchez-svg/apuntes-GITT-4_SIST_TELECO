@@ -1,19 +1,24 @@
 ---
-// Las cinco asignaturas: la actual resaltada; las pendientes se ven, pero no son enlaces.
-import { asignaturasOrdenadas } from './datos';
+// Las cinco asignaturas: la actual resaltada; las pendientes se ven, pero no son enlaces,
+// salvo que tengan modo examen: entonces llevan a él hasta que tengan apuntes.
+import { asignaturasOrdenadas, examenDe } from './datos';
 import { ruta } from './rutas';
 
 interface Props { actual: string }
 const { actual } = Astro.props;
 const asignaturas = await asignaturasOrdenadas();
+const conExamen = await Promise.all(asignaturas.map(async (a) => Boolean(await examenDe(a.slug))));
 ---
 <nav class="selector" aria-label="Asignaturas" data-selector>
   <ul>
-    {asignaturas.map((a) => (
+    {asignaturas.map((a, i) => (
       <li>
         {a.estado === 'activa' ? (
           <a class="chip" href={ruta(a.slug)} data-chip={a.slug} aria-current={a.slug === actual ? 'page' : undefined}
             title={a.nombre}>{a.corto}</a>
+        ) : conExamen[i] ? (
+          <a class="chip" href={ruta(a.slug, 'examen')} data-chip={a.slug} aria-current={a.slug === actual ? 'page' : undefined}
+            title={`${a.nombre}: modo examen (apuntes en preparación)`}>{a.corto}</a>
         ) : (
           <span class="chip pendiente" data-chip={a.slug} title={`${a.nombre}: en preparación`}>
             <span>{a.corto}</span> <span class="sr">En preparación</span>
