@@ -114,6 +114,14 @@ describe('tema 4: ruido e interferencias', () => {
     expect(dibujarCadena({ orden: 'cable-primero' }).info).toContain(`${fmt(cable, 0)} K`);
     for (const orden of ['lna-primero', 'cable-primero'] as const) limpio(dibujarCadena({ orden }).svg);
   });
+  test('las cifras de las barras de ruido caben en el lienzo de 480', () => {
+    // Una etiqueta «NNN K» de 11 px ocupa unos 36 px: debe empezar antes de x = 440
+    for (const orden of ['lna-primero', 'cable-primero'] as const) {
+      const xs = [...dibujarCadena({ orden }).svg.matchAll(/<text x="([\d.]+)"[^>]*>\d+ K<\/text>/g)].map((m) => Number(m[1]));
+      expect(xs.length).toBe(2);
+      for (const x of xs) expect(x).toBeLessThan(440);
+    }
+  });
   test('triángulo: ángulo θ entre a y b, opuesto a c, y el interferente', () => {
     const d = dibujarTriangulo();
     for (const s of ['θ', 'interferente', 'a', 'b', 'c']) expect(d.svg).toContain(s);

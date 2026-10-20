@@ -22,7 +22,7 @@ test:
     c: 0
     e: "T = (l − 1)·290 = (2 − 1)·290 ≈ 289 K."
   - p: "Antena de 50 K, LNA de 100 K y 30 dB y después un cable de 3 dB. ¿Cuánto vale T_total en la salida de la antena?"
-    o: ["≈ 150 K", "≈ 439 K", "≈ 539 K", "≈ 100 K"]
+    o: ["≈ 150 K", "≈ 439 K", "≈ 538 K", "≈ 100 K"]
     c: 0
     e: "50 + 100 + 289/1000 ≈ 150 K."
   - p: "¿Por qué se pone el LNA delante del cable?"
@@ -31,10 +31,10 @@ test:
   - p: "Si se dobla el ancho de banda B con la misma Rb, ¿qué le pasa a TH = 10·log(k·T·Rb) + 30 + Eb/N0 + Degr?"
     o: ["No cambia: no depende de B", "Sube 3 dB", "Baja 3 dB", "Sube 6 dB"]
     c: 0
-  - p: "Si T_total sube de 150 K a 539 K, ¿cuánto empeora la CNR?"
+  - p: "Si T_total sube de 150 K a 538 K, ¿cuánto empeora la CNR?"
     o: ["Unos 5,5 dB", "Unos 3,6 dB", "Unos 11 dB", "No cambia"]
     c: 0
-    e: "10·log(539/150) ≈ 5,5 dB."
+    e: "10·log(538/150) ≈ 5,5 dB."
   - p: "¿De qué depende la Eb/N0 necesaria?"
     o: ["De la BER pedida, la modulación, sus niveles y la codificación", "Solo de la potencia transmitida", "De la distancia del vano", "De la ganancia de la antena"]
     c: 0
@@ -146,7 +146,7 @@ $$
 <details>
 <summary>¿Por qué el LNA va pegado a la antena?</summary>
 
-Porque en la fórmula de Friis manda la primera etapa: su ruido entra entero y su ganancia divide el de todas las demás. Si delante hay un cable, su ruido entra entero y, como atenúa, multiplica el ruido del LNA. En el widget, el mismo cable y el mismo LNA dan 150 K o 539 K según el orden. *(Pregunta propia, redactada a partir de las transparencias.)*
+Porque en la fórmula de Friis manda la primera etapa: su ruido entra entero y su ganancia divide el de todas las demás. Si delante hay un cable, su ruido entra entero y, como atenúa, multiplica el ruido del LNA. En el widget, el mismo cable y el mismo LNA dan 150 K o 538 K según el orden. *(Pregunta propia, redactada a partir de las transparencias.)*
 
 </details>
 
@@ -160,7 +160,7 @@ Porque al subir $B$ sube el ruido $N = kTB$, pero baja en lo mismo la $CNR$ nece
 <details>
 <summary>T = 150 K, Rb = 34 Mbit/s, Eb/N0 = 12 dB y 2 dB de degradación. ¿Cuánto vale TH?</summary>
 
-$TH = 10\log(1{,}38\cdot 10^{-23}\cdot 150\cdot 34\cdot 10^6) + 30 + 12 + 2 \approx -131{,}5 + 44 = -87{,}5$ dBm. Con el cable delante del LNA (539 K) sería unos 5,5 dB peor: −82 dBm. *(Pregunta propia, redactada a partir de las transparencias.)*
+$TH = 10\log(1{,}38\cdot 10^{-23}\cdot 150\cdot 34\cdot 10^6) + 30 + 12 + 2 \approx -131{,}5 + 44 = -87{,}5$ dBm. Con el cable delante del LNA (538 K) sería unos 5,5 dB peor: −82 dBm. *(Pregunta propia, redactada a partir de las transparencias.)*
 
 </details>
 
