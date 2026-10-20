@@ -11,7 +11,7 @@ saber:
   - "Atmósfera estándar: K = 4/3. K > 4/3 superrefractiva; 0 ≤ K ≤ 1 subrefractiva; K < 0 conductiva"
   - "Flecha: b = d1·d2/(2·K·RT), lo que la Tierra ficticia sube sobre la cuerda. No depende de la frecuencia"
   - "Horizonte radioeléctrico: d_et ≈ √(2·K·RT·h) por estación; más allá de d_et1 + d_et2 no hay visión directa"
-  - "K cambia con el tiempo: el valor que se supera el 99,9 % del tiempo es K99,9 = 157/(144 + 2670/d_km), menor que 4/3"
+  - "K cambia con el tiempo: el valor que se supera el 99,9 % del peor mes es K99,9 = 157/(144 + 2670/d_km), menor que 4/3"
 fuentes:
   - "Transparencias del tema 1: «Propagación por onda de espacio (condiciones normales)»"
   - "Transparencias del tema 3: «Desvanecimientos y calidad en radioenlaces» (variación del factor K)"
@@ -68,7 +68,7 @@ $$
 \frac{1}{R_{rayo}} = -\frac{dn}{dh} = -\frac{dN}{dh}\,10^{-6}
 $$
 
-En atmósfera estándar sale $R_{rayo} \approx 7{,}35/(315\cdot 10^{-6}) \approx 23\,333$ km, unas cuatro veces el radio de la Tierra ($R_T = 6371$ km). Por eso la señal llega algo más lejos que el horizonte óptico.
+En atmósfera estándar sale $R_{rayo} \approx 7{,}35/(315\cdot 10^{-6}) \approx 23\,333$ km, unas 3,7 veces el radio de la Tierra ($R_T = 6371$ km). Por eso la señal llega algo más lejos que el horizonte óptico.
 
 ## La Tierra ficticia y el factor K
 
@@ -80,7 +80,7 @@ $$
 K = \frac{1}{1 + R_T\,\dfrac{dN}{dh}\,10^{-6}} = \frac{157}{157 + dN/dh}
 $$
 
-En atmósfera estándar, $K = 157/(157 - 315/7{,}35) \approx 4/3$. Según el valor de $K$, la Tierra se modela como:
+En atmósfera estándar, $K = 157/(157 - 315/7{,}35) \approx 1{,}38$, y en la práctica se toma $K = 4/3$ (que corresponde a una pendiente de unas $-39$ unidades N por km). Según el valor de $K$, la Tierra se modela como:
 
 - $K > 4/3$: **superrefractiva**. El rayo se curva más de lo normal y la Tierra ficticia es más plana. Con $K = \infty$ el rayo tiene la misma curvatura que la Tierra y se puede dibujar sobre una Tierra plana.
 - $K = 4/3$: **estándar** (condiciones normales).
@@ -113,7 +113,7 @@ Más allá de $d_{max}$ no hay visión directa. En el widget, dos mástiles de 4
 
 ## K en el peor caso: K99,9
 
-$K$ no es fijo: cambia con el tiempo según el estado de la atmósfera, y cuando baja el terreno se acerca al rayo. Es una de las causas de **desvanecimiento**, que se evita poniendo las antenas a la altura adecuada. Para diseñar se usa el valor de $K$ que se **supera el 99,9 % del tiempo**, que depende de la longitud del vano:
+$K$ no es fijo: cambia con el tiempo según el estado de la atmósfera, y cuando baja el terreno se acerca al rayo. Es una de las causas de **desvanecimiento**, que se evita poniendo las antenas a la altura adecuada. Para diseñar se usa el valor de $K$ que se **supera el 99,9 % del peor mes**, que depende de la longitud del vano:
 
 $$
 K_{99{,}9} = \frac{157}{144 + 2670/d_{\mathrm{km}}}
@@ -142,7 +142,7 @@ $d_{et} = \sqrt{2\cdot\tfrac{4}{3}\cdot 6371\cdot 10^3\cdot 40} \approx 26{,}1$ 
 <details>
 <summary>¿Por qué se diseña con K99,9 y no con 4/3?</summary>
 
-Porque $K$ baja a ratos, y con $K$ menor la flecha crece y el terreno se acerca al rayo. Si las alturas se eligen con el $K$ que se supera el 99,9 % del tiempo (menor que 4/3), el rayo queda despejado casi siempre y la variación de $K$ no causa cortes. *(Pregunta propia, redactada a partir de las transparencias.)*
+Porque $K$ baja a ratos, y con $K$ menor la flecha crece y el terreno se acerca al rayo. Si las alturas se eligen con el $K$ que se supera el 99,9 % del peor mes (menor que 4/3), el rayo queda despejado casi siempre y la variación de $K$ no causa cortes. *(Pregunta propia, redactada a partir de las transparencias.)*
 
 </details>
 
