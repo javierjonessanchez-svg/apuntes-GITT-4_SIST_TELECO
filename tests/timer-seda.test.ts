@@ -18,6 +18,17 @@ describe('calcularTimer', () => {
   test('con un periodo menor que un tic, los pasos usan N = 1 como el cálculo', () => {
     expect(pasosTimer(25e6, 1e-8)[0].formula).toMatch(/= 1$/); // 0,25 cuentas → 1
   });
+  test('con un periodo menor que un tic, avisa de que MR0 = 0 da T_real = 1/F_PCLK', () => {
+    const pasos = pasosTimer(25e6, 1e-8);
+    const aviso = pasos.find((p) => /menor que un tic/.test(p.texto));
+    expect(aviso).toBeDefined();
+    expect(aviso!.formula).toContain('MR0 = 0');
+    expect(pasos.at(-1)!.formula).toContain('MR0 = N - 1 = 0');
+  });
+  test('con un periodo de al menos un tic no hay aviso', () => {
+    expect(pasosTimer(25e6, 1e-3).some((p) => /menor que un tic/.test(p.texto))).toBe(false);
+    expect(pasosTimer(25e6, 4e-8).some((p) => /menor que un tic/.test(p.texto))).toBe(false); // justo 1 tic
+  });
   test('los pasos acaban en el valor de MR0', () => {
     const pasos = pasosTimer(25e6, 1e-3);
     expect(pasos.length).toBeGreaterThan(0);

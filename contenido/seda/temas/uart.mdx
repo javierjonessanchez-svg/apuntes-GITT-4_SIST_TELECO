@@ -136,6 +136,9 @@ El primer carácter se escribe fuera de la ISR; cada interrupción THRE manda el
 ```c
 char *ptr_tx;                 // siguiente carácter que hay que mandar
 char tx_completa;
+char buffer[32];              // línea recibida (RDA); 32 es un tamaño de ejemplo
+char *ptr_rx = buffer;        // dónde se guarda el siguiente byte recibido
+volatile char rx_completa;    // la ISR lo pone a 1 cuando llega '\r'
 
 void tx_cadena_UART0(char *cadena) {
   ptr_tx = cadena;
@@ -183,7 +186,7 @@ $DL = 25\cdot 10^6/(16\cdot 9600) = 162{,}76 \to 163$: DLM = 0, DLL = 163. $V = 
 <details>
 <summary>¿Por qué se manda el primer carácter fuera de la ISR?</summary>
 
-Porque la interrupción THRE salta cuando THR **pasa a estar vacío**. Si no se escribe nada, nunca deja de estar vacío y no hay flanco que dispare la primera interrupción. Escribiendo el primero a mano, cada THRE posterior encadena el siguiente. *(Respuesta redactada a partir de los apuntes.)*
+Porque la interrupción THRE salta cuando THR **pasa a estar vacío**. La interrupción THRE solo se produce después de que THR haya recibido algún dato y lo haya pasado al registro de desplazamiento: mientras no se escriba en THR, no hay nada que se vacíe y no salta ninguna. Por eso hay que escribir el primer carácter a mano. Una vez hecho, cada THRE posterior encadena el siguiente. *(Respuesta redactada a partir de los apuntes.)*
 
 </details>
 

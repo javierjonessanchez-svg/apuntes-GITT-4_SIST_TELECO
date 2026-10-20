@@ -3,7 +3,10 @@
 // Lo usan la versión interactiva (que marca el estado activo) y la estática.
 import { microondas as m } from './maquina';
 
-const uid = `maq-${Math.random().toString(36).slice(2, 7)}`;
+// El diagrama sale dos veces en la página (interactivo y estático), así que el id de la punta
+// de flecha lleva la variante: es único por copia y no cambia de una compilación a otra.
+const { variante } = Astro.props as { variante: 'vivo' | 'estatico' };
+const uid = `maq-${variante}`;
 const lineas = (e: (typeof m.estados)[string]) => [
   e.entry && `entry / ${e.entry}`, e.do && `do / ${e.do}`, e.exit && `exit / ${e.exit}`,
 ].filter(Boolean) as string[];
