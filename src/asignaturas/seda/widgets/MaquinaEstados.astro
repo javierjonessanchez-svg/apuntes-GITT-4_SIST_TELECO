@@ -12,7 +12,7 @@ const EVENTOS: Record<string, string> = {
 ---
 <Widget titulo="Máquina de estados: el microondas" tipo="entender">
   <div class="sd-maquina" data-maquina data-inicial={m.inicial}>
-    <DiagramaEstados />
+    <DiagramaEstados variante="vivo" />
     <div class="sd-maq-controles" data-controles hidden>
       <div class="sd-maq-eventos" role="group" aria-label="Eventos">
         {Object.entries(EVENTOS).map(([ev, texto]) => <button type="button" class="sd-maq-evento" data-evento={ev}>{texto}</button>)}
@@ -23,7 +23,7 @@ const EVENTOS: Record<string, string> = {
     </div>
   </div>
   <Fragment slot="estatico">
-    <DiagramaEstados />
+    <DiagramaEstados variante="estatico" />
     <table>
       <thead><tr><th scope="col">Estado</th><th scope="col">Evento / acción</th><th scope="col">Va a</th></tr></thead>
       <tbody>

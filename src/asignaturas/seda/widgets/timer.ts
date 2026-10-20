@@ -24,6 +24,9 @@ export function pasosTimer(fpclk: number, t: number): Paso[] {
   const pasos: Paso[] = [
     { texto: 'Cuentas del TC en un periodo:', formula: `N = F_{PCLK}\\cdot T = ${fmt(fpclk / 1e6, 4)}\\,\\text{MHz}\\cdot ${fmt(t * 1e3, 6)}\\,\\text{ms} = ${cuentas}` },
   ];
+  if (fpclk * t < 1) {
+    pasos.push({ texto: 'El periodo es menor que un tic del reloj (N < 1): lo mínimo es contar un tic, así que MR0 = 0 y el periodo real es el de un tic.', formula: `MR0 = 0 \\Rightarrow T_{real} = \\frac{1}{F_{PCLK}} = ${fmt(1e9 / fpclk, 4)}\\,\\text{ns}` });
+  }
   if (pr > 0) {
     pasos.push({ texto: `N no cabe en 32 bits (máximo ${MAX32 - 1}): el prescaler divide el reloj.`, formula: `PR = \\lceil N/2^{32}\\rceil - 1 = ${pr}` });
   }
