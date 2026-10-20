@@ -1,0 +1,10 @@
+---
+// Geometría de una interferencia entre tres estaciones (dibujo fijo, se ve sin JavaScript).
+import Widget from '../../../widgets/Widget.astro';
+import Lienzo from '../../comunicaciones-opticas/widgets/Lienzo.astro';
+import { dibujarTriangulo } from './dibujos-sistema';
+---
+<Widget titulo="El ángulo de llegada del interferente" tipo="entender">
+  <Lienzo nombre="triangulo" uid="triangulo" alto={252} etiqueta="Triángulo entre el transmisor deseado, el receptor y un transmisor interferente, con los lados a, b y c y el ángulo θ en el receptor entre las direcciones del deseado y del interferente"
+    inicial={dibujarTriangulo()} />
+</Widget>

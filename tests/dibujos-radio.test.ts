@@ -2,12 +2,12 @@
 // extremos de cada control no dejan NaN ni Infinity en el SVG.
 import { describe, expect, test } from 'vitest';
 import { fmt } from '../src/widgets/numeros';
-import { lbf, qDeFM } from '../src/asignaturas/radiacion-radiocomunicacion/widgets/fisica-radio';
+import { lbf, qDeFM, tCadena, tPasiva } from '../src/asignaturas/radiacion-radiocomunicacion/widgets/fisica-radio';
 import {
   dibujarBullington, dibujarDosRayos, dibujarEscalera, dibujarFactorK, dibujarFresnel, dibujarLobulos, dibujarMecanismos,
 } from '../src/asignaturas/radiacion-radiocomunicacion/widgets/dibujos-propagacion';
 import {
-  dibujarDespolarizacion, dibujarDiagrama, dibujarFq, dibujarPolarizaciones, dibujarProteccion,
+  dibujarCadena, dibujarDespolarizacion, dibujarDiagrama, dibujarFq, dibujarPolarizaciones, dibujarProteccion, dibujarTriangulo,
 } from '../src/asignaturas/radiacion-radiocomunicacion/widgets/dibujos-sistema';
 
 const limpio = (svg: string) => expect(svg).not.toMatch(/NaN|Infinity|undefined/);
@@ -100,6 +100,23 @@ describe('tema 3: desvanecimientos y lluvia', () => {
   test('despolarización: sale V y llegan V′ y H′', () => {
     const d = dibujarDespolarizacion();
     for (const s of ['V′', 'H′', 'lluvia']) expect(d.svg).toContain(s);
+    limpio(d.svg);
+  });
+});
+
+describe('tema 4: ruido e interferencias', () => {
+  const lna = 50 + tCadena([100, tPasiva(3)], [30, -3]);
+  const cable = 50 + tCadena([tPasiva(3), 100], [-3, 30]);
+  test('cadena: con el LNA delante, T_total ≈ 150 K, menos que con el cable delante', () => {
+    expect(lna).toBeCloseTo(150, 0);
+    expect(lna).toBeLessThan(cable);
+    expect(dibujarCadena({ orden: 'lna-primero' }).info).toContain(`${fmt(lna, 0)} K`);
+    expect(dibujarCadena({ orden: 'cable-primero' }).info).toContain(`${fmt(cable, 0)} K`);
+    for (const orden of ['lna-primero', 'cable-primero'] as const) limpio(dibujarCadena({ orden }).svg);
+  });
+  test('triángulo: ángulo θ entre a y b, opuesto a c, y el interferente', () => {
+    const d = dibujarTriangulo();
+    for (const s of ['θ', 'interferente', 'a', 'b', 'c']) expect(d.svg).toContain(s);
     limpio(d.svg);
   });
 });

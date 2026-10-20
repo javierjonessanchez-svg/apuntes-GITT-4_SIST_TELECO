@@ -1,8 +1,8 @@
 // Dibujos de los temas 2 a 4 (antenas, desvanecimientos, ruido): cada función recibe
 // el estado de los controles y devuelve { svg, info }. Ancho 480; colores solo de COL.
 import { fmt } from '../../../widgets/numeros';
-import { COL, t, l, c, p, cota, flecha as fl, type Dibujo } from './dibujo-radio';
-import { gDesapuntado, fq, qDeFM } from './fisica-radio';
+import { COL, t, l, r, c, p, cota, flecha as fl, type Dibujo } from './dibujo-radio';
+import { gDesapuntado, fq, qDeFM, tCadena, tPasiva } from './fisica-radio';
 
 const n1 = (v: number) => v.toFixed(1);
 
@@ -198,5 +198,91 @@ export function dibujarDespolarizacion(): Dibujo {
   h += t(388, 96, 'V′ (copolar)', { ancla: 'end', tam: 11, peso: 600, col: COL.verde }) + t(386, 186, 'H′ (contrapolar)', { ancla: 'end', tam: 11, peso: 600, col: COL.naranja });
   h += t(24, 30, 'XPD por lluvia = V′ − H′ (dB): baja cuando Fq sube', { tam: 12, peso: 700 });
   const info = 'Las gotas grandes se achatan al caer y no son simétricas: la polarización vertical que sale del transmisor llega con una parte en horizontal. La <b>XPD por lluvia</b> mide cuánto por debajo queda H′, y baja cuanto más fuerte llueve: XPD = U − V·log Fq.';
+  return { svg: h, info };
+}
+
+// ---------- Tema 4: ruido en cascada ----------
+export type EstadoCadena = { orden: 'lna-primero' | 'cable-primero' };
+// Antena (K), cable (dB de pérdidas) y LNA (K y dB de ganancia) del dibujo
+export const CADENA = { ta: 50, cable: 3, tLna: 100, gLna: 30 } as const;
+
+/** Temperatura total en A (salida de la antena) con el LNA delante o detrás del cable. */
+function tTotal(orden: EstadoCadena['orden']): number {
+  const { ta, cable, tLna, gLna } = CADENA;
+  return orden === 'lna-primero'
+    ? ta + tCadena([tLna, tPasiva(cable)], [gLna, -cable])
+    : ta + tCadena([tPasiva(cable), tLna], [-cable, gLna]);
+}
+
+/** Antena → A → etapa 1 → B → etapa 2 → C → demodulador, con T_total referida a A. */
+export function dibujarCadena({ orden }: EstadoCadena): Dibujo {
+  const { ta, cable, tLna, gLna } = CADENA;
+  const tc = tPasiva(cable), gc = 10 ** (-cable / 10);
+  const lnaPrimero = orden === 'lna-primero';
+  const Y = 92;
+  const bloque = (x0: number, l1: string, l2: string, l3: string, col: string) =>
+    r(x0, Y - 30, 92, 60, { fill: COL.superficie, stroke: col, sw: 2, rx: 6 })
+    + t(x0 + 46, Y - 10, l1, { ancla: 'middle', tam: 12, peso: 700, col })
+    + t(x0 + 46, Y + 7, l2, { ancla: 'middle', tam: 10.5, col: COL.suave }) + t(x0 + 46, Y + 21, l3, { ancla: 'middle', tam: 10.5, col: COL.suave });
+  const lna = ['LNA', `T = ${tLna} K`, `G = ${gLna} dB`] as const;
+  const cab = ['cable', `L = ${cable} dB`, `T = ${fmt(tc, 0)} K`] as const;
+  const [e1, e2] = lnaPrimero ? [lna, cab] : [cab, lna];
+  // Antena
+  let h = p(`M24,${Y - 26} L44,${Y} L64,${Y - 26}`, { col: COL.primario, w: 2.4 }) + l(44, Y, 44, Y + 20, { col: COL.primario, w: 2.4 });
+  h += t(44, Y + 36, `Ta = ${ta} K`, { ancla: 'middle', tam: 11, peso: 600 });
+  h += l(64, Y, 100, Y, { col: COL.texto, w: 1.5 });
+  h += bloque(100, e1[0], e1[1], e1[2], e1[0] === 'LNA' ? COL.verde : COL.naranja);
+  h += l(192, Y, 236, Y, { col: COL.texto, w: 1.5 });
+  h += bloque(236, e2[0], e2[1], e2[2], e2[0] === 'LNA' ? COL.verde : COL.naranja);
+  h += fl(328, Y, 368, Y, { col: COL.texto, w: 1.5 });
+  h += r(368, Y - 22, 96, 44, { fill: COL.superficie, stroke: COL.suave, sw: 1.5, rx: 6 }) + t(416, Y + 4, 'demodulador', { ancla: 'middle', tam: 11, peso: 600 });
+  // Puntos de referencia
+  for (const [px, nombre] of [[82, 'A'], [214, 'B'], [348, 'C']] as const) h += c(px, Y, 3.5, { fill: COL.texto }) + t(px, Y - 10, nombre, { ancla: 'middle', tam: 12, peso: 700 });
+  // Cuenta de Friis referida a A
+  const T = tTotal(orden), otro = tTotal(lnaPrimero ? 'cable-primero' : 'lna-primero');
+  const cuenta = lnaPrimero
+    ? `T_total (A) = Ta + T_LNA + T_cable/g_LNA = ${ta} + ${tLna} + ${fmt(tc, 0)}/${fmt(10 ** (gLna / 10), 0)} = ${fmt(T, 0)} K`
+    : `T_total (A) = Ta + T_cable + T_LNA/g_cable = ${ta} + ${fmt(tc, 0)} + ${tLna}/${fmt(gc, 2)} = ${fmt(T, 0)} K`;
+  h += t(24, 22, cuenta, { tam: 11.5, peso: 700 });
+  // Barras: las dos opciones
+  const XB0 = 150, esc = 300 / Math.max(T, otro);
+  const filas = [['LNA delante', tTotal('lna-primero'), lnaPrimero], ['cable delante', tTotal('cable-primero'), !lnaPrimero]] as const;
+  filas.forEach(([nombre, v, actual], i) => {
+    const yb = 168 + i * 30;
+    h += t(XB0 - 8, yb + 13, nombre, { ancla: 'end', tam: 11, peso: actual ? 700 : 400, col: actual ? COL.texto : COL.suave });
+    h += r(XB0, yb, v * esc, 18, { fill: actual ? COL.primario : COL.linea, rx: 3 });
+    h += t(XB0 + v * esc + 6, yb + 13, `${fmt(v, 0)} K`, { tam: 11, peso: 700, col: actual ? COL.texto : COL.suave });
+  });
+  const dif = 10 * Math.log10(Math.max(T, otro) / Math.min(T, otro));
+  const info = `Con ${lnaPrimero ? 'el LNA delante' : 'el cable delante'}, la temperatura total referida a A es <b>${fmt(T, 0)} K</b>. `
+    + (lnaPrimero
+      ? `Con el cable delante serían ${fmt(otro, 0)} K: la CNR sería ${fmt(dif, 1)} dB peor. La ganancia del LNA hace casi despreciable el ruido de lo que va detrás.`
+      : `Con el LNA delante serían ${fmt(otro, 0)} K: la CNR mejoraría ${fmt(dif, 1)} dB. El cable atenúa la señal antes del LNA y además suma su propio ruido.`);
+  return { svg: h, info };
+}
+
+// ---------- Tema 4: geometría de una interferencia (estático) ----------
+
+/** Tres estaciones: el ángulo θ en el receptor entre el transmisor deseado y el interferente. */
+export function dibujarTriangulo(): Dibujo {
+  const TX = { x: 60, y: 196 }, RX = { x: 420, y: 196 }, INT = { x: 330, y: 80 };
+  let h = l(TX.x, TX.y, RX.x, RX.y, { col: COL.verde, w: 2.2 }) + l(INT.x, INT.y, RX.x, RX.y, { col: COL.rojo, w: 2.2, dash: '7 5' }) + l(TX.x, TX.y, INT.x, INT.y, { col: COL.suave, w: 1.4, dash: '3 4' });
+  for (const [e, nombre, ancla, dy] of [[TX, 'TX deseado', 'middle', 22], [RX, 'RX', 'middle', 22], [INT, 'TX interferente', 'middle', -12]] as const) {
+    h += c(e.x, e.y, 6, { fill: e === INT ? COL.rojo : COL.primario, stroke: COL.superficie, sw: 2 }) + t(e.x, e.y + dy, nombre, { ancla, tam: 11.5, peso: 700 });
+  }
+  // Lóbulo de la antena receptora, apuntada al transmisor deseado
+  h += p(`M${RX.x},${RX.y} Q${RX.x - 70},${RX.y - 26} ${RX.x - 96},${RX.y} Q${RX.x - 70},${RX.y + 26} ${RX.x},${RX.y}`, { col: COL.primario, w: 1.4, fill: COL.primario, op: 0.5 }).replace(`fill="${COL.primario}"`, `fill="${COL.primario}" fill-opacity="0.12"`);
+  // Lados
+  h += t((TX.x + RX.x) / 2, TX.y + 18, 'a', { ancla: 'middle', tam: 14, peso: 700, col: COL.verde });
+  h += t((INT.x + RX.x) / 2 + 12, (INT.y + RX.y) / 2, 'b', { tam: 14, peso: 700, col: COL.rojo });
+  h += t((TX.x + INT.x) / 2 - 12, (TX.y + INT.y) / 2, 'c', { ancla: 'end', tam: 14, peso: 700, col: COL.suave });
+  // Ángulo θ en el receptor
+  const R = 44, ang = Math.atan2(INT.y - RX.y, INT.x - RX.x);
+  h += p(`M${RX.x - R},${RX.y} A${R},${R} 0 0 1 ${n1(RX.x + R * Math.cos(ang))},${n1(RX.y + R * Math.sin(ang))}`, { col: COL.texto, w: 1.6 });
+  const bis = (3 * Math.PI + ang) / 2; // entre la dirección del deseado (π) y la del interferente
+  h += t(RX.x + 62 * Math.cos(bis), RX.y + 62 * Math.sin(bis) + 5, 'θ', { ancla: 'middle', tam: 15, peso: 700 });
+  h += t(24, 24, 'cos θ = (a² + b² − c²)/(2ab)', { tam: 12.5, peso: 700 });
+  h += t(24, 42, 'con θ se lee la discriminación D(θ) en el diagrama', { tam: 11, col: COL.suave });
+  const info = 'El receptor apunta al transmisor deseado. La señal del interferente llega con un ángulo θ respecto a ese apuntamiento, que sale del teorema del coseno con las tres distancias. Con θ se lee en el diagrama de radiación la <b>discriminación</b> D(θ) que la antena aplica a la interferencia.';
   return { svg: h, info };
 }
