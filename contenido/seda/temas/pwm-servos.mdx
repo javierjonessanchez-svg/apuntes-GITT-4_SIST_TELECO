@@ -107,6 +107,8 @@ $$
 T_H = \frac{MRx}{F_{tick}} \qquad D = \frac{MRx}{MR0 + 1}
 $$
 
+**Ojo con el −1.** Estas fórmulas son las de clase, que cuentan de 0 a MR0 como un Timer. El UM10360 dice que en modo PWM el contador vuelve a **1** (no a 0), y su ejemplo pone MR0 = 100 para un periodo de 100 cuentas; con esa lectura, $PWM1MR0 = F_{tick}/F_{PWM}$. Con valores grandes (24 999 o 25 000) la diferencia es de una cuenta; en el examen, usa la convención de clase.
+
 En **doble flanco** (bits PWMSEL de PCR), la subida y la bajada las marcan dos Match. Así se pueden desplazar los pulsos, pero solo salen 3 salidas.
 
 <Registro nombre="PWM1TCR" descripcion="control" campos={[
@@ -160,7 +162,7 @@ void set_servo(float grados) {
 }
 ```
 
-Cada servo tiene sus extremos reales algo distintos, así que se **calibran** los anchos mínimo y máximo (por ejemplo, en pasos de 0,1 ms) antes de fijar la fórmula.
+Cada servo tiene sus extremos reales algo distintos, así que se **calibran** los anchos mínimo y máximo antes de fijar la fórmula.
 
 ## Preguntas de examen
 

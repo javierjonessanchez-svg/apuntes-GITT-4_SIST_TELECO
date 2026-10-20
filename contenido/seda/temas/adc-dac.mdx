@@ -100,7 +100,7 @@ void adc_init(void) {
 }
 
 void ADC_IRQHandler(void) {
-  uint32_t r = LPC_ADC->ADGDR;               // leer borra DONE
+  uint32_t r = LPC_ADC->ADDR0;               // leer ADDR0 borra su DONE, el que pide la interrupción
   muestra = (r >> 4) & 0xFFF;
 }
 ```
@@ -136,7 +136,7 @@ LPC_DAC->DACR = (valor & 0x3FF) << 6;         // valor de 0 a 1023
 <details>
 <summary>Un potenciómetro en AD0.0 debe leerse cada 10 ms sin tocar el ADC desde el programa principal. ¿Cómo lo montas?</summary>
 
-Que el propio Timer dispare las conversiones. TIMER0 con MR1 = 5 ms·F_tick − 1, reset en MR1 y EMC1 = 11 (conmutar): MAT0.1 sube cada 10 ms. En AD0CR, START = 100 (MAT0.1) y EDGE = 0 (subida). `AD0INTEN = (1 << 0)` y en la ISR del ADC se guarda `(ADGDR >> 4) & 0xFFF`. El conmutar es lo que crea el flanco: por eso el Match va a la mitad del periodo de muestreo. *(Respuesta redactada a partir de los apuntes y del UM10360.)*
+Que el propio Timer dispare las conversiones. TIMER0 con MR1 = 5 ms·F_tick − 1, reset en MR1 y EMC1 = 11 (conmutar): MAT0.1 sube cada 10 ms. En AD0CR, START = 100 (MAT0.1) y EDGE = 0 (subida). `AD0INTEN = (1 << 0)` y en la ISR del ADC se guarda `(ADDR0 >> 4) & 0xFFF`. El conmutar es lo que crea el flanco: por eso el Match va a la mitad del periodo de muestreo. *(Respuesta redactada a partir de los apuntes y del UM10360.)*
 
 </details>
 

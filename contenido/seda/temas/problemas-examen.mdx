@@ -176,11 +176,13 @@ static estado_t estado = CERRANDO;         // inicial de FUNCIONANDO
 static int angulo = 90, t;
 
 void barrera_tick_20ms(void) {
-  if (estado != EMERGENCIA && ev_emergencia) {          // transición del superestado
-    ev_emergencia = 0;
-    estado = EMERGENCIA;
-    angulo = 90; set_servo(angulo);                     // entry de EMERGENCIA
-    return;
+  if (ev_emergencia) {                                  // transición del superestado
+    ev_emergencia = 0;                                  // se consume siempre, también en EMERGENCIA
+    if (estado != EMERGENCIA) {
+      estado = EMERGENCIA;
+      angulo = 90; set_servo(angulo);                   // entry de EMERGENCIA
+      return;
+    }
   }
   switch (estado) {
     case CERRADA:

@@ -16,7 +16,7 @@ html[data-asignatura="seda"] {
   --foco: #1F5FA8;
   /* Piezas de la placa (solo decoran) */
   --pista: #C98A4B;
-  --serigrafia: #5B7392;
+  --serigrafia: #52698A;
   --pad: #D9A35F;
 }
 html[data-asignatura="seda"][data-tema="oscuro"] {

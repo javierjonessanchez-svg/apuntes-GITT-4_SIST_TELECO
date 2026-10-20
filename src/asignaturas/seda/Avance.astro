@@ -14,20 +14,21 @@ const { asignatura, tema } = Astro.props;
   .sd-avance { display: inline-flex; align-items: center; }
   .sd-led {
     --c: #8A97A8;
+    /* contorno en --suave (más de 3:1 sobre el fondo en claro y en oscuro) y las dos soldaduras */
+    --borde: 0 0 0 1px var(--suave), -3px 0 0 -1px #B9C2CC, 3px 0 0 -1px #B9C2CC;
     display: block; width: 14px; height: 9px; border-radius: 2px;
     background: color-mix(in srgb, var(--c) 35%, #3B4656);
-    /* las dos soldaduras del componente */
-    box-shadow: -3px 0 0 -1px #B9C2CC, 3px 0 0 -1px #B9C2CC, inset 0 0 0 1px rgb(0 0 0 / .18);
+    box-shadow: var(--borde), inset 0 0 0 1px rgb(0 0 0 / .18);
     transition-property: background-color, box-shadow; transition-duration: .3s; transition-timing-function: ease-out;
   }
   .sd-avance[data-nivel="1"] .sd-led { --c: #F0B43C; background: color-mix(in srgb, #F0B43C 55%, #5A4A2A); }
   .sd-avance[data-nivel="2"] .sd-led {
     background: #F0B43C;
-    box-shadow: -3px 0 0 -1px #B9C2CC, 3px 0 0 -1px #B9C2CC, 0 0 8px 1px rgb(240 180 60 / .55);
+    box-shadow: var(--borde), 0 0 8px 1px rgb(240 180 60 / .55);
   }
   .sd-avance[data-nivel="3"] .sd-led {
     background: #5FB0FF;
-    box-shadow: -3px 0 0 -1px #B9C2CC, 3px 0 0 -1px #B9C2CC, 0 0 10px 2px rgb(95 176 255 / .6);
+    box-shadow: var(--borde), 0 0 10px 2px rgb(95 176 255 / .6);
   }
   @media (prefers-reduced-motion: reduce) { .sd-led { transition-duration: 0s; } }
 </style>
