@@ -6,6 +6,7 @@ import { lbf } from '../src/asignaturas/radiacion-radiocomunicacion/widgets/fisi
 import {
   dibujarBullington, dibujarDosRayos, dibujarEscalera, dibujarFactorK, dibujarFresnel, dibujarLobulos, dibujarMecanismos,
 } from '../src/asignaturas/radiacion-radiocomunicacion/widgets/dibujos-propagacion';
+import { dibujarDiagrama, dibujarPolarizaciones } from '../src/asignaturas/radiacion-radiocomunicacion/widgets/dibujos-sistema';
 
 const limpio = (svg: string) => expect(svg).not.toMatch(/NaN|Infinity|undefined/);
 
@@ -59,5 +60,24 @@ describe('tema 1: difracción y reflexión', () => {
     expect(dibujarLobulos({ re: 0 }).info).toContain('línea plana en 0 dB');
     expect(dibujarLobulos({ re: 1 }).info).toContain('40 dB');
     for (const re of [0, 1]) limpio(dibujarLobulos({ re }).svg);
+  });
+});
+
+describe('tema 2: antenas', () => {
+  test('diagrama: con θ = 1° (la mitad de θ3dB) la ganancia es 37 dBi, 3 dB menos', () => {
+    const d = dibujarDiagrama({ theta: 1 });
+    expect(d.info).toContain('37');
+    expect(d.info).toContain('3 dB');
+    for (const theta of [0, 4]) limpio(dibujarDiagrama({ theta }).svg);
+  });
+  test('diagrama: marca θ3dB, SLL y FBR', () => {
+    const svg = dibujarDiagrama({ theta: 0 }).svg;
+    for (const marca of ['θ3dB', 'SLL', 'FBR']) expect(svg).toContain(marca);
+  });
+  test('copolar y contrapolar: el hueco entre las dos es la XPD', () => {
+    const d = dibujarPolarizaciones();
+    expect(d.svg).toContain('XPD');
+    expect(d.svg).toContain('contrapolar');
+    limpio(d.svg);
   });
 });

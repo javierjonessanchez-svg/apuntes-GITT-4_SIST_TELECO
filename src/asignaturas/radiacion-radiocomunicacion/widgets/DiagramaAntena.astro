@@ -1,0 +1,25 @@
+---
+// Diagrama de radiación de una antena directiva: al desapuntarla θ grados la ganancia
+// baja según G(θ) = Gmax − 12(θ/θ3dB)²; en θ = θ3dB/2 cae 3 dB.
+import Widget from '../../../widgets/Widget.astro';
+import Deslizador from '../../../widgets/Deslizador.astro';
+import Lienzo from '../../comunicaciones-opticas/widgets/Lienzo.astro';
+import { dibujarDiagrama } from './dibujos-sistema';
+
+const uid = `diagrama-${Math.random().toString(36).slice(2, 7)}`;
+---
+<Widget titulo="Diagrama de radiación y desapuntamiento" tipo="entender">
+  <Lienzo nombre="diagrama" uid={uid} alto={252} etiqueta="Diagrama de radiación cartesiano de una antena de 40 dBi y θ3dB = 2°: lóbulo principal, puntos a −3 dB, nivel de lóbulos laterales (SLL), lóbulo posterior (FBR) y la ganancia con el desapuntamiento elegido"
+    inicial={dibujarDiagrama({ theta: 1 })}
+    nota="El lóbulo posterior está en 180°, fuera de la escala de ángulos: se dibuja aparte, a la derecha.">
+    <Fragment slot="controles">
+      <Deslizador id={`${uid}-t`} etiqueta="Desapuntamiento θ" min={0} max={4} paso={0.1} valor={1} unidad="°" decimales={1} />
+    </Fragment>
+  </Lienzo>
+</Widget>
+<script>
+  import { montarDibujo, numero } from '../../comunicaciones-opticas/widgets/vivo';
+  import { dibujarDiagrama } from './dibujos-sistema';
+
+  montarDibujo('diagrama', (caja, uid) => dibujarDiagrama({ theta: numero(caja, `${uid}-t`) }));
+</script>
