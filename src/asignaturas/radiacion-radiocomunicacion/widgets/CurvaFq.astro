@@ -1,0 +1,24 @@
+---
+// Curva Fq(q) de un vano terrenal: el margen FM corta la curva en q = U_lluvia.
+import Widget from '../../../widgets/Widget.astro';
+import Deslizador from '../../../widgets/Deslizador.astro';
+import Lienzo from '../../comunicaciones-opticas/widgets/Lienzo.astro';
+import { dibujarFq } from './dibujos-sistema';
+
+const uid = `curvafq-${Math.random().toString(36).slice(2, 7)}`;
+---
+<Widget titulo="Margen frente a lluvia e indisponibilidad" tipo="entender">
+  <Lienzo nombre="curvafq" uid={uid} alto={252} etiqueta="Atenuación por lluvia Fq frente al porcentaje de tiempo q, a 15 GHz con F0,01 = 30 dB, y el margen FM: donde se cortan está la indisponibilidad por lluvia"
+    inicial={dibujarFq({ fm: 30 })}
+    nota="Vano terrenal. El corte se resuelve con una ecuación de segundo grado en log q (raíz mayor).">
+    <Fragment slot="controles">
+      <Deslizador id={`${uid}-fm`} etiqueta="Margen FM" min={5} max={50} paso={1} valor={30} unidad="dB" decimales={0} />
+    </Fragment>
+  </Lienzo>
+</Widget>
+<script>
+  import { montarDibujo, numero } from '../../comunicaciones-opticas/widgets/vivo';
+  import { dibujarFq } from './dibujos-sistema';
+
+  montarDibujo('curvafq', (caja, uid) => dibujarFq({ fm: numero(caja, `${uid}-fm`) }));
+</script>

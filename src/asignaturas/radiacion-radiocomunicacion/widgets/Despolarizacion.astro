@@ -1,0 +1,10 @@
+---
+// Despolarización por lluvia (dibujo fijo, se ve sin JavaScript).
+import Widget from '../../../widgets/Widget.astro';
+import Lienzo from '../../comunicaciones-opticas/widgets/Lienzo.astro';
+import { dibujarDespolarizacion } from './dibujos-sistema';
+---
+<Widget titulo="La lluvia despolariza" tipo="entender">
+  <Lienzo nombre="despolarizacion" uid="despolarizacion" alto={252} etiqueta="El transmisor emite en polarización vertical; al cruzar la lluvia, las gotas achatadas giran parte del campo y al receptor llegan una componente vertical V′ y una horizontal H′ más pequeña"
+    inicial={dibujarDespolarizacion()} />
+</Widget>

@@ -2,11 +2,13 @@
 // extremos de cada control no dejan NaN ni Infinity en el SVG.
 import { describe, expect, test } from 'vitest';
 import { fmt } from '../src/widgets/numeros';
-import { lbf } from '../src/asignaturas/radiacion-radiocomunicacion/widgets/fisica-radio';
+import { lbf, qDeFM } from '../src/asignaturas/radiacion-radiocomunicacion/widgets/fisica-radio';
 import {
   dibujarBullington, dibujarDosRayos, dibujarEscalera, dibujarFactorK, dibujarFresnel, dibujarLobulos, dibujarMecanismos,
 } from '../src/asignaturas/radiacion-radiocomunicacion/widgets/dibujos-propagacion';
-import { dibujarDiagrama, dibujarPolarizaciones } from '../src/asignaturas/radiacion-radiocomunicacion/widgets/dibujos-sistema';
+import {
+  dibujarDespolarizacion, dibujarDiagrama, dibujarFq, dibujarPolarizaciones, dibujarProteccion,
+} from '../src/asignaturas/radiacion-radiocomunicacion/widgets/dibujos-sistema';
 
 const limpio = (svg: string) => expect(svg).not.toMatch(/NaN|Infinity|undefined/);
 
@@ -78,6 +80,26 @@ describe('tema 2: antenas', () => {
     const d = dibujarPolarizaciones();
     expect(d.svg).toContain('XPD');
     expect(d.svg).toContain('contrapolar');
+    limpio(d.svg);
+  });
+});
+
+describe('tema 3: desvanecimientos y lluvia', () => {
+  test('protección: con atenuador, en condiciones normales Prx = TH + MD', () => {
+    expect(dibujarProteccion({ mecanismo: 'atenuador' }).info).toContain('TH + MD');
+    expect(dibujarProteccion({ mecanismo: 'cag' }).info).toContain('TH − MD');
+    expect(dibujarProteccion({ mecanismo: 'atpc' }).info).toContain('PIRE');
+    for (const mecanismo of ['atenuador', 'cag', 'atpc'] as const) limpio(dibujarProteccion({ mecanismo }).svg);
+  });
+  test('curva Fq: con FM = 30 dB = F0,01, la indisponibilidad es ≈ 0,01 %', () => {
+    const d = dibujarFq({ fm: 30 });
+    expect(d.info).toContain(`${fmt(qDeFM(30, 30, 15), 3)} %`);
+    expect(d.info).toContain('0,01');
+    for (const fm of [5, 50]) limpio(dibujarFq({ fm }).svg);
+  });
+  test('despolarización: sale V y llegan V′ y H′', () => {
+    const d = dibujarDespolarizacion();
+    for (const s of ['V′', 'H′', 'lluvia']) expect(d.svg).toContain(s);
     limpio(d.svg);
   });
 });

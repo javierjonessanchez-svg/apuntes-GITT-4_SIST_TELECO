@@ -1,0 +1,28 @@
+---
+// Mecanismos de protección: durante un desvanecimiento que llega justo a MD, qué potencia
+// varía y cómo consigue cada mecanismo que al demodulador le llegue siempre TH.
+import Widget from '../../../widgets/Widget.astro';
+import Opciones from '../../../widgets/Opciones.astro';
+import Lienzo from '../../comunicaciones-opticas/widgets/Lienzo.astro';
+import { dibujarProteccion } from './dibujos-sistema';
+
+const uid = `proteccion-${Math.random().toString(36).slice(2, 7)}`;
+---
+<Widget titulo="Mecanismos de protección frente a desvanecimientos" tipo="entender">
+  <Lienzo nombre="proteccion" uid={uid} alto={252} etiqueta="Potencia a lo largo de un desvanecimiento de 30 dB con umbral TH = −80 dBm: la curva que varía según el mecanismo y la potencia constante que llega al demodulador"
+    inicial={dibujarProteccion({ mecanismo: 'atenuador' })}
+    nota="El desvanecimiento del dibujo llega justo al margen dinámico: es el caso de desvanecimiento máximo (CMD).">
+    <Fragment slot="controles">
+      <Opciones nombre="mecanismo" etiqueta="Mecanismo" opciones={[['atenuador', 'Atenuador'], ['cag', 'CAG'], ['atpc', 'ATPC']]} valor="atenuador" />
+    </Fragment>
+  </Lienzo>
+</Widget>
+<script>
+  import { montarDibujo, opcion } from '../../comunicaciones-opticas/widgets/vivo';
+  import { dibujarProteccion } from './dibujos-sistema';
+
+  montarDibujo('proteccion', (caja) => {
+    const m = opcion(caja, 'mecanismo');
+    return dibujarProteccion({ mecanismo: m === 'cag' || m === 'atpc' ? m : 'atenuador' });
+  });
+</script>
