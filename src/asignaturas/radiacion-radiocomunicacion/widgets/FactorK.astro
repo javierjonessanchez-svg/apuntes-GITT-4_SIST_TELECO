@@ -1,0 +1,31 @@
+---
+// Factor K: el mismo vano sobre la Tierra ficticia de radio K·RT. Al bajar K la Tierra
+// se abomba (crece la flecha) y el horizonte se acerca; con K = ∞ la Tierra es plana.
+import Widget from '../../../widgets/Widget.astro';
+import Deslizador from '../../../widgets/Deslizador.astro';
+import Opciones from '../../../widgets/Opciones.astro';
+import Lienzo from '../../comunicaciones-opticas/widgets/Lienzo.astro';
+import { dibujarFactorK } from './dibujos-propagacion';
+
+const uid = `factork-${Math.random().toString(36).slice(2, 7)}`;
+---
+<Widget titulo="El factor K y la Tierra ficticia" tipo="entender">
+  <Lienzo nombre="factork" uid={uid} alto={252} etiqueta="Vano de 50 km entre dos mástiles de 40 m sobre la Tierra ficticia: la flecha a mitad del vano, los horizontes y si hay visión directa"
+    inicial={dibujarFactorK({ K: 1.33 })}
+    nota="La flecha no depende de la frecuencia. Las alturas están muy exageradas frente a la distancia.">
+    <Fragment slot="controles">
+      <Opciones nombre="modelo" etiqueta="Modelo de Tierra" opciones={[['ficticia', 'Tierra ficticia (K·RT)'], ['plana', 'Tierra plana (K = ∞)']]} valor="ficticia" />
+      <Deslizador id={`${uid}-k`} etiqueta="Factor K" min={0.5} max={5} paso={0.01} valor={1.33} decimales={2} />
+    </Fragment>
+  </Lienzo>
+</Widget>
+<script>
+  import { montarDibujo, numero, opcion } from '../../comunicaciones-opticas/widgets/vivo';
+  import { dibujarFactorK } from './dibujos-propagacion';
+
+  montarDibujo('factork', (caja, uid) => {
+    const plana = opcion(caja, 'modelo') === 'plana';
+    caja.querySelector<HTMLInputElement>(`#${uid}-k`)!.disabled = plana;
+    return dibujarFactorK({ K: plana ? Infinity : numero(caja, `${uid}-k`) });
+  });
+</script>

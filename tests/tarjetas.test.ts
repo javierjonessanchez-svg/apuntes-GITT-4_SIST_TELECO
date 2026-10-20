@@ -37,6 +37,10 @@ describe('extraerPreguntas', () => {
       { pregunta: '¿Y el VLR?', respuesta: 'Solo los de su zona, con SRES<sub>A</sub>.' },
     ]);
   });
+  test('también lee la sección «Preguntas de repaso» (Radiación)', () => {
+    const md = '## Preguntas de repaso\n\n<details>\n<summary>¿Qué es la PIRE?</summary>\n\nPt − Lt + Gt.\n\n</details>\n';
+    expect(extraerPreguntas(md)).toEqual([{ pregunta: '¿Qué es la PIRE?', respuesta: 'Pt − Lt + Gt.' }]);
+  });
   test('un tema sin autoevaluación no da tarjetas', () => {
     expect(extraerPreguntas('## Nada\n\nTexto.')).toEqual([]);
   });

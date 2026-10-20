@@ -1,0 +1,176 @@
+---
+titulo: "Lluvia y disponibilidad"
+orden: 7
+bloque: "Tema 3 · Desvanecimientos"
+resumen: "Atenuación por lluvia en cinco pasos, indisponibilidad por lluvia, despolarización y fallos de equipos"
+saber:
+  - "Paso 1: R0,01, la intensidad de lluvia superada el 0,01 % del tiempo (UIT-R P.837)"
+  - "Paso 2: k y α según la frecuencia y la polarización (UIT-R P.838). Atenuación específica γR = k·R0,01^α (dB/km)"
+  - "Paso 3: distancia efectiva d_eff, menor que d porque la lluvia intensa no ocupa todo el vano"
+  - "Paso 4: F0,01 = γR·d_eff, la atenuación por lluvia superada el 0,01 % del tiempo"
+  - "Paso 5 (terrenal): Fq = F0,01·C1·q^−(C2 + C3·log q), con C1, C2 y C3 que dependen de f"
+  - "Indisponibilidad por lluvia: el q con Fq = FM. Ecuación de segundo grado en x = log q; se toma la raíz mayor"
+  - "La lluvia despolariza: XPD = U − V·log Fq, con U = 15 + 30·log f"
+  - "Equipos en serie: U_eq = Σ MTTR·100/(MTBF + MTTR) (%)"
+  - "Disponibilidad: U_total = U_lluvia + U_eq y Disp = 100 − U_total (%)"
+fuentes:
+  - "Transparencias del tema 3: «Desvanecimientos y calidad en radioenlaces»"
+  - "Transparencias del tema 3: «Indisponibilidad por lluvia»"
+  - "Formulario propio"
+test:
+  - p: "¿Qué es R0,01?"
+    o: ["La intensidad de lluvia (mm/h) superada el 0,01 % del tiempo", "La atenuación por lluvia superada el 0,01 % del tiempo", "La probabilidad de lluvia anual", "La distancia efectiva"]
+    c: 0
+  - p: "¿Por qué la distancia efectiva es menor que la longitud del vano?"
+    o: ["Porque la lluvia intensa no ocupa todo el vano a la vez", "Porque la flecha acorta el vano", "Porque la lluvia solo cae cerca de las antenas", "Porque se mide sobre la Tierra ficticia"]
+    c: 0
+  - p: "A 15 GHz, F0,01 = 30 dB y FM = 30 dB. ¿Cuánto vale U_lluvia, aproximadamente?"
+    o: ["0,01 %", "1 %", "0,1 %", "0,001 %"]
+    c: 0
+    e: "Si el margen es justo F0,01, el corte coincide con q = 0,01 %."
+  - p: "Si sube el margen FM, ¿qué le pasa a la indisponibilidad por lluvia?"
+    o: ["Baja", "Sube", "No cambia", "Depende de la polarización"]
+    c: 0
+  - p: "Dos equipos en serie con MTBF = 50 000 h y MTTR = 4 h. ¿Cuánto vale U_eq?"
+    o: ["≈ 0,016 %", "≈ 0,008 %", "≈ 0,16 %", "≈ 1,6 %"]
+    c: 0
+    e: "U_eq = 2·4·100/(50 000 + 4) ≈ 0,016 %."
+  - p: "¿Qué pasa con la XPD por lluvia cuando llueve más fuerte?"
+    o: ["Baja, porque Fq sube", "Sube", "No cambia", "Se hace igual a la XPD de la antena"]
+    c: 0
+---
+import EnExamen from '../../../src/comun/EnExamen.astro';
+import CurvaFq from '../../../src/asignaturas/radiacion-radiocomunicacion/widgets/CurvaFq.astro';
+import Despolarizacion from '../../../src/asignaturas/radiacion-radiocomunicacion/widgets/Despolarizacion.astro';
+
+**Idea clave.** En los radioenlaces de microondas, la **lluvia** es, con los equipos, la causa de los cortes largos. Su atenuación se calcula en cinco pasos hasta tener $F_q$, la atenuación que se supera el $q$ % del tiempo. El enlace cae cuando la lluvia supera el **margen** $FM$, así que la **indisponibilidad por lluvia** es el $q$ con $F_q = FM$. Sumada a la de los **equipos**, da la disponibilidad del enlace.
+
+## La atenuación por lluvia en cinco pasos
+
+**Paso 1: intensidad de lluvia.** $R_{0,01}$ (mm/h) es la intensidad de lluvia superada el 0,01 % del tiempo en el lugar del enlace. La da la recomendación UIT-R P.837, a partir de la temperatura y la lluvia media de cada mes. También da $P_0$, el porcentaje del año en que llueve.
+
+**Paso 2: frecuencia y polarización.** La recomendación UIT-R P.838 da dos coeficientes, $k$ y $\alpha$, que dependen de la frecuencia y de la polarización (horizontal o vertical; la horizontal se atenúa más, porque las gotas se achatan). Con ellos sale la **atenuación específica**:
+
+$$
+\gamma_R = k\, R_{0{,}01}^{\alpha} \quad (\mathrm{dB/km})
+$$
+
+**Paso 3: distancia efectiva.** Una celda de lluvia intensa no cubre todo el vano, así que se usa una distancia efectiva, menor que $d$ (en km, con $f$ en GHz):
+
+$$
+d_{eff} = \frac{d}{0{,}477\, d^{0{,}633}\, R_{0{,}01}^{0{,}073\alpha}\, f^{0{,}123} - 10{,}579\left(1 - e^{-0{,}024\, d}\right)}
+$$
+
+**Paso 4: atenuación superada el 0,01 %.**
+
+$$
+F_{0{,}01} = \gamma_R\, d_{eff}
+$$
+
+**Paso 5: atenuación superada el q %.** En un radioenlace terrenal:
+
+$$
+F_q = F_{0{,}01}\, C_1\, q^{-(C_2 + C_3\log_{10} q)}
+$$
+
+Con $C_0 = 0{,}12 + 0{,}4\log_{10}\big((f/10)^{0{,}8}\big)$ si $f \ge 10$ GHz ($C_0 = 0{,}12$ si no), $C_1 = 0{,}07^{C_0}\, 0{,}12^{1-C_0}$, $C_2 = 0{,}855\, C_0 + 0{,}546\,(1 - C_0)$ y $C_3 = 0{,}139\, C_0 + 0{,}043\,(1 - C_0)$.
+
+<EnExamen asignatura="radiacion-radiocomunicacion" ids={['k-alfa', 'f001', 'fq']} />
+
+## La indisponibilidad por lluvia
+
+El enlace está caído cuando la lluvia supera los mecanismos de protección, es decir, cuando $F_q > FM$. Por eso la indisponibilidad por lluvia es el $q$ que cumple $F_q = FM$. Tomando logaritmos y llamando $x = \log_{10} q$ queda una ecuación de segundo grado:
+
+$$
+C_3\, x^2 + C_2\, x + \log_{10}\frac{FM}{F_{0{,}01}\, C_1} = 0
+\qquad
+U_{lluvia} = q = 10^{x_{max}}
+$$
+
+Se toma la **raíz mayor**. Si no hay raíz real, el margen es demasiado grande para el modelo.
+
+<CurvaFq />
+
+<EnExamen asignatura="radiacion-radiocomunicacion" ids={['q-lluvia']} />
+
+**Enlaces por satélite.** Cambian dos cosas. La distancia efectiva sale del trayecto oblicuo por la capa de lluvia: con la altura de la lluvia $h_R$, la de la estación $h_s$ y la elevación $\theta$, la longitud oblicua es $L_S = (h_R - h_s)/\operatorname{sen}\theta$ y su proyección horizontal $L_G = L_S\cos\theta$, que se corrigen con factores de reducción. Y $F_q$ tiene otra expresión:
+
+$$
+F_q = F_{0{,}01}\left(\frac{q}{0{,}01}\right)^{-(0{,}655 + 0{,}033\ln q - 0{,}045\ln F_{0{,}01} - \beta(1-q)\operatorname{sen}\theta)}
+$$
+
+con $\beta = 0$ salvo para $q \lt 1$ %, latitud menor de 36° y elevación de 25° o más, donde $\beta = -0{,}005\,(|\text{latitud}| - 36)$. Con $\beta = 0$, despejar $q$ también da una ecuación de segundo grado, ahora en $x = \ln q$.
+
+## La lluvia despolariza
+
+Las gotas grandes caen achatadas: una onda polarizada en vertical sale de la lluvia con una parte en horizontal. En un enlace con doble polarización, esa parte interfiere en el otro canal. En un radioenlace terrenal entre 8 y 35 GHz, la **XPD por lluvia** es:
+
+$$
+XPD = U - V\log_{10} F_q
+\qquad
+U = 15 + 30\log_{10} f
+\qquad
+V = \begin{cases} 12{,}8\, f^{0{,}19} & 8 \lt f \le 20\ \mathrm{GHz} \\ 22{,}6 & 20 \lt f \le 35\ \mathrm{GHz} \end{cases}
+$$
+
+Cuanto más llueve ($F_q$ mayor), menor es la XPD. La potencia que se cuela en la polarización cruzada es $P = PIRE - L_b - F_q - XPD_{ll} + G - XPD_{ant} - L$.
+
+<Despolarizacion />
+
+<EnExamen asignatura="radiacion-radiocomunicacion" ids={['xpd-lluvia']} />
+
+## Fallos de equipos y disponibilidad
+
+Cada equipo se caracteriza por su **MTBF** (*mean time between failures*, tiempo medio entre fallos) y su **MTTR** (*mean time to repair*, tiempo medio de reparación). Con $N$ equipos en serie, basta con que falle uno para que caiga el enlace:
+
+$$
+U_{eq}\,(\%) = \sum_{i=1}^{N} \frac{MTTR\cdot 100}{MTBF_i + MTTR}
+$$
+
+Si el objetivo de indisponibilidad deja un máximo $U_{eq,max}$ para los equipos (lo que queda tras restar $U_{lluvia}$), el MTTR máximo de $N$ equipos iguales sale de:
+
+$$
+u = \frac{U_{eq,max}}{100\, N}
+\qquad
+MTTR_{max} = \frac{u\, MTBF}{1 - u}
+$$
+
+Y la disponibilidad del enlace:
+
+$$
+U_{total} = U_{lluvia} + U_{eq}
+\qquad
+Disp = 100 - U_{total}\ (\%)
+$$
+
+<EnExamen asignatura="radiacion-radiocomunicacion" ids={['u-equipos', 'mttr-max', 'disponibilidad']} />
+
+## Preguntas de repaso
+
+<details>
+<summary>¿Por qué U_lluvia es el q con Fq = FM?</summary>
+
+Porque los mecanismos de protección aguantan desvanecimientos de hasta $FM$ dB. El enlace cae solo cuando la lluvia atenúa más que eso, y eso pasa justo el porcentaje de tiempo $q$ en que se supera $F_q = FM$. *(Pregunta propia, redactada a partir de las transparencias.)*
+
+</details>
+
+<details>
+<summary>¿Qué raíz de la ecuación de segundo grado se toma, y por qué?</summary>
+
+La mayor. La ecuación en $x = \log_{10} q$ tiene dos raíces, pero solo la mayor cae en la zona de $q$ donde vale el modelo de $F_q$ (porcentajes pequeños, de 0,001 % a 1 %); la otra no tiene sentido físico. *(Pregunta propia, redactada a partir de las transparencias.)*
+
+</details>
+
+<details>
+<summary>Objetivo U = 0,02 %, U_lluvia = 0,01 % y 2 equipos de MTBF = 50 000 h. ¿Cuál es el MTTR máximo?</summary>
+
+Quedan $U_{eq,max} = 0{,}01$ % para los equipos, $u = 0{,}01/(100\cdot 2) = 5\cdot 10^{-5}$ y $MTTR_{max} = 5\cdot 10^{-5}\cdot 50\,000/(1 - 5\cdot 10^{-5}) \approx 2{,}5$ h. *(Pregunta propia, redactada a partir de las transparencias.)*
+
+</details>
+
+<details>
+<summary>¿Por qué la polarización horizontal se atenúa más con la lluvia?</summary>
+
+Porque las gotas grandes se achatan al caer y son más anchas que altas: el campo horizontal «ve» más agua que el vertical. Por eso $k$ y $\alpha$ dependen de la polarización. *(Pregunta propia, redactada a partir de las transparencias.)*
+
+</details>

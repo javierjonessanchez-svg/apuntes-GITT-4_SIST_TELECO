@@ -1,0 +1,18 @@
+---
+// Firma del mundo de Radiación: dos mástiles con balizas, el rayo directo y el primer
+// elipsoide de Fresnel alrededor. Con «etiqueta» es una figura; sin ella, decoración.
+interface Props { etiqueta?: string }
+const { etiqueta } = Astro.props;
+---
+<svg class="ra-elipsoide" viewBox="0 0 480 120" role={etiqueta ? 'img' : undefined}
+  aria-label={etiqueta || undefined} aria-hidden={etiqueta ? undefined : 'true'}>
+  <path class="suelo" d="M4 108 C 90 100, 150 112, 240 104 S 400 98, 476 108" />
+  <line class="mastil" x1="40" y1="106" x2="40" y2="30" />
+  <line class="baliza" x1="40" y1="30" x2="40" y2="40" />
+  <line class="baliza" x1="40" y1="52" x2="40" y2="62" />
+  <line class="mastil" x1="440" y1="106" x2="440" y2="22" />
+  <line class="baliza" x1="440" y1="22" x2="440" y2="32" />
+  <line class="baliza" x1="440" y1="44" x2="440" y2="54" />
+  <ellipse class="fresnel" cx="240" cy="26" rx="201" ry="22" transform="rotate(-1.14 240 26)" />
+  <line class="rayo" x1="40" y1="30" x2="440" y2="22" />
+</svg>

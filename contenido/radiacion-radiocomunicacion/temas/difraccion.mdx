@@ -1,0 +1,161 @@
+---
+titulo: "Difracción: Fresnel y Bullington"
+orden: 3
+bloque: "Tema 1 · Propagación"
+resumen: "Primer elipsoide de Fresnel, despejamiento, ν y J(ν); varios obstáculos con Bullington"
+saber:
+  - "Principio de Huygens: cada punto de un frente de onda se comporta como una fuente de ondas esféricas. El campo recibido sale, en primera aproximación, del primer elipsoide de Fresnel"
+  - "Radio del elipsoide n en un punto a d1 y d2 de las estaciones: Rn = √(n·λ·d1·d2/d). El primero, R1, es el que importa"
+  - "Despejamiento c = (ee + b) − y: cota del terreno más flecha menos altura del rayo. c > 0: el obstáculo tapa el rayo"
+  - "Hay pérdidas por difracción cuando el terreno invade el primer elipsoide aunque no tape el rayo: c > −0,6·R1 en las transparencias, ν > −0,78 en la UIT-R"
+  - "Parámetro de difracción ν = √2·c/R1. Obstáculo agudo aislado: J(ν) = 6,9 + 20·log(√((ν − 0,1)² + 1) + ν − 0,1), y J = 0 si ν ≤ −0,78"
+  - "Con el rayo rozando el obstáculo (c = 0, ν = 0) se pierden unos 6 dB"
+  - "b y c no dependen de la frecuencia; R1 y ν sí: ν crece con √f"
+  - "Varios obstáculos u obstáculo redondeado: Bullington. Paso 1, peor pendiente desde ET1; paso 2, rayo despejado (J del obstáculo de mayor ν) u obstruido (obstáculo ficticio); paso 3, corrección con la distancia"
+fuentes:
+  - "Transparencias del tema 1: «Propagación por onda de espacio (condiciones normales)»"
+  - "Formulario propio"
+test:
+  - p: "¿Cuánto vale J(ν) cuando el rayo roza el obstáculo (c = 0)?"
+    o: ["Unos 6 dB", "0 dB", "Unos 3 dB", "Infinito: no llega señal"]
+    c: 0
+    e: "ν = 0 ⇒ J = 6,9 + 20·log(√1,01 − 0,1) ≈ 6,0 dB."
+  - p: "Un obstáculo queda 5 m por debajo del rayo, pero R1 = 13 m. ¿Hay pérdidas por difracción?"
+    o: ["Sí: invade el primer elipsoide (ν ≈ −0,54 > −0,78)", "No: no tapa el rayo", "Solo si la frecuencia es baja", "No: la flecha lo compensa"]
+    c: 0
+    e: "ν = √2·(−5)/13 ≈ −0,54, mayor que −0,78: J ≈ 1,6 dB."
+  - p: "Si se dobla la frecuencia con la misma geometría, ¿qué le pasa a R1?"
+    o: ["Baja: R1 ∝ 1/√f", "Sube: R1 ∝ √f", "No cambia", "Se dobla"]
+    c: 0
+    e: "R1 = √(λ·d1·d2/d) y λ = c/f. Con R1 menor, el mismo c da un |ν| mayor."
+  - p: "En Bullington, ¿cuándo se usa el obstáculo ficticio?"
+    o: ["Cuando la peor pendiente desde ET1 supera la del rayo (rayo obstruido)", "Siempre que hay dos obstáculos", "Cuando el rayo está despejado", "Cuando ν ≤ −0,78 en todos los obstáculos"]
+    c: 0
+  - p: "¿Qué hace el paso 3 de Bullington?"
+    o: ["Corrige Lcu con la distancia: Lcu + (1 − e^(−Lcu/6))·(10 + 0,02·d_km)", "Suma la flecha al terreno", "Calcula R1 en cada obstáculo", "Resta las pérdidas en espacio libre"]
+    c: 0
+  - p: "¿Qué cota del terreno se compara con el rayo para obtener c?"
+    o: ["La elevación más la flecha: ee + b", "La elevación sin flecha", "La altura de las antenas", "La flecha sola"]
+    c: 0
+    e: "El rayo se dibuja recto sobre la Tierra ficticia, así que al terreno hay que sumarle la flecha."
+---
+import EnExamen from '../../../src/comun/EnExamen.astro';
+import PerfilFresnel from '../../../src/asignaturas/radiacion-radiocomunicacion/widgets/PerfilFresnel.astro';
+import Bullington from '../../../src/asignaturas/radiacion-radiocomunicacion/widgets/Bullington.astro';
+
+**Idea clave.** La señal no viaja por una línea: ocupa un volumen alrededor del rayo, el **primer elipsoide de Fresnel**. Si el terreno invade ese elipsoide hay **pérdidas por difracción**, aunque el obstáculo no llegue a tapar el rayo. Todo se resume en un número, el parámetro $\nu$, que compara el **despejamiento** con el radio del elipsoide.
+
+## Huygens y los elipsoides de Fresnel
+
+Según el **principio de Huygens**, cada punto de un frente de onda se comporta como una fuente de ondas esféricas. Al receptor llegan contribuciones por todos los caminos; las que recorren entre media longitud de onda y una más que el rayo directo forman el **primer elipsoide de Fresnel**, y en espacio libre el campo recibido coincide, en primera aproximación, con la contribución de ese elipsoide.
+
+El elipsoide $n$ reúne los puntos cuyo camino es $n\lambda/2$ más largo que el directo. Su radio en un punto a $d_1$ de una estación y $d_2$ de la otra ($d = d_1 + d_2$) es:
+
+$$
+R_n(d_1, d_2) = \sqrt{\frac{n\,\lambda\, d_1\, d_2}{d}}
+\qquad
+R_1 = \sqrt{\frac{\lambda\, d_1\, d_2}{d}}
+$$
+
+Es máximo a mitad del vano y baja con la frecuencia: a 8 GHz, en un vano de 20 km, mide 13,4 m a 8 km de una estación.
+
+## Despejamiento y parámetro ν
+
+En cada punto del perfil se compara el terreno con el rayo. Con la Tierra ficticia, el terreno es su **elevación sobre el nivel del mar** $ee$ más la **flecha** $b$, y el rayo es una recta entre las dos antenas:
+
+$$
+y(d_1) = m_{et1,et2}\, d_1 + h_{et1} + ee_{et1}
+\qquad
+m_{et1,et2} = \frac{h_{et2} + ee_{et2} - h_{et1} - ee_{et1}}{d}
+$$
+
+$$
+c(d_1, d_2) = ee(d_1, d_2) + b(d_1, d_2) - y(d_1)
+$$
+
+El **despejamiento** $c$ es positivo si el obstáculo sobresale del rayo y negativo si queda por debajo. Las transparencias dan como condición de **despejamiento insuficiente** $c > -0{,}6\,R_1$: el terreno entra en el primer elipsoide. Para calcular las pérdidas se usa el **parámetro de difracción**:
+
+$$
+\nu = \frac{\sqrt{2}\; c}{R_1}
+$$
+
+Hay difracción si $\nu > -0{,}78$, que equivale a $c > -0{,}55\,R_1$: casi lo mismo que la condición de las transparencias, pero no exactamente. Con varios obstáculos se usa la de $\nu$.
+
+## Los tres escenarios
+
+- **Sin difracción**: todos los obstáculos cumplen $\nu \le -0{,}78$. No hay pérdidas por difracción.
+- **Obstáculo agudo aislado**: un único obstáculo agudo cumple $\nu > -0{,}78$. Se trata como un **filo de cuchillo**:
+
+$$
+J(\nu) = 6{,}9 + 20\log_{10}\!\left(\sqrt{(\nu - 0{,}1)^2 + 1} + \nu - 0{,}1\right)
+$$
+
+- **Varios obstáculos u obstáculo redondeado**: más de un obstáculo (o uno redondeado) cumple $\nu > -0{,}78$. Se aplica el **método de Bullington**.
+
+<PerfilFresnel />
+
+Con $c = 0$ el rayo roza la punta y se pierden unos **6 dB**: la mitad del elipsoide está tapada. Las pérdidas crecen deprisa en cuanto el obstáculo sobresale. Ojo: $b$ y $c$ no dependen de la frecuencia, pero $R_1$ sí, así que el mismo obstáculo da más pérdidas a más frecuencia cuando tapa el rayo.
+
+## Varios obstáculos: método de Bullington
+
+Bullington sustituye todos los obstáculos por **uno solo** y le aplica el filo de cuchillo.
+
+1. **Paso 1.** Se busca la **peor pendiente** desde ET1, la de la recta que une la antena con el obstáculo más «alto» visto desde ella:
+
+$$
+m_{et1mx} = \max\left[\frac{ee(d_1,d_2) + b(d_1,d_2) - h_{et1} - ee_{et1}}{d_1}\right]
+$$
+
+2. **Paso 2.** Se compara con la pendiente del rayo:
+   - Si $m_{et1mx} \le m_{et1,et2}$, el **rayo está despejado**: ningún obstáculo lo tapa, pero alguno puede invadir el elipsoide. Se usa el obstáculo de **mayor** $\nu$: $L_{cu} = J(\nu_{max})$.
+   - Si $m_{et1mx} > m_{et1,et2}$, el **rayo está obstruido**. Se busca también la peor pendiente desde ET2, $m_{et2mx}$ (con $d_2$ en el denominador). Las dos rectas se cortan en el **obstáculo ficticio**:
+
+$$
+d_{1,fic} = \frac{m_{et2mx}\, d + ee_{et2} + h_{et2} - ee_{et1} - h_{et1}}{m_{et1mx} + m_{et2mx}}
+\qquad
+c_{fic} = m_{et1mx}\, d_{1,fic} + ee_{et1} + h_{et1} - y(d_{1,fic})
+$$
+
+   Con $c_{fic}$ y el $R_1$ en $d_{1,fic}$ sale $\nu_{fic}$, y $L_{cu} = J(\nu_{fic})$.
+
+3. **Paso 3.** Se corrige con la longitud del vano:
+
+$$
+L_{ad,dif} = L_{cu} + \left(1 - e^{-L_{cu}/6}\right)\left(10 + 0{,}02\, d_{\mathrm{km}}\right)
+$$
+
+<Bullington />
+
+Las transparencias usan $J(\nu)$ directamente cuando hay un único obstáculo agudo; el paso 3 es del método de Bullington.
+
+<EnExamen asignatura="radiacion-radiocomunicacion" ids={['filo-cuchillo', 'bullington']} />
+
+## Preguntas de repaso
+
+<details>
+<summary>¿Por qué puede haber pérdidas si el obstáculo no tapa el rayo?</summary>
+
+Porque la señal no viaja solo por el rayo: ocupa el primer elipsoide de Fresnel. Si el terreno entra en él ($\nu > -0{,}78$), parte de las contribuciones de Huygens se pierden y $J(\nu) > 0$, aunque $c$ sea negativo. *(Pregunta propia, redactada a partir de las transparencias.)*
+
+</details>
+
+<details>
+<summary>Vano de 20 km a 8 GHz, obstáculo agudo a 8 km que sobresale 10 m. ¿Cuánto vale J?</summary>
+
+$R_1 = \sqrt{0{,}0375\cdot 8000\cdot 12\,000/20\,000} \approx 13{,}4$ m, $\nu = \sqrt{2}\cdot 10/13{,}4 \approx 1{,}05$ y $J(\nu) \approx 14{,}3$ dB. Se puede comprobar con el widget del perfil. *(Pregunta propia, redactada a partir de las transparencias.)*
+
+</details>
+
+<details>
+<summary>¿Qué se suma al terreno antes de compararlo con el rayo, y por qué?</summary>
+
+La flecha $b = d_1 d_2/(2 K R_T)$. El rayo se dibuja recto sobre la Tierra ficticia de radio $K R_T$, y la flecha es lo que esa Tierra sube sobre la cuerda. Si el enunciado ya da la cota con flecha, no se vuelve a sumar. *(Pregunta propia, redactada a partir de las transparencias.)*
+
+</details>
+
+<details>
+<summary>En Bullington, ¿qué decide si se usa el obstáculo ficticio?</summary>
+
+La comparación de pendientes del paso 2. Si la peor pendiente desde ET1 no supera la del rayo, el rayo está despejado y manda el obstáculo de mayor $\nu$. Si la supera, el rayo está tapado y se usa el corte de las peores pendientes desde las dos estaciones. *(Pregunta propia, redactada a partir de las transparencias.)*
+
+</details>

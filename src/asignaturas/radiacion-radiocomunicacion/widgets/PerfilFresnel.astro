@@ -1,0 +1,25 @@
+---
+// Perfil con el primer elipsoide de Fresnel: al subir el obstáculo (despejamiento c)
+// cambia ν y, si ν > −0,78, aparecen las pérdidas por difracción J(ν).
+import Widget from '../../../widgets/Widget.astro';
+import Deslizador from '../../../widgets/Deslizador.astro';
+import Lienzo from '../../comunicaciones-opticas/widgets/Lienzo.astro';
+import { dibujarFresnel } from './dibujos-propagacion';
+
+const uid = `fresnel-${Math.random().toString(36).slice(2, 7)}`;
+---
+<Widget titulo="El obstáculo y el primer elipsoide de Fresnel" tipo="entender">
+  <Lienzo nombre="fresnel" uid={uid} alto={252} etiqueta="Vano de 20 km a 8 GHz con un obstáculo agudo a 8 km: el rayo, el primer elipsoide de Fresnel, el despejamiento c, el parámetro ν y las pérdidas J(ν)"
+    inicial={dibujarFresnel({ c_m: 0 })}
+    nota="c > 0: el obstáculo sobresale del rayo. c < 0: queda por debajo. Alturas exageradas frente a la distancia.">
+    <Fragment slot="controles">
+      <Deslizador id={`${uid}-c`} etiqueta="Despejamiento c" min={-40} max={30} paso={1} valor={0} unidad="m" />
+    </Fragment>
+  </Lienzo>
+</Widget>
+<script>
+  import { montarDibujo, numero } from '../../comunicaciones-opticas/widgets/vivo';
+  import { dibujarFresnel } from './dibujos-propagacion';
+
+  montarDibujo('fresnel', (caja, uid) => dibujarFresnel({ c_m: numero(caja, `${uid}-c`) }));
+</script>

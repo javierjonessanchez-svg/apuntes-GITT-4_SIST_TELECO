@@ -1,0 +1,172 @@
+---
+titulo: "Ruido e interferencias"
+orden: 8
+bloque: "Tema 4 · Ruido e interferencias"
+resumen: "Ruido térmico, temperatura equivalente, ruido en cascada, G/T y umbral; geometría de una interferencia"
+saber:
+  - "Sistema limitado por ruido: la distancia máxima a la que se cumple la calidad la fija la potencia transmitida"
+  - "La sensibilidad TH sale de la CNR mínima para demodular bien: TH = CNRmin + N, con N = 10·log(k·T·b) + 30 (dBm)"
+  - "Ruido térmico: n = k·T·b, aditivo, blanco y gaussiano (AWGN). Externo (lo que capta la antena, Ta) e interno (los circuitos del receptor)"
+  - "Pasivo de pérdidas l a 290 K: T = (l − 1)·290. Activo con factor de ruido f: T = (f − 1)·290"
+  - "Friis de ruido: T = T1 + T2/g1 + T3/(g1·g2) + …: manda la primera etapa, así que el LNA va lo más cerca posible de la antena"
+  - "T_total = Ta + T_receptor, referidas al mismo punto. G/T resume la calidad de la estación receptora"
+  - "Umbral: TH = 10·log(k·T·Rb) + 30 + Eb/N0 + Degr; no depende del ancho de banda. Rs = Rb/log2 M y B = Rs·(1 + α)"
+  - "Eb/N0 depende de la BER pedida, la modulación, sus niveles y la codificación"
+  - "TH y Prx tienen que estar referidas al mismo punto de la cadena"
+fuentes:
+  - "Transparencias del tema 4: «Influencia del ruido radioeléctrico»"
+  - "Formulario propio (apartado de interferencias)"
+test:
+  - p: "¿Qué temperatura de ruido tiene un cable de 3 dB a 290 K?"
+    o: ["Unos 289 K", "Unos 145 K", "3 K", "Unos 580 K"]
+    c: 0
+    e: "T = (l − 1)·290 = (2 − 1)·290 ≈ 289 K."
+  - p: "Antena de 50 K, LNA de 100 K y 30 dB y después un cable de 3 dB. ¿Cuánto vale T_total en la salida de la antena?"
+    o: ["≈ 150 K", "≈ 439 K", "≈ 539 K", "≈ 100 K"]
+    c: 0
+    e: "50 + 100 + 289/1000 ≈ 150 K."
+  - p: "¿Por qué se pone el LNA delante del cable?"
+    o: ["Porque en Friis manda la primera etapa: su ganancia divide el ruido de las siguientes", "Porque el cable amplifica el ruido", "Porque el LNA no tiene ruido", "Porque así baja la PIRE"]
+    c: 0
+  - p: "Si se dobla el ancho de banda B con la misma Rb, ¿qué le pasa a TH = 10·log(k·T·Rb) + 30 + Eb/N0 + Degr?"
+    o: ["No cambia: no depende de B", "Sube 3 dB", "Baja 3 dB", "Sube 6 dB"]
+    c: 0
+  - p: "Si T_total sube de 150 K a 539 K, ¿cuánto empeora la CNR?"
+    o: ["Unos 5,5 dB", "Unos 3,6 dB", "Unos 11 dB", "No cambia"]
+    c: 0
+    e: "10·log(539/150) ≈ 5,5 dB."
+  - p: "¿De qué depende la Eb/N0 necesaria?"
+    o: ["De la BER pedida, la modulación, sus niveles y la codificación", "Solo de la potencia transmitida", "De la distancia del vano", "De la ganancia de la antena"]
+    c: 0
+---
+import EnExamen from '../../../src/comun/EnExamen.astro';
+import Provisional from '../../../src/asignaturas/radiacion-radiocomunicacion/Provisional.astro';
+import CadenaRuido from '../../../src/asignaturas/radiacion-radiocomunicacion/widgets/CadenaRuido.astro';
+import TrianguloInterferencia from '../../../src/asignaturas/radiacion-radiocomunicacion/widgets/TrianguloInterferencia.astro';
+
+**Idea clave.** El umbral $TH$ de los temas anteriores no es un dato caído del cielo: sale del **ruido**. Cuanto más ruido mete el receptor, más potencia hace falta para demodular, y peor es el umbral. El ruido de una cadena se mide con su **temperatura equivalente**, y en ella manda la **primera etapa**.
+
+## Sistemas limitados por ruido
+
+En un **sistema limitado por ruido**, la distancia máxima a la que se cumplen los requisitos de calidad la fija la potencia transmitida. La **sensibilidad** $TH$ viene de la mínima relación portadora/ruido ($CNR$) con la que el demodulador trabaja bien:
+
+$$
+TH = CNR_{min} + N
+\qquad
+N\,(\mathrm{dBm}) = 10\log_{10}(k\, T\, b) + 30
+$$
+
+Lo mismo se expresa con la densidad de ruido $N_0 = kT$ y la energía por bit:
+
+$$
+\left(\frac{C}{N_0}\right)_{min} = TH - N_0 = CNR_{min} + 10\log_{10} b
+\qquad
+\left(\frac{E_b}{N_0}\right)_{min} = CNR_{min} + 10\log_{10}\frac{b}{R_b}
+$$
+
+## Ruido térmico y temperatura equivalente
+
+El **ruido térmico** lo genera el movimiento browniano de los electrones en un conductor a temperatura no nula. Es aditivo, blanco y gaussiano (**AWGN**), y su potencia en un ancho de banda equivalente de ruido $b$ es:
+
+$$
+n = k\, T\, b
+\qquad
+k = 1{,}38\cdot 10^{-23}\ \mathrm{J/K}
+$$
+
+- **Ruido externo**: el «brillo» que capta la antena, que depende de la frecuencia y de su diagrama de radiación. Se resume en la **temperatura de antena** $T_a$.
+- **Ruido interno**: el de los dispositivos pasivos y activos del receptor (térmico, impulsivo, *flicker*, intermodulación…).
+
+Cada dispositivo se sustituye por uno sin ruido más una fuente de ruido a la entrada, con su **temperatura equivalente**, tomando $T_0 = 290$ K:
+
+$$
+\text{pasivo de pérdidas } l:\ T_{EQ} = (l - 1)\, T_0
+\qquad
+\text{activo con factor de ruido } f:\ T_{EQ} = (f - 1)\, T_0
+$$
+
+## Ruido en cascada
+
+En una cadena de etapas, el ruido de cada una se refiere a la entrada dividiéndolo por la ganancia de las anteriores (**Friis**):
+
+$$
+T_{ent} = T_1 + \frac{T_2}{g_1} + \frac{T_3}{g_1\, g_2} + \cdots
+\qquad
+T_{sal} = T_{ent}\cdot \prod g_i
+$$
+
+Con un amplificador de bajo ruido (**LNA**) de mucha ganancia delante, lo que va detrás apenas cuenta. Un pasivo delante, en cambio, suma su ruido y además divide la ganancia ($g = 1/l$), así que multiplica el ruido de todo lo que sigue.
+
+<CadenaRuido />
+
+La **temperatura total** del sistema es la de antena más la del receptor, referidas al mismo punto: $T_{total} = T_a + T_{rx}$. La potencia de ruido es $N = k\, T_{total}\, b$. El cociente entre la ganancia de la antena y esa temperatura, **G/T** (dB/K), resume en un número lo buena que es una estación receptora: cuanto mayor, mejor $CNR$ con la misma señal.
+
+<EnExamen asignatura="radiacion-radiocomunicacion" ids={['t-cadena']} />
+
+## El umbral
+
+La $E_b/N_0$ necesaria depende de la **BER** máxima que se pida y del esquema de modulación: tipo, número de niveles y codificación. Con la temperatura total, la tasa binaria $R_b$ y una degradación de implementación:
+
+$$
+TH = 10\log_{10}(k\, T\, R_b) + 30 + \frac{E_b}{N_0} + Degr
+\qquad
+R_s = \frac{R_b}{\log_2 M}
+\qquad
+B = R_s\,(1 + \alpha)
+$$
+
+$\alpha$ es el *roll-off* del filtro de coseno alzado. El ancho de banda $B$ entra en el ruido $N$ y en la $CNR$, pero se cancela: **TH no depende de B**. Por ejemplo, con $T = 150$ K, $R_b = 34$ Mbit/s, $E_b/N_0 = 12$ dB y 2 dB de degradación, $TH \approx -87{,}5$ dBm.
+
+Ojo: $TH$ queda referido al punto donde se mide $T$. Antes de compararlo con $P_{rx}$, hay que llevar las dos al **mismo punto** de la cadena, sumando las ganancias (en dB, negativas si son pérdidas) que haya entre uno y otro.
+
+<EnExamen asignatura="radiacion-radiocomunicacion" ids={['umbral']} />
+
+## Interferencias
+
+<Provisional>este apartado no está en las transparencias del tema 4; sale del formulario.</Provisional>
+
+Un transmisor ajeno que emite en la misma frecuencia **interfiere** al receptor. Se calcula en cuatro pasos:
+
+1. El **ángulo de llegada** del interferente, con el teorema del coseno sobre las tres distancias: $\cos\theta = (a^2 + b^2 - c^2)/(2ab)$, el ángulo entre los lados $a$ y $b$, opuesto a $c$.
+2. La **discriminación** $D$ (dB) de cada antena para ese ángulo, leída en su diagrama de radiación. Si el interferente va en la polarización cruzada, se lee la curva contrapolar y no se suma además la XPD de la antena.
+3. La potencia interferente, como un balance con todas las discriminaciones:
+
+$$
+P_I = PIRE - D_{tx} - L_b - F_q - XPD_{ll} + G_r - D_{rx} - XPD_{ant} - L_r
+$$
+
+4. La relación portadora/interferencia, $C/I = P_{rx} - P_I$ (dB), que se compara con la que pida el enunciado.
+
+<TrianguloInterferencia />
+
+<EnExamen asignatura="radiacion-radiocomunicacion" ids={['angulo-triangulo', 'interferencia']} />
+
+## Preguntas de repaso
+
+<details>
+<summary>¿Por qué el LNA va pegado a la antena?</summary>
+
+Porque en la fórmula de Friis manda la primera etapa: su ruido entra entero y su ganancia divide el de todas las demás. Si delante hay un cable, su ruido entra entero y, como atenúa, multiplica el ruido del LNA. En el widget, el mismo cable y el mismo LNA dan 150 K o 539 K según el orden. *(Pregunta propia, redactada a partir de las transparencias.)*
+
+</details>
+
+<details>
+<summary>¿Por qué TH no depende del ancho de banda?</summary>
+
+Porque al subir $B$ sube el ruido $N = kTB$, pero baja en lo mismo la $CNR$ necesaria para una $E_b/N_0$ dada: $CNR = E_b/N_0 + 10\log(R_b/B)$. Al sumar, $B$ se cancela y queda $TH = 10\log(kTR_b) + 30 + E_b/N_0 + Degr$. *(Pregunta propia, redactada a partir de las transparencias.)*
+
+</details>
+
+<details>
+<summary>T = 150 K, Rb = 34 Mbit/s, Eb/N0 = 12 dB y 2 dB de degradación. ¿Cuánto vale TH?</summary>
+
+$TH = 10\log(1{,}38\cdot 10^{-23}\cdot 150\cdot 34\cdot 10^6) + 30 + 12 + 2 \approx -131{,}5 + 44 = -87{,}5$ dBm. Con el cable delante del LNA (539 K) sería unos 5,5 dB peor: −82 dBm. *(Pregunta propia, redactada a partir de las transparencias.)*
+
+</details>
+
+<details>
+<summary>¿Qué es la temperatura de antena?</summary>
+
+La que resume el ruido externo: el «brillo» del cielo, el suelo y otras fuentes que capta la antena según la frecuencia y su diagrama de radiación. Se suma al ruido interno del receptor para tener $T_{total}$. *(Pregunta propia, redactada a partir de las transparencias.)*
+
+</details>

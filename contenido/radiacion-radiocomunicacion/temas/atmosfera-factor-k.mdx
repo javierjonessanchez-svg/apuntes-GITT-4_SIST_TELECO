@@ -1,0 +1,154 @@
+---
+titulo: "Atmósfera y factor K"
+orden: 2
+bloque: "Tema 1 · Propagación"
+resumen: "La troposfera curva el rayo: Tierra ficticia K·RT, flecha, horizonte y K99,9"
+saber:
+  - "El índice de refracción n de la troposfera baja con la altura. Se trabaja con el coíndice N = (n − 1)·10⁶, que depende de la presión, la temperatura y el vapor de agua (UIT-R P.453)"
+  - "Atmósfera estándar: N(h) = 315·exp(−h/7,35), con h en km"
+  - "Como n baja con la altura, el rayo se curva hacia la Tierra: en atmósfera estándar, con un radio de unos 23 333 km"
+  - "Truco: el rayo se dibuja recto sobre una Tierra ficticia de radio K·RT, con 1/(K·RT) = 1/RT − 1/Rrayo y K = 157/(157 + dN/dh)"
+  - "Atmósfera estándar: K = 4/3. K > 4/3 superrefractiva; 0 ≤ K ≤ 1 subrefractiva; K < 0 conductiva"
+  - "Flecha: b = d1·d2/(2·K·RT), lo que la Tierra ficticia sube sobre la cuerda. No depende de la frecuencia"
+  - "Horizonte radioeléctrico: d_et ≈ √(2·K·RT·h) por estación; más allá de d_et1 + d_et2 no hay visión directa"
+  - "K cambia con el tiempo: el valor que se supera el 99,9 % del tiempo es K99,9 = 157/(144 + 2670/d_km), menor que 4/3"
+fuentes:
+  - "Transparencias del tema 1: «Propagación por onda de espacio (condiciones normales)»"
+  - "Transparencias del tema 3: «Desvanecimientos y calidad en radioenlaces» (variación del factor K)"
+  - "Formulario propio"
+test:
+  - p: "¿Qué valor de K corresponde a la atmósfera estándar?"
+    o: ["4/3", "1", "2/3", "∞"]
+    c: 0
+  - p: "Si K baja (atmósfera subrefractiva), ¿qué le pasa a la flecha b?"
+    o: ["Crece: la Tierra ficticia se abomba más", "Disminuye", "No cambia: solo depende de la frecuencia", "Se hace negativa"]
+    c: 0
+    e: "b = d1·d2/(2·K·RT): con K menor, b mayor, y el terreno se acerca al rayo."
+  - p: "¿Cómo cambia la flecha si se dobla la frecuencia?"
+    o: ["No cambia: b no depende de f", "Se dobla", "Baja a la mitad", "Sube 6 dB"]
+    c: 0
+  - p: "¿Qué significa K = ∞?"
+    o: ["Que el rayo se curva igual que la Tierra: se puede dibujar sobre una Tierra plana", "Que no hay atmósfera", "Que la Tierra ficticia es más pequeña", "Que el rayo se curva hacia arriba"]
+    c: 0
+    e: "1/(K·RT) = 0 ⇒ 1/RT = 1/Rrayo: rayo y Tierra tienen la misma curvatura."
+  - p: "En un vano muy largo, ¿hacia qué valor tiende K99,9?"
+    o: ["157/144 ≈ 1,09", "4/3", "0", "157/2670"]
+    c: 0
+    e: "Con d grande, 2670/d tiende a 0."
+  - p: "¿De qué depende el horizonte radioeléctrico de una estación?"
+    o: ["De la altura de la antena y de K", "De la frecuencia", "De la potencia transmitida", "De la ganancia de la antena"]
+    c: 0
+---
+import EnExamen from '../../../src/comun/EnExamen.astro';
+import FactorK from '../../../src/asignaturas/radiacion-radiocomunicacion/widgets/FactorK.astro';
+
+**Idea clave.** La troposfera no es homogénea: su índice de refracción baja con la altura y por eso el rayo **se curva hacia la Tierra**. En vez de dibujar un rayo curvo sobre la Tierra real, se dibuja un **rayo recto** sobre una **Tierra ficticia** de radio $K \cdot R_T$. Con $K$ se calculan la **flecha** (cuánto se abomba el terreno bajo el rayo) y el **horizonte radioeléctrico**.
+
+## El índice de refracción de la troposfera
+
+El índice de refracción $n$ del aire es casi 1, así que se trabaja con el **coíndice de refractividad** $N$, que depende de la presión $p$ (hPa), de la presión del vapor de agua $e$ (hPa) y de la temperatura absoluta $T$ (K), según la recomendación UIT-R P.453:
+
+$$
+N(h) = \big(n(h) - 1\big)\cdot 10^6 = \frac{77{,}6}{T(h)}\left(p(h) + 4810\,\frac{e(h)}{T(h)}\right)
+$$
+
+Con la altura bajan la presión y el vapor de agua, así que $N$ baja. Se modela con una exponencial que, cerca del suelo, es casi una recta. En **atmósfera estándar**, con $h$ en km:
+
+$$
+N(h) = N_s\, e^{-h/h_0} \approx N_s\left(1 - \frac{h}{h_0}\right) = 315\, e^{-h/7{,}35}
+$$
+
+La pendiente cerca del suelo es $dN/dh \approx -315/7{,}35 \approx -43$ unidades N por km.
+
+## El rayo se curva
+
+La ley de Snell en capas, $n(h)\cdot \operatorname{sen}\varphi(h) = \text{cte}$, dice que un rayo que pasa a capas de menor índice se inclina hacia ellas: el rayo se curva hacia abajo, hacia la Tierra. Su radio de curvatura es
+
+$$
+\frac{1}{R_{rayo}} = -\frac{dn}{dh} = -\frac{dN}{dh}\,10^{-6}
+$$
+
+En atmósfera estándar sale $R_{rayo} \approx 7{,}35/(315\cdot 10^{-6}) \approx 23\,333$ km, unas cuatro veces el radio de la Tierra ($R_T = 6371$ km). Por eso la señal llega algo más lejos que el horizonte óptico.
+
+## La Tierra ficticia y el factor K
+
+Trabajar con dos curvas (el rayo y la Tierra) es incómodo. Lo que importa es la **diferencia de curvaturas**, así que se puede enderezar el rayo y quitarle esa curvatura a la Tierra: el **despejamiento** entre rayo y terreno no cambia. La Tierra ficticia tiene radio $R'_T = K\cdot R_T$:
+
+$$
+\frac{1}{K R_T} = \frac{1}{R_T} - \frac{1}{R_{rayo}}
+\qquad
+K = \frac{1}{1 + R_T\,\dfrac{dN}{dh}\,10^{-6}} = \frac{157}{157 + dN/dh}
+$$
+
+En atmósfera estándar, $K = 157/(157 - 315/7{,}35) \approx 4/3$. Según el valor de $K$, la Tierra se modela como:
+
+- $K > 4/3$: **superrefractiva**. El rayo se curva más de lo normal y la Tierra ficticia es más plana. Con $K = \infty$ el rayo tiene la misma curvatura que la Tierra y se puede dibujar sobre una Tierra plana.
+- $K = 4/3$: **estándar** (condiciones normales).
+- $0 \le K \le 1$: **subrefractiva**. El rayo apenas se curva o se curva hacia arriba; la Tierra ficticia se abomba más y el terreno se acerca al rayo.
+- $K \lt 0$: **conductiva**. El rayo se curva más que la Tierra y la sigue.
+
+Las transparencias no dan nombre al tramo $1 \lt K \lt 4/3$.
+
+<FactorK />
+
+Lo que la Tierra ficticia sube sobre la cuerda que une los dos extremos es la **flecha**. En un punto a $d_1$ de una estación y $d_2$ de la otra:
+
+$$
+b = \frac{d_1\, d_2}{2\, K\, R_T}
+$$
+
+Es máxima a mitad del vano y **no depende de la frecuencia**. Con $d_1$ y $d_2$ en km y $b$ en metros, $b = d_1 d_2/(12{,}74\, K)$. Al estudiar obstáculos, la flecha se suma a la elevación del terreno.
+
+## Línea de vista y horizonte radioeléctrico
+
+Entre dos antenas hay **visión directa** (LOS, *line of sight*) si el rayo recto no corta la Tierra ficticia. Cada estación «ve» hasta su **horizonte radioeléctrico**, el punto donde un rayo tangente a la Tierra ficticia la toca. Para una antena a una altura $h$ sobre el nivel del mar (altura sobre el suelo más elevación del suelo), y como $h \ll K R_T$:
+
+$$
+d_{et} = \sqrt{(K R_T + h)^2 - (K R_T)^2} \approx \sqrt{2\, K\, R_T\, h}
+\qquad
+d_{max} = d_{et1} + d_{et2}
+$$
+
+Más allá de $d_{max}$ no hay visión directa. En el widget, dos mástiles de 40 m sobre el mar ven hasta 26,1 km cada uno con $K = 4/3$: un vano de 50 km tiene visión directa, pero con atmósfera subrefractiva la pierde.
+
+## K en el peor caso: K99,9
+
+$K$ no es fijo: cambia con el tiempo según el estado de la atmósfera, y cuando baja el terreno se acerca al rayo. Es una de las causas de **desvanecimiento**, que se evita poniendo las antenas a la altura adecuada. Para diseñar se usa el valor de $K$ que se **supera el 99,9 % del tiempo**, que depende de la longitud del vano:
+
+$$
+K_{99{,}9} = \frac{157}{144 + 2670/d_{\mathrm{km}}}
+$$
+
+Siempre es menor que 4/3: en 50 km vale 0,795, y en vanos muy largos tiende a $157/144 \approx 1{,}09$. Con ese $K$ se calcula la flecha y se comprueba que el rayo sigue despejado.
+
+<EnExamen asignatura="radiacion-radiocomunicacion" ids={['k999']} />
+
+## Preguntas de repaso
+
+<details>
+<summary>¿Por qué se dibuja el rayo recto y la Tierra con otro radio?</summary>
+
+Porque lo que decide si el terreno estorba es la **diferencia** entre la curvatura del rayo y la de la Tierra. Si se le quita al rayo su curvatura y se le resta a la Tierra, el despejamiento no cambia y las cuentas (flecha, rayo, obstáculos) se hacen con rectas. *(Pregunta propia, redactada a partir de las transparencias.)*
+
+</details>
+
+<details>
+<summary>Dos mástiles de 40 m sobre el mar, K = 4/3. ¿Hasta qué distancia hay visión directa?</summary>
+
+$d_{et} = \sqrt{2\cdot\tfrac{4}{3}\cdot 6371\cdot 10^3\cdot 40} \approx 26{,}1$ km por estación, así que $d_{max} \approx 52{,}1$ km. *(Pregunta propia, redactada a partir de las transparencias.)*
+
+</details>
+
+<details>
+<summary>¿Por qué se diseña con K99,9 y no con 4/3?</summary>
+
+Porque $K$ baja a ratos, y con $K$ menor la flecha crece y el terreno se acerca al rayo. Si las alturas se eligen con el $K$ que se supera el 99,9 % del tiempo (menor que 4/3), el rayo queda despejado casi siempre y la variación de $K$ no causa cortes. *(Pregunta propia, redactada a partir de las transparencias.)*
+
+</details>
+
+<details>
+<summary>¿Qué diferencia hay entre una atmósfera superrefractiva y una subrefractiva?</summary>
+
+En la superrefractiva ($K > 4/3$) el rayo se curva más hacia la Tierra: la Tierra ficticia es más plana y la señal llega más lejos. En la subrefractiva ($0 \le K \le 1$) el rayo apenas se curva: la Tierra ficticia se abomba, el horizonte se acerca y pueden aparecer obstáculos que antes no tapaban. *(Pregunta propia, redactada a partir de las transparencias.)*
+
+</details>

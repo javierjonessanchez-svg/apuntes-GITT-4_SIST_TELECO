@@ -1,0 +1,91 @@
+---
+// Portada de Radiación y Radiocomunicación: el cuaderno de campo del radioenlace.
+// Arriba, el botón al modo examen; debajo, la cadena del enlace (del transmisor al
+// receptor) y los temas por bloque; los que aún no tienen apuntes van a trazos.
+import Elipsoide from './Elipsoide.astro';
+import TarjetaTema from './TarjetaTema.astro';
+import ModoRepaso from '../../widgets/ModoRepaso.astro';
+import LineaTiempo from '../../comun/LineaTiempo.astro';
+import { ruta } from '../../comun/rutas';
+import type { Asignatura, Tema } from '../../comun/datos';
+
+interface Props { asignatura: Asignatura; temas: Tema[] }
+const { asignatura: a, temas } = Astro.props;
+
+// «Tema 1 · Propagación» → bloque-tema-1-propagacion
+const id = (bloque: string) => 'bloque-' + bloque.toLowerCase().normalize('NFD').replace(/\p{M}/gu, '')
+  .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
+// Temas reales y próximos juntos, por número; los bloques salen en el orden en que aparecen
+const todos = [
+  ...temas.map((t) => ({ slug: t.slug, orden: t.orden, titulo: t.titulo, resumen: t.resumen, bloque: t.bloque })),
+  ...(a.proximos ?? []).map((p) => ({ slug: undefined, orden: p.orden, titulo: p.titulo, resumen: undefined, bloque: p.bloque })),
+].sort((x, y) => x.orden - y.orden);
+const bloques = [...new Set(todos.map((t) => t.bloque))];
+// Cada bloque es un tema del profesor: «Tema 1» va pequeño y el nombre, grande
+const partes = (b: string) => (b.includes(' · ') ? b.split(' · ') : ['', b]);
+
+// La cadena del radioenlace, en el orden de la señal: cada eslabón salta a su tema
+const cadena = [
+  { nombre: 'Transmisor y antenas', tema: 'Tema 2' },
+  { nombre: 'Propagación', tema: 'Tema 1' },
+  { nombre: 'Desvanecimientos', tema: 'Tema 3' },
+  { nombre: 'Receptor y ruido', tema: 'Tema 4' },
+].map((e) => ({ ...e, bloque: bloques.find((b) => b.startsWith(e.tema + ' ')) }))
+  .filter((e): e is typeof e & { bloque: string } => Boolean(e.bloque));
+const conTest = temas.some((t) => (t.test?.length ?? 0) > 0);
+---
+<div class="ra-portada envoltura">
+  <header class="ra-cabecera">
+    <h1 id="ra-titulo" tabindex="-1">{a.nombre}</h1>
+    <p>{a.descripcion}</p>
+    <Elipsoide etiqueta="Radioenlace entre dos mástiles: el rayo directo y el primer elipsoide de Fresnel a su alrededor" />
+    <a class="boton ra-examen" href={ruta(a.slug, 'examen')}>Modo examen <span aria-hidden="true">→</span></a>
+  </header>
+
+  {cadena.length > 0 && (
+    <nav class="ra-cadena" aria-label="La cadena del radioenlace">
+      <ol>
+        {cadena.map((e) => <li><a href={`#${id(e.bloque)}`}>{e.nombre}</a></li>)}
+      </ol>
+    </nav>
+  )}
+
+  {bloques.map((b) => (
+    <section class="ra-bloque" id={id(b)} aria-labelledby={`${id(b)}-t`}>
+      <h2 id={`${id(b)}-t`}>{partes(b)[0] && <small>{partes(b)[0]}</small>} {partes(b)[1]}</h2>
+      <ul class="ra-tarjetas">
+        {todos.filter((t) => t.bloque === b).map((t) => (
+          <li>
+            <TarjetaTema asignatura={a.slug} slug={t.slug} orden={t.orden} titulo={t.titulo}
+              resumen={t.resumen} i={todos.indexOf(t)} />
+          </li>
+        ))}
+      </ul>
+    </section>
+  ))}
+
+  <p class="ra-nota" data-aviso-almacen hidden role="status">Tu avance no se está guardando en este navegador.</p>
+  {a.nota && <p class="ra-nota">{a.nota}</p>}
+
+  {conTest && (
+    <section class="ra-seccion" id="repaso" aria-labelledby="ra-repaso">
+      <h2 id="ra-repaso">Modo repaso</h2>
+      <p>Preguntas de desarrollo en tarjetas, preguntas tipo test corregidas al momento y un simulacro con las dos cosas. Son preguntas propias, redactadas a partir de las transparencias.</p>
+      <ModoRepaso asignatura={a.slug} />
+    </section>
+  )}
+
+  <div class="ra-seccion">
+    {a.pruebas.length
+      ? <LineaTiempo pruebas={a.pruebas.map((p) => ({ ...p, asignatura: a.corto }))} titulo="Calendario de pruebas" />
+      : <p class="ra-nota">Aún no hay fechas de pruebas.</p>}
+  </div>
+</div>
+<script>
+  import '../../comun/cliente/avance';
+  import progreso from '../../comun/progreso';
+
+  // Sin almacén (bloqueado), la barra de avance no puede recordar nada: se avisa
+  if (!progreso.disponible) document.querySelector<HTMLElement>('[data-aviso-almacen]')!.hidden = false;
+</script>

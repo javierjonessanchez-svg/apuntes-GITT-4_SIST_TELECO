@@ -1,0 +1,143 @@
+---
+titulo: "Balance del enlace y espacio libre"
+orden: 1
+bloque: "Tema 1 · Propagación"
+resumen: "Estaciones terminales, PIRE, campo, flujo y área efectiva; Friis y Lbf"
+saber:
+  - "Estación terminal: transceptor (TX + RX) y antena. Pt es la potencia disponible a la salida del transmisor; Prx, la que se entrega a la entrada del receptor"
+  - "Pérdidas de terminales (Lt, Lr): todos los dispositivos de RF pasivos entre el equipo y la antena y la desadaptación de impedancias. Si el enunciado da una sola cifra, va en las dos estaciones"
+  - "PIRE = Pt − Lt + Gt(θ, φ): la potencia que tendría que radiar una antena isótropa para dar el mismo campo en esa dirección"
+  - "Por encima de 30 MHz la propagación es por onda de espacio (troposférica): rayo directo y, si el terreno refleja, rayo reflejado"
+  - "Campo, flujo y potencia: Φ = E²/120π = PIRE/(4πd²) y Prx = Φ·Sef/lr, con Sef = λ²·g/4π"
+  - "El campo en dBµ va con 20·log (es una amplitud); las potencias, con 10·log"
+  - "Friis: Prx = PIRE − Lb + Gr − Lr, con Lbf = 20·log(4πd/λ). Doblar la distancia o la frecuencia suma 6 dB"
+  - "Con atmósfera, Lb = Lbf + Lad; los gases (UIT-R P.676) añaden γ·d y crecen con la frecuencia"
+fuentes:
+  - "Transparencias del tema 1: «Propagación por onda de espacio (condiciones normales)»"
+  - "Formulario propio"
+test:
+  - p: "¿Qué incluyen las pérdidas de terminales?"
+    o: ["Los dispositivos de RF pasivos y la desadaptación de impedancias", "Solo la absorción de los gases", "La ganancia de las antenas", "Las pérdidas en espacio libre"]
+    c: 0
+    e: "Cables, guías, circulador, filtros… todo lo pasivo entre el equipo y la antena, más la desadaptación."
+  - p: "Pt = 30 dBm, Lt = 2 dB y Gt = 35 dBi. ¿Cuánto vale la PIRE?"
+    o: ["63 dBm", "67 dBm", "33 dBm", "65 dBm"]
+    c: 0
+    e: "PIRE = Pt − Lt + Gt = 30 − 2 + 35 = 63 dBm."
+  - p: "Si se dobla la distancia de un vano en espacio libre, ¿cuánto cambia Lbf?"
+    o: ["Sube 6 dB", "Sube 3 dB", "Se dobla", "No cambia"]
+    c: 0
+    e: "Lbf = 20·log(4πd/λ): doblar d suma 20·log 2 ≈ 6 dB."
+  - p: "¿Por qué el campo en dBµ se calcula con 20·log y no con 10·log?"
+    o: ["Porque el campo es una amplitud y la potencia va con su cuadrado", "Porque se mide en µV/m", "Por convenio, sin motivo físico", "Porque el campo ya viene en dB"]
+    c: 0
+  - p: "¿Qué mecanismo de propagación usan los radioenlaces fijos de microondas?"
+    o: ["Onda de espacio (troposférica)", "Onda de superficie", "Onda ionosférica", "Ninguno de los tres"]
+    c: 0
+  - p: "Con el mismo flujo Φ y la misma ganancia de la antena receptora, ¿qué pasa con la Prx si sube la frecuencia?"
+    o: ["Baja, porque Sef = λ²·g/4π es menor", "Sube, porque λ es menor", "No cambia", "Depende de la PIRE"]
+    c: 0
+    e: "A igual ganancia, una antena a más frecuencia es más pequeña: capta menos potencia del mismo flujo."
+---
+import EnExamen from '../../../src/comun/EnExamen.astro';
+import EscaleraPotencias from '../../../src/asignaturas/radiacion-radiocomunicacion/widgets/EscaleraPotencias.astro';
+import MecanismosPropagacion from '../../../src/asignaturas/radiacion-radiocomunicacion/widgets/MecanismosPropagacion.astro';
+
+**Idea clave.** Un radioenlace se resuelve con un **balance de potencias en dB**: se parte de la potencia del transmisor, se restan las pérdidas de terminales, se suma la ganancia de la antena (eso es la **PIRE**), se restan las pérdidas del trayecto y, en el receptor, se suma su ganancia y se restan sus pérdidas. En espacio libre, las pérdidas del trayecto solo dependen de la **distancia** y de la **frecuencia**.
+
+## Las estaciones terminales
+
+Cada extremo del enlace es un **transceptor** (TX + RX) y una **antena**. En el transmisor la información se modula en banda base, pasa a frecuencia intermedia (FI) y el convertidor ascendente la sube a RF; un **circulador** deja usar la misma antena para transmitir y para recibir. En el receptor el camino es el inverso: convertidor descendente, FI y demodulación.
+
+Las magnitudes del balance se definen en puntos concretos de esa cadena:
+
+- **Pt**: potencia disponible a la salida del transmisor.
+- **Lt** y **Lr**: **pérdidas de terminales**. Incluyen todos los dispositivos de RF pasivos entre el equipo y la antena (cables, guías, circulador, filtros) y las pérdidas por **desadaptación de impedancias**.
+- **PIRE**: potencia isótropa radiada equivalente en la dirección $(\theta, \phi)$. Con las antenas bien apuntadas, $G_t$ es la ganancia máxima.
+- **Prx**: potencia entregada a la entrada del receptor.
+
+$$
+PIRE = P_t - L_t + G_t(\theta, \phi)
+$$
+
+Si el enunciado da unas «pérdidas de terminales» sin decir dónde, van en las **dos** estaciones: se restan en el transmisor y otra vez en el receptor.
+
+<EnExamen asignatura="radiacion-radiocomunicacion" ids={['pire']} />
+
+## Cómo viaja la señal según la frecuencia
+
+<MecanismosPropagacion />
+
+Por debajo de **30 MHz** la señal puede viajar pegada al suelo (**onda de superficie**, en sistemas navales y radiodifusión) o rebotar en la ionosfera (**onda ionosférica**, en radiodifusión, enlaces punto a punto y sistemas navales). Por encima de 30 MHz la ionosfera ya no la devuelve y la propagación es por **onda de espacio** o troposférica: un **rayo directo** entre las antenas y, si el terreno refleja, un **rayo reflejado**. Es la de la radiodifusión de FM y TV, la telefonía móvil, el radar, los enlaces fijos terrenales y los satélites, y la de todo este curso.
+
+## Del campo a la potencia recibida
+
+La antena transmisora reparte la PIRE sobre una esfera de radio $d$. La potencia que atraviesa cada metro cuadrado es la **densidad de flujo de potencia** $\Phi$ (W/m²), que también se escribe con el campo eléctrico eficaz $E$ (V/m) y la impedancia del vacío, $120\pi \approx 377\ \Omega$:
+
+$$
+\Phi = \frac{E^2}{120\pi} = \frac{PIRE}{4\pi d^2}
+$$
+
+El campo se suele dar en **dBµ** (dB respecto a 1 µV/m). Es una amplitud, así que va con **20·log**:
+
+$$
+E_{\mathrm{dB\mu}} = 20\log_{10}\frac{E}{1\,\mu\mathrm{V/m}}
+$$
+
+La antena receptora «recoge» el flujo con su **área efectiva**, que crece con su ganancia y con $\lambda^2$, y entrega al receptor lo que queda tras sus pérdidas:
+
+$$
+S_{ef} = \frac{\lambda^2\, g}{4\pi} \qquad P_{rx} = \frac{\Phi\, S_{ef}}{l_r}
+$$
+
+Ojo: aquí $g$ y $l_r$ van en lineal. Si el enunciado da el campo (en V/m o en dBµ), este es el camino: campo → flujo → potencia.
+
+<EnExamen asignatura="radiacion-radiocomunicacion" ids={['campo-dbu', 'flujo', 'sef', 'prx-flujo']} />
+
+## Espacio libre: Friis y Lbf
+
+Si se juntan las fórmulas anteriores (antenas alineadas en su dirección de máxima radiación y con la misma polarización) sale la **fórmula de Friis**. En dB, con las pérdidas básicas de propagación $L_b$:
+
+$$
+P_{rx} = PIRE - L_b + G_r - L_r
+\qquad
+L_{bf} = 20\log_{10}\frac{4\pi d}{\lambda}
+$$
+
+$L_{bf}$ son las **pérdidas en espacio libre**. En unidades prácticas, $L_{bf} = 92{,}4 + 20\log f_{\mathrm{GHz}} + 20\log d_{\mathrm{km}}$: doblar la distancia o la frecuencia suma 6 dB. Que dependan de la frecuencia no quiere decir que el vacío atenúe más: es que una antena de la misma ganancia es más pequeña a más frecuencia y recoge menos potencia del mismo flujo.
+
+<EscaleraPotencias />
+
+Con atmósfera, las pérdidas básicas se multiplican por unas pérdidas adicionales: $l_b = l_{bf}\cdot l_{ad}$, es decir, $L_b = L_{bf} + L_{ad}$. En condiciones normales la primera es la **absorción por gases** (oxígeno y vapor de agua), que crece con la frecuencia y tiene picos en torno a 22 GHz (vapor de agua) y 60 GHz (oxígeno). Se calcula con la atenuación específica de la recomendación UIT-R P.676 en atmósfera estándar (15 °C, 7,5 g/m³ de vapor de agua, 1013 hPa): $L_{ad,gases} = \gamma_{gases}\cdot d_{\mathrm{km}}$. En MATLAB lo da `gaspl`.
+
+<EnExamen asignatura="radiacion-radiocomunicacion" ids={['lb-espacio-libre', 'prx']} />
+
+## Preguntas de repaso
+
+<details>
+<summary>¿Qué diferencia hay entre Pt y la PIRE?</summary>
+
+$P_t$ es la potencia a la salida del transmisor. La PIRE es lo que «sale» por la antena en la dirección del enlace, contado como si la antena fuera isótropa: $PIRE = P_t - L_t + G_t$. Dos transmisores con la misma $P_t$ dan PIRE muy distintas según el cable y la antena. *(Pregunta propia, redactada a partir de las transparencias.)*
+
+</details>
+
+<details>
+<summary>Estima de cabeza Lbf para un vano de 30 km a 10 GHz.</summary>
+
+$L_{bf} = 92{,}4 + 20\log 10 + 20\log 30 \approx 92{,}4 + 20 + 29{,}5 \approx 142$ dB. Es el valor por defecto del widget de la escalera. *(Pregunta propia, redactada a partir de las transparencias.)*
+
+</details>
+
+<details>
+<summary>¿Cuándo se resuelve por el flujo y cuándo con Friis?</summary>
+
+Si el enunciado da el **campo** (en V/m o en dBµ), por el flujo: $E \rightarrow \Phi \rightarrow P_{rx} = \Phi S_{ef}/l_r$. Si da la **potencia** del transmisor, con Friis. Las dos tienen que dar lo mismo, así que una sirve para comprobar la otra. *(Pregunta propia, redactada a partir de las transparencias.)*
+
+</details>
+
+<details>
+<summary>¿Por qué los radioenlaces de microondas usan onda de espacio y no ionosférica?</summary>
+
+Porque por encima de unos 30 MHz la ionosfera ya no devuelve la señal a la Tierra: la atraviesa. A esas frecuencias solo queda la onda de espacio, con rayo directo y, si el terreno refleja, rayo reflejado. *(Pregunta propia, redactada a partir de las transparencias.)*
+
+</details>

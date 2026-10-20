@@ -1,0 +1,160 @@
+---
+titulo: "Antenas en los radioenlaces"
+orden: 5
+bloque: "Tema 2 · Antenas"
+resumen: "Directividad, ganancia y eficiencia; diagrama de radiación, θ3dB, SLL, FBR y XPD; desapuntamiento y tipos de antena"
+saber:
+  - "Directividad d(θ, φ): cuánto concentra la antena la potencia en una dirección frente a una isótropa, d = Φ/Φiso = U/Uiso"
+  - "Modelo circuital Z = Rrad + Rpérd + jX. Está sintonizada en la banda donde RL > 15 dB o ROE < 1,5, con RL = −20·log|s11|"
+  - "Eficiencia η = Prad/Pent = Rrad/(Rrad + Rpérd) y ganancia g = η·d: una antena es pasiva, solo reparte la potencia"
+  - "Superficie efectiva Sef = λ²·g/4π"
+  - "Diagrama de radiación: corte en acimut y en elevación, medido en campo lejano, R > 2D²/λ"
+  - "θ3dB: ancho entre los puntos de potencia mitad del lóbulo principal. SLL = Dmax − Dlóbulo secundario; FBR = Dmax − Dlóbulo posterior"
+  - "XPD = Dcopolar − Dcontrapolar: cuánto discrimina la antena la polarización cruzada"
+  - "Desapuntamiento: G(θ) = Gmax − 12·(θ/θ3dB)². En θ = θ3dB/2 cae 3 dB. Solo cambia la ganancia de la antena desapuntada"
+  - "Tipos: lineales (dipolo λ/2, Yagi-Uda) y de apertura (parche, bocina, parabólica)"
+fuentes:
+  - "Transparencias del tema 2: «Antenas en los sistemas de radiocomunicación»"
+  - "Formulario propio"
+test:
+  - p: "Gmax = 40 dBi y θ3dB = 2°. ¿Cuánto vale G si la antena se desapunta 1°?"
+    o: ["37 dBi", "28 dBi", "39 dBi", "34 dBi"]
+    c: 0
+    e: "G = 40 − 12·(1/2)² = 37 dBi: en θ = θ3dB/2 se pierden justo 3 dB."
+  - p: "¿Qué relaciona la eficiencia de una antena?"
+    o: ["La ganancia con la directividad: g = η·d", "La ROE con las pérdidas de retorno", "El campo con la densidad de potencia", "La ganancia con la frecuencia"]
+    c: 0
+  - p: "¿Cuándo se dice que una antena está sintonizada en una banda?"
+    o: ["Cuando RL > 15 dB o ROE < 1,5", "Cuando su ganancia supera los 30 dBi", "Cuando XPD > 30 dB", "Cuando la reactancia es máxima"]
+    c: 0
+  - p: "¿Qué mide el FBR?"
+    o: ["La diferencia entre el máximo y el lóbulo posterior", "La diferencia entre el máximo y el primer lóbulo lateral", "El ancho del haz principal", "La diferencia entre copolar y contrapolar"]
+    c: 0
+  - p: "En un vano, la antena receptora está desapuntada y la transmisora no. ¿Qué cambia en el balance?"
+    o: ["Solo Gr", "Gt y Gr", "Solo la PIRE", "Lbf"]
+    c: 0
+    e: "El desapuntamiento solo afecta a la ganancia de la antena desapuntada."
+  - p: "¿Qué antena usaría un radioenlace fijo punto a punto de microondas?"
+    o: ["Parabólica: directividad muy alta", "Dipolo λ/2", "Omnidireccional", "Parche de baja ganancia"]
+    c: 0
+---
+import EnExamen from '../../../src/comun/EnExamen.astro';
+import DiagramaAntena from '../../../src/asignaturas/radiacion-radiocomunicacion/widgets/DiagramaAntena.astro';
+import CoContrapolar from '../../../src/asignaturas/radiacion-radiocomunicacion/widgets/CoContrapolar.astro';
+
+**Idea clave.** Una antena no amplifica: es un dispositivo **pasivo** que **reparte** la potencia y la concentra en unas direcciones a costa de otras. Su **diagrama de radiación** dice cuánto en cada dirección. En un radioenlace importan la **ganancia** en la dirección del vano, lo que se pierde si la antena se **desapunta** y lo bien que separa las dos **polarizaciones**.
+
+## Parámetros primarios
+
+Una **antena isótropa** reparte la potencia radiada $P_{rad}$ por igual sobre una esfera de radio $R$. Cualquier antena real se compara con ella:
+
+$$
+\Phi_{iso} = \frac{P_{rad}}{4\pi R^2}
+\qquad
+U(\theta,\phi) = \Phi(\theta,\phi)\cdot R^2
+\qquad
+d(\theta,\phi) = \frac{\Phi(\theta,\phi)}{\Phi_{iso}} = \frac{U(\theta,\phi)}{U_{iso}}
+$$
+
+$\Phi$ es la densidad de potencia (W/m²), $U$ la **intensidad de radiación** (W/sr) y $d$ la **directividad**. El campo eléctrico sale de la densidad de potencia, $e = \sqrt{\Phi\,\eta_0}$.
+
+Visto desde el transmisor, la antena es una impedancia: $Z = R_{rad} + R_{\text{pérd}} + jX$. La parte que radia es $R_{rad}$; $R_{\text{pérd}}$ se queda en calor. Se dice que la antena está **sintonizada** en el margen de frecuencias en que $X \approx 0$, es decir, donde las pérdidas de retorno superan 15 dB o la ROE es menor que 1,5:
+
+$$
+RL = -20\log_{10}|s_{11}|
+\qquad
+ROE = \frac{1 + |s_{11}|}{1 - |s_{11}|}
+$$
+
+Dentro de esa banda, la **eficiencia** dice qué parte de la potencia entregada se radia, y la **ganancia** es la directividad por la eficiencia:
+
+$$
+\eta = \frac{P_{rad}}{P_{ent}} = \frac{R_{rad}}{R_{rad} + R_{\text{pérd}}}
+\qquad
+g(\theta,\phi) = \eta\cdot d(\theta,\phi)
+\qquad
+S_{ef}(\theta,\phi) = \frac{\lambda^2}{4\pi}\, g(\theta,\phi)
+$$
+
+La **superficie efectiva** es la que usa la antena receptora para «recoger» el flujo, como en el balance del enlace. La **polarización** es la orientación del campo eléctrico: lineal (vertical u horizontal), circular o elíptica.
+
+<EnExamen asignatura="radiacion-radiocomunicacion" ids={['sef']} />
+
+## El diagrama de radiación
+
+El **diagrama de radiación** representa $U$, $\Phi$, $e$, $d$ o $g$ en función del acimut y la elevación, a una distancia fija en **campo lejano**: $R > 2D^2/\lambda$, con $D$ la dimensión mayor de la antena. Se suele dar en dos cortes: en **acimut** (elevación 0°) y en **elevación** (acimut 0°), en polar o en cartesiano y normalizado al máximo.
+
+- **Lóbulos**: zonas del diagrama separadas por nulos. El **lóbulo principal** contiene la dirección de máxima radiación ($D_{max}$, $G_{max}$).
+- **Ancho de haz a 3 dB** ($\theta_{3dB}$): ángulo entre los puntos de potencia mitad del lóbulo principal.
+- **SLL** (*side lobe level*): $SLL = D_{max} - D_{\text{lóbulo secundario}}$, cuánto por debajo del máximo queda el lóbulo lateral más alto.
+- **FBR** (*front to back ratio*): $FBR = D_{max} - D_{\text{lóbulo posterior}}$.
+
+Por su forma, las antenas son **directivas** (un haz estrecho), **sectoriales** (un haz ancho en acimut) u **omnidireccionales** (igual en todo el acimut).
+
+## Desapuntamiento
+
+Cerca del máximo, el lóbulo principal se aproxima por una parábola en dB. Si la antena está desapuntada $\theta$ grados respecto a la dirección del vano:
+
+$$
+G(\theta) = G_{max} - 12\left(\frac{\theta}{\theta_{3dB}}\right)^2
+$$
+
+En $\theta = \theta_{3dB}/2$ cae justo **3 dB**: es la definición del ancho de haz. Cuanto más directiva es la antena, más estrecho es $\theta_{3dB}$ y más cuesta un error de apuntamiento. En un problema, mira **qué estación** está desapuntada: solo cambia la ganancia de esa antena ($G_t$ o $G_r$).
+
+<DiagramaAntena />
+
+<EnExamen asignatura="radiacion-radiocomunicacion" ids={['g-desapuntado']} />
+
+## Polarización cruzada: la XPD
+
+Una antena polarizada en vertical también radia un poco en horizontal. El diagrama **copolar** es el de la polarización buena (VV, HH) y el **contrapolar**, el de la cruzada (VH, HV). La diferencia es la **discriminación por polarización cruzada**:
+
+$$
+XPD(\theta,\phi) = D_{copolar}(\theta,\phi) - D_{contrapolar}(\theta,\phi)
+$$
+
+Es la que permite usar las dos polarizaciones en la misma frecuencia (doble polarización) sin que una interfiera a la otra. Es máxima en el apuntamiento y baja fuera del eje. La lluvia también despolariza: se verá en «Lluvia y disponibilidad».
+
+<CoContrapolar />
+
+## Tipos de antenas
+
+| Tipo | Cómo es | Características | Uso típico |
+|---|---|---|---|
+| Dipolo λ/2 (lineal) | Hilo conductor muy delgado; su longitud fija la frecuencia central | Diagrama casi omnidireccional, XPD muy grande | Punto a zona, elemento de otras antenas |
+| Yagi-Uda (lineal) | Dipolo excitado con un reflector detrás y varios directores delante (elementos parásitos) | Más directiva que el dipolo; tamaños y separaciones fijan la banda | Recepción de TV, enlaces sencillos |
+| Parche (apertura) | Parche metálico sobre un sustrato dieléctrico y un plano de masa | Plana, fácil de construir; banda estrecha, ganancia y eficiencia bajas | Terminales y agrupaciones |
+| Bocina (apertura) | Guía de onda abocinada que adapta la guía al espacio libre | Gran ancho de banda, directividad alta, fácil de construir | Fuente primaria, medidas |
+| Parabólica (apertura) | Una fuente primaria ilumina un reflector parabólico que colima el haz | Gran ancho de banda, directividad muy alta | Radioenlaces punto a punto, satélite |
+
+En las antenas de apertura, la superficie radiante está directamente ligada a la superficie efectiva y, por tanto, a la ganancia: a igual frecuencia, más grande es más directiva. Según el servicio se eligen **directivas** para punto a punto, **sectoriales** para punto a multipunto y **omnidireccionales** para punto a zona.
+
+## Preguntas de repaso
+
+<details>
+<summary>¿Por qué una antena «tiene ganancia» si es un dispositivo pasivo?</summary>
+
+Porque no crea potencia: la concentra. La ganancia compara la densidad de potencia en una dirección con la de una isótropa que radiara lo mismo. Lo que gana en el lóbulo principal lo pierde en el resto de direcciones, y además $g = \eta\, d \le d$. *(Pregunta propia, redactada a partir de las transparencias.)*
+
+</details>
+
+<details>
+<summary>Antena de 40 dBi con θ3dB = 2°, desapuntada 2°. ¿Cuánto pierde?</summary>
+
+$G = 40 - 12\cdot(2/2)^2 = 28$ dBi: 12 dB menos. A $\theta = \theta_{3dB}/2 = 1°$ perdería solo 3 dB; la pérdida crece con $\theta^2$. *(Pregunta propia, redactada a partir de las transparencias.)*
+
+</details>
+
+<details>
+<summary>¿Qué diferencia hay entre SLL y FBR?</summary>
+
+Los dos miden cuánto por debajo del máximo queda otro lóbulo: el SLL usa el lóbulo lateral más alto y el FBR el lóbulo posterior (hacia atrás, a 180°). Un SLL y un FBR grandes significan que la antena capta poca interferencia de fuera del vano. *(Pregunta propia, redactada a partir de las transparencias.)*
+
+</details>
+
+<details>
+<summary>¿Para qué sirve una XPD grande en un radioenlace?</summary>
+
+Para transmitir dos señales en la misma frecuencia, una en cada polarización. Con una XPD de 40 dB, lo que se cuela de una polarización en la otra queda 40 dB por debajo y no interfiere. *(Pregunta propia, redactada a partir de las transparencias.)*
+
+</details>

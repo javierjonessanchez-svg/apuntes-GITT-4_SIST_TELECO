@@ -1,0 +1,19 @@
+---
+// Aviso visible para un apartado que no sale de las transparencias (se apoya en el formulario).
+---
+<aside class="ra-provisional" role="note">
+  <strong>Provisional:</strong> <slot />
+</aside>
+
+<style>
+  .ra-provisional {
+    margin: 1.25rem 0;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--resalte);
+    border-left-width: 4px;
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--resalte) 10%, var(--superficie));
+    color: var(--texto);
+  }
+  .ra-provisional strong { color: var(--acento); }
+</style>

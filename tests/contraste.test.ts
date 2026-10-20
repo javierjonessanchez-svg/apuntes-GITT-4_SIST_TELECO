@@ -79,3 +79,11 @@ test('red GSM: texto sobre el color de cada subsistema ≥ 4,5:1, y los cordones
   }
   expect(fallos).toEqual([]);
 });
+
+test.each(['claro', 'oscuro'] as const)('Radiación: colores de los dibujos ≥ 3:1 sobre el fondo y la superficie (%s)', (modo) => {
+  const t = leerTokens(readFileSync('src/asignaturas/radiacion-radiocomunicacion/tema.css', 'utf8'))[modo];
+  for (const n of ['naranja', 'azul', 'verde', 'rojo', 'violeta']) {
+    expect(ratio(t[`ra-${n}`], t.fondo), `${n} / fondo`).toBeGreaterThanOrEqual(3);
+    expect(ratio(t[`ra-${n}`], t.superficie), `${n} / superficie`).toBeGreaterThanOrEqual(3);
+  }
+});
