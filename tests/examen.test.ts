@@ -3,13 +3,20 @@
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { describe, expect, test } from 'vitest';
 import { parse } from 'yaml';
-import { enlace, esquemaExamen, porTema, validarExamen, type Examen } from '../src/comun/examen';
+import { enlace, esHoja, esquemaExamen, porTema, validarExamen, type Examen, type ExamenHoja, type ExamenMatlab } from '../src/comun/examen';
 import { formula } from '../src/widgets/mates';
 
 const FIXTURE = 'tests/fixtures/examen-ejemplo.yaml';
 const leer = (ruta: string): Examen => esquemaExamen.parse(parse(readFileSync(ruta, 'utf8')));
 // Copia del ejemplo para estropearla en cada prueba
-const ejemplo = (): Examen => structuredClone(leer(FIXTURE));
+const ejemplo = (): ExamenMatlab => structuredClone(leer(FIXTURE)) as ExamenMatlab;
+// Hoja de repaso mínima (formato `tipo: hoja`)
+const hoja = (): ExamenHoja => esquemaExamen.parse({
+  tipo: 'hoja',
+  formulas: [{ id: 'ftick', tema: 'Timers', nombre: 'Frecuencia de cuenta', tex: 'F_{tick} = \\frac{F_{PCLK}}{PR + 1}' }],
+  registros: [{ tema: 'Timers', nombre: 'TnTCR', descripcion: 'control', campos: [{ bits: '0', nombre: 'Counter Enable', que: '1 = contar' }] }],
+  problemas: [{ id: 'periodica', titulo: 'Interrupción periódica', cuando: 'cada T ms', pasos: ['MR0 = F_tick·T − 1'] }],
+}) as ExamenHoja;
 
 describe('validarExamen', () => {
   test('valida el ejemplo', () => {
@@ -55,6 +62,32 @@ describe('validarExamen', () => {
     const f = ejemplo();
     f.flujos[0].cuando = 'enunciado de 2025-2026';
     expect(() => validarExamen(f, FIXTURE)).toThrow(/2025-2026/);
+  });
+});
+
+describe('formato hoja', () => {
+  test('valida la hoja y la distingue del formato MATLAB', () => {
+    expect(() => validarExamen(hoja(), 'hoja.yaml')).not.toThrow();
+    expect(esHoja(hoja())).toBe(true);
+    expect(esHoja(ejemplo())).toBe(false);
+  });
+  test('falla con un id repetido entre fórmulas y problemas', () => {
+    const e = hoja();
+    e.problemas[0].id = 'ftick';
+    expect(() => validarExamen(e, 'hoja.yaml')).toThrow(/ftick/);
+  });
+  test('falla con texto de examen antiguo', () => {
+    const e = hoja();
+    e.problemas[0].pasos.push('como en el examen de 2025-2026');
+    expect(() => validarExamen(e, 'hoja.yaml')).toThrow(/2025-2026/);
+  });
+  test('rechaza una hoja sin problemas o sin tipo', () => {
+    const { problemas, ...sinProblemas } = hoja();
+    expect(problemas).toHaveLength(1);
+    expect(esquemaExamen.safeParse(sinProblemas).success).toBe(false);
+    const { tipo, ...sinTipo } = hoja();
+    expect(tipo).toBe('hoja');
+    expect(esquemaExamen.safeParse(sinTipo).success).toBe(false);
   });
 });
 

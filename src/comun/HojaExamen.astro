@@ -1,0 +1,76 @@
+---
+// Modo examen en formato hoja (examen.yaml con `tipo: hoja`): pasos por tipo de problema
+// con una casilla «me sale», fórmulas por tema y bits de los registros principales.
+// Sin código enlazado. Lógica en cliente/hoja-examen.ts; estilos en modo-examen.css.
+import './modo-examen.css';
+import { formula } from '../widgets/mates';
+import Registro from '../asignaturas/seda/Registro.astro';
+import { porTema, type ExamenHoja } from './examen';
+import { ruta } from './rutas';
+import type { Asignatura } from './datos';
+
+interface Props { asignatura: Asignatura; examen: ExamenHoja }
+const { asignatura, examen } = Astro.props;
+const formulas = porTema(examen.formulas);
+const registros = porTema(examen.registros);
+const total = examen.problemas.length;
+---
+<div class="envoltura examen hoja" data-hoja-examen data-asig={asignatura.slug}>
+  <header class="examen-cabecera">
+    <p class="examen-asig">{asignatura.nombre}</p>
+    <h1>Modo examen</h1>
+    <p class="entradilla">La hoja del último repaso: los pasos de cada tipo de problema, las fórmulas que hay que saber y los bits de los registros. Se imprime en limpio.</p>
+    <p class="hoja-aviso">En las preguntas de código vale <b>pseudocódigo claro</b> con los valores de los registros: no hace falta el C completo. Hay ejemplos en <a href={ruta(asignatura.slug, 'problemas-examen')}>Problemas tipo examen</a>.</p>
+    <p class="examen-resumen" aria-live="polite"><b data-cuenta>0</b>/{total} tipos de problema que ya te salen</p>
+    <p class="examen-nota" role="status" data-nota hidden>Tu navegador no deja guardar el avance; las marcas se pierden al cerrar.</p>
+  </header>
+
+  <section aria-labelledby="problemas-titulo">
+    <h2 id="problemas-titulo">Pasos por tipo de problema</h2>
+    <ul class="hoja-problemas">
+      {examen.problemas.map((p) => (
+        <li class="panel hoja-problema" id={`p-${p.id}`}>
+          <h3>{p.titulo}</h3>
+          <p class="flujo-cuando">Cuando el enunciado dice: {p.cuando}</p>
+          <ol class="hoja-pasos">
+            {p.pasos.map((paso) => <li set:html={paso} />)}
+          </ol>
+          <label class="marca"><input type="checkbox" data-id={p.id} /><span><span class="sr">{p.titulo}: </span>me sale</span></label>
+        </li>
+      ))}
+    </ul>
+  </section>
+
+  <section aria-labelledby="formulas-titulo">
+    <h2 id="formulas-titulo">Fórmulas</h2>
+    {formulas.map((g, i) => (
+      <section class="examen-tema" aria-labelledby={`ft-${i}`}>
+        <h3 id={`ft-${i}`}>{g.tema}</h3>
+        <ul class="formulas">
+          {g.formulas.map((f) => (
+            <li class="panel formula" id={`f-${f.id}`}>
+              <h4>{f.nombre}</h4>
+              <div class="examen-tex" set:html={formula(f.tex, true)} />
+              {f.notas && <p class="formula-notas"><b>Ojo:</b> <span set:html={f.notas} /></p>}
+            </li>
+          ))}
+        </ul>
+      </section>
+    ))}
+  </section>
+
+  <section aria-labelledby="registros-titulo">
+    <h2 id="registros-titulo">Registros</h2>
+    {registros.map((g, i) => (
+      <section class="examen-tema" aria-labelledby={`rt-${i}`}>
+        <h3 id={`rt-${i}`}>{g.tema}</h3>
+        <div class="hoja-registros">
+          {g.formulas.map((r) => <Registro nombre={r.nombre} descripcion={r.descripcion} campos={r.campos} />)}
+        </div>
+      </section>
+    ))}
+  </section>
+</div>
+<script>
+  import './cliente/hoja-examen';
+</script>
