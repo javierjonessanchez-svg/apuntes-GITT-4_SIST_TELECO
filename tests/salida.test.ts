@@ -53,7 +53,7 @@ describe('toda la web', () => {
     expect(malas).toEqual([]);
   });
   test('las asignaturas pendientes no tienen páginas', () => {
-    expect(existsSync(join(DIST, 'seda'))).toBe(false);
+    expect(existsSync(join(DIST, 'circuitos-comunicacion'))).toBe(false);
   });
   test('Radiación es activa: portada real que enlaza al modo examen', () => {
     const html = pagina('radiacion-radiocomunicacion/index.html');
@@ -66,7 +66,7 @@ describe('toda la web', () => {
 describe('selector de asignaturas', () => {
   const html = pagina('conmutacion/capa-enlace/index.html');
   test('las pendientes no son enlaces y dicen "En preparación"', () => {
-    for (const slug of ['circuitos-comunicacion', 'seda']) {
+    for (const slug of ['circuitos-comunicacion']) {
       expect(html).not.toMatch(new RegExp(`<a[^>]*data-chip="${slug}"`));
       const chip = new RegExp(`data-chip="${slug}"[^>]*>(.*?)</span>\\s*</span>`, 's').exec(html);
       expect(chip?.[1]).toContain('En preparación');
@@ -76,6 +76,7 @@ describe('selector de asignaturas', () => {
     expect(html).toMatch(new RegExp(`<a[^>]*href="${BASE}conmutacion/"[^>]*data-chip="conmutacion"`));
     expect(html).toMatch(new RegExp(`<a[^>]*href="${BASE}comunicaciones-opticas/"[^>]*data-chip="comunicaciones-opticas"`));
     expect(html).toMatch(new RegExp(`<a[^>]*href="${BASE}radiacion-radiocomunicacion/"[^>]*data-chip="radiacion-radiocomunicacion"`));
+    expect(html).toMatch(new RegExp(`<a[^>]*href="${BASE}seda/"[^>]*data-chip="seda"`));
   });
 });
 

@@ -1,0 +1,139 @@
+/* Mundo de SEDA: la placa y la hoja de datos del LPC1768.
+   Claro: papel de hoja de datos blanco azulado, tinta azul marino y pistas de cobre.
+   Oscuro: máscara de soldadura azul marino. Registros y código en JetBrains Mono. */
+html[data-asignatura="seda"] {
+  --fondo: #EEF4FA;
+  --superficie: #FBFDFF;
+  --texto: #14233A;
+  --suave: #475870;
+  --linea: #C9D7E6;
+  --primario: #1F5FA8;
+  --sobre-primario: #FFFFFF;
+  --resalte: #F0B43C;
+  --sobre-resalte: #2A1C02;
+  --acento: #9A5824;
+  --acento2: #B3324A;
+  --foco: #1F5FA8;
+  /* Piezas de la placa (solo decoran) */
+  --pista: #C98A4B;
+  --serigrafia: #52698A;
+  --pad: #D9A35F;
+}
+html[data-asignatura="seda"][data-tema="oscuro"] {
+  --fondo: #0D1829;
+  --superficie: #142339;
+  --texto: #E5EDF7;
+  --suave: #A5B5CB;
+  --linea: #283B57;
+  --primario: #82BBFF;
+  --sobre-primario: #0D1829;
+  --resalte: #F0B43C;
+  --sobre-resalte: #2A1C02;
+  --acento: #E2A36B;
+  --acento2: #F28B9E;
+  --foco: #F0B43C;
+  --pista: #B9773E;
+  --serigrafia: #8FA6C4;
+  --pad: #C8924F;
+}
+@media (prefers-color-scheme: dark) {
+  html[data-asignatura="seda"]:not([data-tema="claro"]) {
+    --fondo: #0D1829;
+    --superficie: #142339;
+    --texto: #E5EDF7;
+    --suave: #A5B5CB;
+    --linea: #283B57;
+    --primario: #82BBFF;
+    --sobre-primario: #0D1829;
+    --resalte: #F0B43C;
+    --sobre-resalte: #2A1C02;
+    --acento: #E2A36B;
+    --acento2: #F28B9E;
+    --foco: #F0B43C;
+    --pista: #B9773E;
+    --serigrafia: #8FA6C4;
+    --pad: #C8924F;
+  }
+}
+
+/* ---------- Tipografía: Inter en el texto, JetBrains Mono en registros y código ---------- */
+html[data-asignatura="seda"] {
+  --fuente-texto: 'Inter Variable', system-ui, sans-serif;
+  --fuente-titulos: 'Inter Variable', system-ui, sans-serif;
+  --fuente-mono: 'JetBrains Mono Variable', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+}
+html[data-asignatura="seda"] :is(h1, h2) { letter-spacing: -0.02em; font-weight: 750; }
+/* Sin ligaduras: en C hay que ver "->" y "<<" tal cual, no flechas */
+html[data-asignatura="seda"] :is(code, kbd, pre) { font-family: var(--fuente-mono); font-size: .9em; font-variant-ligatures: none; }
+html[data-asignatura="seda"] :not(pre) > code {
+  padding: .08em .35em; border-radius: 5px;
+  background: color-mix(in srgb, var(--primario) 9%, var(--superficie));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primario) 18%, var(--linea));
+}
+html[data-asignatura="seda"] .tema-articulo pre {
+  overflow-x: auto; padding: 14px 16px; border-radius: 10px; line-height: 1.5;
+  background: var(--superficie); box-shadow: inset 0 0 0 1px var(--linea);
+}
+
+/* ---------- Portada: la tira de pines ---------- */
+.sd-portada { padding-bottom: 40px; }
+.sd-cabecera { padding-top: 12px; margin-bottom: 26px; }
+.sd-chip {
+  display: inline-flex; align-items: center; gap: 8px; margin: 0 0 12px; padding: 5px 12px 5px 10px;
+  border-radius: 6px; font-family: var(--fuente-mono); font-size: .8rem; font-weight: 600; letter-spacing: .04em;
+  color: var(--suave); background: var(--superficie); box-shadow: inset 0 0 0 1px var(--linea);
+}
+.sd-chip::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--pista); }
+.sd-cabecera h1 { font-size: clamp(2rem, 5.5vw, 3.3rem); line-height: 1.04; margin: 0 0 10px; }
+.sd-cabecera p { max-width: 62ch; margin: 0; color: var(--suave); text-wrap: pretty; }
+
+.sd-bloque { margin: 0 0 26px; }
+.sd-bloque h2 {
+  display: flex; align-items: baseline; gap: 10px; margin: 0 0 8px;
+  font-family: var(--fuente-mono); font-size: .85rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--serigrafia);
+}
+.sd-bloque h2 span { font-weight: 500; letter-spacing: 0; }
+
+/* Cada tema es un pin del conector: pad, pista y el LED de avance */
+.sd-pines { list-style: none; margin: 0; padding: 0; border-radius: 12px; background: var(--superficie); box-shadow: inset 0 0 0 1px var(--linea); overflow: hidden; }
+.sd-pin + .sd-pin { box-shadow: inset 0 1px 0 var(--linea); }
+.sd-pin > a, .sd-pin > div {
+  display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 4px 14px;
+  min-height: 56px; padding: 10px 16px; color: var(--texto); text-decoration: none;
+}
+.sd-pin > a { transition-property: background-color; transition-duration: .15s; transition-timing-function: ease-out; }
+.sd-pin > a:hover { background: color-mix(in srgb, var(--primario) 6%, var(--superficie)); }
+.sd-pin > a:active { background: color-mix(in srgb, var(--primario) 11%, var(--superficie)); }
+/* La lista recorta lo que sale de ella (overflow: hidden), así que el foco se dibuja por dentro */
+.sd-pin > a:focus-visible { outline-offset: -3px; }
+.sd-pad {
+  display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%;
+  font-family: var(--fuente-mono); font-size: .8rem; font-weight: 700; font-variant-numeric: tabular-nums;
+  color: #2A1C02; background: var(--pad);
+  box-shadow: inset 0 0 0 4px color-mix(in srgb, var(--pad) 70%, #FFFFFF), 0 0 0 1px color-mix(in srgb, var(--pad) 60%, #000000);
+}
+/* El pin 1 lleva el pad cuadrado, como en las placas */
+.sd-pin.primero .sd-pad { border-radius: 6px; }
+.sd-pin-texto { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.sd-pin-titulo { font-weight: 650; line-height: 1.25; text-wrap: balance; }
+.sd-pin-sub { font-size: .85rem; line-height: 1.4; color: var(--suave); text-wrap: pretty; }
+.sd-pin.proximo > div { color: var(--suave); }
+.sd-pin.proximo .sd-pad { background: transparent; color: var(--suave); box-shadow: inset 0 0 0 1.5px var(--linea); }
+.sd-pin-estado { font-size: .8rem; color: var(--suave); }
+
+.sd-nota { margin: 0 0 12px; font-size: .9rem; color: var(--suave); }
+.sd-seccion { margin: 36px 0 0; }
+.sd-seccion > h2 { font-size: 1.55rem; margin: 0 0 6px; }
+.sd-seccion > p { margin: 0 0 14px; color: var(--suave); max-width: 62ch; }
+
+/* ---------- Decoración: pistas de cobre en los márgenes, solo si hay hueco ---------- */
+.sd-deco { position: fixed; inset: 0; z-index: -1; pointer-events: none; overflow: hidden; }
+.sd-deco svg { position: absolute; top: 96px; width: 220px; height: auto; opacity: .22; color: var(--pista); }
+.sd-deco .izq { left: 0; }
+.sd-deco .der { right: 0; transform: scaleX(-1); }
+@media (max-width: 1099px) { .sd-deco { display: none; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .sd-pin > a { transition-duration: 0s; }
+}

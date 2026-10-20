@@ -1,6 +1,6 @@
 # Apuntes GITT 4º
 
-Apuntes interactivos de cuarto del Grado en Ingeniería de Tecnologías de Telecomunicación (mención en Sistemas de Telecomunicación) de la Universidad de Alcalá, curso 2026/27. Es una sola web con una portada común y un «mundo» por asignatura: Conmutación ya tiene sus temas, con calculadoras, diagramas y tarjetas de repaso; Radiación y Radiocomunicación tiene el modo examen y la teoría de los temas 1–4 con diagramas; Comunicaciones Ópticas, Circuitos de Comunicación y SEDA están en preparación.
+Apuntes interactivos de cuarto del Grado en Ingeniería de Tecnologías de Telecomunicación (mención en Sistemas de Telecomunicación) de la Universidad de Alcalá, curso 2026/27. Es una sola web con una portada común y un «mundo» por asignatura: Conmutación, Comunicaciones Ópticas y SEDA (Sistemas Electrónicos Digitales Avanzados: el LPC1768 por dentro) ya tienen sus temas, con calculadoras, diagramas y tarjetas de repaso; Radiación y Radiocomunicación tiene el modo examen y la teoría de los temas 1–4 con diagramas; Circuitos de Comunicación está en preparación.
 
 **Son apuntes no oficiales de estudiantes**, basados en sus notas de clase: no están revisados ni avalados por el profesorado y pueden contener errores. El material del curso solo se cita por su título.
 

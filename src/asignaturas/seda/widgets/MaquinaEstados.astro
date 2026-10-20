@@ -1,0 +1,98 @@
+---
+// Máquina de estados interactiva (el microondas de clase): se pulsan eventos, se resalta el
+// estado activo y se escriben en orden las acciones exit → acción → entry de cada transición.
+// Sin JavaScript se ven el diagrama y la tabla de transiciones.
+import Widget from '../../../widgets/Widget.astro';
+import DiagramaEstados from './DiagramaEstados.astro';
+import { microondas as m } from './maquina';
+
+const EVENTOS: Record<string, string> = {
+  tecla: 'Tecla numérica', start: 'START', cancelar: 'Cancelar', fin: 'Fin del tiempo', abrir: 'Abrir puerta', cerrar: 'Cerrar puerta',
+};
+---
+<Widget titulo="Máquina de estados: el microondas" tipo="entender">
+  <div class="sd-maquina" data-maquina data-inicial={m.inicial}>
+    <DiagramaEstados variante="vivo" />
+    <div class="sd-maq-controles" data-controles hidden>
+      <div class="sd-maq-eventos" role="group" aria-label="Eventos">
+        {Object.entries(EVENTOS).map(([ev, texto]) => <button type="button" class="sd-maq-evento" data-evento={ev}>{texto}</button>)}
+        <button type="button" class="sd-maq-evento reiniciar" data-reiniciar>Reiniciar</button>
+      </div>
+      <p class="sd-maq-estado" aria-live="polite">Estado: <b data-nombre-estado>{m.estados[m.inicial].nombre}</b></p>
+      <ol class="sd-maq-registro" data-registro aria-label="Últimas transiciones"></ol>
+    </div>
+  </div>
+  <Fragment slot="estatico">
+    <DiagramaEstados variante="estatico" />
+    <table>
+      <thead><tr><th scope="col">Estado</th><th scope="col">Evento / acción</th><th scope="col">Va a</th></tr></thead>
+      <tbody>
+        {m.transiciones.map((t) => (
+          <tr><td>{m.estados[t.de].nombre}</td><td><code>{t.evento}</code>{t.accion && ` / ${t.accion}`}</td><td>{m.estados[t.a].nombre}</td></tr>
+        ))}
+      </tbody>
+    </table>
+  </Fragment>
+</Widget>
+
+<style>
+  .sd-maq-controles[hidden] { display: none; }
+  .sd-maq-eventos { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 10px; }
+  .sd-maq-evento {
+    min-height: 44px; padding: 0 14px; border: 0; border-radius: 10px; font: inherit; font-size: .9rem; font-weight: 600;
+    color: var(--texto); background: var(--superficie); box-shadow: inset 0 0 0 1px var(--linea); cursor: pointer;
+    transition-property: box-shadow, transform, opacity; transition-duration: .15s; transition-timing-function: ease-out;
+  }
+  .sd-maq-evento:hover:not(:disabled) { box-shadow: inset 0 0 0 1px var(--primario); }
+  .sd-maq-evento:active:not(:disabled) { transform: scale(.96); }
+  .sd-maq-evento:disabled { opacity: .45; cursor: not-allowed; }
+  .sd-maq-evento:focus-visible { outline: 2px solid var(--foco); outline-offset: 2px; }
+  .sd-maq-evento.reiniciar { color: var(--suave); }
+  .sd-maq-estado { margin: 0 0 6px; }
+  .sd-maq-registro { margin: 0; padding-left: 1.3em; font-size: .9rem; color: var(--suave); }
+  .sd-maq-registro li:first-child { color: var(--texto); }
+  @media (prefers-reduced-motion: reduce) { .sd-maq-evento { transition-duration: 0s; } }
+</style>
+
+<script>
+  import { montar } from '../../../widgets/cliente';
+  import { eventosPosibles, microondas, paso } from './maquina';
+
+  montar('[data-maquina]', (caja) => {
+    let estado = microondas.inicial;
+    let n = 0; // número de evento: el más reciente va arriba, pero con su número real
+    const registro = caja.querySelector<HTMLElement>('[data-registro]')!;
+    const nombre = caja.querySelector<HTMLElement>('[data-nombre-estado]')!;
+    const botones = [...caja.querySelectorAll<HTMLButtonElement>('[data-evento]')].filter((b) => b.tagName === 'BUTTON');
+
+    const pintar = (ultima?: { de: string; evento: string }) => {
+      for (const g of caja.querySelectorAll<SVGGElement>('[data-estado]')) g.toggleAttribute('data-activo', g.dataset.estado === estado);
+      for (const g of caja.querySelectorAll<SVGGElement>('g.trans')) g.toggleAttribute('data-ultima', g.dataset.de === ultima?.de && g.dataset.evento === ultima?.evento);
+      const posibles = eventosPosibles(microondas, estado);
+      for (const b of botones) b.disabled = !posibles.includes(b.dataset.evento!);
+      nombre.textContent = microondas.estados[estado].nombre;
+    };
+
+    for (const b of botones) {
+      b.addEventListener('click', () => {
+        const de = estado;
+        const r = paso(microondas, estado, b.dataset.evento!);
+        estado = r.estado;
+        const li = document.createElement('li');
+        li.value = ++n;
+        li.textContent = `${b.dataset.evento}: ${r.acciones.join(' → ') || 'sin acciones'}`;
+        registro.prepend(li);
+        while (registro.children.length > 5) registro.lastElementChild!.remove();
+        pintar({ de, evento: b.dataset.evento! });
+      });
+    }
+    caja.querySelector('[data-reiniciar]')!.addEventListener('click', () => {
+      estado = microondas.inicial;
+      n = 0;
+      registro.replaceChildren();
+      pintar();
+    });
+    caja.querySelector<HTMLElement>('[data-controles]')!.hidden = false;
+    pintar();
+  });
+</script>

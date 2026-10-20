@@ -1,0 +1,375 @@
+---
+titulo: "Problemas tipo examen"
+orden: 8
+bloque: "Examen"
+resumen: "Cuatro problemas resueltos paso a paso: trama por UART, barrera con servo, depósito con histéresis y mando Sony"
+saber:
+  - "Método: 1) entradas, salidas y eventos; 2) estados (qué hay que recordar); 3) transiciones con evento [condición] / acción; 4) dónde se ejecuta la máquina; 5) código"
+  - "Una trama por UART se recibe con una máquina de estados en la ISR de RDA: un byte, un paso. Hace falta un timeout para no quedarse colgado a mitad de trama"
+  - "Los tiempos (timeouts, movimientos lentos) se cuentan en ticks de una ISR periódica: con un tick de 20 ms, 5 s son 250 ticks"
+  - "Histéresis: dos umbrales (encender por debajo de uno, apagar por encima de otro) evitan que la salida conmute sin parar por el ruido"
+  - "Mando Sony: portadora de 38 kHz con un Timer en toggle (MR0 = F_PCLK/(2·38 kHz) − 1) y los tiempos (4T, 2T, T con T = 600 µs) con otro Timer"
+  - "Sony: start de 4T con portadora, luego 12 bits empezando por el de menos peso (7 de comando y 5 de dirección). Un 1 es 2T de portadora y un 0 es T, cada uno seguido de T sin ella"
+fuentes:
+  - "Apuntes de Miguel"
+  - "Máquinas de estados finitas programadas y StateCharts (diapositivas de clase)"
+  - "Problemas de máquinas de estados de exámenes anteriores (solo como referencia del estilo; los enunciados no se reproducen)"
+  - "UM10360 (manual del LPC17xx), cap. 14, 21, 24 y 29"
+test:
+  - p: "En la máquina de recepción de tramas, se pierde un byte de datos. ¿Qué pasa si no hay timeout?"
+    o: ["Se queda en DATOS y toma la cabecera de la trama siguiente como dato", "Nada: el checksum lo corrige", "La UART deja de interrumpir", "Vuelve sola a esperar la cabecera"]
+    c: 0
+    e: "La máquina solo avanza con bytes. Sin timeout, mezcla dos tramas y descarta las dos por checksum, o peor."
+  - p: "Con un tick de 20 ms, ¿cuántos ticks son 5 s?"
+    o: ["250", "25", "2 500", "100"]
+    c: 0
+    e: "5 s / 20 ms = 250."
+  - p: "Un depósito enciende la bomba por debajo del 50 % y la apaga por encima del 50 %. ¿Qué problema tiene?"
+    o: ["Con el ruido del sensor, la bomba se enciende y apaga sin parar cerca del 50 %", "Ninguno", "El depósito nunca se llena", "La bomba no arranca nunca"]
+    c: 0
+    e: "Con un solo umbral no hay histéresis. Con dos (por ejemplo 30 % y 80 %), entre ellos la salida mantiene lo que tenía."
+  - p: "Con F_PCLK = 25 MHz, ¿qué MR0 genera en toggle una portadora de unos 38 kHz?"
+    o: ["328", "657", "656", "164"]
+    c: 0
+    e: "MR0 = 25·10⁶/(2·38 000) − 1 = 327,9 → 328. Sale 25·10⁶/(2·329) ≈ 37 994 Hz."
+  - p: "En el código Sony, ¿cuánto dura en total un bit a 1?"
+    o: ["1,8 ms (2T con portadora + T sin ella)", "1,2 ms", "2,4 ms", "0,6 ms"]
+    c: 0
+    e: "Con T = 600 µs: 1 200 µs de portadora y 600 µs de hueco."
+---
+**Cómo usar este tema.** Son problemas **nuevos**, escritos con el mismo estilo que los de examen: un sistema con entradas y salidas, una máquina de estados o un StateChart y su código para el LPC1768. Lee el enunciado, intenta el diagrama y el código en papel y luego abre la solución.
+
+## El método
+
+1. **Entradas, salidas y eventos.** ¿Qué llega (pulsadores, sensores, bytes, *timeouts*)? ¿Qué hay que mover?
+2. **Estados.** Un estado es **lo que hay que recordar** para decidir. Si dos situaciones reaccionan igual a todo, son el mismo estado.
+3. **Transiciones.** Para cada estado y cada evento: ¿a dónde va?, ¿con qué condición?, ¿qué acción? Lo que sea común a muchos estados, a un **superestado**.
+4. **Dónde corre la máquina.** En la ISR del periférico que trae los eventos (UART, captura) o en una ISR periódica (SysTick, Timer) si hay tiempos.
+5. **Código.** Un `switch (estado)`, cada caso da un paso y vuelve.
+
+## Problema 1. Tramas por la UART
+
+<details>
+<summary>Enunciado</summary>
+
+Un sensor manda por la UART0 tramas con este formato:
+
+| Byte | Contenido |
+|---|---|
+| 1 | Cabecera, siempre 0x7E |
+| 2 | Longitud L, de 1 a 16 |
+| 3 … L + 2 | L bytes de datos |
+| L + 3 | Checksum: suma de L y de los datos, módulo 256 |
+
+a) Dibuja la máquina de estados que reconoce las tramas byte a byte.
+b) Prográmala en la ISR de la UART0. Una trama correcta se deja en `trama[]` y se avisa con `trama_ok = 1`.
+c) ¿Qué pasa si se pierde un byte? Propón una solución.
+
+</details>
+
+<details>
+<summary>Solución guiada</summary>
+
+**a)** Hay que recordar en qué parte de la trama vamos: cuatro estados.
+
+- **ESPERA_CAB**: llega 0x7E → LONGITUD. Cualquier otro byte se ignora.
+- **LONGITUD**: llega L. Si `[1 ≤ L ≤ 16]` → DATOS, con la acción `suma = L, i = 0`. Si no → ESPERA_CAB (trama imposible).
+- **DATOS**: cada byte `/ trama[i++] = b, suma += b`. Cuando `[i == L]` → CHECKSUM.
+- **CHECKSUM**: si `[b == suma]` → ESPERA_CAB `/ trama_ok = 1`; si no, → ESPERA_CAB sin más.
+
+Es una máquina **Mealy**: las acciones van en las transiciones.
+
+**b)** La máquina corre en la ISR de recepción (RDA): **cada interrupción trae un byte y da un paso**. No hay ningún bucle esperando el siguiente.
+
+```c
+typedef enum { ESPERA_CAB, LONGITUD, DATOS, CHECKSUM } estado_rx_t;
+static estado_rx_t estado_rx = ESPERA_CAB;
+static uint8_t trama[16], len, i, suma;   // uint8_t: la suma ya es módulo 256
+volatile uint8_t trama_ok;
+volatile uint32_t ms_sin_bytes;                    // ms desde el último byte; lo incrementa la ISR periódica (apartado c)
+
+void UART0_IRQHandler(void) {
+  uint8_t b;
+  if (((LPC_UART0->IIR >> 1) & 0x07) != 2) return;   // solo RDA
+  b = LPC_UART0->RBR;                                // leer borra la interrupción
+  ms_sin_bytes = 0;                                  // para el timeout del apartado c
+  switch (estado_rx) {
+    case ESPERA_CAB:
+      if (b == 0x7E) estado_rx = LONGITUD;
+      break;
+    case LONGITUD:
+      if (b >= 1 && b <= 16) { len = b; suma = b; i = 0; estado_rx = DATOS; }
+      else estado_rx = ESPERA_CAB;
+      break;
+    case DATOS:
+      trama[i++] = b;
+      suma += b;
+      if (i == len) estado_rx = CHECKSUM;
+      break;
+    case CHECKSUM:
+      if (b == suma) trama_ok = 1;                   // el programa principal la procesa
+      estado_rx = ESPERA_CAB;
+      break;
+  }
+}
+```
+
+**c)** La máquina solo avanza cuando llegan bytes. Si se pierde uno, se queda en DATOS y toma la cabecera de la trama siguiente como dato: se pierden dos tramas. Solución: un **timeout**. Una ISR periódica (por ejemplo, de 1 ms) incrementa `ms_sin_bytes`, y si pasa de unos pocos tiempos de byte (a 115 200 bit/s, un byte son 87 µs; 2 ms es de sobra) con la máquina fuera de ESPERA_CAB, la devuelve a ESPERA_CAB.
+
+Otro detalle: si llega otra trama mientras el programa principal está leyendo `trama[]`, se pisa. Se puede copiar la trama a otro buffer al validarla o no aceptar otra hasta que `trama_ok` vuelva a 0.
+
+</details>
+
+## Problema 2. Barrera de aparcamiento con un servo
+
+<details>
+<summary>Enunciado</summary>
+
+Una barrera la mueve un servo en PWM1.1 (0° cerrada, 90° abierta; pulso nominal de 1 ms a 0° y 2 ms a 180°, periodo de 20 ms; F_PCLK = 25 MHz). Hay:
+
+- un pulsador **TICKET** que pide abrir;
+- un sensor **S** que vale 1 mientras hay un coche bajo la barrera;
+- un pulsador de **EMERGENCIA** que la abre del todo y la deja abierta hasta pulsar **REARME**.
+
+La barrera debe moverse **despacio** (1° cada 20 ms), quedarse abierta **5 s** cuando no haya coche, y si aparece un coche **mientras baja**, volver a subir.
+
+a) Dibuja el StateChart.
+b) Calcula PWM1MR0 y el valor de MR1 para un ángulo.
+c) Programa la máquina, llamada cada 20 ms.
+
+</details>
+
+<details>
+<summary>Solución guiada</summary>
+
+**a)** Estados dentro de un superestado **FUNCIONANDO**:
+
+- **CERRADA**: TICKET → ABRIENDO.
+- **ABRIENDO**: do: `ángulo++` cada tick. `[ángulo ≥ 90]` → ABIERTA (con ≥ y no ==, por si se entra ya arriba, como tras el reset con un coche debajo).
+- **ABIERTA**: entry: `t = 0`. do: `t++`. `[t ≥ 250 && S == 0]` → CERRANDO (250 ticks de 20 ms son 5 s).
+- **CERRANDO**: do: `ángulo--`. `S == 1` → ABRIENDO (seguridad). `[ángulo == 0]` → CERRADA.
+
+Y fuera:
+
+- **FUNCIONANDO** —EMERGENCIA→ **EMERGENCIA** (entry: `ángulo = 90`). Una sola flecha desde el superestado vale para sus cuatro subestados: es la ventaja de la jerarquía.
+- **EMERGENCIA** —REARME→ **FUNCIONANDO**. El estado inicial de FUNCIONANDO es **CERRANDO**, no CERRADA: así, tras el reset o el rearme, la barrera baja despacio (y si hay un coche, vuelve a subir).
+
+**b)** $PWM1MR0 = 25\cdot 10^6/50 - 1 = 499\,999$. El ancho va de 1 ms (25 000 cuentas) a 2 ms (50 000) en 180°:
+
+$$
+MR1 = 25\,000 + 25\,000\cdot\frac{grados}{180}
+\qquad
+90^\circ \to 37\,500
+$$
+
+```c
+void set_servo(int grados) {
+  LPC_PWM1->MR1 = 25000 + 25000 * grados / 180;
+  LPC_PWM1->LER = (1 << 1);                // se aplica en el siguiente periodo
+}
+```
+
+**c)** Los eventos de los pulsadores vienen de leerlos en el mismo tick y detectar el flanco (como en el tema de máquinas de estados).
+
+```c
+typedef enum { CERRADA, ABRIENDO, ABIERTA, CERRANDO, EMERGENCIA } estado_t;
+static estado_t estado = CERRANDO;         // inicial de FUNCIONANDO
+static int angulo = 90, t;
+
+void barrera_tick_20ms(void) {
+  if (ev_emergencia) {                                  // transición del superestado
+    ev_emergencia = 0;                                  // se consume siempre, también en EMERGENCIA
+    if (estado != EMERGENCIA) {
+      estado = EMERGENCIA;
+      angulo = 90; set_servo(angulo);                   // entry de EMERGENCIA
+      return;
+    }
+  }
+  switch (estado) {
+    case CERRADA:
+      if (ev_ticket) { ev_ticket = 0; estado = ABRIENDO; }
+      break;
+    case ABRIENDO:
+      if (angulo < 90) set_servo(++angulo);             // do
+      if (angulo >= 90) { t = 0; estado = ABIERTA; }    // entry de ABIERTA: t = 0
+      break;
+    case ABIERTA:
+      if (++t >= 250 && !sensor) estado = CERRANDO;
+      break;
+    case CERRANDO:
+      if (sensor) estado = ABRIENDO;                    // hay un coche: arriba
+      else {
+        set_servo(--angulo);
+        if (angulo == 0) estado = CERRADA;
+      }
+      break;
+    case EMERGENCIA:
+      if (ev_rearme) { ev_rearme = 0; estado = CERRANDO; }
+      break;
+  }
+}
+```
+
+Un TICKET pulsado mientras la barrera se mueve se queda en `ev_ticket` y la abre en cuanto llega a CERRADA. Si no se quiere, se borra `ev_ticket` al entrar en CERRADA.
+
+</details>
+
+## Problema 3. Depósito con histéresis
+
+<details>
+<summary>Enunciado</summary>
+
+Un sensor de nivel da de 0 a 3,3 V (vacío a lleno) en AD0.0. Una bomba llena el depósito.
+
+a) Diseña el control para que la bomba se encienda por debajo del 30 % y se apague por encima del 80 %. Hazlo como máquina Moore y como Mealy.
+b) ¿Por qué no un solo umbral al 50 %?
+c) Añade una **alarma**: si con la bomba encendida el nivel sigue por debajo del 10 % durante 10 s, se para la bomba y se enciende un LED hasta pulsar un botón.
+
+</details>
+
+<details>
+<summary>Solución guiada</summary>
+
+**a)** Dos estados: **REPOSO** y **LLENANDO**. El nivel en % sale del ADC: `nivel = resultado * 100 / 4095`.
+
+- **Moore**: REPOSO (do: bomba = 0), LLENANDO (do: bomba = 1). Transiciones: `[nivel < 30]` REPOSO → LLENANDO y `[nivel > 80]` LLENANDO → REPOSO.
+- **Mealy**: los mismos estados sin acciones dentro; `[nivel < 30] / bomba = 1` y `[nivel > 80] / bomba = 0`.
+
+Con Moore, la salida se escribe en cada paso y siempre es coherente con el estado. Con Mealy, solo cambia al cruzar la transición.
+
+**b)** Cerca del 50 %, el ruido del sensor y el oleaje hacen que el nivel cruce el umbral muchas veces por segundo: la bomba se enciende y apaga sin parar. Con dos umbrales, entre el 30 % y el 80 % **el estado recuerda** si se estaba llenando o no: eso es la **histéresis**.
+
+**c)** Un estado nuevo, **ALARMA** (entry: bomba = 0, LED = 1; exit: LED = 0), y un contador en LLENANDO. Con la máquina llamada cada 100 ms:
+
+```c
+case LLENANDO:
+  bomba(1);                                            // do (Moore)
+  if (nivel < 10) { if (++t >= 100) { bomba(0); led(1); estado = ALARMA; } }
+  else t = 0;                                          // 100 · 100 ms = 10 s seguidos
+  if (nivel > 80) { t = 0; estado = REPOSO; }
+  break;
+case ALARMA:
+  if (ev_boton) { ev_boton = 0; led(0); t = 0; estado = REPOSO; }
+  break;
+```
+
+Las muestras del ADC se pueden tomar con el Timer disparando la conversión (START con un Match) y la máquina leer el último valor.
+
+</details>
+
+## Problema 4. Mando de infrarrojos Sony
+
+<details>
+<summary>Enunciado</summary>
+
+Se quiere que la Mini-DK2 haga de mando a distancia con el código Sony (SIRC de 12 bits). Un LED infrarrojo, con un transistor, se conecta a MAT0.0 (P1.28). F_PCLK = 25 MHz.
+
+- La luz va **modulada** con una portadora de **38 kHz**: «encendido» quiere decir que la portadora está activa.
+- T = 600 µs. **Start**: 4T de portadora. Después, **12 bits** empezando por el de menos peso (7 de comando y 5 de dirección): un **1** es 2T de portadora y un **0** es T de portadora, cada uno seguido de **T sin portadora**.
+
+a) ¿Cómo generas la portadora? Calcula MR0.
+b) Con otro Timer, programa `tx_mando(codigo)` y la máquina que manda la trama sin bloquear.
+c) En el receptor, un módulo de infrarrojos da 0 mientras recibe portadora. Mide la trama con la captura de TIMER2 en CAP2.0 (P0.4).
+
+</details>
+
+<details>
+<summary>Solución guiada</summary>
+
+**a)** TIMER0 en **toggle** sobre MAT0.0 (EMC0 = 11) y reset en MR0: cada Match invierte el pin, así que el periodo son dos Match.
+
+$$
+MR0 = \frac{F_{PCLK}}{2\cdot 38\ \text{kHz}} - 1 = 327{,}9 \to 328
+\qquad
+f = \frac{25\cdot 10^6}{2\cdot 329} \approx 37\,994\ \text{Hz}
+$$
+
+Para cortar la portadora se para TIMER0 y se baja el pin (EM0 = 0), para no dejar el LED encendido.
+
+**b)** TIMER1 con PR = 24 (F_tick = 1 MHz, así una cuenta es 1 µs y T = 600) y reset en MR0. Su ISR es la máquina: cada Match acaba un tramo y programa el siguiente.
+
+```c
+#define T 600                                    // µs (cuentas de TIMER1)
+typedef enum { START, MARCA, ESPACIO, FIN } estado_tx_t;
+static estado_tx_t estado_tx = FIN;
+static uint16_t codigo;
+static int bit;
+
+static void portadora(int on) {
+  if (on) LPC_TIM0->TCR = 1;                     // TIMER0 en marcha: 38 kHz en MAT0.0
+  else { LPC_TIM0->TCR = 2; LPC_TIM0->EMR &= ~(1 << 0); }  // parado y pin a 0
+}
+
+void tx_mando(uint16_t c) {                      // 12 bits: comando y dirección
+  codigo = c; bit = 0;
+  estado_tx = START;
+  portadora(1);
+  LPC_TIM1->MR0 = 4 * T - 1;                     // start: 4T con portadora
+  LPC_TIM1->TCR = 2; LPC_TIM1->TCR = 1;          // TC a 0 y arrancar
+}
+
+void TIMER1_IRQHandler(void) {
+  LPC_TIM1->IR = (1 << 0);
+  switch (estado_tx) {
+    case START:                                  // acaba el start
+    case MARCA:                                  // acaba la marca de un bit
+      portadora(0);
+      LPC_TIM1->MR0 = T - 1;                     // hueco de T
+      estado_tx = ESPACIO;
+      break;
+    case ESPACIO:                                // acaba el hueco
+      if (bit < 12) {
+        portadora(1);
+        LPC_TIM1->MR0 = (((codigo >> bit) & 1) ? 2 * T : T) - 1;
+        bit++;
+        estado_tx = MARCA;
+      } else {
+        LPC_TIM1->TCR = 0;                       // trama completa
+        estado_tx = FIN;
+      }
+      break;
+    case FIN:
+      break;
+  }
+}
+```
+
+El MR0 nuevo se escribe justo después del Match, con el TC recién puesto a 0: hay casi T de margen antes de que haga falta.
+
+**c)** Se mide el **ancho de cada marca** (el tiempo a 0 del receptor): 4T = 2 400 µs es el start, 2T = 1 200 µs un 1 y T = 600 µs un 0. TIMER2 (hay que encenderlo en PCONP, bit 22) con PR = 24, capturando alternativamente en bajada (empieza la marca) y en subida (acaba). Se aceptan márgenes, porque los tiempos reales varían.
+
+```c
+typedef enum { ESPERA_START, BITS } estado_rx_t;
+static estado_rx_t estado_rx = ESPERA_START;
+volatile uint16_t codigo_rx;                   // último código de 12 bits recibido
+volatile uint8_t nuevo_codigo;                 // la ISR lo pone a 1; el programa principal lo borra al leerlo
+
+void TIMER2_IRQHandler(void) {
+  static uint32_t bajada;
+  static uint16_t dato;
+  static int n_bits;
+  uint32_t ancho;
+  LPC_TIM2->IR = (1 << 4);                       // flag de CR0
+  if (LPC_TIM2->CCR & (1 << 1)) {                // estaba en bajada: empieza la marca
+    bajada = LPC_TIM2->CR0;
+    LPC_TIM2->CCR = (1 << 0) | (1 << 2);         // ahora, subida
+    return;
+  }
+  ancho = LPC_TIM2->CR0 - bajada;                // µs de marca
+  LPC_TIM2->CCR = (1 << 1) | (1 << 2);           // vuelta a bajada
+  switch (estado_rx) {
+    case ESPERA_START:
+      if (ancho > 2200 && ancho < 2600) { dato = 0; n_bits = 0; estado_rx = BITS; }
+      break;
+    case BITS:
+      if (ancho > 1000 && ancho < 1400) dato |= 1u << n_bits;      // un 1
+      else if (ancho < 400 || ancho > 800) { estado_rx = ESPERA_START; break; } // ni 0 ni 1
+      if (++n_bits == 12) { codigo_rx = dato; nuevo_codigo = 1; estado_rx = ESPERA_START; }
+      break;
+  }
+}
+```
+
+Midiendo la marca (y no el periodo entre bajadas) el último bit también se mide, aunque detrás no venga otro flanco de bajada.
+
+</details>
