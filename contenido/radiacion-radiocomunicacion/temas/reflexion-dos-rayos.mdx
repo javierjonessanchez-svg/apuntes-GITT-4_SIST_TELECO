@@ -1,0 +1,150 @@
+---
+titulo: "Reflexión: el modelo de dos rayos"
+orden: 4
+bloque: "Tema 1 · Propagación"
+resumen: "Sin obstáculos, sobre mar o terreno liso: alturas h′, ángulo rasante, φmin y lóbulos de interferencia"
+saber:
+  - "Sin difracción, sobre terreno liso o mar, se usa el modelo de dos rayos: rayo directo más rayo reflejado"
+  - "Alturas sobre el plano tangente en el punto de reflexión: h′ = h + ee − d²/(2·K·RT), con d la distancia de cada estación al punto de reflexión"
+  - "Ángulo rasante: tan φ = h′1/d1 = h′2/d2. Ángulo mínimo para que haya reflexión: φmin = (5400/f_MHz)^(1/3) mrad"
+  - "d ≤ dmax y φ ≥ φmin: reflexión. d ≤ dmax y φ < φmin: difracción por tierra esférica con despejamiento negativo. d > dmax: difracción por tierra esférica con despejamiento positivo"
+  - "Lad = −20·log|1 + Re·e^(−j2πΔl/λ)|, con Δl ≈ 2·h′1·h′2/d"
+  - "Coeficiente efectivo Re = R·D·e^(−γ²/2): coeficiente de Fresnel del suelo, factor de divergencia y rugosidad γ = 4π·σ·sen φ/λ"
+  - "En incidencia rasante sobre el mar, Re ≈ −1: los rayos se suman (hasta +6 dB) o se cancelan según la distancia"
+  - "La vegetación añade pérdidas propias (UIT-R P.833)"
+fuentes:
+  - "Transparencias del tema 1: «Propagación por onda de espacio (condiciones normales)»"
+  - "Formulario propio"
+test:
+  - p: "¿Cuándo se aplica el modelo de dos rayos?"
+    o: ["Cuando no hay difracción y el terreno refleja (mar o terreno liso)", "Siempre que hay obstáculos", "Solo por debajo de 30 MHz", "Cuando d > dmax"]
+    c: 0
+  - p: "¿Respecto a qué se miden las alturas h′ del modelo de dos rayos?"
+    o: ["Respecto al plano tangente a la Tierra ficticia en el punto de reflexión", "Respecto al suelo bajo cada antena", "Respecto al nivel del mar", "Respecto al rayo directo"]
+    c: 0
+  - p: "A 10 GHz, ¿cuánto vale φmin?"
+    o: ["Unos 0,81 mrad", "Unos 8,1 mrad", "Unos 0,08 mrad", "1 rad"]
+    c: 0
+    e: "φmin = (5400/10 000)^(1/3) ≈ 0,81 mrad."
+  - p: "d ≤ dmax pero φ < φmin. ¿Qué modelo se usa?"
+    o: ["Difracción por tierra esférica con despejamiento negativo", "Reflexión", "Difracción por tierra esférica con despejamiento positivo", "Espacio libre"]
+    c: 0
+  - p: "Con |Re| = 1 y fase π, ¿cuánto vale el máximo de los lóbulos respecto al espacio libre?"
+    o: ["+6 dB", "+3 dB", "0 dB", "+40 dB"]
+    c: 0
+    e: "Los dos rayos en fase suman el doble de campo: 20·log 2 ≈ 6 dB."
+  - p: "¿Qué efecto tiene un terreno rugoso en la zona de reflexión?"
+    o: ["Baja |Re| (factor e^(−γ²/2)) y los nulos son menos profundos", "Sube |Re|", "Cambia φmin", "No influye"]
+    c: 0
+---
+import EnExamen from '../../../src/comun/EnExamen.astro';
+import DosRayos from '../../../src/asignaturas/radiacion-radiocomunicacion/widgets/DosRayos.astro';
+import LobulosDosRayos from '../../../src/asignaturas/radiacion-radiocomunicacion/widgets/LobulosDosRayos.astro';
+
+**Idea clave.** Si no hay obstáculos pero el terreno es liso (o es el mar), al receptor le llegan **dos rayos**: el directo y uno **reflejado** en el suelo. Recorren caminos de distinta longitud, así que se suman o se restan según la distancia, y la señal pasa por **máximos** de hasta +6 dB y **nulos** muy profundos respecto al espacio libre.
+
+## La geometría: plano tangente y ángulo rasante
+
+El rayo reflejado rebota en un punto del vano, a $d_1$ de ET1 y $d_2$ de ET2. Allí se apoya un **plano tangente** a la Tierra ficticia, y las alturas de las antenas se miden sobre él. Cada antena «baja» lo que la Tierra ficticia se curva hasta el punto de reflexión:
+
+$$
+h'_{et1} = h_{et1} + ee_{et1} - \frac{d_1^2}{2\,K\,R_T}
+\qquad
+h'_{et2} = h_{et2} + ee_{et2} - \frac{d_2^2}{2\,K\,R_T}
+$$
+
+El rayo reflejado sale con el mismo ángulo con el que llega: el **ángulo rasante** $\varphi$. Por triángulos semejantes:
+
+$$
+\tan\varphi = \frac{h'_{et1}}{d_1} = \frac{h'_{et2}}{d_2}
+$$
+
+El punto de reflexión cae más cerca de la antena más baja. Las transparencias dan las expresiones exactas de $d_1$ y $d_2$ (con un arcocoseno) a partir de las alturas y de $K R_T$; con alturas parecidas, el punto está cerca de la mitad del vano.
+
+<DosRayos />
+
+## ¿Reflexión o tierra esférica?
+
+Con $d_{max} = d_{et1} + d_{et2}$ (el horizonte radioeléctrico) y el ángulo mínimo para que el suelo refleje de verdad,
+
+$$
+\varphi_{min}\,(\mathrm{mrad}) = \left(\frac{5400}{f_{\mathrm{MHz}}}\right)^{1/3}
+$$
+
+las pérdidas adicionales al espacio libre se estiman así:
+
+- $d \le d_{max}$ y $\varphi \ge \varphi_{min}$: **reflexión** (modelo de dos rayos).
+- $d \le d_{max}$ y $\varphi \lt \varphi_{min}$: **difracción por tierra esférica con despejamiento negativo**. Hay visión directa, pero el rayo pasa tan rasante que la propia curvatura de la Tierra invade el elipsoide.
+- $d > d_{max}$: **difracción por tierra esférica con despejamiento positivo**. La Tierra tapa el rayo.
+
+La difracción por tierra esférica se calcula con la recomendación UIT-R P.526, que suma términos que dependen de la distancia y de la altura de cada antena.
+
+## Las pérdidas por reflexión
+
+El campo recibido es el del espacio libre multiplicado por la suma de los dos rayos. El reflejado llega atenuado y desfasado por el **coeficiente de reflexión efectivo** $R_e$ y por la **diferencia de caminos** $\Delta l$:
+
+$$
+L_{ad} = -20\log_{10}\left|1 + R_e\, e^{-j\,2\pi\,\Delta l/\lambda}\right|
+\qquad
+\Delta l = \sqrt{d^2 + (h'_1 + h'_2)^2} - \sqrt{d^2 + (h'_1 - h'_2)^2} \approx \frac{2\,h'_1\, h'_2}{d}
+$$
+
+El coeficiente efectivo tiene tres factores:
+
+$$
+R_e = R\cdot D\cdot e^{-\gamma^2/2}
+\qquad
+\gamma = \frac{4\pi\,\sigma_{ee}\,\operatorname{sen}\varphi}{\lambda}
+$$
+
+- $R$ es el **coeficiente de reflexión de Fresnel** del suelo. Depende del ángulo rasante, de la polarización y de la permitividad compleja $\varepsilon_c = \varepsilon_r - j\,60\,\sigma\,\lambda$. Para polarización horizontal y vertical:
+
+$$
+R_H = \frac{\operatorname{sen}\varphi - \sqrt{\varepsilon_c - \cos^2\varphi}}{\operatorname{sen}\varphi + \sqrt{\varepsilon_c - \cos^2\varphi}}
+\qquad
+R_V = \frac{\varepsilon_c\operatorname{sen}\varphi - \sqrt{\varepsilon_c - \cos^2\varphi}}{\varepsilon_c\operatorname{sen}\varphi + \sqrt{\varepsilon_c - \cos^2\varphi}}
+$$
+
+  En incidencia rasante sobre el mar ($\varepsilon_r \approx 70$, $\sigma \approx 5$ S/m), $R \approx -1$ en las dos polarizaciones.
+- $D \le 1$ es el **factor de divergencia**: la superficie curva abre el haz reflejado y lo debilita.
+- $e^{-\gamma^2/2}$ es la **rugosidad**: $\sigma_{ee}$ es la desviación típica de las elevaciones del terreno en la zona de reflexión. Un mar agitado refleja menos que uno en calma.
+
+<LobulosDosRayos />
+
+Con $R_e \approx -1$ y antenas bajas, $\Delta l$ es muy pequeño y los dos rayos casi se anulan: lejos, la señal cae por debajo del espacio libre. Al acercarse, $\Delta l$ crece y aparecen los **lóbulos**: cada vez que $\Delta l$ es un número impar de semilongitudes de onda, los rayos están en fase (**+6 dB**); cuando es un número entero de longitudes de onda, se restan (**nulo**). El último máximo está en $d = 4 h'_1 h'_2/\lambda$. Al bajar $|R_e|$ (terreno rugoso o poco conductor) los nulos son menos profundos.
+
+<EnExamen asignatura="radiacion-radiocomunicacion" ids={['dos-rayos']} />
+
+## La vegetación
+
+Si el trayecto cruza una zona boscosa, o un único obstáculo vegetal lo tapa, hay que sumar unas pérdidas por vegetación, que da la recomendación UIT-R P.833.
+
+## Preguntas de repaso
+
+<details>
+<summary>¿Por qué las alturas del modelo de dos rayos son menores que las de las antenas sobre el mar?</summary>
+
+Porque se miden sobre el plano tangente a la Tierra ficticia en el punto de reflexión, y la Tierra se curva entre la antena y ese punto. A cada altura se le resta $d^2/(2 K R_T)$, con $d$ la distancia de esa antena al punto de reflexión. *(Pregunta propia, redactada a partir de las transparencias.)*
+
+</details>
+
+<details>
+<summary>Vano de 10 km a 10 GHz sobre el mar con h′₁ = 20 m y h′₂ = 10 m. ¿Hay reflexión?</summary>
+
+El punto de reflexión cumple $h'_1/d_1 = h'_2/d_2$, así que $d_1 = 10\cdot 20/30 \approx 6{,}67$ km y $\varphi \approx 20/6670 \approx 3$ mrad. Como $\varphi_{min} = (5400/10\,000)^{1/3} \approx 0{,}81$ mrad, $\varphi \ge \varphi_{min}$: hay reflexión (si además $d \le d_{max}$). *(Pregunta propia, redactada a partir de las transparencias.)*
+
+</details>
+
+<details>
+<summary>¿Por qué con Re ≈ −1 y antenas bajas la señal lejana queda por debajo del espacio libre?</summary>
+
+Con $\Delta l \approx 2h'_1h'_2/d$ muy pequeño, el desfase $2\pi\Delta l/\lambda$ es casi cero y el rayo reflejado llega con signo contrario (fase $\pi$): resta casi todo el campo del directo. *(Pregunta propia, redactada a partir de las transparencias.)*
+
+</details>
+
+<details>
+<summary>¿Qué tres factores forman Re y qué representa cada uno?</summary>
+
+$R$, el coeficiente de Fresnel (cómo refleja el suelo según $\varphi$, la polarización y $\varepsilon_c$); $D$, el factor de divergencia (la Tierra curva abre el haz reflejado); y $e^{-\gamma^2/2}$, la rugosidad del terreno en la zona de reflexión. *(Pregunta propia, redactada a partir de las transparencias.)*
+
+</details>
