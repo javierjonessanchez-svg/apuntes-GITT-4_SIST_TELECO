@@ -1,10 +1,12 @@
 ---
 // Modo examen: una página por asignatura con contenido/<slug>/examen.yaml,
 // esté activa o pendiente. El segmento fijo «examen» gana a [tema].
+// Formato MATLAB → ModoExamen; formato hoja (`tipo: hoja`) → HojaExamen.
 import BaseLayout from '../../comun/BaseLayout.astro';
 import ModoExamen from '../../comun/ModoExamen.astro';
+import HojaExamen from '../../comun/HojaExamen.astro';
 import { asignaturasOrdenadas, examenDe, type Asignatura } from '../../comun/datos';
-import type { Examen } from '../../comun/examen';
+import { esHoja, type Examen } from '../../comun/examen';
 
 export async function getStaticPaths() {
   const rutas: { params: { asignatura: string }; props: { asignatura: Asignatura; examen: Examen } }[] = [];
@@ -16,10 +18,12 @@ export async function getStaticPaths() {
 }
 
 const { asignatura, examen } = Astro.props;
+const descripcion = esHoja(examen)
+  ? `Hoja de repaso de ${asignatura.nombre}: pasos por tipo de problema, fórmulas y registros.`
+  : `Fórmulas y pasos por tipo de problema de ${asignatura.nombre}, con su función de MATLAB.`;
 ---
-<BaseLayout titulo={`Modo examen · ${asignatura.nombre}`} asignatura={asignatura.slug}
-  descripcion={`Fórmulas y pasos por tipo de problema de ${asignatura.nombre}, con su función de MATLAB.`}>
+<BaseLayout titulo={`Modo examen · ${asignatura.nombre}`} asignatura={asignatura.slug} descripcion={descripcion}>
   <main id="contenido">
-    <ModoExamen asignatura={asignatura} examen={examen} />
+    {esHoja(examen) ? <HojaExamen asignatura={asignatura} examen={examen} /> : <ModoExamen asignatura={asignatura} examen={examen} />}
   </main>
 </BaseLayout>

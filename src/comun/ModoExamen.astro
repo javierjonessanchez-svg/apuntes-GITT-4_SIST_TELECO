@@ -4,10 +4,10 @@
 // Lógica en cliente/examen.ts (atributos data-*); estilos en modo-examen.css.
 import './modo-examen.css';
 import { formula } from '../widgets/mates';
-import { enlace, porTema, type Examen, type Formula } from './examen';
+import { enlace, porTema, type ExamenMatlab, type Formula } from './examen';
 import type { Asignatura } from './datos';
 
-interface Props { asignatura: Asignatura; examen: Examen }
+interface Props { asignatura: Asignatura; examen: ExamenMatlab }
 const { asignatura, examen } = Astro.props;
 const porId = new Map(examen.formulas.map((f) => [f.id, f]));
 const grupos = porTema(examen.formulas);

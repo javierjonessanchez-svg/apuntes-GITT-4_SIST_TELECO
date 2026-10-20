@@ -58,4 +58,21 @@ describe('comprobar-hub.mjs', () => {
     expect(f).toHaveLength(1);
     expect(f[0]).toMatch(/^FALLO: 8\).*prueba\/practica\.html/);
   });
+
+  test('hoja-examen: la hoja de repaso pasa sin «ver código», y la tarjeta la enlaza (9 y 10)', () => {
+    const { codigo, salida } = comprobar('hoja-examen');
+    expect(fallos(salida)).toEqual([]);
+    expect(salida).toMatch(/^OK: 9\) modo examen correcto en 1 asignatura/m);
+    expect(salida).toMatch(/^OK: 10\)/m);
+    expect(codigo).toBe(0);
+  });
+
+  test('malo-examen: falla la 9 sin «ver código» ni hoja, y la 10 porque la tarjeta no enlaza', () => {
+    const { codigo, salida } = comprobar('malo-examen');
+    expect(codigo).toBe(1);
+    const f = fallos(salida);
+    expect(f).toHaveLength(2);
+    expect(f[0]).toMatch(/^FALLO: 9\).*prueba: la página no tiene ningún «ver código»/);
+    expect(f[1]).toMatch(/^FALLO: 10\).*prueba: tiene modo examen pero su tarjeta no lo enlaza/);
+  });
 });
