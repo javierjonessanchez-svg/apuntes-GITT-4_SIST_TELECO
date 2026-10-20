@@ -1,0 +1,78 @@
+---
+// Portada de SEDA: la tira de pines de la placa. Cada tema es un pin (el 1 con el pad
+// cuadrado) con su LED de avance; los temas sin apuntes aún van sin enlace.
+// Debajo, el modo repaso y el calendario de pruebas, como en las demás asignaturas.
+import Avance from './Avance.astro';
+import ModoRepaso from '../../widgets/ModoRepaso.astro';
+import LineaTiempo from '../../comun/LineaTiempo.astro';
+import { ruta } from '../../comun/rutas';
+import type { Asignatura, Tema } from '../../comun/datos';
+
+interface Props { asignatura: Asignatura; temas: Tema[] }
+const { asignatura: a, temas } = Astro.props;
+
+// Temas reales y próximos juntos, por número; los bloques salen en el orden en que aparecen
+const todos = [
+  ...temas.map((t) => ({ slug: t.slug as string | undefined, orden: t.orden, titulo: t.titulo, resumen: t.resumen as string | undefined, bloque: t.bloque })),
+  ...(a.proximos ?? []).map((p) => ({ slug: undefined, orden: p.orden, titulo: p.titulo, resumen: undefined, bloque: p.bloque })),
+].sort((x, y) => x.orden - y.orden);
+const bloques = [...new Set(todos.map((t) => t.bloque))];
+const id = (b: string) => `bloque-${b.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-')}`;
+---
+<div class="sd-portada envoltura">
+  <header class="sd-cabecera">
+    <p class="sd-chip">LPC1768 · ARM Cortex-M3 · Mini-DK2</p>
+    <h1 tabindex="-1">{a.nombre}</h1>
+    <p>{a.descripcion}</p>
+  </header>
+
+  {bloques.map((b, n) => (
+    <section class="sd-bloque" aria-labelledby={`${id(b)}-t`}>
+      <h2 id={`${id(b)}-t`}>J{n + 1} <span>· {b}</span></h2>
+      <ol class="sd-pines">
+        {todos.filter((t) => t.bloque === b).map((t) => (
+          <li class:list={['sd-pin', { primero: t.orden === 1, proximo: !t.slug }]}>
+            {t.slug ? (
+              <a href={ruta(a.slug, t.slug)}>
+                <span class="sd-pad" aria-hidden="true">{t.orden}</span>
+                <span class="sd-pin-texto">
+                  <span class="sd-pin-titulo">{t.titulo}</span>
+                  {t.resumen && <span class="sd-pin-sub">{t.resumen}</span>}
+                </span>
+                <Avance asignatura={a.slug} tema={t.slug} />
+              </a>
+            ) : (
+              <div>
+                <span class="sd-pad" aria-hidden="true">{t.orden}</span>
+                <span class="sd-pin-texto"><span class="sd-pin-titulo">{t.titulo}</span></span>
+                <span class="sd-pin-estado">En preparación</span>
+              </div>
+            )}
+          </li>
+        ))}
+      </ol>
+    </section>
+  ))}
+
+  <p class="sd-nota" data-aviso-almacen hidden role="status">Tu avance no se está guardando en este navegador.</p>
+  {a.nota && <p class="sd-nota">{a.nota}</p>}
+
+  {temas.length > 0 && (
+    <section class="sd-seccion" id="repaso" aria-labelledby="sd-repaso">
+      <h2 id="sd-repaso">Modo repaso</h2>
+      <p>Preguntas de desarrollo en tarjetas, preguntas tipo test corregidas al momento y un simulacro con las dos cosas.</p>
+      <ModoRepaso asignatura={a.slug} />
+    </section>
+  )}
+
+  <div class="sd-seccion">
+    <LineaTiempo pruebas={a.pruebas.map((p) => ({ ...p, asignatura: a.corto }))} titulo="Calendario de pruebas" />
+  </div>
+</div>
+<script>
+  import '../../comun/cliente/avance';
+  import progreso from '../../comun/progreso';
+
+  // Sin almacén (bloqueado), los LED de avance no pueden recordar nada: se avisa
+  if (!progreso.disponible) document.querySelector<HTMLElement>('[data-aviso-almacen]')!.hidden = false;
+</script>

@@ -1,0 +1,21 @@
+---
+// Pistas de cobre con vías y un cable puente en los márgenes. Solo decora:
+// aria-hidden, sin eventos de ratón, detrás del contenido y oculta si no hay hueco.
+const pistas = (
+  'M0 40 H90 L130 80 V260 L170 300 H220 ' +
+  'M0 70 H70 L110 110 V330 L150 370 V520 ' +
+  'M0 140 H40 L80 180 V600 L120 640 H200 ' +
+  'M0 210 H20 L50 240 V720'
+);
+---
+<div class="sd-deco" aria-hidden="true">
+  {['izq', 'der'].map((lado) => (
+    <svg class={lado} viewBox="0 0 220 760" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+      <path d={pistas} />
+      {[[220, 300], [150, 520], [200, 640], [50, 720]].map(([x, y]) => (
+        <circle cx={x} cy={y} r="7" stroke-width="3" />
+      ))}
+      <path d="M150 520 C 210 470, 230 420, 170 300" stroke-width="5" opacity=".7" />
+    </svg>
+  ))}
+</div>

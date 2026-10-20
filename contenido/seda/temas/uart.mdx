@@ -1,0 +1,195 @@
+---
+titulo: "UART"
+orden: 5
+bloque: "Comunicación serie"
+resumen: "Trama asíncrona, velocidad con DLM, DLL y el divisor fraccionario, e interrupciones de Tx y Rx"
+saber:
+  - "La UART es serie asíncrona: no hay reloj compartido, así que los dos extremos acuerdan formato (bits de datos, paridad, stop) y velocidad"
+  - "Trama: bit de start (0), 8 bits de datos empezando por el de menos peso, paridad opcional y bit de stop (1). En reposo la línea está a 1"
+  - "Velocidad: V = F_PCLK / (16·(256·DLM + DLL)·(1 + DivAddVal/MulVal)). Sin divisor fraccionario, DL = F_PCLK/(16·V) redondeado"
+  - "Para escribir DLL y DLM hay que poner DLAB = 1 en LCR, y volver a DLAB = 0 para usar RBR, THR e IER"
+  - "Tx: se empieza escribiendo THR; cuando THR queda vacío salta la interrupción THRE y se manda el siguiente carácter. Rx: al llegar un byte salta RDA y se lee RBR"
+  - "En la ISR se mira de dónde viene con (IIR >> 1) & 0x07: 2 = dato recibido (RDA), 1 = THR vacío (THRE)"
+  - "Leer RBR borra la interrupción RDA; leer IIR (o escribir THR) borra la THRE"
+fuentes:
+  - "Apuntes de Miguel"
+  - "Resumen de interrupciones del LPC1768 (diapositivas de clase)"
+  - "UM10360 (manual del LPC17xx), cap. 14"
+test:
+  - p: "Con F_PCLK = 25 MHz y sin divisor fraccionario, ¿qué DLL da 19 200 bit/s y qué velocidad sale de verdad?"
+    o: ["81, unos 19 290 bit/s", "82, justo 19 200 bit/s", "1302, unos 19 200 bit/s", "81, justo 19 200 bit/s"]
+    c: 0
+    e: "DL = 25·10⁶/(16·19 200) = 81,38 → 81. V = 25·10⁶/(16·81) ≈ 19 290 bit/s, un 0,47 % por encima."
+  - p: "Escribes en DLL y la velocidad no cambia; luego no recibes nada. ¿Qué ha pasado?"
+    o: ["DLAB estaba a 0 al escribir DLL, y luego se quedó a 1", "Falta habilitar la FIFO", "PCONP de UART0 está apagado tras el reset", "DLM tiene que ser distinto de 0"]
+    c: 0
+    e: "Con DLAB = 0, esa dirección es THR/RBR. Hay que poner DLAB = 1, escribir DLL y DLM, y volver a DLAB = 0."
+  - p: "En la ISR de la UART, (IIR >> 1) & 0x07 vale 2. ¿Qué toca hacer?"
+    o: ["Leer RBR: ha llegado un dato", "Escribir el siguiente carácter en THR", "Leer LSR: hay un error", "Nada: no hay interrupción pendiente"]
+    c: 0
+    e: "IntId = 010 es RDA (Receive Data Available). 001 sería THRE y 011 errores de línea."
+  - p: "¿Cuánto tarda en enviarse un byte a 115 200 bit/s con 8N1?"
+    o: ["Unos 87 µs", "Unos 69 µs", "Unos 8,7 µs", "Unos 1,1 ms"]
+    c: 0
+    e: "8N1 son 10 bits por byte (start + 8 + stop): 10/115 200 ≈ 86,8 µs."
+  - p: "¿Qué valor de LCR da 8 bits, sin paridad y 1 bit de stop, con DLAB a 0?"
+    o: ["0x03", "0x83", "0x07", "0x1B"]
+    c: 0
+    e: "Bits 1:0 = 11 (8 bits), bit 2 = 0 (1 stop), bit 3 = 0 (sin paridad). Con DLAB = 1 sería 0x83."
+---
+import Practica from '../../../src/asignaturas/seda/Practica.astro';
+import Registro from '../../../src/asignaturas/seda/Registro.astro';
+import CalculadoraBaudios from '../../../src/asignaturas/seda/widgets/CalculadoraBaudios.astro';
+
+**Idea clave.** La **UART** manda bytes de uno en uno por un solo hilo (TxD) y los recibe por otro (RxD), sin reloj compartido. Por eso los dos extremos tienen que acordar de antemano el **formato** y la **velocidad**. El LPC1768 tiene cuatro (UART0–UART3). En la Mini-DK2, la **UART0** (P0.2 y P0.3) va a un conversor USB-serie: es la que se usa para hablar con el PC y la que usa el *bootloader* para grabar la flash.
+
+## La trama
+
+En reposo la línea está a **1**. Cada byte va así:
+
+- **Start**: un bit a 0. Su flanco de bajada avisa al receptor de que empieza un byte.
+- **Datos**: 8 bits (pueden ser 5–8), **primero el de menos peso**.
+- **Paridad** (opcional): par o impar, para detectar un bit erróneo.
+- **Stop**: 1 o 2 bits a 1.
+
+El formato más usado es **8N1** (8 datos, sin paridad, 1 stop): 10 bits por byte. Cada bit dura $t_{bit} = 1/V$, y la velocidad $V$ se da en bit/s (baudios): 9600, 19 200, 115 200…
+
+Para enlazar dos equipos, el **TxD de uno va al RxD del otro** (cruzados) y las masas unidas. Así se conectan un GPS, un módulo GSM o Bluetooth, un LiDAR…
+
+## La configuración
+
+1. **Pines** con PINSEL: P0.2 → TXD0 y P0.3 → RXD0 (función 01).
+2. **Alimentación** con PCONP (UART0 y UART1 ya están encendidas tras el reset; UART2 y UART3 no).
+3. **Formato** en LCR.
+4. **Velocidad** con DLL, DLM y FDR (con DLAB = 1).
+5. **Interrupciones** en IER y en el NVIC.
+
+<Registro nombre="U0LCR" descripcion="formato de la trama" campos={[
+  { bits: '1:0', nombre: 'Word Length Select', que: '00 = 5 bits … <b>11 = 8 bits</b>' },
+  { bits: '2', nombre: 'Stop Bit Select', que: '0 = 1 bit de stop; 1 = 2 bits' },
+  { bits: '3', nombre: 'Parity Enable', que: '1 = con paridad' },
+  { bits: '5:4', nombre: 'Parity Select', que: '00 = impar, 01 = par, 10 = forzada a 1, 11 = forzada a 0' },
+  { bits: '7', nombre: 'DLAB', que: '1 = acceso a DLL y DLM; 0 = acceso a RBR, THR e IER' },
+]} />
+
+## La velocidad
+
+El reloj de la UART se divide entre 16 (cada bit se muestrea 16 veces) y entre el divisor $DL = 256\cdot DLM + DLL$ (16 bits). El **divisor fraccionario** (FDR) afina aún más:
+
+$$
+V = \frac{F_{PCLK}}{16\cdot(256\cdot DLM + DLL)\cdot\left(1 + \frac{DivAddVal}{MulVal}\right)}
+$$
+
+En la mayoría de los casos basta con DL (tras el reset, DivAddVal = 0 y el factor vale 1):
+
+$$
+DL = \frac{F_{PCLK}}{16\cdot V} \ \text{redondeado}
+\qquad
+DLM = DL / 256 \qquad DLL = DL \,\%\, 256
+$$
+
+Por ejemplo, con $F_{PCLK} = 25$ MHz y 19 200 bit/s: $DL = 81{,}38 \to 81$ y la velocidad real es 19 290 bit/s (0,47 % de error, sin problema). Con 115 200 bit/s el redondeo da $DL = 14$ y un error del 3,1 %, ya demasiado; ahí entra el fraccionario.
+
+<Registro nombre="U0FDR" descripcion="divisor fraccionario" campos={[
+  { bits: '3:0', nombre: 'DIVADDVAL', que: '0 a 14. Con 0, el divisor fraccionario no actúa (valor tras el reset)' },
+  { bits: '7:4', nombre: 'MULVAL', que: '1 a 15, y mayor que DIVADDVAL (vale 1 tras el reset)' },
+]} />
+
+La calculadora prueba todas las combinaciones válidas de MulVal y DivAddVal y se queda con la de menor error:
+
+<CalculadoraBaudios baudios={115200} fpclk={25000000} />
+
+## Transmitir y recibir
+
+Hay dos registros de datos de 8 bits en la misma dirección: **THR** (lo que se escribe se envía) y **RBR** (lo que se lee es lo recibido).
+
+- **Tx**: empieza al **escribir en THR**. Cuando el byte pasa al registro de desplazamiento, THR queda vacío y salta la interrupción **THRE**: ya cabe el siguiente.
+- **Rx**: el flanco de bajada del start arranca la recepción, se muestrean los bits y, con el stop, el byte queda en **RBR** y salta la interrupción **RDA** (*Receive Data Available*).
+
+<Registro nombre="U0IER" descripcion="qué interrupciones se habilitan" campos={[
+  { bits: '0', nombre: 'RBR Interrupt Enable', que: '1 = interrumpir al recibir un dato (RDA)' },
+  { bits: '1', nombre: 'THRE Interrupt Enable', que: '1 = interrumpir cuando THR queda vacío' },
+  { bits: '2', nombre: 'RX Line Status', que: '1 = interrumpir con errores de recepción' },
+]} />
+
+<Registro nombre="U0IIR" descripcion="de dónde viene la interrupción" campos={[
+  { bits: '0', nombre: 'IntStatus', que: '<b>0</b> = hay una interrupción pendiente (activo a nivel bajo)' },
+  { bits: '3:1', nombre: 'IntId', que: '011 = errores de línea, <b>010 = RDA</b>, 110 = time-out de la FIFO, <b>001 = THRE</b>' },
+]} />
+
+```c
+void uart0_init(void) {
+  LPC_PINCON->PINSEL0 |= (1 << 4) | (1 << 6);  // P0.2 = TXD0, P0.3 = RXD0
+  LPC_UART0->LCR = (1 << 7) | 0x03;            // DLAB = 1; 8 bits, sin paridad, 1 stop
+  LPC_UART0->DLL = 81;                         // 19 200 bit/s con F_PCLK = 25 MHz
+  LPC_UART0->DLM = 0;
+  LPC_UART0->LCR = 0x03;                       // DLAB = 0
+  LPC_UART0->IER = (1 << 0) | (1 << 1);        // RDA y THRE
+  NVIC_EnableIRQ(UART0_IRQn);
+}
+```
+
+### Mandar una cadena con interrupciones
+
+El primer carácter se escribe fuera de la ISR; cada interrupción THRE manda el siguiente, hasta el `'\0'`. Mientras tanto, el programa principal sigue con lo suyo.
+
+```c
+char *ptr_tx;                 // siguiente carácter que hay que mandar
+char tx_completa;
+
+void tx_cadena_UART0(char *cadena) {
+  ptr_tx = cadena;
+  tx_completa = 0;
+  LPC_UART0->THR = *ptr_tx++;              // el primero, a mano
+}
+
+void UART0_IRQHandler(void) {
+  switch ((LPC_UART0->IIR >> 1) & 0x07) {  // leer IIR borra la THRE
+    case 2:                                // RDA: ha llegado un byte
+      *ptr_rx = LPC_UART0->RBR;            // leer RBR borra la RDA
+      if (*ptr_rx == '\r') {               // fin de línea: cadena completa
+        *ptr_rx = '\0';
+        rx_completa = 1;
+        ptr_rx = buffer;
+      } else {
+        ptr_rx++;
+      }
+      break;
+    case 1:                                // THRE: cabe el siguiente
+      if (*ptr_tx) LPC_UART0->THR = *ptr_tx++;
+      else tx_completa = 1;
+      break;
+  }
+}
+```
+
+La cadena tiene que seguir existiendo hasta que acabe de enviarse (una variable global, no un *array* local de una función que ya ha terminado). Y en la recepción conviene comprobar que `ptr_rx` no se sale de `buffer`.
+
+<Practica n={4} nombre="UART: monitorización remota" />
+
+Cuando lo que llega no son líneas de texto sino **tramas** con cabecera, longitud y *checksum*, la ISR de recepción se convierte en una **máquina de estados**: cada byte hace avanzar un estado. Se ve en el tema de máquinas de estados.
+
+<Practica n={5} nombre="UART: lectura del LiDAR" />
+
+## Preguntas de examen
+
+<details>
+<summary>Configura la UART0 a 9600 bit/s, 8N1, con F_PCLK = 25 MHz y sin divisor fraccionario. ¿Qué error tiene?</summary>
+
+$DL = 25\cdot 10^6/(16\cdot 9600) = 162{,}76 \to 163$: DLM = 0, DLL = 163. $V = 25\cdot 10^6/(16\cdot 163) \approx 9586$ bit/s, un −0,15 %. LCR = 0x83, DLL, DLM, LCR = 0x03. *(Respuesta redactada a partir de los apuntes.)*
+
+</details>
+
+<details>
+<summary>¿Por qué se manda el primer carácter fuera de la ISR?</summary>
+
+Porque la interrupción THRE salta cuando THR **pasa a estar vacío**. Si no se escribe nada, nunca deja de estar vacío y no hay flanco que dispare la primera interrupción. Escribiendo el primero a mano, cada THRE posterior encadena el siguiente. *(Respuesta redactada a partir de los apuntes.)*
+
+</details>
+
+<details>
+<summary>¿Qué error máximo de velocidad aguanta una UART con 8N1?</summary>
+
+El receptor se sincroniza en el flanco del start y muestrea cada bit hacia su centro. Hasta el bit de stop pasan unos 9,5 bits, y el error acumulado no puede llegar a medio bit: en total, menos de un 5 % entre los dos extremos (en la práctica se busca menos del 2 %). *(Respuesta redactada: es la regla general de cualquier UART.)*
+
+</details>

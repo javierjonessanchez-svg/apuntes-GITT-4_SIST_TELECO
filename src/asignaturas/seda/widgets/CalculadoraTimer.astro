@@ -1,0 +1,45 @@
+---
+// Calculadora de Timer: periodo y F_PCLK → MR0 (y PR si hace falta), con el desarrollo.
+// Sin JavaScript se ve el ejemplo ya resuelto.
+import Widget from '../../../widgets/Widget.astro';
+import Desarrollo from '../../../widgets/Desarrollo.astro';
+import { fmt } from '../../../widgets/numeros';
+import { calcularTimer, pasosTimer } from './timer';
+
+interface Props { T?: number; fpclk?: number }
+const { T = 1e-3, fpclk = 25e6 } = Astro.props;
+const r = calcularTimer(fpclk, T);
+---
+<Widget titulo="Calculadora de Timer: MR0 para un periodo" tipo="resolver">
+  <div data-calc-timer>
+    <form class="widget-campos">
+      <label class="widget-campo">Periodo, T (ms)
+        <input name="t" inputmode="decimal" value={fmt(T * 1e3, 6)} autocomplete="off" spellcheck="false" />
+      </label>
+      <label class="widget-campo"><span>F<sub>PCLK</sub> (MHz)</span>
+        <input name="f" inputmode="decimal" value={fmt(fpclk / 1e6, 4)} autocomplete="off" spellcheck="false" />
+      </label>
+    </form>
+    <p class="widget-aviso" data-aviso role="status" hidden></p>
+    <p class="widget-resultado" data-resultado aria-live="polite"></p>
+    <Desarrollo />
+  </div>
+  <Fragment slot="estatico">
+    <p class="widget-resultado">Con T = {fmt(T * 1e3, 6)} ms y F<sub>PCLK</sub> = {fmt(fpclk / 1e6)} MHz: <b>PR = {r.pr}</b>, <b>MR0 = {r.mr0}</b>.</p>
+    <Desarrollo pasos={pasosTimer(fpclk, T)} />
+  </Fragment>
+</Widget>
+<script>
+  import { montar } from '../../../widgets/cliente';
+  import { calculadora } from '../../../widgets/calculadora';
+  import { calcularTimer, pasosTimer } from './timer';
+
+  montar('[data-calc-timer]', (caja) => calculadora(caja, [
+    { nombre: 't', etiqueta: 'Periodo', reglas: { positivo: true, max: 1e6 } },
+    { nombre: 'f', etiqueta: 'F_PCLK', reglas: { positivo: true, max: 1000 } },
+  ], ({ t, f }) => {
+    const fpclk = f! * 1e6, T = t! / 1e3;
+    const r = calcularTimer(fpclk, T);
+    return { resultado: `**PR = ${r.pr}**, **MR0 = ${r.mr0}**`, pasos: pasosTimer(fpclk, T) };
+  }));
+</script>

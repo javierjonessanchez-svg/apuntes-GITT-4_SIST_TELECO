@@ -1,0 +1,192 @@
+---
+titulo: "Reloj, GPIO e interrupciones"
+orden: 1
+bloque: "El LPC1768"
+resumen: "De 12 MHz a 100 MHz, PCLK, PCONP, pines y NVIC"
+saber:
+  - "El cristal de 12 MHz entra en la PLL0: F_CCO = 2·M·F_in/N = 400 MHz, y el divisor de CPU deja CCLK = 100 MHz. Lo configura SystemInit (system_LPC17xx.c) al arrancar"
+  - "Cada periférico recibe PCLK = CCLK/4, /1, /2 u /8 según sus dos bits de PCLKSEL0/1. Tras el reset es CCLK/4 = 25 MHz"
+  - "Antes de usar un periférico hay que alimentarlo en PCONP. Timer 0/1, UART 0/1 y PWM1 están encendidos tras el reset; Timer 2/3, UART 2/3 y el ADC, no"
+  - "Cada pin tiene hasta 4 funciones (PINSEL, 2 bits por pin) y un modo (PINMODE: 00 = pull-up, el de reset)"
+  - "GPIO: FIODIR (1 = salida), FIOSET y FIOCLR (escribir 1 pone o quita sin tocar el resto), FIOPIN (leer el nivel)"
+  - "Un pulsador con pull-up lee 1 en reposo y 0 al pulsarlo"
+  - "NVIC: prioridad de 0 a 31, y el número más bajo es el más prioritario. En la rutina de atención hay que borrar el flag, o la interrupción vuelve a entrar"
+  - "EINT0–3 (P2.10–P2.13): EXTMODE elige nivel o flanco, EXTPOLAR el sentido, y el flag se borra escribiendo un 1 en EXTINT"
+fuentes:
+  - "Apuntes de Miguel"
+  - "Resumen de interrupciones del LPC1768 (diapositivas de clase)"
+  - "Resumen de GPIO del LPC1768 (diapositivas de clase)"
+  - "UM10360 (manual del LPC17xx), cap. 4, 6, 8 y 9"
+test:
+  - p: "Con el cristal de 12 MHz y la configuración por defecto, ¿a qué frecuencia trabaja la CPU (CCLK)?"
+    o: ["100 MHz", "12 MHz", "400 MHz", "25 MHz"]
+    c: 0
+    e: "La PLL0 sube a F_CCO = 400 MHz y el divisor de CPU divide entre 4: CCLK = 100 MHz."
+  - p: "Tras el reset, ¿qué frecuencia de reloj recibe el Timer 0?"
+    o: ["25 MHz (CCLK/4)", "100 MHz (CCLK)", "12 MHz (el cristal)", "50 MHz (CCLK/2)"]
+    c: 0
+    e: "PCLKSEL0 vale 00 tras el reset, que significa PCLK = CCLK/4 = 25 MHz."
+  - p: "Quieres usar el Timer 2. ¿Qué tienes que hacer antes que nada?"
+    o: ["Poner a 1 su bit PCTIM2 en PCONP", "Nada: todos los timers están encendidos", "Escribir su prioridad en el NVIC", "Poner su pin en PINMODE = 10"]
+    c: 0
+    e: "Timer 2 y 3 (y UART 2/3 y el ADC) están apagados tras el reset para ahorrar energía."
+  - p: "Un pulsador va de P2.11 a masa con el pull-up interno activo. ¿Qué lee FIOPIN al pulsarlo?"
+    o: ["0", "1", "Depende de PINSEL", "Un valor aleatorio"]
+    c: 0
+    e: "En reposo el pull-up lleva el pin a 1; al pulsar, el pulsador lo une a masa."
+  - p: "¿Qué pasa si en la rutina de una EINT no se borra el flag de EXTINT?"
+    o: ["La interrupción vuelve a entrar en bucle", "No pasa nada: se borra solo", "Se pierde la siguiente interrupción", "El NVIC la deshabilita"]
+    c: 0
+    e: "El flag sigue activo y el NVIC la vuelve a atender al salir: el programa no sale de la rutina."
+---
+import Practica from '../../../src/asignaturas/seda/Practica.astro';
+import Registro from '../../../src/asignaturas/seda/Registro.astro';
+
+**Idea clave.** Antes de usar cualquier periférico del LPC1768 hay que hacer siempre lo mismo: **alimentarlo** (PCONP), elegir su **reloj** (PCLKSEL), llevarlo a sus **pines** (PINSEL) y, si va a interrumpir, **habilitar su interrupción** en el NVIC. Este tema explica cada paso. Los siguientes solo cambian el periférico.
+
+## El reloj: de 12 MHz a 100 MHz
+
+La Mini-DK2 lleva un cristal de **12 MHz** (el oscilador principal). Al arrancar, la función `SystemInit()` de `system_LPC17xx.c` monta esta cadena:
+
+| Paso | Qué hace | Valor por defecto |
+|---|---|---|
+| CLKSRCSEL | Elige la fuente: oscilador principal, oscilador RC interno (4 MHz) o el del RTC | Oscilador principal, 12 MHz |
+| PLL0 | Multiplica: $F_{CCO} = \dfrac{2\cdot M\cdot F_{in}}{N}$ | $M = 100$, $N = 6$ → 400 MHz |
+| Divisor de CPU | $CCLK = \dfrac{F_{CCO}}{CCLKSEL + 1}$ | ÷4 → **100 MHz** |
+| PCLKSEL0/1 | Reloj de cada periférico | ÷4 → **25 MHz** |
+
+$$
+PLLCLK = \frac{2\cdot 100\cdot 12\ \text{MHz}}{6} = 400\ \text{MHz}
+\qquad
+CCLK = \frac{400}{4} = 100\ \text{MHz}
+\qquad
+F_{PCLK} = \frac{CCLK}{4} = 25\ \text{MHz}
+$$
+
+Ese **25 MHz** aparece en casi todas las cuentas de timers, PWM y UART. Si en un examen no dicen otra cosa, es el $F_{PCLK}$ de partida.
+
+<Registro nombre="PCLKSEL0" descripcion="reloj de cada periférico (2 bits por periférico)" campos={[
+  { bits: '3:2', nombre: 'PCLK_TIMER0', que: 'Reloj del Timer 0' },
+  { bits: '5:4', nombre: 'PCLK_TIMER1', que: 'Reloj del Timer 1' },
+  { bits: '7:6', nombre: 'PCLK_UART0', que: 'Reloj de la UART0' },
+  { bits: '13:12', nombre: 'PCLK_PWM1', que: 'Reloj del PWM1' },
+  { bits: '25:24', nombre: 'PCLK_ADC', que: 'Reloj del ADC' },
+]} />
+
+Cada par de bits vale `00` = CCLK/4 (el de reset), `01` = CCLK, `10` = CCLK/2 y `11` = CCLK/8. Timer 2/3 y UART 2/3 están en **PCLKSEL1**.
+
+## Alimentar el periférico: PCONP
+
+Para ahorrar energía, no todos los periféricos arrancan encendidos. Cada uno tiene un bit en **PCONP**:
+
+| Encendidos tras el reset | Apagados tras el reset |
+|---|---|
+| Timer 0 y 1 (`PCTIM0`, `PCTIM1`), UART 0 y 1, PWM1, GPIO | Timer 2 y 3 (bits 22 y 23), UART 2 y 3 (bits 24 y 25), ADC (bit 12) |
+
+```c
+LPC_SC->PCONP |= (1 << 22);   // enciende el Timer 2 (PCTIM2)
+```
+
+El `|=` («o» bit a bit) pone a 1 **solo** el bit 22 y deja el resto como estaba. `(1 << 22)` es un 1 desplazado 22 posiciones: la máscara de ese bit.
+
+## Pines: función y modo
+
+Cada pin del LPC1768 puede tener hasta **cuatro funciones** (GPIO o la de un periférico). Se elige con **PINSEL0…10**, con **2 bits por pin**: `00` es GPIO y `01`, `10`, `11` son las funciones alternativas que da la tabla del manual (cap. 8).
+
+**PINMODE** elige la resistencia interna del pin, también con 2 bits:
+
+| PINMODE | Modo |
+|---|---|
+| `00` | **Pull-up** (el de reset) |
+| `01` | Repetidor |
+| `10` | Ni pull-up ni pull-down |
+| `11` | Pull-down |
+
+Por eso un **pulsador entre el pin y masa** funciona sin resistencia externa: en reposo el pull-up deja el pin a **1**, y al pulsar se une a masa y lee **0**. En la Mini-DK2 los pulsadores ISP, Key1 y Key2 están en **P2.10, P2.11 y P2.12**.
+
+## GPIO: entradas y salidas
+
+Los puertos P0…P4 tienen sus registros en `LPC_GPIO0`…`LPC_GPIO4`:
+
+| Registro | Para qué |
+|---|---|
+| `FIODIR` | Dirección de cada bit: 1 = salida, 0 = entrada |
+| `FIOSET` | Escribir 1 en un bit pone **ese pin a 1**. Los 0 no hacen nada |
+| `FIOCLR` | Escribir 1 en un bit pone **ese pin a 0**. Los 0 no hacen nada |
+| `FIOPIN` | Leer el nivel de los pines (o escribirlos todos de golpe) |
+| `FIOMASK` | Bits a 1 = pines que los demás registros ignoran |
+
+```c
+LPC_GPIO3->FIODIR |= (1 << 25);           // P3.25 como salida
+LPC_GPIO3->FIOSET  = (1 << 25);           // P3.25 a 1
+LPC_GPIO3->FIOCLR  = (1 << 25);           // P3.25 a 0
+if ((LPC_GPIO2->FIOPIN & (1 << 11)) == 0) // ¿P2.11 a 0? (pulsado)
+```
+
+`FIOSET` y `FIOCLR` se escriben con `=`, no con `|=`: como los ceros no hacen nada, no hace falta leer antes. La comprobación usa `&` con la máscara para quedarse solo con el bit 11.
+
+## Interrupciones: el NVIC
+
+El **NVIC** (*Nested Vectored Interrupt Controller*) del Cortex-M3 decide qué interrupción se atiende y cuándo. Lo que hay que saber:
+
+- Cada fuente tiene su **rutina de atención** (ISR) con un nombre fijo, que viene en `startup_LPC17xx.s`: `TIMER0_IRQHandler`, `UART0_IRQHandler`, `EINT1_IRQHandler`…
+- Se **habilita** con `NVIC_EnableIRQ(TIMER0_IRQn)`.
+- **Prioridad de 0 a 31**, con `NVIC_SetPriority()`: el número **más bajo** es el **más prioritario**. Una interrupción más prioritaria puede interrumpir a otra que se esté atendiendo (por eso *nested*, anidadas). Si tienen la misma prioridad, espera.
+- Dentro de la ISR hay que **borrar el flag** del periférico. Si no, al salir el NVIC ve que sigue pendiente y vuelve a entrar sin fin.
+- La ISR tiene que ser **corta**: guardar un dato, poner una bandera y salir. Lo largo se hace en el programa principal.
+- Las variables que comparten la ISR y el `main` se declaran `volatile`, para que el compilador las lea de memoria cada vez.
+
+### Interrupciones externas EINT0–EINT3
+
+<Practica n={3} nombre="Servomotor con un Timer" />
+
+Son los pines **P2.10–P2.13** en su primera función alternativa (`01` en PINSEL4). Se configuran en el bloque de control del sistema (`LPC_SC`):
+
+| Registro | Para qué |
+|---|---|
+| `EXTMODE` | Bit a 0 = por **nivel**, bit a 1 = por **flanco** |
+| `EXTPOLAR` | Nivel bajo o flanco de bajada (0), nivel alto o flanco de subida (1) |
+| `EXTINT` | Flags. Se borran **escribiendo un 1** en su bit |
+
+```c
+void EINT1_IRQHandler(void) {   // Key1 (P2.11)
+  LPC_SC->EXTINT = (1 << 1);    // borrar el flag de EINT1
+  pulsado = 1;                  // volatile: lo lee el main
+}
+```
+
+Por nivel, el flag no se puede borrar mientras el nivel siga activo, así que la interrupción se relanza. Para un pulsador se usa casi siempre **flanco de bajada**.
+
+### SysTick
+
+Es un temporizador de **24 bits** que lleva el propio Cortex-M3, pensado para dar un «tic» periódico. `SysTick_Config(SystemCoreClock / 100)` genera una interrupción cada 10 ms en `SysTick_Handler`. Para periodos que no caben en 24 bits, o para varias señales, se usan los Timers del tema siguiente.
+
+## Preguntas de examen
+
+<details>
+<summary>Explica el camino del reloj desde el cristal hasta un periférico, con las frecuencias por defecto.</summary>
+
+Cristal de 12 MHz → la PLL0 multiplica a $F_{CCO} = 2\cdot M\cdot F_{in}/N = 2\cdot 100\cdot 12/6 = 400$ MHz → el divisor de CPU divide entre 4: CCLK = 100 MHz → cada periférico divide CCLK según sus bits de PCLKSEL (por defecto ÷4): $F_{PCLK} = 25$ MHz. *(Respuesta redactada a partir de los apuntes.)*
+
+</details>
+
+<details>
+<summary>¿Qué pasos hay que dar para usar el Timer 2 con interrupción?</summary>
+
+1. Alimentarlo: `PCONP |= (1 << 22)`.
+2. Elegir su reloj en PCLKSEL1 (o dejar CCLK/4).
+3. Si saca señal por un pin, elegir esa función en PINSEL.
+4. Configurar el timer (PR, MR, MCR) y arrancarlo.
+5. `NVIC_SetPriority(TIMER2_IRQn, …)` y `NVIC_EnableIRQ(TIMER2_IRQn)`.
+6. En `TIMER2_IRQHandler`, borrar el flag en `IR`.
+
+*(Respuesta redactada a partir de los apuntes.)*
+
+</details>
+
+<details>
+<summary>¿Por qué FIOSET y FIOCLR se escriben con «=» y no con «|=»?</summary>
+
+Porque en esos registros un 0 no hace nada: solo actúan los bits que se escriben a 1. Con `=` se cambia únicamente el pin de la máscara, sin leer el registro antes y sin riesgo de tocar los demás pines. *(Respuesta redactada a partir de los apuntes.)*
+
+</details>

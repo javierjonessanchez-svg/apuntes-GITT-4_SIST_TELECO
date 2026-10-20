@@ -1,0 +1,232 @@
+---
+titulo: "Máquinas de estados y StateCharts"
+orden: 7
+bloque: "Diseño software"
+resumen: "De la FSM con switch-case a los StateCharts de UML: entry, do, exit, jerarquía, historia y concurrencia"
+saber:
+  - "Una FSM tiene estados, eventos (entradas) y transiciones. Moore: las salidas dependen del estado. Mealy: van en las transiciones (evento / acción)"
+  - "En C se programa con un switch (estado). Cada llamada da un paso y vuelve: nada de while ni esperas dentro, sobre todo si se llama desde una ISR"
+  - "Los pulsadores se leen periódicamente (cada 10–50 ms) y se compara con la lectura anterior para detectar el flanco. Así se filtran los rebotes"
+  - "StateChart (Harel, 1986; UML): cada estado puede tener entry (al entrar), do (mientras está) y exit (al salir). Transiciones: evento [condición] / acción"
+  - "Orden al cambiar de estado: exit del estado de origen, acción de la transición, entry del de destino. Una autotransición también ejecuta exit y entry"
+  - "Pseudoestados: inicial (punto negro), histórico (H: vuelve al último subestado activo) y final (punto con círculo)"
+  - "Jerarquía: un superestado agrupa subestados y una sola transición suya vale para todos. Concurrencia: regiones ortogonales que funcionan a la vez"
+  - "Transición externa: sale del superestado y vuelve a entrar (exit y entry del superestado). Local: se queda dentro (no los ejecuta)"
+fuentes:
+  - "Apuntes de Miguel"
+  - "Máquinas de estados finitas programadas y StateCharts (diapositivas de clase)"
+test:
+  - p: "Un microondas pasa de CALENTANDO a IDLE con el evento fin / pitido. ¿En qué orden se ejecuta todo?"
+    o: ["exit de CALENTANDO, pitido, entry de IDLE", "pitido, exit de CALENTANDO, entry de IDLE", "entry de IDLE, pitido, exit de CALENTANDO", "exit de CALENTANDO, entry de IDLE, pitido"]
+    c: 0
+    e: "Primero se sale del origen, luego la acción de la transición y por último se entra en el destino."
+  - p: "¿Qué hace el pseudoestado H dentro de un superestado?"
+    o: ["Al volver a entrar, retoma el último subestado que estaba activo", "Marca el subestado inicial", "Termina la máquina", "Guarda el valor de las salidas"]
+    c: 0
+    e: "Sin H se entra por el estado inicial; con H, por el último en el que se estuvo."
+  - p: "¿Por qué no se pone un while (!pulsado); dentro del switch de la máquina de estados?"
+    o: ["Bloquea: ni la máquina ni el resto del programa avanzan mientras espera", "Porque el compilador no lo admite en un case", "Porque gasta memoria", "Porque los pulsadores no se pueden leer en un case"]
+    c: 0
+    e: "Cada llamada debe hacer un paso y volver. La espera se modela como un estado que no cambia hasta que llega el evento."
+  - p: "En una máquina Mealy, ¿dónde se escriben las salidas?"
+    o: ["En las transiciones (evento / acción)", "Dentro de cada estado", "Solo en el estado inicial", "En el pseudoestado H"]
+    c: 0
+    e: "Mealy: la salida depende del estado y de la entrada, y se da al cruzar la transición. Moore: depende solo del estado."
+  - p: "Un superestado ACTIVO tiene la transición P_ROJO → NO_ACTIVO. ¿Desde qué subestados se dispara?"
+    o: ["Desde cualquiera de ellos", "Solo desde el subestado inicial", "Solo desde el último subestado", "Desde ninguno: hay que repetirla en cada subestado"]
+    c: 0
+    e: "Es la gracia de la jerarquía: una transición del superestado sirve para todos sus subestados y ahorra flechas."
+---
+import MaquinaEstados from '../../../src/asignaturas/seda/widgets/MaquinaEstados.astro';
+
+**Idea clave.** Casi todo programa de un sistema empotrado reacciona a **eventos** (una tecla, un byte por la UART, un Timer que vence) y lo que hace depende de **lo que ya ha pasado**. Eso es una **máquina de estados**. Se diseña con un diagrama y se programa con un `switch`. Cuando el diagrama crece, los **StateCharts** lo mantienen legible. Es la parte de la asignatura que más pesa en el examen.
+
+## Máquinas de estados finitas (FSM)
+
+Una FSM tiene:
+
+- **Estados**: en qué situación está el sistema (p. ej. REPOSO, LLENANDO, ALARMA). Siempre está en uno solo.
+- **Eventos**: lo que llega de fuera (una entrada que cambia, un *timeout*, un dato).
+- **Transiciones**: «si estoy en A y llega el evento e, paso a B».
+
+Hay dos formas de colocar las salidas:
+
+- **Moore**: las salidas dependen **solo del estado** (en LLENANDO, motor encendido).
+- **Mealy**: las salidas van en la **transición** (al pasar de A a B con e, pitar). Se escribe `evento / acción`.
+
+### Cómo se programa
+
+```c
+typedef enum { REPOSO, LLENANDO, ALARMA } estado_t;
+static estado_t estado = REPOSO;
+
+void maquina(void) {                  // se llama periódicamente, p. ej. cada 10 ms
+  switch (estado) {
+    case REPOSO:
+      if (nivel < 30) { bomba(1); estado = LLENANDO; }
+      break;
+    case LLENANDO:
+      if (nivel > 80) { bomba(0); estado = REPOSO; }
+      break;
+    case ALARMA:
+      /* ... */
+      break;
+  }
+}
+```
+
+Las reglas que hay que cumplir:
+
+- Cada llamada **da un paso y vuelve**. Nada de `while` esperando una entrada ni retardos dentro: esperar es **quedarse en un estado**. Si la máquina va dentro de una ISR (por ejemplo, la de la UART), esto es obligatorio.
+- Se llama desde un sitio con **ritmo conocido**: una ISR periódica (SysTick o un Timer) o la ISR del periférico que trae el evento.
+- Cada estado decide **solo** con las entradas: no hay que adivinar de dónde se viene.
+
+### Pulsadores: mejor leerlos que interrumpir
+
+Para pulsadores y menús, en clase se recomienda **no usar interrupciones** de GPIO. Un pulsador rebota: al pulsarlo da varios flancos en pocos milisegundos y cada uno sería una interrupción. Es mejor **leer el pin periódicamente** (cada 10–50 ms, más que lo que dura el rebote) y compararlo con la **lectura anterior**:
+
+```c
+void tick_10ms(void) {
+  static int antes = 1;                          // con pull-up, suelto = 1
+  int ahora = (LPC_GPIO2->FIOPIN >> 11) & 1;     // Key1 en P2.11
+  if (antes == 1 && ahora == 0) evento_tecla = 1; // flanco de bajada: pulsación
+  antes = ahora;
+}
+```
+
+Así cada pulsación genera **un solo evento**, y la máquina del menú lo consume en su siguiente paso.
+
+## Limitaciones de las FSM
+
+Con problemas reales, una FSM plana se vuelve inmanejable:
+
+- Hacen falta **muchos estados**, y el diagrama no se puede leer.
+- Situaciones como un **error** o un **botón de parada** llevan al mismo estado **desde casi todos los demás**: una flecha por estado.
+- A menudo hay que llevar **varias cosas a la vez** (controlar una máquina y atender un panel); con una sola FSM, hay que combinar todos los estados de una con todos los de la otra.
+
+## StateCharts
+
+Los propuso **David Harel en 1986** y UML los adoptó (*UML State Machine*). Añaden a la FSM lo que le falta.
+
+### Estados con entry, do y exit
+
+Cada estado puede llevar tres tipos de acciones:
+
+- **entry**: se ejecuta **una vez al entrar** (encender el magnetrón).
+- **do**: se ejecuta **mientras se está** en el estado (descontar un segundo cada segundo).
+- **exit**: se ejecuta **una vez al salir**, salga por donde salga (apagar el magnetrón).
+
+Con exit, no hay que repetir «apagar el magnetrón» en cada transición que sale de CALENTANDO: se pone una vez y no se olvida nunca.
+
+### Transiciones: evento [condición] / acción
+
+`tecla [tecla == 'CR'] / enviar()`: con el **evento** tecla, **si** se cumple la condición, se pasa al otro estado y se ejecuta la **acción**. La condición (*guard*) permite que un mismo evento lleve a sitios distintos; en el diagrama se dibuja también con un rombo de decisión y una rama `[else]`.
+
+**El orden** al cruzar una transición es siempre:
+
+1. **exit** del estado de origen;
+2. **acción** de la transición;
+3. **entry** del estado de destino.
+
+Una **autotransición** (de un estado a sí mismo) también sale y vuelve a entrar: ejecuta exit y entry.
+
+### Pseudoestados
+
+- **Inicial** (●): por dónde se empieza, tras el reset o al entrar en un superestado.
+- **Histórico** (Ⓗ): al volver a entrar en un superestado, se va al **último subestado** que estaba activo en vez de al inicial.
+- **Final** (◉): la máquina (o esa región) termina.
+
+### Jerarquía
+
+Un **superestado** agrupa varios subestados y lleva su propio estado inicial dentro. Una **transición que sale del superestado vale para todos sus subestados**: un único «cancelar» o «parada de emergencia» en vez de una flecha desde cada estado. Se diseña de arriba abajo: primero los superestados y después el detalle de cada uno.
+
+En el microondas, IDLE e INGRESANDO forman el superestado **Esperando**. Pulsar START solo tiene efecto desde INGRESANDO (sin tiempo no hay nada que calentar).
+
+**Con histórico.** En el ejemplo del control de nivel de agua de clase, ACTIVO contiene los subestados de llenado. Si se apaga (P_ROJO) y se vuelve a encender (P_VERDE), sin H se empezaría por el inicial; con H, se retoma justo donde se dejó.
+
+### Concurrencia
+
+Un estado se puede dividir con una línea discontinua en **regiones ortogonales** que funcionan **a la vez** y de forma independiente: por ejemplo, el control del magnetrón en una región y la luz o el display en otra. Evita multiplicar los estados de una por los de la otra. Una región puede consultar el estado de otra («si la otra está en Esperando»).
+
+### Transiciones locales y externas
+
+Cuando una transición va del **borde de un superestado** a uno de **sus subestados**:
+
+- **Externa**: sale del superestado y vuelve a entrar. Se ejecutan su **exit y su entry**.
+- **Local**: se queda dentro. **No** se ejecutan.
+
+La diferencia importa cuando el superestado tiene entry o exit con efectos (reiniciar un contador, encender algo): con una externa, se repiten.
+
+## El microondas, paso a paso
+
+Pulsa los eventos y fíjate en el orden en que se ejecutan exit, la acción y entry en cada transición. Los eventos que no hacen nada en el estado actual están desactivados.
+
+<MaquinaEstados />
+
+## Cómo se programa un StateChart
+
+La jerarquía se traduce en **switch anidados**: el de fuera elige el superestado y el de dentro, el subestado. Lo que es común a todo el superestado (como «cancelar») se comprueba en el de fuera, una sola vez.
+
+```c
+switch (estado) {
+  case ESPERANDO:
+    switch (subestado) {
+      case IDLE:       /* ... */ break;
+      case INGRESANDO: /* ... */ break;
+    }
+    break;
+  case CALENTANDO:
+    /* ... */
+    break;
+}
+```
+
+Para respetar el orden exit → acción → entry sin repetir código, conviene una función que haga el cambio:
+
+```c
+static void salir(estado_t e) {
+  if (e == CALENTANDO) { magnetron(0); timer(0); }   // exit
+}
+
+static void entrar(estado_t e) {                     // entry
+  if (e == CALENTANDO) { magnetron(1); timer(1); }
+  else if (e == IDLE) display_hora();
+}
+
+static void transicion(estado_t destino, void (*accion)(void)) {
+  salir(estado);                // 1. exit del origen
+  if (accion) accion();         // 2. acción de la transición (puede no haber)
+  estado = destino;
+  entrar(destino);              // 3. entry del destino
+}
+
+// En el case CALENTANDO:
+//   if (ev == FIN) transicion(IDLE, pitido);
+```
+
+`void (*accion)(void)` es un **puntero a función**: se pasa el nombre de la función que hay que ejecutar como acción (o `NULL` si la transición no tiene). Las acciones **do** van fuera de `transicion`: se ejecutan en cada llamada a la máquina mientras se está en el estado.
+
+El histórico se programa **guardando el subestado** en una variable al salir del superestado y usándola, en vez del inicial, al volver a entrar.
+
+## Preguntas de examen
+
+<details>
+<summary>¿Qué ventajas da un StateChart frente a una FSM plana? Pon un ejemplo de cada una.</summary>
+
+Jerarquía: una sola transición de error desde el superestado en vez de una por estado. entry/exit: las acciones de encendido y apagado se escriben una vez y no se olvidan en ninguna salida. Histórico: tras una pausa se vuelve donde se estaba. Concurrencia: dos partes independientes (control y display) sin combinar sus estados. *(Respuesta redactada a partir de los apuntes y las diapositivas.)*
+
+</details>
+
+<details>
+<summary>Un estado tiene exit: motor OFF y entry: motor ON, y una autotransición con el evento e. ¿Qué le pasa al motor con e?</summary>
+
+Se apaga (exit) y se vuelve a encender (entry) en el mismo paso: hay un instante con el motor apagado. Si eso no se quiere, el evento e se trata como **transición interna** (escrita dentro del estado, sin flecha), que no ejecuta ni exit ni entry. *(Respuesta redactada a partir de las diapositivas.)*
+
+</details>
+
+<details>
+<summary>¿Dónde se llama a la función de la máquina de estados y por qué no puede bloquearse?</summary>
+
+Desde una ISR periódica (SysTick, un Timer) o desde la ISR del periférico que trae los eventos (la UART al recibir cada byte). Si se bloquease esperando, la ISR no terminaría: el resto del programa y las interrupciones de menor prioridad se quedarían sin atender. *(Respuesta redactada a partir de los apuntes.)*
+
+</details>

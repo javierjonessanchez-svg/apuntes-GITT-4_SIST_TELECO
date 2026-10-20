@@ -1,0 +1,61 @@
+---
+// Diagrama de estados del microondas, dibujado al construir a partir de los datos de maquina.ts.
+// Lo usan la versión interactiva (que marca el estado activo) y la estática.
+import { microondas as m } from './maquina';
+
+const uid = `maq-${Math.random().toString(36).slice(2, 7)}`;
+const lineas = (e: (typeof m.estados)[string]) => [
+  e.entry && `entry / ${e.entry}`, e.do && `do / ${e.do}`, e.exit && `exit / ${e.exit}`,
+].filter(Boolean) as string[];
+---
+<div class="desliza">
+  <svg class="sd-maq-svg" viewBox={`0 0 ${m.ancho} ${m.alto}`} width={m.ancho} height={m.alto} role="img"
+    aria-label="Diagrama de estados del microondas: IDLE e Ingresando dentro de Esperando, Calentando y Puerta abierta">
+    <defs>
+      <marker id={`${uid}-punta`} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto">
+        <path d="M0 0L10 5L0 10z" class="punta" />
+      </marker>
+    </defs>
+    {m.superestados?.map((s) => (
+      <g class="super">
+        <rect x={s.caja.x} y={s.caja.y} width={s.caja.w} height={s.caja.h} rx="16" />
+        <text x={s.caja.x + 16} y={s.caja.y + 22}>{s.nombre}</text>
+      </g>
+    ))}
+    <circle class="inicio" cx="40" cy="98" r="7" />
+    <path class="flecha" d="M47 98 H58" marker-end={`url(#${uid}-punta)`} />
+    {m.transiciones.map((t) => (
+      <g class="trans" data-de={t.de} data-evento={t.evento}>
+        <path class="flecha" d={t.d} marker-end={`url(#${uid}-punta)`} />
+        <text x={t.etiqueta.x} y={t.etiqueta.y} text-anchor={t.d.includes('H') ? 'middle' : 'start'}>{t.evento}</text>
+      </g>
+    ))}
+    {Object.entries(m.estados).map(([id, e]) => (
+      <g class="estado" data-estado={id}>
+        <rect x={e.caja.x} y={e.caja.y} width={e.caja.w} height={e.caja.h} rx="10" />
+        <text class="nombre" x={e.caja.x + 12} y={e.caja.y + 22}>{e.nombre}</text>
+        {lineas(e).map((l, i) => <text class="linea" x={e.caja.x + 12} y={e.caja.y + 42 + i * 17}>{l}</text>)}
+      </g>
+    ))}
+  </svg>
+</div>
+
+<style>
+  .sd-maq-svg { display: block; min-width: 560px; width: 100%; height: auto; font-family: var(--fuente-mono); font-variant-ligatures: none; }
+  .super rect { fill: none; stroke: var(--linea); stroke-width: 1.5; stroke-dasharray: 6 5; }
+  .super text { font-family: var(--fuente-texto); font-size: 13px; font-weight: 700; fill: var(--suave); }
+  .inicio { fill: var(--texto); }
+  .flecha { fill: none; stroke: var(--suave); stroke-width: 1.6; }
+  .punta { fill: var(--suave); }
+  .trans text { font-size: 12px; font-weight: 600; fill: var(--texto); paint-order: stroke; stroke: var(--superficie); stroke-width: 4px; stroke-linejoin: round; }
+  .trans[data-ultima] .flecha { stroke: var(--acento); stroke-width: 2.4; }
+  .estado rect {
+    fill: var(--superficie); stroke: var(--linea); stroke-width: 1.5;
+    transition-property: fill, stroke; transition-duration: .25s; transition-timing-function: ease-out;
+  }
+  .estado .nombre { font-family: var(--fuente-texto); font-size: 14px; font-weight: 700; fill: var(--texto); }
+  .estado .linea { font-size: 11px; fill: var(--suave); }
+  .estado[data-activo] rect { fill: color-mix(in srgb, var(--primario) 14%, var(--superficie)); stroke: var(--primario); stroke-width: 2.5; }
+
+  @media (prefers-reduced-motion: reduce) { .estado rect { transition-duration: 0s; } }
+</style>
