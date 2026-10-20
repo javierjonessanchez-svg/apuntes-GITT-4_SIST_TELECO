@@ -245,7 +245,7 @@ export function dibujarCadena({ orden }: EstadoCadena): Dibujo {
     : `T_total (A) = Ta + T_cable + T_LNA/g_cable = ${ta} + ${fmt(tc, 0)} + ${tLna}/${fmt(gc, 2)} = ${fmt(T, 0)} K`;
   h += t(24, 22, cuenta, { tam: 11.5, peso: 700 });
   // Barras: las dos opciones
-  const XB0 = 150, esc = 300 / Math.max(T, otro);
+  const XB0 = 150, esc = 260 / Math.max(T, otro);
   const filas = [['LNA delante', tTotal('lna-primero'), lnaPrimero], ['cable delante', tTotal('cable-primero'), !lnaPrimero]] as const;
   filas.forEach(([nombre, v, actual], i) => {
     const yb = 168 + i * 30;
