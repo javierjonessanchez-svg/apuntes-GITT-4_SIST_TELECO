@@ -1,0 +1,276 @@
+# Modo examen de SEDA (PEI1): hoja de repaso, sin código enlazado.
+# Fórmulas y registros sacados de los temas (contenido/seda/temas) y del UM10360;
+# los pasos resumen el método de cada tipo de problema. Nada de enunciados de exámenes.
+# Lo comprueban tests/examen.test.ts y la construcción (src/comun/examen.ts).
+tipo: hoja
+
+problemas:
+  - id: interrupcion-periodica
+    titulo: Interrupción periódica con un Timer
+    cuando: '«cada T ms», «parpadear», «muestrear cada…», un tick para una máquina de estados'
+    pasos:
+      - 'Potencia: TIMER0 y TIMER1 están encendidos tras el reset; TIMER2 y TIMER3 no (PCONP bits 22 y 23).'
+      - 'Reloj: F_PCLK = CCLK/4 = 25 MHz (PCLKSEL0 = 00) y F_tick = F_PCLK/(PR + 1).'
+      - '<b>MR0 = F_tick·T − 1</b>. Si no cabe en 32 bits (periodos de minutos), sube PR.'
+      - 'MCR = MR0I | MR0R = <code>3</code>: interrumpir y volver a 0 en MR0.'
+      - 'NVIC_EnableIRQ(TIMERn_IRQn) y, si hay varias, NVIC_SetPriority (número más bajo = más prioritaria).'
+      - 'TCR = 2 (TC a 0) y luego TCR = 1 (contar).'
+      - 'ISR: <b>IR = 1</b> (borrar el flag de MR0 escribiendo un 1), algo corto y salir. Variables compartidas, volatile.'
+  - id: pwm-servo
+    titulo: PWM y servos
+    cuando: '«ciclo de trabajo», «servo», «ángulo», «brillo de un LED», «periodo de 20 ms»'
+    pasos:
+      - 'PINSEL: el pin a su función PWM1.x (PWM1 ya está encendido tras el reset).'
+      - '<b>PWM1MR0 = F_tick/F_PWM − 1</b>. Con 25 MHz y 20 ms: 499 999.'
+      - 'Ancho: <b>MRx = T_H·F_tick</b> (sin −1). Para un servo, T_H sale del ángulo con la recta del enunciado (1–2 ms nominal; en clase, 0,4 + 2·grados/180 ms).'
+      - 'MCR: PWMMR0R (bit 1), para que el TC vuelva a 0 en MR0.'
+      - 'PCR: PWMENAx (bit 8 + x) para habilitar la salida PWM1.x.'
+      - 'LER: bits 0 y x a 1. Cada vez que cambies MRx, otra vez LER: el valor entra en el siguiente periodo.'
+      - 'TCR = (1 &lt;&lt; 0) | (1 &lt;&lt; 3): Counter Enable + PWM Enable.'
+  - id: captura
+    titulo: Captura y medida de pulsos
+    cuando: '«medir la frecuencia», «ancho del pulso», «tiempo entre flancos», un receptor (mando, sensor)'
+    pasos:
+      - 'Potencia (PCONP si es TIMER2/3) y el pin a CAPn.x con PINSEL.'
+      - 'PR para la resolución: PR = 24 da 1 µs por cuenta con 25 MHz.'
+      - 'MCR sin ningún reset: el TC corre libre. TCR = 1.'
+      - 'CCR: el flanco (CAP0RE subida, CAP0FE bajada) y CAP0I para interrumpir. NVIC_EnableIRQ.'
+      - 'ISR: <b>IR = (1 &lt;&lt; 4)</b> (flag de CR0), leer CR0 y restar con el anterior: N = CR0_k − CR0_{k−1} en uint32_t (vale aunque el TC desborde).'
+      - 'Periodo: f = F_tick/N. Ancho: alterna el flanco en CCR en cada captura y resta subida y bajada.'
+  - id: uart
+    titulo: Configurar la UART
+    cuando: '«bit/s», «trama», «8N1», «recibir por la serie», «enviar una cadena»'
+    pasos:
+      - 'PINSEL0: P0.2 → TXD0 y P0.3 → RXD0 (función 01). UART0 ya está encendida tras el reset.'
+      - '<b>DL = F_PCLK/(16·V)</b>, redondeado. Calcula el error de la velocidad real; si pasa de un 1–2 %, divisor fraccionario (FDR).'
+      - 'LCR = <code>0x83</code>: 8 bits, 1 stop, sin paridad y DLAB = 1 para escribir DLL = DL % 256 y DLM = DL / 256 (y FDR si hace falta).'
+      - 'LCR = <code>0x03</code>: DLAB = 0 para volver a RBR, THR e IER.'
+      - 'IER: bit 0 (RDA, dato recibido) y/o bit 1 (THRE, THR vacío). NVIC_EnableIRQ(UART0_IRQn).'
+      - 'ISR: IntId = (IIR >> 1) &amp; 7. Si es 2 (RDA), leer RBR (borra la interrupción). Si es 1 (THRE), escribir el siguiente byte en THR.'
+  - id: adc
+    titulo: Muestrear con el ADC
+    cuando: '«sensor analógico», «tensión de 0 a 3,3 V», «muestrear a f_s», «nivel en %»'
+    pasos:
+      - '<b>PCONP bit 12 (PCADC) a 1</b>: tras el reset el ADC está apagado.'
+      - 'PINSEL: el pin a AD0.x (AD0.0 en P0.23, función 01).'
+      - 'CLKDIV para que F_PCLK/(CLKDIV + 1) ≤ 13 MHz: con 25 MHz, CLKDIV = 1 (12,5 MHz, 5,2 µs por conversión).'
+      - 'AD0CR: SEL (un 1 en el canal) | CLKDIV &lt;&lt; 8 | PDN (bit 21).'
+      - 'A ritmo fijo: START = 100 (MAT0.1) con TIMER0 en conmutar (EMC1 = 11) y el Match a la mitad del periodo de muestreo. Una sola vez: START = 001.'
+      - 'Resultado: espera DONE (bit 31) o usa la interrupción (AD0INTEN + ADC_IRQn); RESULT = (GDR >> 4) &amp; 0xFFF y V = RESULT·3,3/4096.'
+  - id: maquina-estados
+    titulo: Máquina de estados
+    cuando: '«dibuja el diagrama de estados», «StateChart», «programa el control», tiempos y pulsadores'
+    pasos:
+      - 'Entradas, salidas y eventos: qué llega (pulsadores, sensores, bytes, timeouts) y qué hay que mover.'
+      - 'Estados: lo que hay que recordar para decidir. Dos situaciones que reaccionan igual a todo son el mismo estado.'
+      - 'Transiciones: <b>evento [condición] / acción</b>, para cada estado y cada evento. Lo común a varios, a un superestado.'
+      - 'Moore (acciones en los estados) o Mealy (en las transiciones): dilo y sé coherente.'
+      - 'Dónde corre: en la ISR del periférico que trae los eventos (UART, captura) o en una ISR periódica si hay tiempos. Los tiempos se cuentan en ticks: 5 s con un tick de 20 ms son 250.'
+      - 'Código: un <code>switch (estado)</code>; cada caso da un paso y vuelve, sin bucles de espera. Los pulsadores, por flanco.'
+      - 'Repasa los casos raros: timeout si se pierde un dato, qué pasa tras el reset, un evento que llega en el estado «equivocado».'
+
+formulas:
+  - id: pclk
+    tema: Reloj
+    nombre: Reloj de los periféricos
+    tex: 'CCLK = 100\ \text{MHz} \qquad F_{PCLK} = \frac{CCLK}{4} = 25\ \text{MHz}'
+    notas: 'PCLKSEL0/1, 2 bits por periférico: 00 = CCLK/4 (el de reset), 01 = CCLK, 10 = CCLK/2, 11 = CCLK/8.'
+  - id: ftick
+    tema: Timers
+    nombre: Frecuencia de cuenta
+    tex: 'F_{tick} = \frac{F_{PCLK}}{PR + 1}'
+    notas: 'Con PR = 0 (el de reset), F_tick = 25 MHz. PR = 24 da 1 MHz (1 µs por cuenta).'
+  - id: mr0-periodo
+    tema: Timers
+    nombre: Match para un periodo T
+    tex: 'T = \frac{MR0 + 1}{F_{tick}} \;\Longrightarrow\; MR0 = F_{tick}\cdot T - 1'
+    notas: 'Con reset en MR0. 1 ms con 25 MHz: MR0 = 24 999.'
+  - id: mr0-toggle
+    tema: Timers
+    nombre: Cuadrada por hardware (conmutar)
+    tex: 'MR0 = \frac{F_{tick}}{2\cdot F_{out}} - 1'
+    notas: 'EMC = 11: cada Match invierte el pin, así que un periodo son dos Match.'
+  - id: pwm-mr0
+    tema: PWM
+    nombre: Periodo de la PWM
+    tex: 'PWM1MR0 = \frac{F_{tick}}{F_{PWM}} - 1 \qquad 0 \le PWM1MRx \le PWM1MR0'
+    notas: 'El convenio de clase: el −1 va en MR0 (el periodo son MR0 + 1 cuentas), no en MRx.'
+  - id: pwm-ancho
+    tema: PWM
+    nombre: Ancho del pulso y ciclo de trabajo
+    tex: 'T_H = \frac{MRx}{F_{tick}} \qquad D = \frac{MRx}{MR0 + 1}'
+  - id: servo
+    tema: PWM
+    nombre: Servo (el de clase)
+    tex: 'T_H = 0{,}4 + 2\cdot\frac{grados}{180}\ \text{ms}'
+    notas: 'Nominal: 1 ms a 0° y 2 ms a 180°. Usa siempre los extremos que dé el enunciado.'
+  - id: cap-frecuencia
+    tema: Captura
+    nombre: Periodo entre dos capturas
+    tex: 'N = CR0_{k} - CR0_{k-1} \qquad f = \frac{F_{tick}}{N}'
+  - id: cap-ciclo
+    tema: Captura
+    nombre: Ciclo de trabajo medido
+    tex: 'D = \frac{CR0_{baja} - CR0_{sube}}{CR0_{sube,k} - CR0_{sube,k-1}}'
+  - id: uart-baudios
+    tema: UART
+    nombre: Velocidad de la UART
+    tex: 'V = \frac{F_{PCLK}}{16\cdot(256\cdot DLM + DLL)\cdot\left(1 + \frac{DivAddVal}{MulVal}\right)}'
+    notas: '1 ≤ MulVal ≤ 15 y DivAddVal menor que MulVal. Tras el reset, DivAddVal = 0 y el factor vale 1.'
+  - id: uart-dl
+    tema: UART
+    nombre: Divisor sin fraccionario
+    tex: 'DL = \frac{F_{PCLK}}{16\cdot V}\ \text{redondeado} \qquad DLM = DL / 256 \qquad DLL = DL \,\%\, 256'
+    notas: '19 200 bit/s con 25 MHz: DL = 81 (0,47 % de error). 115 200 bit/s: DL = 14 da un 3,1 %; con DL = 10, DivAddVal = 5 y MulVal = 14 queda en un 0,06 %.'
+  - id: adc-vin
+    tema: ADC y DAC
+    nombre: Tensión del ADC (12 bits)
+    tex: 'V_{in} = RESULT\cdot\frac{3{,}3}{4096}'
+    notas: 'RESULT está en los bits 15:4: (GDR >> 4) &amp; 0xFFF.'
+  - id: adc-reloj
+    tema: ADC y DAC
+    nombre: Reloj y tiempo de conversión del ADC
+    tex: 'F_{CLK\,ADC} = \frac{F_{PCLK}}{CLKDIV + 1} \le 13\ \text{MHz} \qquad t_{conv} = \frac{65}{F_{CLK\,ADC}}'
+    notas: 'Con 25 MHz y CLKDIV = 1: 12,5 MHz y 5,2 µs.'
+  - id: dac-vout
+    tema: ADC y DAC
+    nombre: Tensión del DAC (10 bits)
+    tex: 'V_{out} = VALUE\cdot\frac{3{,}3}{1024}'
+    notas: 'VALUE en los bits 15:6 de DACR. Salida AOUT en P0.26 (función 10). No necesita PCONP.'
+
+registros:
+  - tema: Reloj y potencia
+    nombre: PCONP
+    descripcion: 'encender cada periférico (1 = encendido)'
+    campos:
+      - { bits: '1, 2', nombre: 'PCTIM0, PCTIM1', que: 'TIMER0 y TIMER1. <b>1 tras el reset</b>' }
+      - { bits: '3', nombre: 'PCUART0', que: 'UART0. 1 tras el reset' }
+      - { bits: '6', nombre: 'PCPWM1', que: 'PWM1. 1 tras el reset' }
+      - { bits: '12', nombre: 'PCADC', que: 'ADC. <b>0 tras el reset</b>: hay que encenderlo' }
+      - { bits: '22, 23', nombre: 'PCTIM2, PCTIM3', que: 'TIMER2 y TIMER3. 0 tras el reset' }
+  - tema: Reloj y potencia
+    nombre: PCLKSEL0
+    descripcion: 'reloj de cada periférico (2 bits por periférico)'
+    campos:
+      - { bits: '3:2', nombre: 'PCLK_TIMER0', que: 'Reloj del Timer 0' }
+      - { bits: '5:4', nombre: 'PCLK_TIMER1', que: 'Reloj del Timer 1' }
+      - { bits: '7:6', nombre: 'PCLK_UART0', que: 'Reloj de la UART0' }
+      - { bits: '13:12', nombre: 'PCLK_PWM1', que: 'Reloj del PWM1' }
+      - { bits: '25:24', nombre: 'PCLK_ADC', que: 'Reloj del ADC' }
+  - tema: Timers
+    nombre: TnTCR
+    descripcion: 'control del contador'
+    campos:
+      - { bits: '0', nombre: 'Counter Enable', que: '1 = el TC y el PC cuentan; 0 = parados' }
+      - { bits: '1', nombre: 'Counter Reset', que: '1 = TC y PC a 0 (y se quedan a 0 hasta volver a escribir 0)' }
+  - tema: Timers
+    nombre: TnMCR
+    descripcion: 'acción en cada Match (MR1–MR3 siguen igual de 3 en 3)'
+    campos:
+      - { bits: '0', nombre: 'MR0I', que: 'Interrumpir cuando TC = MR0' }
+      - { bits: '1', nombre: 'MR0R', que: 'Reiniciar el TC (vuelve a 0)' }
+      - { bits: '2', nombre: 'MR0S', que: 'Parar el TC (pone a 0 el bit 0 de TCR)' }
+      - { bits: '5:3', nombre: 'MR1I, MR1R, MR1S', que: 'Lo mismo para MR1' }
+  - tema: Timers
+    nombre: TnIR
+    descripcion: 'flags de interrupción (se borran escribiendo un 1)'
+    campos:
+      - { bits: '0–3', nombre: 'MR0–MR3', que: 'Ha habido Match en MR0…MR3' }
+      - { bits: '4, 5', nombre: 'CR0, CR1', que: 'Ha habido captura en CR0 o CR1' }
+  - tema: Timers
+    nombre: TnEMR
+    descripcion: 'salidas de Match'
+    campos:
+      - { bits: '0–3', nombre: 'EM0–EM3', que: 'Nivel actual de cada salida (se puede leer y escribir)' }
+      - { bits: '5:4', nombre: 'EMC0', que: 'En el Match 0: <code>00</code> nada, <code>01</code> a 0, <code>10</code> a 1, <code>11</code> conmuta' }
+      - { bits: '7:6 … 11:10', nombre: 'EMC1–EMC3', que: 'Igual para los Match 1 a 3' }
+  - tema: Timers
+    nombre: TnCCR
+    descripcion: 'control de captura'
+    campos:
+      - { bits: '0', nombre: 'CAP0RE', que: '1 = capturar en CR0 con flanco de <b>subida</b> en CAPn.0' }
+      - { bits: '1', nombre: 'CAP0FE', que: '1 = capturar en CR0 con flanco de <b>bajada</b> (los dos a 1: ambos flancos)' }
+      - { bits: '2', nombre: 'CAP0I', que: '1 = interrumpir con cada captura en CR0' }
+      - { bits: '3–5', nombre: 'CAP1RE, CAP1FE, CAP1I', que: 'Lo mismo para CAPn.1 y CR1' }
+  - tema: PWM
+    nombre: PWM1TCR
+    descripcion: 'control'
+    campos:
+      - { bits: '0', nombre: 'Counter Enable', que: '1 = contar' }
+      - { bits: '1', nombre: 'Counter Reset', que: '1 = TC y PC a 0' }
+      - { bits: '3', nombre: 'PWM Enable', que: '1 = modo PWM (activa los registros sombra)' }
+  - tema: PWM
+    nombre: PWM1MCR
+    descripcion: 'qué hace cada Match'
+    campos:
+      - { bits: '0, 1, 2', nombre: 'PWMMR0I, PWMMR0R, PWMMR0S', que: 'Interrumpir, poner el TC a 0 o parar en MR0. Para una PWM: <b>PWMMR0R</b>' }
+      - { bits: '3–20', nombre: 'MR1–MR6', que: 'Lo mismo para cada Match, 3 bits por Match (para PWM se dejan a 0)' }
+  - tema: PWM
+    nombre: PWM1PCR
+    descripcion: 'tipo y habilitación de cada salida'
+    campos:
+      - { bits: '2–6', nombre: 'PWMSEL2–6', que: '1 = doble flanco en esa salida; 0 = flanco único' }
+      - { bits: '9–14', nombre: 'PWMENA1–6', que: '1 = salida PWM1.1…PWM1.6 habilitada' }
+  - tema: PWM
+    nombre: PWM1LER
+    descripcion: 'cargar los registros sombra'
+    campos:
+      - { bits: '0–6', nombre: 'Enable PWM Match 0–6 Latch', que: 'El valor escrito en MRx se usa a partir del siguiente MR0' }
+  - tema: UART
+    nombre: U0LCR
+    descripcion: 'formato de la trama'
+    campos:
+      - { bits: '1:0', nombre: 'Word Length Select', que: '00 = 5 bits … <b>11 = 8 bits</b>' }
+      - { bits: '2', nombre: 'Stop Bit Select', que: '0 = 1 bit de stop; 1 = 2 bits' }
+      - { bits: '3', nombre: 'Parity Enable', que: '1 = con paridad' }
+      - { bits: '5:4', nombre: 'Parity Select', que: '00 = impar, 01 = par, 10 = forzada a 1, 11 = forzada a 0' }
+      - { bits: '7', nombre: 'DLAB', que: '1 = acceso a DLL y DLM; 0 = acceso a RBR, THR e IER' }
+  - tema: UART
+    nombre: U0FDR
+    descripcion: 'divisor fraccionario'
+    campos:
+      - { bits: '3:0', nombre: 'DIVADDVAL', que: '0 a 14. Con 0, el divisor fraccionario no actúa (valor tras el reset)' }
+      - { bits: '7:4', nombre: 'MULVAL', que: '1 a 15, y mayor que DIVADDVAL (vale 1 tras el reset)' }
+  - tema: UART
+    nombre: U0IER
+    descripcion: 'qué interrupciones se habilitan'
+    campos:
+      - { bits: '0', nombre: 'RBR Interrupt Enable', que: '1 = interrumpir al recibir un dato (RDA)' }
+      - { bits: '1', nombre: 'THRE Interrupt Enable', que: '1 = interrumpir cuando THR queda vacío' }
+      - { bits: '2', nombre: 'RX Line Status', que: '1 = interrumpir con errores de recepción' }
+  - tema: UART
+    nombre: U0IIR
+    descripcion: 'de dónde viene la interrupción'
+    campos:
+      - { bits: '0', nombre: 'IntStatus', que: '<b>0</b> = hay una interrupción pendiente (activo a nivel bajo)' }
+      - { bits: '3:1', nombre: 'IntId', que: '011 = errores de línea, <b>010 = RDA</b>, 110 = time-out de la FIFO, <b>001 = THRE</b>' }
+  - tema: ADC y DAC
+    nombre: AD0CR
+    descripcion: 'control del ADC'
+    campos:
+      - { bits: '7:0', nombre: 'SEL', que: 'Un 1 en el canal que se convierte (en modo software, solo uno)' }
+      - { bits: '15:8', nombre: 'CLKDIV', que: 'Divisor del reloj: F_PCLK/(CLKDIV + 1) ≤ 13 MHz' }
+      - { bits: '16', nombre: 'BURST', que: '1 = convierte sin parar todos los canales de SEL, uno tras otro' }
+      - { bits: '21', nombre: 'PDN', que: '<b>1 = ADC encendido</b> (0 = apagado)' }
+      - { bits: '26:24', nombre: 'START', que: '000 = no empezar; <b>001 = empezar ya</b>; 010 = flanco en EINT0 (P2.10); 011 = en CAP0.1 (P1.27); 100 = MAT0.1; 101 = MAT0.3; 110 = MAT1.0; 111 = MAT1.1' }
+      - { bits: '27', nombre: 'EDGE', que: 'Con START ≥ 010: 0 = flanco de subida, 1 = de bajada' }
+  - tema: ADC y DAC
+    nombre: AD0GDR
+    descripcion: 'último resultado (también AD0DR0–AD0DR7, uno por canal)'
+    campos:
+      - { bits: '15:4', nombre: 'RESULT', que: 'El resultado de 12 bits' }
+      - { bits: '26:24', nombre: 'CHN', que: 'Canal convertido (solo en ADGDR)' }
+      - { bits: '30', nombre: 'OVERRUN', que: '1 = se ha pisado un resultado sin leerlo (modo ráfaga)' }
+      - { bits: '31', nombre: 'DONE', que: '1 = conversión terminada. Se borra al leer el registro' }
+  - tema: ADC y DAC
+    nombre: AD0INTEN
+    descripcion: 'interrupciones del ADC'
+    campos:
+      - { bits: '7:0', nombre: 'ADINTEN0–7', que: '1 = interrumpir al terminar ese canal' }
+      - { bits: '8', nombre: 'ADGINTEN', que: '1 = interrumpir con DONE de ADGDR (cualquier canal). <b>Vale 1 tras el reset</b>' }
+  - tema: ADC y DAC
+    nombre: DACR
+    descripcion: 'valor y modo del DAC'
+    campos:
+      - { bits: '15:6', nombre: 'VALUE', que: 'El valor de 10 bits' }
+      - { bits: '16', nombre: 'BIAS', que: '0 = se estabiliza en 1 µs (hasta 1 MHz, 700 µA); 1 = 2,5 µs (hasta 400 kHz, 350 µA)' }
