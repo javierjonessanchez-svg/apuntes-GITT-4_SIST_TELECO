@@ -83,11 +83,11 @@ Luz a partir de una corriente.
       '¿Por qué el LED no sirve para DWDM?', '¿Qué es la electroluminiscencia?',
     ]);
   });
-  test('Conmutación conserva sus 46 preguntas tras el cambio', () => {
+  test('Conmutación conserva sus 60 preguntas (46 + 6 de conexiones + 8 de GPRS)', () => {
     let n = 0;
     for (const f of readdirSync('contenido/conmutacion/temas')) {
       n += extraerPreguntas(readFileSync(`contenido/conmutacion/temas/${f}`, 'utf8')).length;
     }
-    expect(n).toBe(46);
+    expect(n).toBe(60);
   });
 });

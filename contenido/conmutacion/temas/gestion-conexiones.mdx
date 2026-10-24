@@ -1,0 +1,213 @@
+---
+titulo: "Gestión de conexiones (CM)"
+orden: 6
+bloque: "Señalización"
+resumen: "Llamadas originadas y terminadas en el móvil, MSRN y SMS"
+saber:
+  - "CM da servicio al usuario con tres entidades: CC (control de llamada, derivado de Q.931), SS (servicios suplementarios) y SMS; entre MSC se usa ISUP"
+  - "Tres estrategias de asignación del TCH: Non-OACSU (típica, tras Set-Up o Call Confirmed), OACSU (tardía, tras Connect/ANM) y VEA (temprana, al principio)"
+  - "MOC: RACH, AGCH, CM-Service Request, autenticación, cifrado, Set-Up, Assignment Command y el resto de la llamada por el FACCH"
+  - "MTC: igual, pero empieza con paging por el PCH, contesta con CM-Paging Response y aparece el único mensaje nuevo de GSM, CALL CONFIRMED"
+  - "MSRN: número temporal de roaming (VCC + VNDC + SN) con el que el GMSC encamina la llamada hasta el MSC visitado sin revelar el IMSI ni la posición"
+  - "SMS: hasta 140 caracteres; MO-SM y MT-SM; va por SDCCH, o por SACCH con SAPI=3 si hay una llamada activa"
+fuentes:
+  - "Cx_Red_Conexiones.pdf"
+---
+
+import FlujoLlamada from '../../../src/asignaturas/conmutacion/widgets/FlujoLlamada.astro';
+
+Ya sabemos quién es el móvil (MM) y qué recursos radio usa (RR). Falta el último escalón de la capa de red: **CM**, la subcapa que ofrece el servicio al usuario, sea una llamada o un mensaje.
+
+## Dónde encaja CM
+
+CM va **entre el MS y el MSC**. La BTS y la BSC solo transportan. Por debajo necesita una conexión MM, y MM a su vez una conexión RR (por eso en una llamada siempre se ven RR, MM y CM en ese orden).
+
+Tiene tres entidades de servicio:
+
+| Entidad | Para qué sirve |
+| --- | --- |
+| **CC** (Call Control) | Establecer, mantener y liberar la llamada de voz o datos en modo circuito |
+| **SS** (Supplementary Services) | Servicios suplementarios: desvío, llamada en espera… |
+| **SMS** (Short Message Service) | Mensajes cortos |
+
+### Qué señalización usa
+
+- **Entre el MS y el MSC** (señalización de abonado): CC deriva de **Q.931** de la RDSI. Solo hay **un mensaje nuevo** respecto a Q.931: `CALL CONFIRMED`, que aparece en las llamadas entrantes (MTC).
+- **Entre MSC** (MSCx a MSCy): **ISUP** de SS7, igual que en la red fija.
+
+## Estrategias de asignación del canal de tráfico
+
+El TCH es un recurso caro. La red decide **cuándo** se lo da al móvil, y eso cambia qué canales se usan en el camino:
+
+| Estrategia | Cuándo se asigna el TCH | Secuencia de canales |
+| --- | --- | --- |
+| **Non-OACSU** (típica) | Tras el `Set-Up` (MOC) o el `Call Confirmed` (MTC) | RACH, SDCCH, FACCH (sobre el TCH), TCH |
+| **OACSU** (tardía) | Solo cuando el llamado ha contestado (la red recibe `Connect`/ANM) | RACH, SDCCH, FACCH, TCH |
+| **VEA** (temprana) | Al principio de todo | RACH, FACCH, TCH |
+
+- **Non-OACSU** es lo normal: la señalización inicial va por el SDCCH y, al reservar el TCH, el resto va por el FACCH.
+- **OACSU** (tardía) retrasa la reserva del TCH hasta que el llamado contesta, así que no gasta TCH en llamadas que no se completan.
+- **VEA** (temprana) asigna el TCH desde el principio y salta el SDCCH (RACH, FACCH, TCH).
+
+*Extra, no está en las diapositivas: la ventaja práctica de cada una. OACSU ahorra TCH cuando el llamado no contesta; VEA gasta más TCH si la llamada no llega a establecerse.*
+
+> **Ojo.** En las diapositivas Non-OACSU y OACSU tienen la misma secuencia de canales; lo que las distingue es *cuándo* se da el TCH. Aprende la regla del «cuándo».
+
+## Llamada originada en el móvil (MOC)
+
+Es la que empieza el usuario al marcar. Fíjate en que hay **dos partes**: la señalización de abonado (en la interfaz aérea y hacia el MSC) y la de encaminamiento (entre centrales).
+
+<FlujoLlamada id="llamada-saliente" />
+
+### Parte de abonado
+
+1. El usuario marca y pulsa llamar.
+2. **Petición de canal** a la BSS por el RACH, con una identidad (TMSI).
+3. La BSC asigna un **SDCCH** y se lo comunica al móvil por el AGCH.
+4. La BSC hace una **petición de servicio** al MSC/VLR.
+5. El MSC/VLR **autentica** al móvil si ya se había registrado (si no, antes hace el registro con el HLR).
+6. Se ordena el paso a **modo cifrado**.
+7. El móvil envía el **establecimiento de llamada** con el número llamado (MSISDN).
+8. Opcional: el MSC pide el **IMEI** y lo comprueba en el EIR.
+9. El MSC envía la **asignación de canal** al BSS, y este al móvil.
+10. El móvil contesta con **asignación completada**.
+
+### Parte de encaminamiento
+
+Hacia la red telefónica (RTC) se usa ISUP:
+
+1. El MSC/VLR envía a la RTC la petición de direccionamiento, **ISUP-IAM**.
+2. La RTC encamina la llamada hacia el llamado.
+3. La RTC devuelve **ISUP-ACM** (direccionamiento completado).
+4. El MSC avisa al móvil (`Alerting`) y este pone el tono de llamada.
+5. El MSC queda esperando la respuesta, **ISUP-ANM**.
+6. Cuando llega, se reenvía al móvil por el BSS.
+7. El móvil corta el tono y empieza la conversación.
+
+## Llamada terminada en el móvil (MTC)
+
+Es la que recibe el móvil. Empieza en la red, así que **lo primero es encontrarlo**: aviso por el PCH en todas las células del LA.
+
+<FlujoLlamada id="llamada-terminada" />
+
+Compárala con la MOC:
+
+| | MOC | MTC |
+| --- | --- | --- |
+| Primer paso | El móvil pide canal por el RACH | La red avisa por el PCH (`Paging Request`, TMSI) |
+| Solicitud de servicio | `CM-Service Request` | `CM-Paging Response` |
+| Establecimiento | El móvil envía `Set-Up`; la red contesta `Call Proceeding` | La red envía `Set-Up`; el móvil contesta `Call Confirmed` |
+| Tono / `Alerting` | Va de la red al móvil | Va del móvil a la red |
+
+El resto (autenticación, cifrado, asignación del TCH, `Connect` y `Connect Acknowledge`) es igual.
+
+## Cómo llega la llamada hasta el móvil: el MSRN
+
+Una llamada de la red fija o de otro operador **entra por el GMSC** con el número público (ISUP-IAM con el MSISDN). Desde ahí tiene que llegar al MSC donde está el móvil ahora, que puede estar en otro operador o país.
+
+Dos problemas: el MSISDN no dice dónde está el móvil, y la red no debe revelar el IMSI ni la posición. La solución es una identidad temporal, el **MSRN** (Mobile Station Roaming Number).
+
+El MSRN:
+
+- Se asigna a un móvil para **encaminarle una llamada** (desde el GMSC o desde otro usuario de su red) y para dar servicio a un móvil en **roaming**.
+- Tiene un formato parecido al MSISDN (E.164): **VCC + VNDC + SN**, donde VCC es el código del país visitado, VNDC el del operador visitado y SN el número de abonado (VMSC + VSN, que incluye el MSC visitado).
+- Es temporal: lo crea el VLR para esa llamada.
+
+<FlujoLlamada id="encaminamiento-msrn" />
+
+En resumen: el GMSC pregunta al HLR; el HLR traduce a IMSI y le pide un MSRN al VLR; el MSRN vuelve al GMSC por el camino inverso; el GMSC encamina con **ISUP-IAM(MSRN)**; y el MSC visitado, con ayuda del VLR, obtiene el TMSI y el LAI para avisar.
+
+## SMS: mensajes cortos
+
+- Hasta **140 caracteres** alfanuméricos. Forma parte del estándar GSM y se ha ampliado a otras redes (4G).
+- Hay extensiones para dar formato, alargar el texto o añadir contenido. Tipos: mensajes de texto puros, mensajes de configuración (parámetros para otros servicios como WAP o MMS) y notificaciones (MMS, mensajes recibidos…).
+- Intervienen, además del MS y la BSS: **MSC, VLR, SMS Gateway y SMSC**. Usa un **SDCCH** o, si hay una llamada activa, el **SACCH con SAPI=3** (no prioritario).
+
+### MT-SM y MO-SM
+
+- **MT-SM** (Mobile Terminated): mensajes **dirigidos al móvil**. Al principio SMS era solo del operador a los usuarios.
+- **MO-SM** (Mobile Originated): mensajes **originados en el móvil**. Los operadores ampliaron la especificación para permitir comunicación bidireccional.
+
+### El SMSC
+
+El **SMSC** (Short Message Service Center) conecta el servicio SMS con la red GSM. Recibe y guarda los mensajes (de usuarios o de avisos del operador) hasta enviarlos, **comprueba los permisos** del origen consultando al HLR, comprueba que el destino está operativo consultando al VLR y, si no lo está, **lo guarda** y revisa periódicamente su estado.
+
+### Secuencia de un MO-SM
+
+1. El VLR del usuario decide si puede enviar.
+2. El MSC recibe el mensaje, manda al VLR lo necesario para tarificarlo y lo remite al SMSC de origen.
+3. El SMSC de origen lo pasa al SMSC de destino, que lo convierte en MT-SM.
+4. El SMSC de destino informa del estado y devuelve el informe de recepción: el usuario ve «mensaje enviado».
+5. Si lo pide, recibe un mensaje de estado que confirma si el destino lo recibió (si caducó, con indicación de error).
+
+El mensaje se tarifica y se confirma al usuario **cuando entra en la red**, no cuando llega al destino.
+
+### Secuencia de un MT-SM
+
+1. El SMSC pide al VLR del destino su localización. Si no está disponible, lo guarda mientras dure su validez.
+2. El SMSC envía el mensaje al MSC e indica en qué BSS entregarlo.
+3. El MSC avisa al VLR del destino de que va a entregarle un mensaje.
+4. El VLR avisa al terminal y comprueba que está conectado.
+5. El VLR responde al MSC con el estado y, si está operativo, con la localización (el BSS).
+6. El MSC envía el mensaje al usuario.
+7. El MSC informa al SMSC de que se entregó y este lo borra.
+8. Opcionalmente, el SMSC de destino responde al origen con un aviso de entrega.
+
+### Campos de un SMS
+
+Un SMS se forma con hasta ocho campos, según sea MT-SM o MO-SM. Los principales:
+
+| Campo | Para qué |
+| --- | --- |
+| **Validity-Period** | Periodo en el que el SMS es válido: durante él el SMSC garantiza que existe si no se pudo entregar |
+| **Service-Centre-Time-Stamp** | Instante de llegada del SMS al SMSC |
+| **Protocol-Identifier** | Protocolo usado |
+| **More-Messages-to-Send** | Avisa al SMSC de que hay más mensajes pendientes |
+| **Priority** | Sin prioridad: se entrega solo si el móvil está presente y con memoria. Con prioridad: se intenta aunque esté ausente o sin memoria |
+| **Messages-Waiting** | Indica al HLR y al VLR que hay un mensaje esperando en el SMSC (solo si no se pudo entregar) |
+| **Alert-SC** | El SMSC avisa al origen de que falló la entrega, y de cuando el destino vuelve a estar disponible |
+| **MT Correlation ID** | Liga un reenvío con una consulta anterior (sustituye al IMSI) |
+
+## Autoevaluación
+
+<details>
+<summary>¿Qué mensaje de CC es nuevo en GSM respecto a Q.931 y cuándo aparece?</summary>
+
+`CALL CONFIRMED`, en la llamada entrante (MTC): el móvil confirma a la red que puede atender la llamada.
+
+</details>
+
+<details>
+<summary>¿Qué diferencia hay entre Non-OACSU, OACSU y VEA?</summary>
+
+Es *cuándo* se asigna el TCH. Non-OACSU, tras `Set-Up` (MOC) o `Call Confirmed` (MTC). OACSU, cuando el llamado contesta (`Connect`/ANM). VEA, al principio.
+
+</details>
+
+<details>
+<summary>¿Qué canales usa una llamada originada, en orden?</summary>
+
+RACH (petición), AGCH (asignación del SDCCH), SDCCH (servicio, autenticación, cifrado, `Set-Up`), FACCH (resto del establecimiento, ya sobre el TCH) y TCH (voz).
+
+</details>
+
+<details>
+<summary>¿Por qué se usa el MSRN y qué contiene?</summary>
+
+Para encaminar la llamada hasta el MSC visitado **sin revelar el IMSI ni la posición** del móvil. Tiene formato E.164: VCC (país visitado) + VNDC (operador visitado) + SN (MSC y abonado).
+
+</details>
+
+<details>
+<summary>¿Cuándo se tarifica un SMS enviado y cuándo ve el usuario «mensaje enviado»?</summary>
+
+Cuando el mensaje entra en la red (llega al SMSC), no cuando llega al destino. Si quiere saber si el destino lo recibió, debe pedir el informe de estado.
+
+</details>
+
+<details>
+<summary>¿Por qué canal va un SMS?</summary>
+
+Por el SDCCH, o por el SACCH con SAPI=3 (no prioritario) si el móvil tiene una llamada activa.
+
+</details>
