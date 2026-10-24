@@ -37,6 +37,8 @@ test:
     c: 0
     e: "Con T = 600 µs: 1 200 µs de portadora y 600 µs de hueco."
 ---
+**En el examen vale el pseudocódigo.** El profesor acepta pseudocódigo claro en las preguntas de código: no hace falta el C completo. Lo que no puede faltar son los **valores de los registros** (MR0, MCR, PCR, CCR…) y lo que hace cada estado. Por eso cada solución empieza con una **respuesta corta en pseudocódigo**; el C completo sigue debajo. Los pasos de cada tipo de problema están en el [modo examen](../examen/).
+
 **Cómo usar este tema.** Son problemas **nuevos**, escritos con el mismo estilo que los de examen: un sistema con entradas y salidas, una máquina de estados o un StateChart y su código para el LPC1768. Lee el enunciado, intenta el diagrama y el código en papel y luego abre la solución.
 
 ## El método
@@ -69,6 +71,31 @@ c) ¿Qué pasa si se pierde un byte? Propón una solución.
 
 <details>
 <summary>Solución guiada</summary>
+
+**Respuesta corta (pseudocódigo).**
+
+```text
+Configuración (UART0, 8N1, interrupción al recibir):
+  PINSEL0: P0.2 = TXD0, P0.3 = RXD0
+  LCR = 0x83 · DLL, DLM = divisor de la velocidad · LCR = 0x03
+  IER = 1 (RDA) · habilitar UART0_IRQn en el NVIC
+
+ISR de la UART0 (cada byte, un paso):
+  si IntId no es RDA: salir
+  b = RBR · ms_sin_bytes = 0
+  según estado:
+    ESPERA_CAB: si b == 0x7E → LONGITUD
+    LONGITUD:   si 1 ≤ b ≤ 16 → len = b, suma = b, i = 0, DATOS
+                si no → ESPERA_CAB
+    DATOS:      trama[i++] = b · suma += b · si i == len → CHECKSUM
+    CHECKSUM:   si b == suma (módulo 256) → trama_ok = 1
+                → ESPERA_CAB
+
+ISR periódica de 1 ms (apartado c):
+  ms_sin_bytes++ · si pasa de 2 y estado ≠ ESPERA_CAB → ESPERA_CAB
+```
+
+**Paso a paso, con el C completo:**
 
 **a)** Hay que recordar en qué parte de la trama vamos: cuatro estados.
 
@@ -141,6 +168,30 @@ c) Programa la máquina, llamada cada 20 ms.
 
 <details>
 <summary>Solución guiada</summary>
+
+**Respuesta corta (pseudocódigo).**
+
+```text
+PWM1 para el servo (PWM1.1, F_PCLK = 25 MHz, PR = 0):
+  PINSEL: pin a PWM1.1
+  PWM1MR0 = 499 999 (20 ms) · MCR = PWMMR0R
+  PCR = PWMENA1 · LER = bits 0 y 1 · TCR = Counter Enable + PWM Enable
+  servo(g): MR1 = 25 000 + 25 000·g/180 · LER = bit 1
+
+Tick de 20 ms (un Timer con MR0 = 499 999, MR0I | MR0R):
+  si EMERGENCIA y estado ≠ EMERGENCIA: ángulo = 90, servo → EMERGENCIA
+  según estado:
+    CERRADA:    si TICKET → ABRIENDO
+    ABRIENDO:   si ángulo < 90: ángulo++, servo
+                si ángulo ≥ 90: t = 0 → ABIERTA
+    ABIERTA:    t++ · si t ≥ 250 y no hay coche → CERRANDO
+    CERRANDO:   si hay coche → ABRIENDO
+                si no: ángulo--, servo · si ángulo == 0 → CERRADA
+    EMERGENCIA: si REARME → CERRANDO
+  (estado inicial: CERRANDO)
+```
+
+**Paso a paso, con el C completo:**
 
 **a)** Estados dentro de un superestado **FUNCIONANDO**:
 
@@ -230,6 +281,26 @@ c) Añade una **alarma**: si con la bomba encendida el nivel sigue por debajo de
 <details>
 <summary>Solución guiada</summary>
 
+**Respuesta corta (pseudocódigo).**
+
+```text
+ADC (sensor en AD0.0):
+  PCONP bit 12 = 1 · P0.23 = AD0.0
+  AD0CR = SEL canal 0 | CLKDIV = 1 | PDN · START = 001 en cada tick (o con un Match)
+  nivel = RESULT·100/4095
+
+Cada 100 ms (Moore):
+  según estado:
+    REPOSO:   bomba = 0 · si nivel < 30 → LLENANDO
+    LLENANDO: bomba = 1
+              si nivel < 10: t++ · si t ≥ 100 → bomba = 0, LED = 1, ALARMA
+              si no: t = 0
+              si nivel > 80 → t = 0, REPOSO
+    ALARMA:   si botón → LED = 0, t = 0, REPOSO
+```
+
+**Paso a paso, con el C completo:**
+
 **a)** Dos estados: **REPOSO** y **LLENANDO**. El nivel en % sale del ADC: `nivel = resultado * 100 / 4095`.
 
 - **Moore**: REPOSO (do: bomba = 0), LLENANDO (do: bomba = 1). Transiciones: `[nivel < 30]` REPOSO → LLENANDO y `[nivel > 80]` LLENANDO → REPOSO.
@@ -275,6 +346,33 @@ c) En el receptor, un módulo de infrarrojos da 0 mientras recibe portadora. Mid
 
 <details>
 <summary>Solución guiada</summary>
+
+**Respuesta corta (pseudocódigo).**
+
+```text
+Portadora (TIMER0 en MAT0.0, P1.28):
+  P1.28 = MAT0.0 · MR0 = 328 · MCR = MR0R · EMR: EMC0 = 11 (conmutar)
+  encender: TCR = 1 · apagar: TCR = 2 y EM0 = 0
+
+Emisor (TIMER1, PR = 24 → 1 µs por cuenta, MR0I | MR0R, T = 600):
+  tx_mando(c): bit = 0, portadora on, MR0 = 4T − 1, arrancar → START
+  ISR de TIMER1 (IR = 1):
+    START o MARCA: portadora off · MR0 = T − 1 → ESPACIO
+    ESPACIO: si quedan bits: portadora on
+                 MR0 = (bit a 1 ? 2T : T) − 1 · bit++ → MARCA
+             si no: parar TIMER1 → FIN
+
+Receptor (TIMER2 en CAP2.0, P0.4):
+  PCONP bit 22 = 1 · P0.4 = CAP2.0 · PR = 24 · CCR = bajada | CAP0I · TCR = 1
+  ISR de TIMER2 (IR = bit 4):
+    si era bajada: guardar CR0 · CCR = subida | CAP0I
+    si era subida: ancho = CR0 − guardado · CCR = bajada | CAP0I
+      ESPERA_START: si ancho ≈ 2 400 µs → dato = 0, n = 0, BITS
+      BITS: ≈ 1 200 µs → bit n a 1 · ≈ 600 µs → a 0 · otro → ESPERA_START
+            n++ · si n == 12 → codigo_rx = dato, nuevo_codigo = 1, ESPERA_START
+```
+
+**Paso a paso, con el C completo:**
 
 **a)** TIMER0 en **toggle** sobre MAT0.0 (EMC0 = 11) y reset en MR0: cada Match invierte el pin, así que el periodo son dos Match.
 

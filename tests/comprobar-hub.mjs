@@ -120,7 +120,8 @@ if (lab.length) fallo(8, 'material de prácticas en: ' + lab.join('; '));
 else ok(8, 'nada de material de prácticas en lo publicado');
 
 // 9) modo examen: cada asignatura con examen.yaml tiene su página, los «ver código» solo
-//    apuntan a funciones/ o plantillas/ de un repo de GitHub, y cada casilla tiene su etiqueta
+//    apuntan a funciones/ o plantillas/ de un repo de GitHub, y cada casilla tiene su etiqueta.
+//    La hoja de repaso (data-hoja-examen) no enlaza código, así que no se le exigen «ver código».
 const conExamen = fichas.filter(({ carpeta }) => existsSync(join(dirContenido, carpeta, 'examen.yaml'))).map(({ md }) => campo(md, 'slug'));
 if (!conExamen.length) {
   ok(9, 'ninguna asignatura tiene modo examen (nada que comprobar)');
@@ -130,7 +131,8 @@ if (!conExamen.length) {
     const pagina = textos.find((t) => t.ruta === `${slug}/examen/index.html`);
     if (!pagina) { problemas.push(`${slug}: tiene examen.yaml pero falta ${slug}/examen/index.html`); continue; }
     const enlaces = [...pagina.texto.matchAll(/<a\b[^>]*class="ver-codigo"[^>]*>/g)].map((m) => m[0].match(/href="([^"]*)"/)?.[1] ?? '');
-    if (!enlaces.length) problemas.push(`${slug}: la página no tiene ningún «ver código»`);
+    const hoja = pagina.texto.includes('data-hoja-examen');
+    if (!enlaces.length && !hoja) problemas.push(`${slug}: la página no tiene ningún «ver código»`);
     for (const href of enlaces) {
       if (!/^https:\/\/github\.com\/[^/]+\/[^/]+\/blob\/main\/(funciones|plantillas)\//.test(href) || href.includes('..')) problemas.push(`${slug}: enlace «${href}»`);
     }
