@@ -1,0 +1,29 @@
+---
+// Tarjeta de un tema en la portada de Radiación: número, título, resumen
+// y la barra de avance. Un tema «próximo» (sin apuntes aún) va con borde a trazos y sin enlace.
+import Avance from './Avance.astro';
+import { ruta } from '../../comun/rutas';
+
+interface Props {
+  asignatura: string;
+  slug?: string;
+  orden: number;
+  titulo: string;
+  resumen?: string;
+  i: number;
+}
+const { asignatura, slug, orden, titulo, resumen, i } = Astro.props;
+const num = String(orden).padStart(2, '0');
+---
+{slug ? (
+  <a class="ra-tarjeta" href={ruta(asignatura, slug)}>
+    <span class="ra-tarjeta-titulo"><span class="ra-tarjeta-num">{num}</span>{titulo}</span>
+    {resumen && <span class="ra-tarjeta-sub">{resumen}</span>}
+    <span class="ra-tarjeta-pie"><Avance asignatura={asignatura} tema={slug} i={i} /></span>
+  </a>
+) : (
+  <div class="ra-tarjeta proxima">
+    <span class="ra-tarjeta-titulo"><span class="ra-tarjeta-num">{num}</span>{titulo}</span>
+    <span class="ra-tarjeta-pie">En preparación</span>
+  </div>
+)}

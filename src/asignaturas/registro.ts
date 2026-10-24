@@ -11,6 +11,8 @@ import './conmutacion/tema.css';
 import '@fontsource-variable/fraunces';
 import '@fontsource-variable/inter';
 import './comunicaciones-opticas/tema.css';
+import '@fontsource-variable/schibsted-grotesk';
+import './radiacion-radiocomunicacion/tema.css';
 import '@fontsource-variable/jetbrains-mono';
 import './seda/tema.css';
 import PortadaBase from './base/Portada.astro';
@@ -22,6 +24,9 @@ import DecoracionConmutacion from './conmutacion/Decoracion.astro';
 import PortadaOpticas from './comunicaciones-opticas/Portada.astro';
 import AvanceOpticas from './comunicaciones-opticas/Avance.astro';
 import DecoracionOpticas from './comunicaciones-opticas/Decoracion.astro';
+import PortadaRadiacion from './radiacion-radiocomunicacion/Portada.astro';
+import AvanceRadiacion from './radiacion-radiocomunicacion/Avance.astro';
+import DecoracionRadiacion from './radiacion-radiocomunicacion/Decoracion.astro';
 import PortadaSeda from './seda/Portada.astro';
 import AvanceSeda from './seda/Avance.astro';
 import DecoracionSeda from './seda/Decoracion.astro';
@@ -40,6 +45,7 @@ export const mundoBase: Mundo = { Portada: PortadaBase, Avance: AvanceBase, Deco
 export const mundos: Record<string, Mundo> = {
   conmutacion: { Portada: PortadaConmutacion, Avance: AvanceConmutacion, Decoracion: DecoracionConmutacion },
   'comunicaciones-opticas': { Portada: PortadaOpticas, Avance: AvanceOpticas, Decoracion: DecoracionOpticas },
+  'radiacion-radiocomunicacion': { Portada: PortadaRadiacion, Avance: AvanceRadiacion, Decoracion: DecoracionRadiacion },
   seda: { Portada: PortadaSeda, Avance: AvanceSeda, Decoracion: DecoracionSeda },
 };
 

@@ -1,0 +1,25 @@
+---
+// Ruido en cascada: el mismo cable y el mismo LNA en los dos órdenes posibles, con la
+// temperatura total referida a la salida de la antena (punto A).
+import Widget from '../../../widgets/Widget.astro';
+import Opciones from '../../../widgets/Opciones.astro';
+import Lienzo from '../../comunicaciones-opticas/widgets/Lienzo.astro';
+import { dibujarCadena } from './dibujos-sistema';
+
+const uid = `cadena-${Math.random().toString(36).slice(2, 7)}`;
+---
+<Widget titulo="Ruido en cascada: ¿el LNA antes o después del cable?" tipo="entender">
+  <Lienzo nombre="cadena" uid={uid} alto={252} etiqueta="Cadena de recepción con antena de 50 K, cable de 3 dB y LNA de 100 K y 30 dB: la temperatura total referida a la salida de la antena con cada orden"
+    inicial={dibujarCadena({ orden: 'lna-primero' })}
+    nota="El cable está a la temperatura de referencia, 290 K: T = (l − 1)·290.">
+    <Fragment slot="controles">
+      <Opciones nombre="orden" etiqueta="Orden de la cadena" opciones={[['lna-primero', 'LNA delante'], ['cable-primero', 'Cable delante']]} valor="lna-primero" />
+    </Fragment>
+  </Lienzo>
+</Widget>
+<script>
+  import { montarDibujo, opcion } from '../../comunicaciones-opticas/widgets/vivo';
+  import { dibujarCadena } from './dibujos-sistema';
+
+  montarDibujo('cadena', (caja) => dibujarCadena({ orden: opcion(caja, 'orden') === 'cable-primero' ? 'cable-primero' : 'lna-primero' }));
+</script>

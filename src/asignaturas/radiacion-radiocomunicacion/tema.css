@@ -1,0 +1,155 @@
+/* Mundo de Radiación y Radiocomunicación: el cuaderno de campo del radioenlace.
+   Papel de mapa topográfico (claro) o la noche del vano (oscuro), tinta azul marino,
+   acento naranja de balizamiento de mástil; títulos en Schibsted Grotesk, texto en Inter.
+   Firma: el elipsoide de Fresnel entre dos mástiles. */
+html[data-asignatura="radiacion-radiocomunicacion"] {
+  --fondo: #F4F1E8;
+  --superficie: #FFFDF8;
+  --texto: #14213D;
+  --suave: #4D5870;
+  --linea: #DDD6C4;
+  --primario: #1F3A68;
+  --sobre-primario: #FFFFFF;
+  --resalte: #EE7A2F;
+  --sobre-resalte: #2A1404;
+  --acento: #B9480E;
+  --acento2: #22705A;
+  --foco: #B9480E;
+  /* Colores de los dibujos de los widgets */
+  --ra-naranja: #B4490C;
+  --ra-azul: #1F4FA0;
+  --ra-verde: #2A7740;
+  --ra-rojo: #B3261E;
+  --ra-violeta: #6B3FA0;
+}
+html[data-asignatura="radiacion-radiocomunicacion"][data-tema="oscuro"] {
+  --fondo: #0F1724;
+  --superficie: #172234;
+  --texto: #E9EDF3;
+  --suave: #A7B1C3;
+  --linea: #2B3951;
+  --primario: #8FB4FF;
+  --sobre-primario: #0F1724;
+  --resalte: #F28C3A;
+  --sobre-resalte: #2A1404;
+  --acento: #F5A060;
+  --acento2: #6FD1B0;
+  --foco: #F5A060;
+  --ra-naranja: #F5A060;
+  --ra-azul: #8FB4FF;
+  --ra-verde: #6FCF8E;
+  --ra-rojo: #F28B82;
+  --ra-violeta: #C3A6F0;
+}
+@media (prefers-color-scheme: dark) {
+  html[data-asignatura="radiacion-radiocomunicacion"]:not([data-tema="claro"]) {
+    --fondo: #0F1724;
+    --superficie: #172234;
+    --texto: #E9EDF3;
+    --suave: #A7B1C3;
+    --linea: #2B3951;
+    --primario: #8FB4FF;
+    --sobre-primario: #0F1724;
+    --resalte: #F28C3A;
+    --sobre-resalte: #2A1404;
+    --acento: #F5A060;
+    --acento2: #6FD1B0;
+    --foco: #F5A060;
+    --ra-naranja: #F5A060;
+    --ra-azul: #8FB4FF;
+    --ra-verde: #6FCF8E;
+    --ra-rojo: #F28B82;
+    --ra-violeta: #C3A6F0;
+  }
+}
+
+/* ---------- Tipografía: Schibsted Grotesk en los títulos, Inter en el texto ---------- */
+html[data-asignatura="radiacion-radiocomunicacion"] {
+  --fuente-texto: 'Inter Variable', system-ui, sans-serif;
+  --fuente-titulos: 'Schibsted Grotesk Variable', 'Inter Variable', system-ui, sans-serif;
+}
+html[data-asignatura="radiacion-radiocomunicacion"] :is(h1, h2) { letter-spacing: -0.015em; }
+
+/* Papel de mapa: curvas de nivel muy tenues detrás de todo (en oscuro, aún más tenues) */
+html[data-asignatura="radiacion-radiocomunicacion"] body {
+  background-color: var(--fondo);
+  background-image:
+    repeating-radial-gradient(ellipse 120% 80% at 85% -10%, transparent 0 46px, color-mix(in srgb, var(--linea) 55%, transparent) 46px 47px),
+    repeating-radial-gradient(ellipse 90% 70% at -10% 110%, transparent 0 58px, color-mix(in srgb, var(--linea) 40%, transparent) 58px 59px);
+  background-attachment: fixed;
+}
+
+/* ---------- Portada ---------- */
+.ra-portada { padding-bottom: 40px; }
+.ra-cabecera { padding-top: 12px; }
+.ra-cabecera h1 { font-size: clamp(2.1rem, 6vw, 3.4rem); line-height: 1.04; margin: 0 0 10px; font-weight: 750; }
+.ra-cabecera p { max-width: 62ch; margin: 0 0 14px; color: var(--suave); text-wrap: pretty; }
+.ra-cabecera .ra-elipsoide { display: block; width: 100%; max-width: 560px; height: auto; margin: 0 0 18px; }
+.ra-examen { display: inline-flex; align-items: center; gap: 8px; margin: 0 0 26px; padding: 12px 22px; font-size: 1.05rem; text-decoration: none; }
+
+/* La cadena del radioenlace: del transmisor al receptor */
+.ra-cadena ol { list-style: none; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 28px; padding: 0; }
+.ra-cadena li { display: inline-flex; align-items: center; gap: 6px; }
+.ra-cadena li + li::before { content: ""; width: 22px; height: 0; border-top: 2px dashed var(--acento); }
+.ra-cadena a {
+  display: inline-flex; align-items: center; min-height: 44px; padding: 0 14px; border-radius: 999px;
+  background: var(--superficie); color: var(--texto); text-decoration: none; font-weight: 600; font-size: .92rem;
+  box-shadow: inset 0 0 0 1px var(--linea);
+  transition-property: box-shadow, transform; transition-duration: .15s; transition-timing-function: ease-out;
+}
+.ra-cadena a:hover { box-shadow: inset 0 0 0 1px var(--primario); }
+.ra-cadena a:active { transform: scale(.97); }
+
+/* Bloques (los temas) y tarjetas */
+.ra-bloque { margin: 0 0 26px; scroll-margin-top: 80px; }
+.ra-bloque h2 { display: flex; align-items: baseline; gap: 10px; margin: 0 0 10px; font-size: 1.45rem; }
+.ra-bloque h2 small { font-family: var(--fuente-texto); font-size: .8rem; font-weight: 600; color: var(--acento); font-variant-numeric: tabular-nums; }
+.ra-tarjetas { list-style: none; display: grid; gap: 10px; margin: 0; padding: 0; grid-template-columns: repeat(auto-fill, minmax(min(100%, 250px), 1fr)); }
+.ra-tarjeta {
+  display: flex; flex-direction: column; gap: 3px; height: 100%; padding: 14px 16px 12px;
+  border-radius: 12px; background: var(--superficie); color: var(--texto); text-decoration: none;
+  box-shadow: inset 0 0 0 1px var(--linea), 0 1px 2px rgb(20 33 61 / .05);
+  transition-property: box-shadow, transform; transition-duration: .18s; transition-timing-function: ease-out;
+}
+a.ra-tarjeta:hover { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primario) 55%, var(--linea)), 0 6px 18px rgb(20 33 61 / .08); transform: translateY(-1px); }
+a.ra-tarjeta:active { transform: translateY(0) scale(.99); }
+.ra-tarjeta-titulo { font-family: var(--fuente-titulos); font-weight: 650; font-size: 1.1rem; line-height: 1.2; text-wrap: balance; }
+.ra-tarjeta-num { font-family: var(--fuente-texto); font-variant-numeric: tabular-nums; font-weight: 500; color: var(--suave); margin-right: 6px; font-size: .9rem; }
+.ra-tarjeta-sub { font-size: .85rem; line-height: 1.4; color: var(--suave); text-wrap: pretty; }
+.ra-tarjeta-pie { display: flex; align-items: center; gap: 10px; margin-top: auto; padding-top: 10px; font-size: .8rem; color: var(--suave); }
+.ra-tarjeta.proxima { background: transparent; box-shadow: none; outline: 1.5px dashed var(--linea); outline-offset: -1.5px; }
+
+/* Avance: una barra fina que se llena de naranja de mástil (vacía → leído → repasado → dominado) */
+.ra-avance { display: inline-flex; align-items: center; gap: 8px; }
+.ra-avance-barra { position: relative; flex: none; width: 64px; height: 6px; border-radius: 3px; background: var(--linea); overflow: hidden; }
+.ra-avance-barra::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit;
+  background: linear-gradient(90deg, var(--primario), var(--resalte));
+  transform-origin: left; transform: scaleX(0);
+  transition-property: transform; transition-duration: .45s; transition-timing-function: cubic-bezier(.2, .7, .2, 1);
+  transition-delay: calc(var(--i, 0) * 50ms);
+}
+.ra-avance[data-nivel="1"] .ra-avance-barra::after { transform: scaleX(.34); }
+.ra-avance[data-nivel="2"] .ra-avance-barra::after { transform: scaleX(.67); }
+.ra-avance[data-nivel="3"] .ra-avance-barra::after { transform: scaleX(1); }
+
+.ra-nota { margin: 0 0 12px; font-size: .9rem; color: var(--suave); }
+.ra-seccion { margin: 36px 0 0; }
+.ra-seccion > h2 { font-size: 1.6rem; margin: 0 0 6px; }
+.ra-seccion > p { margin: 0 0 14px; color: var(--suave); max-width: 62ch; }
+
+/* El elipsoide de Fresnel (firma): mástiles, rayo y elipsoide */
+.ra-elipsoide .suelo { fill: none; stroke: var(--suave); stroke-width: 1.5; }
+.ra-elipsoide .mastil { stroke: var(--primario); stroke-width: 3; stroke-linecap: round; }
+.ra-elipsoide .baliza { stroke: var(--resalte); stroke-width: 3; }
+.ra-elipsoide .rayo { stroke: var(--primario); stroke-width: 1.5; }
+.ra-elipsoide .fresnel { fill: color-mix(in srgb, var(--resalte) 12%, transparent); stroke: var(--acento); stroke-width: 1.5; stroke-dasharray: 6 4; }
+
+/* Decoración: un elipsoide tenue en el margen derecho, solo si hay hueco */
+.ra-deco { position: fixed; inset: 0; pointer-events: none; z-index: -1; overflow: hidden; }
+.ra-deco .ra-elipsoide { position: absolute; right: -60px; top: 160px; width: 420px; opacity: .12; transform: rotate(90deg); transform-origin: right top; }
+@media (max-width: 1099px) { .ra-deco { display: none; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .ra-tarjeta, .ra-cadena a, .ra-avance-barra::after { transition-duration: 0s; transition-delay: 0s; }
+}

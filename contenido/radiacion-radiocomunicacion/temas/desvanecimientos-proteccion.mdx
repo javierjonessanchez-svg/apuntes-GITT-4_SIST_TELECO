@@ -1,0 +1,118 @@
+---
+titulo: "Desvanecimientos y mecanismos de protección"
+orden: 6
+bloque: "Tema 3 · Desvanecimientos"
+resumen: "Umbral, desvanecimiento y calidad; causas; atenuador, CAG y ATPC con su margen dinámico"
+saber:
+  - "Desvanecimiento: bajada de la potencia recibida respecto a la de condiciones normales. Es una variable aleatoria en el tiempo y en el espacio"
+  - "Umbral (sensibilidad) TH: la mínima Prx que deja recuperar la información. Desvanecimiento máximo: el que deja Prx = TH"
+  - "Calidad de disponibilidad (tiempo en servicio), de fidelidad (tiempo con la señal bien recibida) y de cobertura (porcentaje de ubicaciones)"
+  - "Lluvia y equipos dan cortes largos (más de 10 s): disponibilidad. U_total = U_lluvia + U_equipos"
+  - "El multitrayecto da cortes cortos (menos de 10 s): fidelidad. Las sombras por difracción: cobertura. El centelleo no afecta a la calidad"
+  - "La variación de K se evita con las alturas adecuadas (K99,9 = 157/(144 + 2670/d_km))"
+  - "Objetivo de los mecanismos de protección: que al demodulador llegue siempre TH"
+  - "Atenuador variable (Rx): Prx,CN = TH + MD. CAG (Rx): Prx,CN = TH y Prx,CMD = TH − MD. ATPC/UPC (Tx): PIRE,CMD = PIRE,CN + MD"
+  - "En los tres mecanismos, el margen frente a desvanecimientos es el margen dinámico: FM = MD"
+fuentes:
+  - "Transparencias del tema 3: «Desvanecimientos y calidad en radioenlaces»"
+  - "Formulario propio"
+test:
+  - p: "¿Qué es el umbral TH de un receptor?"
+    o: ["La mínima potencia recibida que deja recuperar la información", "La máxima potencia que soporta el receptor", "La potencia en condiciones normales", "El margen frente a desvanecimientos"]
+    c: 0
+  - p: "Un corte de 3 s por multitrayecto, ¿qué calidad afecta?"
+    o: ["La de fidelidad", "La de disponibilidad", "La de cobertura", "Ninguna"]
+    c: 0
+    e: "Los cortes cortos (menos de 10 s) cuentan en la fidelidad; los largos, en la disponibilidad."
+  - p: "Con un atenuador variable y MD = 30 dB, TH = −80 dBm. ¿Cuánto vale Prx en condiciones normales?"
+    o: ["−50 dBm", "−80 dBm", "−110 dBm", "−20 dBm"]
+    c: 0
+    e: "Prx,CN = TH + MD = −80 + 30 = −50 dBm."
+  - p: "¿Dónde actúa el ATPC?"
+    o: ["En el transmisor: varía la potencia transmitida", "En el receptor, antes del demodulador", "En la antena receptora", "En el convertidor descendente"]
+    c: 0
+  - p: "Con un CAG, ¿cuánto vale Prx en el desvanecimiento máximo?"
+    o: ["TH − MD", "TH + MD", "TH", "PIRE − MD"]
+    c: 0
+  - p: "¿Qué relación hay entre el margen frente a desvanecimientos y el margen dinámico?"
+    o: ["Son iguales: FM = MD", "FM = 2·MD", "FM = MD − TH", "No tienen relación"]
+    c: 0
+---
+import EnExamen from '../../../src/comun/EnExamen.astro';
+import MecanismosProteccion from '../../../src/asignaturas/radiacion-radiocomunicacion/widgets/MecanismosProteccion.astro';
+
+**Idea clave.** La potencia recibida no es fija: a ratos **se desvanece**. Mientras no baje del **umbral** $TH$, el enlace funciona. Los **mecanismos de protección** absorben esas variaciones para que al demodulador le llegue siempre $TH$, y el desvanecimiento que aguantan es su **margen dinámico** $MD$, que es también el **margen frente a desvanecimientos** $FM$.
+
+## Desvanecimiento, umbral y calidad
+
+- **Desvanecimiento**: disminución de la potencia recibida $P_{rx}$ respecto a la de condiciones normales. Es una **variable aleatoria** en el tiempo y en el espacio.
+- **Umbral** o sensibilidad, $TH$: el mínimo valor de potencia recibida con el que se recupera la información.
+- **Máximo desvanecimiento**: la disminución que deja la potencia recibida justo en el umbral.
+
+La calidad de un servicio se mide con la probabilidad $P(P_{rx} > TH)$, de tres formas:
+
+- **Disponibilidad**: porcentaje de tiempo en que el sistema funciona según los requisitos frente a las perturbaciones fijadas.
+- **Fidelidad** (inteligibilidad): porcentaje de tiempo en que el sistema está disponible y la señal recibida se parece a la transmitida dentro de los requisitos.
+- **Cobertura**: porcentaje de ubicaciones de la zona de servicio donde se cumplen los requisitos.
+
+## Causas de los desvanecimientos
+
+| Causa | Qué pasa | Qué calidad afecta |
+|---|---|---|
+| Centelleo | Pequeñas irregularidades de la troposfera | No afecta a la calidad |
+| Variación del factor K | El terreno se acerca al rayo cuando K baja | Se evita con la altura de las antenas, usando $K_{99{,}9}$ |
+| Hidrometeoros | Atenuación añadida por lluvia, nieve o niebla; cortes largos (más de 10 s) | Disponibilidad |
+| Equipos | Fallos que interrumpen el enlace; cortes largos (más de 10 s) | Disponibilidad |
+| Multitrayecto | Suma destructiva de varios rayos; cortes cortos (menos de 10 s) | Fidelidad |
+| Sombras | Atenuación por difracción en distintas ubicaciones | Cobertura |
+
+Para la **disponibilidad** se suman las dos causas de cortes largos:
+
+$$
+U_{total}\,(\%) = U_{lluvia}\,(\%) + U_{equipos}\,(\%)
+$$
+
+## Mecanismos de protección
+
+El objetivo es que la potencia entregada al **demodulador** sea constante e igual a la mínima necesaria para demodular bien: $TH$. Hay tres formas de conseguirlo, según dónde está el elemento variable:
+
+| Mecanismo | Dónde | Condiciones normales (CN) | Desvanecimiento máximo (CMD) | Margen dinámico |
+|---|---|---|---|---|
+| Atenuador variable | Rx, $P_t$ constante | $P_{rx,CN} = TH + MD$ | $P_{rx,CMD} = TH$ | $MD = L_{vble,max} = P_{rx,CN} - TH$ |
+| Amplificador variable (CAG) | Rx, $P_t$ constante | $P_{rx,CN} = TH$ | $P_{rx,CMD} = TH - MD$ | $MD = G_{max} - G_{min}$ |
+| Transmisor variable (ATPC/UPC) | Tx, $P_t$ variable | $PIRE_{CN}$ tal que $P_{rx,CN} = TH$ | $PIRE_{CMD} = PIRE_{CN} + MD$ | $MD = PIRE_{CMD} - PIRE_{CN}$ |
+
+En los tres, el desvanecimiento que se puede absorber es el margen dinámico: $FM = MD$. ATPC son las siglas de *automatic transmitted power control*; en los enlaces por satélite se llama UPC (*uplink power control*).
+
+<MecanismosProteccion />
+
+Para resolver un problema:
+
+1. Calcula las pérdidas básicas $L_b = L_{bf} + L_{gases} + L_{dif}$ (o $L_{ref}$), como en el tema 1.
+2. Escribe el balance $P_{rx} = PIRE - L_b + G_r - L_r$ e **iguálalo** a lo que diga la fila del mecanismo.
+3. Despeja lo que pidan: $P_t$ (CAG), $PIRE_{CN}$ y $PIRE_{CMD}$ (ATPC) o $MD$ (atenuador). Recuerda que $P_t = PIRE + L_t - G_t$.
+
+<EnExamen asignatura="radiacion-radiocomunicacion" ids={['margen-dinamico']} />
+
+## Preguntas de repaso
+
+<details>
+<summary>¿Por qué la lluvia cuenta en la disponibilidad y el multitrayecto en la fidelidad?</summary>
+
+Por la duración de los cortes. La lluvia (y los fallos de equipos) dejan el enlace caído más de 10 s seguidos, y eso se cuenta como tiempo no disponible. El multitrayecto da cortes cortos, de menos de 10 s: el sistema sigue disponible, pero la señal llega mal. *(Pregunta propia, redactada a partir de las transparencias.)*
+
+</details>
+
+<details>
+<summary>Vano con atenuador variable: PIRE = 50 dBm, Lb = 140 dB, Gr = 35 dBi, Lr = 2 dB y TH = −80 dBm. ¿Cuánto vale MD?</summary>
+
+$P_{rx,CN} = 50 - 140 + 35 - 2 = -57$ dBm, y con atenuador $P_{rx,CN} = TH + MD$, así que $MD = -57 - (-80) = 23$ dB. Es también el margen frente a desvanecimientos: $FM = 23$ dB. *(Pregunta propia, redactada a partir de las transparencias.)*
+
+</details>
+
+<details>
+<summary>¿Qué diferencia hay entre el atenuador variable y el CAG si los dos están en el receptor?</summary>
+
+Con atenuador, en condiciones normales llega de sobra ($TH + MD$) y se quita lo que sobra; en el peor caso el atenuador queda a cero. Con CAG, en condiciones normales llega justo $TH$ y, cuando la señal cae, el amplificador pone lo que falta, hasta $MD$ dB. El primero necesita más PIRE; el segundo, un amplificador con margen de ganancia. *(Pregunta propia, redactada a partir de las transparencias.)*
+
+</details>

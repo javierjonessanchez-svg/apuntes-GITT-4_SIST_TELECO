@@ -1,0 +1,10 @@
+---
+// Mecanismos de propagación según la frecuencia (dibujo fijo, se ve sin JavaScript).
+import Widget from '../../../widgets/Widget.astro';
+import Lienzo from '../../comunicaciones-opticas/widgets/Lienzo.astro';
+import { dibujarMecanismos } from './dibujos-propagacion';
+---
+<Widget titulo="Cómo viaja la señal según la frecuencia" tipo="entender">
+  <Lienzo nombre="mecanismos" uid="mecanismos" alto={252} etiqueta="Por debajo de 30 MHz, onda de superficie pegada al suelo y onda ionosférica que rebota en la ionosfera; por encima, onda de espacio con rayo directo y rayo reflejado entre dos mástiles"
+    inicial={dibujarMecanismos()} />
+</Widget>

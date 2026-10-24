@@ -1,0 +1,10 @@
+---
+// Geometría de los dos rayos sobre el mar (dibujo fijo, se ve sin JavaScript).
+import Widget from '../../../widgets/Widget.astro';
+import Lienzo from '../../comunicaciones-opticas/widgets/Lienzo.astro';
+import { dibujarDosRayos } from './dibujos-propagacion';
+---
+<Widget titulo="Rayo directo y rayo reflejado" tipo="entender">
+  <Lienzo nombre="dosrayos" uid="dosrayos" alto={252} etiqueta="Dos mástiles sobre el mar: rayo directo y rayo reflejado en el punto de reflexión, plano tangente, ángulo rasante φ, alturas h′₁ y h′₂ y distancias d₁ y d₂"
+    inicial={dibujarDosRayos()} />
+</Widget>

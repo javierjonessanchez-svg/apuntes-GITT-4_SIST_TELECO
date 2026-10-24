@@ -132,3 +132,12 @@ export function porTema<T extends { tema: string }>(formulas: T[]): { tema: stri
 export function enlace(e: ExamenMatlab, f: Formula): string {
   return e.repo + f.archivo;
 }
+
+/** Fórmulas con esos ids, en el mismo orden (en cualquiera de los dos formatos). Lanza un error que nombra cada id que no existe. */
+export function formulasPorId(e: Examen, ids: string[]): Examen['formulas'][number][] {
+  const lista: Examen['formulas'][number][] = e.formulas;
+  const porId = new Map(lista.map((f) => [f.id, f]));
+  const faltan = ids.filter((i) => !porId.has(i));
+  if (faltan.length) throw new Error(`EnExamen: no existe${faltan.length > 1 ? 'n' : ''} ${faltan.map((i) => `la fórmula «${i}»`).join(', ')} en examen.yaml`);
+  return ids.map((i) => porId.get(i)!);
+}

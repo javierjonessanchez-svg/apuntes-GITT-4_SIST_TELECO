@@ -1,0 +1,25 @@
+---
+// Lóbulos de interferencia: nivel respecto al espacio libre frente a la distancia
+// según el módulo del coeficiente de reflexión efectivo |Re|.
+import Widget from '../../../widgets/Widget.astro';
+import Deslizador from '../../../widgets/Deslizador.astro';
+import Lienzo from '../../comunicaciones-opticas/widgets/Lienzo.astro';
+import { dibujarLobulos } from './dibujos-propagacion';
+
+const uid = `lobulos-${Math.random().toString(36).slice(2, 7)}`;
+---
+<Widget titulo="Lóbulos de interferencia de los dos rayos" tipo="entender">
+  <Lienzo nombre="lobulos" uid={uid} alto={252} etiqueta="Nivel recibido respecto al espacio libre frente a la distancia, de 2 a 40 km, para un coeficiente de reflexión |Re|: máximos de hasta +6 dB y nulos profundos"
+    inicial={dibujarLobulos({ re: 0.8 })}
+    nota="Re ≈ −1 sobre el mar en incidencia rasante: la fase de π hace que el rayo reflejado reste cuando Δl es pequeño.">
+    <Fragment slot="controles">
+      <Deslizador id={`${uid}-re`} etiqueta="|Re|" min={0} max={1} paso={0.01} valor={0.8} decimales={2} />
+    </Fragment>
+  </Lienzo>
+</Widget>
+<script>
+  import { montarDibujo, numero } from '../../comunicaciones-opticas/widgets/vivo';
+  import { dibujarLobulos } from './dibujos-propagacion';
+
+  montarDibujo('lobulos', (caja, uid) => dibujarLobulos({ re: numero(caja, `${uid}-re`) }));
+</script>

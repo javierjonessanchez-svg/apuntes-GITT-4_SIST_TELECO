@@ -1,0 +1,64 @@
+---
+// Caja «En el modo examen» al final de un apartado de teoría: las fórmulas de ese
+// apartado, cada una enlazada a su ficha del modo examen (#f-<id>). Un id que no
+// existe en examen.yaml hace fallar la construcción con el id nombrado.
+import { examenDe } from './datos';
+import { formulasPorId } from './examen';
+import { ruta } from './rutas';
+
+interface Props { asignatura: string; ids: string[] }
+const { asignatura, ids } = Astro.props;
+const examen = await examenDe(asignatura);
+if (!examen) throw new Error(`EnExamen: la asignatura «${asignatura}» no tiene examen.yaml`);
+const formulas = formulasPorId(examen, ids);
+const base = ruta(asignatura, 'examen');
+---
+<aside class="en-examen" aria-label="Fórmulas de este apartado en el modo examen">
+  <p class="en-examen-titulo">En el modo examen</p>
+  <ul>
+    {formulas.map((f) => (
+      <li><a href={`${base}#f-${f.id}`}>{f.nombre} <span aria-hidden="true">→</span></a></li>
+    ))}
+  </ul>
+</aside>
+
+<style>
+  .en-examen {
+    margin: 18px 0 26px;
+    padding: 12px 14px 12px 16px;
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--primario) 6%, var(--superficie));
+    box-shadow: inset 3px 0 0 var(--acento), inset 0 0 0 1px var(--linea);
+  }
+  .en-examen-titulo {
+    margin: 0 0 8px;
+    font-size: .78rem;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--suave);
+  }
+  .en-examen ul { list-style: none; display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; }
+  .en-examen a {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 36px;
+    padding: 4px 12px;
+    border-radius: 999px;
+    background: var(--superficie);
+    color: var(--texto);
+    font-size: .9rem;
+    font-weight: 600;
+    text-decoration: none;
+    text-wrap: balance;
+    box-shadow: inset 0 0 0 1px var(--linea);
+    transition-property: box-shadow, transform;
+    transition-duration: .15s;
+    transition-timing-function: ease-out;
+  }
+  .en-examen a:hover { box-shadow: inset 0 0 0 1px var(--primario); }
+  .en-examen a:active { transform: scale(.97); }
+  .en-examen a span { color: var(--acento); }
+  @media (prefers-reduced-motion: reduce) { .en-examen a { transition-duration: 0s; } }
+</style>

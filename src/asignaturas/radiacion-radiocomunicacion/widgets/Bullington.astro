@@ -1,0 +1,25 @@
+---
+// Bullington con dos obstáculos: si el rayo está despejado manda el obstáculo de mayor ν;
+// si está obstruido, las peores pendientes desde cada estación dan el obstáculo ficticio.
+import Widget from '../../../widgets/Widget.astro';
+import Opciones from '../../../widgets/Opciones.astro';
+import Lienzo from '../../comunicaciones-opticas/widgets/Lienzo.astro';
+import { dibujarBullington } from './dibujos-propagacion';
+
+const uid = `bullington-${Math.random().toString(36).slice(2, 7)}`;
+---
+<Widget titulo="Método de Bullington" tipo="entender">
+  <Lienzo nombre="bullington" uid={uid} alto={252} etiqueta="Perfil con dos obstáculos entre ET1 y ET2: con el rayo despejado se usa el obstáculo de mayor ν; con el rayo obstruido, las peores pendientes desde cada estación se cortan en el obstáculo ficticio"
+    inicial={dibujarBullington({ caso: 'ficticio' })}
+    nota="Dibujo cualitativo: las pendientes se miden sobre el perfil corregido con la flecha.">
+    <Fragment slot="controles">
+      <Opciones nombre="caso" etiqueta="Rayo ET1–ET2" opciones={[['ficticio', 'Obstruido'], ['despejado', 'Despejado']]} valor="ficticio" />
+    </Fragment>
+  </Lienzo>
+</Widget>
+<script>
+  import { montarDibujo, opcion } from '../../comunicaciones-opticas/widgets/vivo';
+  import { dibujarBullington } from './dibujos-propagacion';
+
+  montarDibujo('bullington', (caja) => dibujarBullington({ caso: opcion(caja, 'caso') === 'despejado' ? 'despejado' : 'ficticio' }));
+</script>

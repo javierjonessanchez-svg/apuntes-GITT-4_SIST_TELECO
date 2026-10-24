@@ -1,0 +1,10 @@
+---
+// Diagramas copolar y contrapolar de una antena (dibujo fijo, se ve sin JavaScript).
+import Widget from '../../../widgets/Widget.astro';
+import Lienzo from '../../comunicaciones-opticas/widgets/Lienzo.astro';
+import { dibujarPolarizaciones } from './dibujos-sistema';
+---
+<Widget titulo="Copolar, contrapolar y XPD" tipo="entender">
+  <Lienzo nombre="copolar" uid="copolar" alto={252} etiqueta="Diagramas normalizados de una antena con polarización vertical: la componente copolar con su lóbulo principal y la contrapolar, 40 dB por debajo en el apuntamiento; ese hueco es la XPD"
+    inicial={dibujarPolarizaciones()} />
+</Widget>

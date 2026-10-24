@@ -3,7 +3,7 @@
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { describe, expect, test } from 'vitest';
 import { parse } from 'yaml';
-import { enlace, esHoja, esquemaExamen, porTema, validarExamen, type Examen, type ExamenHoja, type ExamenMatlab } from '../src/comun/examen';
+import { enlace, esHoja, esquemaExamen, formulasPorId, porTema, validarExamen, type Examen, type ExamenHoja, type ExamenMatlab } from '../src/comun/examen';
 import { formula } from '../src/widgets/mates';
 
 const FIXTURE = 'tests/fixtures/examen-ejemplo.yaml';
@@ -105,6 +105,12 @@ describe('esquemaExamen', () => {
 });
 
 describe('ayudas', () => {
+  test('formulasPorId devuelve las fórmulas en el orden pedido', () => {
+    expect(formulasPorId(ejemplo(), ['prx', 'pire']).map((f) => f.id)).toEqual(['prx', 'pire']);
+  });
+  test('formulasPorId falla y nombra todos los ids que no existen', () => {
+    expect(() => formulasPorId(ejemplo(), ['pire', 'nope', 'otra'])).toThrow(/«nope».*«otra»/s);
+  });
   test('porTema conserva el orden', () => {
     const grupos = porTema(ejemplo().formulas);
     expect(grupos.map((g) => g.tema)).toEqual(['Propagación', 'Antenas']);
