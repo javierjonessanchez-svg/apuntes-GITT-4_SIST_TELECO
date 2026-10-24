@@ -40,8 +40,9 @@ test:
 import Practica from '../../../src/asignaturas/seda/Practica.astro';
 import Registro from '../../../src/asignaturas/seda/Registro.astro';
 import CalculadoraBaudios from '../../../src/asignaturas/seda/widgets/CalculadoraBaudios.astro';
+import Donde from '../../../src/asignaturas/seda/Donde.astro';
 
-**Idea clave.** La **UART** manda bytes de uno en uno por un solo hilo (TxD) y los recibe por otro (RxD), sin reloj compartido. Por eso los dos extremos tienen que acordar de antemano el **formato** y la **velocidad**. El LPC1768 tiene cuatro (UART0–UART3). En la Mini-DK2, la **UART0** (P0.2 y P0.3) va a un conversor USB-serie: es la que se usa para hablar con el PC y la que usa el *bootloader* para grabar la flash.
+**Idea clave.** La **[UART](../glosario/#uart)** (*Universal Asynchronous Receiver-Transmitter*) manda bytes de uno en uno por un solo hilo (TxD) y los recibe por otro (RxD), sin reloj compartido. Por eso los dos extremos tienen que acordar de antemano el **formato** y la **velocidad**. El LPC1768 tiene cuatro (UART0–UART3). En la Mini-DK2, la **UART0** (P0.2 y P0.3) va a un conversor USB-serie: es la que se usa para hablar con el PC y la que usa el *bootloader* para grabar la flash.
 
 ## La trama
 
@@ -49,10 +50,10 @@ En reposo la línea está a **1**. Cada byte va así:
 
 - **Start**: un bit a 0. Su flanco de bajada avisa al receptor de que empieza un byte.
 - **Datos**: 8 bits (pueden ser 5–8), **primero el de menos peso**.
-- **Paridad** (opcional): par o impar, para detectar un bit erróneo.
-- **Stop**: 1 o 2 bits a 1.
+- **[Paridad](../glosario/#paridad)** (opcional): un bit que hace par (o impar) el número de unos, para detectar un bit erróneo.
+- **Stop**: 1 o 2 bits a 1. Devuelve la línea a reposo y deja ver el flanco del siguiente start.
 
-El formato más usado es **8N1** (8 datos, sin paridad, 1 stop): 10 bits por byte. Cada bit dura $t_{bit} = 1/V$, y la velocidad $V$ se da en bit/s (baudios): 9600, 19 200, 115 200…
+El formato más usado es **8N1** (8 datos, sin paridad, 1 stop): 10 bits por byte. Cada bit dura $t_{bit} = 1/V$, y la velocidad $V$ se da en bit/s o [baudios](../glosario/#baudio) (en la UART cada símbolo es un bit, así que es lo mismo): 9600, 19 200, 115 200… A 115 200 bit/s, un bit dura 8,7 µs y un byte 8N1, 87 µs.
 
 Para enlazar dos equipos, el **TxD de uno va al RxD del otro** (cruzados) y las masas unidas. Así se conectan un GPS, un módulo GSM o Bluetooth, un LiDAR…
 
@@ -60,9 +61,9 @@ Para enlazar dos equipos, el **TxD de uno va al RxD del otro** (cruzados) y las 
 
 1. **Pines** con PINSEL: P0.2 → TXD0 y P0.3 → RXD0 (función 01).
 2. **Alimentación** con PCONP (UART0 y UART1 ya están encendidas tras el reset; UART2 y UART3 no).
-3. **Formato** en LCR.
-4. **Velocidad** con DLL, DLM y FDR (con DLAB = 1).
-5. **Interrupciones** en IER y en el NVIC.
+3. **Formato** en [LCR](../glosario/#lcr) (*Line Control Register*).
+4. **Velocidad** con [DLL y DLM](../glosario/#dl) (*Divisor Latch*, byte bajo y alto del divisor) y [FDR](../glosario/#fdr) (*Fractional Divider Register*). Para poder escribirlos hay que poner a 1 el bit [DLAB](../glosario/#dlab) (*Divisor Latch Access Bit*) de LCR: DLL y DLM comparten dirección con los registros de datos, y DLAB elige cuál se ve.
+5. **Interrupciones** en [IER](../glosario/#ier) (*Interrupt Enable Register*) y en el NVIC.
 
 <Registro nombre="U0LCR" descripcion="formato de la trama" campos={[
   { bits: '1:0', nombre: 'Word Length Select', que: '00 = 5 bits … <b>11 = 8 bits</b>' },
@@ -80,6 +81,16 @@ $$
 V = \frac{F_{PCLK}}{16\cdot(256\cdot DLM + DLL)\cdot\left(1 + \frac{DivAddVal}{MulVal}\right)}
 $$
 
+<Donde>
+
+- $V$: velocidad de la línea, en bit/s.
+- $F_{PCLK}$: reloj de la UART, en Hz (25 MHz por defecto).
+- $16$: muestras por bit. El receptor mira la línea 16 veces en cada bit para encontrar su centro.
+- $DLM$, $DLL$: byte alto y bajo del divisor, de 0 a 255 cada uno. Juntos, $DL = 256\cdot DLM + DLL$.
+- $DivAddVal$, $MulVal$: los dos campos de FDR (de 0 a 14 y de 1 a 15). El paréntesis vale entre 1 y casi 2.
+
+</Donde>
+
 En la mayoría de los casos basta con DL (tras el reset, DivAddVal = 0 y el factor vale 1):
 
 $$
@@ -88,7 +99,30 @@ DL = \frac{F_{PCLK}}{16\cdot V} \ \text{redondeado}
 DLM = DL / 256 \qquad DLL = DL \,\%\, 256
 $$
 
+<Donde>
+
+- $DL / 256$: división entera (el cociente). $DL \,\%\, 256$: el resto. Así se parte DL en sus dos bytes.
+
+</Donde>
+
+Como DL tiene que ser entero, la velocidad real no es justo la pedida. El error relativo es:
+
+$$
+\varepsilon = \frac{V_{real} - V}{V}\cdot 100\ \%
+\qquad
+V_{real} = \frac{F_{PCLK}}{16\cdot DL}
+$$
+
+<Donde>
+
+- $V$: la velocidad pedida y $V_{real}$ la que sale con el DL redondeado, en bit/s.
+- $\varepsilon$: error en %. Positivo si la UART va más rápida de lo pedido.
+
+</Donde>
+
 Por ejemplo, con $F_{PCLK} = 25$ MHz y 19 200 bit/s: $DL = 81{,}38 \to 81$ y la velocidad real es 19 290 bit/s (0,47 % de error, sin problema). Con 115 200 bit/s el redondeo da $DL = 14$ y un error del 3,1 %, ya demasiado; ahí entra el fraccionario.
+
+**Qué hace el divisor fraccionario.** Multiplica DL por $1 + DivAddVal/MulVal$, así que el divisor total **ya no tiene que ser entero**. Por ejemplo, para 115 200 bit/s hace falta un divisor total de $25\cdot 10^6/(16\cdot 115\,200) = 13{,}56$. Con $DL = 9$, $DivAddVal = 1$ y $MulVal = 2$ el divisor es $9\cdot 1{,}5 = 13{,}5$: salen 115 741 bit/s, un 0,47 % de error.
 
 <Registro nombre="U0FDR" descripcion="divisor fraccionario" campos={[
   { bits: '3:0', nombre: 'DIVADDVAL', que: '0 a 14. Con 0, el divisor fraccionario no actúa (valor tras el reset)' },
@@ -101,9 +135,9 @@ La calculadora prueba todas las combinaciones válidas de MulVal y DivAddVal y s
 
 ## Transmitir y recibir
 
-Hay dos registros de datos de 8 bits en la misma dirección: **THR** (lo que se escribe se envía) y **RBR** (lo que se lee es lo recibido).
+Hay dos registros de datos de 8 bits en la misma dirección: **[THR](../glosario/#thr)** (*Transmit Holding Register*: lo que se escribe se envía) y **[RBR](../glosario/#rbr)** (*Receiver Buffer Register*: lo que se lee es lo recibido).
 
-- **Tx**: empieza al **escribir en THR**. Cuando el byte pasa al registro de desplazamiento, THR queda vacío y salta la interrupción **THRE**: ya cabe el siguiente.
+- **Tx**: empieza al **escribir en THR**. El byte pasa al **[registro de desplazamiento](../glosario/#tsr)**, que lo saca bit a bit por TxD. En ese momento THR queda vacío y salta la interrupción **[THRE](../glosario/#thre)** (*THR Empty*): ya cabe el siguiente, aunque el anterior aún esté saliendo.
 - **Rx**: el flanco de bajada del start arranca la recepción, se muestrean los bits y, con el stop, el byte queda en **RBR** y salta la interrupción **RDA** (*Receive Data Available*).
 
 <Registro nombre="U0IER" descripcion="qué interrupciones se habilitan" campos={[
@@ -117,6 +151,9 @@ Hay dos registros de datos de 8 bits en la misma dirección: **THR** (lo que se 
   { bits: '3:1', nombre: 'IntId', que: '011 = errores de línea, <b>010 = RDA</b>, 110 = time-out de la FIFO, <b>001 = THRE</b>' },
 ]} />
 
+`(IIR >> 1) & 0x07` desplaza IIR un bit a la derecha (para quitar IntStatus) y se queda con los tres bits de IntId: sale un número del 0 al 7 que dice qué ha pasado.
+
+**La FIFO y LSR.** Las UART del LPC1768 tienen una **[FIFO](../glosario/#fifo)** (*First In, First Out*, una cola) de 16 bytes para recibir y otra para transmitir. Con ella, la UART puede guardar varios bytes antes de que la CPU los lea. El *time-out* de la FIFO salta cuando quedan bytes en la cola de recepción y lleva un rato sin llegar ninguno, para que no se queden olvidados. El registro **[LSR](../glosario/#lsr)** (*Line Status Register*) dice el estado de la línea: si hay un dato recibido, si THR está vacío y si ha habido errores de paridad, de trama o de desbordamiento.
 ```c
 void uart0_init(void) {
   LPC_PINCON->PINSEL0 |= (1 << 4) | (1 << 6);  // P0.2 = TXD0, P0.3 = RXD0

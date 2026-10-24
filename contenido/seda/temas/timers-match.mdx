@@ -41,18 +41,33 @@ test:
 import Practica from '../../../src/asignaturas/seda/Practica.astro';
 import Registro from '../../../src/asignaturas/seda/Registro.astro';
 import CalculadoraTimer from '../../../src/asignaturas/seda/widgets/CalculadoraTimer.astro';
+import Donde from '../../../src/asignaturas/seda/Donde.astro';
 
-**Idea clave.** Un Timer es un **contador que avanza solo** a un ritmo conocido. Cuando llega a un valor que tú eliges (un **Match**), puede interrumpir, reiniciarse o cambiar un pin. Casi todo se reduce a una cuenta: cuántos «tics» caben en el tiempo que quieres.
+**Idea clave.** Un Timer es un **contador que avanza solo** a un ritmo conocido. Cada paso del contador es un **[tic](../glosario/#tic)**. Cuando llega a un valor que tú eliges (un **[Match](../glosario/#match)**), puede interrumpir, reiniciarse o cambiar un pin. Casi todo se reduce a una cuenta: cuántos tics caben en el tiempo que quieres.
 
 ## Cómo está hecho un Timer
 
 El LPC1768 tiene **cuatro Timers** (0–3), iguales. Cada uno tiene:
 
-- **PR** (*Prescaler*) y **PC**: dividen el reloj. El contador avanza a $F_{tick} = \dfrac{F_{PCLK}}{PR + 1}$. Con PR = 0 (el de reset), $F_{tick} = F_{PCLK} = 25$ MHz.
-- **TC** (*Timer Counter*): el contador de **32 bits**.
+- **[PR](../glosario/#pr)** (*Prescale Register*) y **PC** (*Prescale Counter*): dividen el reloj. El PC cuenta ciclos de PCLK; cuando llega al valor de PR, vuelve a 0 y el TC avanza un tic. Así el TC avanza una vez cada PR + 1 ciclos de PCLK.
+- **[TC](../glosario/#tc)** (*Timer Counter*): el contador de **32 bits**. Después de $2^{32} - 1$ vuelve a 0.
 - **MR0–MR3**: cuatro registros de **Match**. Un comparador mira en cada tic si TC = MRx.
 - **CR0–CR1**: dos registros de **captura** (tema 4).
-- Pines: salidas **MATn.0–MATn.3** y entradas **CAPn.0–CAPn.1**.
+- Pines: salidas **[MATn.0–MATn.3](../glosario/#matnx)** y entradas **CAPn.0–CAPn.1**. La n es el número de Timer y el número tras el punto, el canal: MAT2.1 es la salida del Match 1 del Timer 2.
+
+$$
+F_{tick} = \frac{F_{PCLK}}{PR + 1}
+$$
+
+<Donde>
+
+- $F_{tick}$: tics por segundo del TC, en Hz. Un tic dura $1/F_{tick}$ segundos.
+- $F_{PCLK}$: reloj del Timer, en Hz (25 MHz por defecto, tema 1).
+- $PR$: valor del registro de preescala (0 tras el reset). Sin unidades.
+
+</Donde>
+
+Con PR = 0, $F_{tick} = F_{PCLK} = 25$ MHz (un tic cada 40 ns). Con PR = 24, $F_{tick} = 1$ MHz: cada tic es un microsegundo, cómodo para contar tiempos.
 
 <Registro nombre="TnTCR" descripcion="control del contador" campos={[
   { bits: '0', nombre: 'Counter Enable', que: '1 = el TC y el PC cuentan; 0 = parados' },
@@ -83,6 +98,16 @@ $$
 T_{int} = \frac{MR0 + 1}{F_{tick}} \quad\Longrightarrow\quad MR0 = F_{tick}\cdot T_{int} - 1
 $$
 
+<Donde>
+
+- $T_{int}$: tiempo entre dos interrupciones, en segundos.
+- $MR0$: valor del Match 0, en tics. El TC pasa por 0, 1, …, MR0: son MR0 + 1 tics.
+- $F_{tick}$: tics por segundo, en Hz.
+
+</Donde>
+
+**Ejemplo.** Con $F_{tick} = 25$ MHz y $T_{int} = 1$ ms: $MR0 = 25\cdot 10^6 \cdot 10^{-3} - 1 = 24\,999$.
+
 ```c
 LPC_TIM0->PR  = 0;                     // F_tick = F_PCLK = 25 MHz
 LPC_TIM0->MR0 = 25000000 / 1000 - 1;   // 1 ms
@@ -111,11 +136,11 @@ void TIMER0_IRQHandler(void) {
 }
 ```
 
-Aquí $N = F_{tick}\cdot T$, sin el −1: ya no se cuenta desde 0, sino desde el Match anterior. La ventaja es que **cada Match lleva su propio periodo**, porque ninguno reinicia el contador. Cuando el TC llega a $2^{32}-1$ da la vuelta a 0, y la suma también, así que sigue funcionando.
+Aquí $N = F_{tick}\cdot T$ (los tics que dura un periodo $T$, en segundos), sin el −1: ya no se cuenta desde 0, sino desde el Match anterior. La ventaja es que **cada Match lleva su propio periodo**, porque ninguno reinicia el contador. Cuando el TC llega a $2^{32}-1$ da la vuelta a 0, y la suma también, así que sigue funcionando.
 
 ## b) Señal cuadrada por hardware (sin interrupción)
 
-**EMR** conecta cada Match con su pin MATn.x. Sin entrar en ninguna ISR, el pin puede ponerse a 0, a 1 o conmutar:
+**[EMR](../glosario/#emr)** conecta cada Match con su pin MATn.x. Sin entrar en ninguna ISR, el pin puede ponerse a 0, a 1 o **conmutar** ([toggle](../glosario/#toggle): pasar al nivel contrario):
 
 <Registro nombre="TnEMR" descripcion="salidas de Match" campos={[
   { bits: '0–3', nombre: 'EM0–EM3', que: 'Nivel actual de cada salida (se puede leer y escribir)' },
@@ -130,6 +155,14 @@ Con **toggle** y reset en MR0, el pin cambia cada $MR0 + 1$ tics: dos cambios po
 $$
 \frac{T_{out}}{2} = \frac{MR0 + 1}{F_{tick}} \quad\Longrightarrow\quad MR0 = \frac{F_{tick}}{2\cdot F_{out}} - 1
 $$
+
+<Donde>
+
+- $T_{out}$: periodo de la señal cuadrada que sale por el pin, en segundos; $F_{out} = 1/T_{out}$, su frecuencia, en Hz.
+- $T_{out}/2$: un semiperiodo, el tiempo entre dos conmutaciones.
+- $MR0$ en tics y $F_{tick}$ en Hz, como antes.
+
+</Donde>
 
 El problema: el reset en MR0 **reinicia el TC para todos los Match**. Con este método sale **una sola frecuencia por timer**.
 
@@ -150,15 +183,25 @@ void TIMER0_IRQHandler(void) {
 }
 ```
 
-Salen **hasta 4 señales** por timer. Hay que mirar en IR **qué Match ha interrumpido**, porque todos comparten la misma ISR. Las señales rápidas interrumpen más veces, y si todas las frecuencias son múltiplos, pueden coincidir y entrar en todos los `if` de una vez.
+Aquí $F_0$ y $F_1$ son las frecuencias que se quieren en MAT0.0 y MAT0.1, en Hz, y $N_0$, $N_1$ sus semiperiodos en tics. Salen **hasta 4 señales** por timer. Hay que mirar en IR **qué Match ha interrumpido**, porque todos comparten la misma ISR. Las señales rápidas interrumpen más veces, y si todas las frecuencias son múltiplos, pueden coincidir y entrar en todos los `if` de una vez.
 
-**Límite de frecuencia.** Entre dos conmutaciones tiene que dar tiempo a entrar en la ISR y ejecutarla. Si en el peor caso coinciden dos señales:
+**Límite de frecuencia.** Entre dos conmutaciones tiene que dar tiempo a entrar en la ISR y ejecutarla. Si en el peor caso coinciden dos señales, la ISR tiene que atender las dos (de ahí el 2) antes de la siguiente conmutación:
 
 $$
 2\cdot(t_{\text{latencia}} + t_{\text{ejecución}}) \le \frac{T_{out}}{2}
+\quad\Longrightarrow\quad
+F_{max} = \frac{1}{4\,(t_{\text{latencia}} + t_{\text{ejecución}})}
 $$
 
-De ahí sale $F_{max}$. Además, cuanto más alta la frecuencia, más tiempo de CPU se come la ISR.
+<Donde>
+
+- $t_{\text{latencia}}$: [latencia](../glosario/#latencia), lo que tarda en empezar la ISR desde que salta el Match, en segundos.
+- $t_{\text{ejecución}}$: lo que tarda en ejecutarse la parte de la ISR de una señal, en segundos.
+- $T_{out}/2$: semiperiodo de la señal más rápida. $F_{max}$: la frecuencia más alta que se puede generar, en Hz.
+
+</Donde>
+
+**Ejemplo** (números inventados). Si entre latencia y ejecución se van 2,5 µs: $F_{max} = 1/(4 \cdot 2{,}5\ \mu\text{s}) = 100$ kHz. Además, cuanto más alta la frecuencia, más tiempo de CPU se come la ISR: a 100 kHz, toda.
 
 ## Preguntas de examen
 

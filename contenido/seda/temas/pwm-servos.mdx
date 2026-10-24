@@ -39,8 +39,9 @@ test:
 ---
 import Practica from '../../../src/asignaturas/seda/Practica.astro';
 import Registro from '../../../src/asignaturas/seda/Registro.astro';
+import Donde from '../../../src/asignaturas/seda/Donde.astro';
 
-**Idea clave.** Una **PWM** es una señal de periodo fijo en la que solo cambia cuánto tiempo está en alto. Con eso se regula el brillo de una pantalla o se le dice a un servo a qué ángulo ir. Se puede generar con un Timer normal (gastando interrupciones) o con el periférico **PWM1**, que lo hace todo en hardware.
+**Idea clave.** Una **[PWM](../glosario/#pwm)** (*Pulse Width Modulation*, modulación por ancho de pulso) es una señal de periodo fijo en la que solo cambia cuánto tiempo está en alto. Con eso se regula el brillo de una pantalla o se le dice a un servo a qué ángulo ir. Se puede generar con un Timer normal (gastando interrupciones) o con el periférico **PWM1**, que lo hace todo en hardware.
 
 ## Qué es una PWM
 
@@ -48,7 +49,28 @@ $$
 D = \frac{T_H}{T_{PWM}} \qquad 0 \le D \le 1
 $$
 
-$T_{PWM}$ es el periodo (fijo) y $T_H$ el tiempo en alto. En cuentas del timer: $N_T = F_{tick}\cdot T_{PWM}$, $N_H = D\cdot N_T$ y $N_L = N_T - N_H$.
+<Donde>
+
+- $D$: [ciclo de trabajo](../glosario/#ciclo-trabajo) (*duty cycle*), sin unidades. Multiplicado por 100, en %.
+- $T_{PWM}$: periodo de la PWM, fijo, en segundos. Su inversa $F_{PWM}$ es la frecuencia, en Hz.
+- $T_H$: tiempo en alto dentro de cada periodo, en segundos. $T_L = T_{PWM} - T_H$ es el tiempo en bajo.
+
+</Donde>
+
+En cuentas del timer:
+
+$$
+N_T = F_{tick}\cdot T_{PWM} \qquad N_H = D\cdot N_T \qquad N_L = N_T - N_H
+$$
+
+<Donde>
+
+- $N_T$, $N_H$, $N_L$: tics del periodo, del tiempo en alto y del tiempo en bajo.
+- $F_{tick}$: tics por segundo del Timer, en Hz.
+
+</Donde>
+
+**Ejemplo.** Con $F_{tick} = 25$ MHz, una PWM de 1 kHz ($T_{PWM} = 1$ ms) y D = 0,3: $N_T = 25\,000$, $N_H = 7\,500$ y $N_L = 17\,500$ tics.
 
 ## PWM con un Timer y toggle
 
@@ -77,6 +99,14 @@ $$
 MR0 = \frac{F_{tick}}{F_{PWM}} - 1 \qquad 0 \le MR1 \le MR0 \qquad D \approx \frac{MR1}{MR0}
 $$
 
+<Donde>
+
+- $MR0$: Match del periodo, en tics. $MR1$: Match del ancho (cuándo se baja el pin), en tics.
+- $F_{PWM}$: frecuencia de la PWM, en Hz. $F_{tick}$, en Hz.
+- El «≈»: el periodo son $MR0 + 1$ tics y el pin baja algo después de MR1, lo que tarda la ISR. Con valores grandes, la diferencia no se nota.
+
+</Donde>
+
 ```c
 void TIMER0_IRQHandler(void) {
   LPC_TIM0->IR  = (1 << 1);       // flag de MR1
@@ -101,11 +131,26 @@ PWM1MR0 = \frac{F_{tick}}{F_{PWM}} - 1
 0 \le PWM1MRx \le PWM1MR0
 $$
 
+<Donde>
+
+- $PWM1MR0$: Match 0 del PWM1, el del periodo, en tics. $PWM1MRx$: el Match de la salida PWM1.x (x de 1 a 6), en tics.
+- $F_{PWM}$: frecuencia de la PWM, en Hz; $F_{tick}$ del PWM1, en Hz ($F_{PCLK}/(PR+1)$, como en un Timer).
+
+</Donde>
+
 En **flanco único** (*single edge*, el de reset), la salida **sube al empezar el periodo** y **baja cuando TC = MRx**:
 
 $$
 T_H = \frac{MRx}{F_{tick}} \qquad D = \frac{MRx}{MR0 + 1}
 $$
+
+<Donde>
+
+- $T_H$: tiempo en alto de la salida PWM1.x, en segundos.
+- $MRx$: tics desde el comienzo del periodo hasta que baja la salida. $MR0 + 1$: tics del periodo.
+- $D$: ciclo de trabajo, sin unidades.
+
+</Donde>
 
 **Ojo con el −1.** Estas fórmulas son las de clase, que cuentan de 0 a MR0 como un Timer. El UM10360 dice que en modo PWM el contador vuelve a **1** (no a 0), y su ejemplo pone MR0 = 100 para un periodo de 100 cuentas; con esa lectura, $PWM1MR0 = F_{tick}/F_{PWM}$. Con valores grandes (24 999 o 25 000) la diferencia es de una cuenta; en el examen, usa la convención de clase.
 
@@ -131,7 +176,7 @@ En **doble flanco** (bits PWMSEL de PCR), la subida y la bajada las marcan dos M
   { bits: '0–6', nombre: 'Enable PWM Match 0–6 Latch', que: 'El valor escrito en MRx se usa a partir del siguiente MR0' },
 ]} />
 
-**Por qué hay registros sombra.** Si se cambiase MRx a mitad de periodo, podría salir un pulso cortado o doble. Con LER, el valor nuevo espera al **siguiente MR0** y el cambio siempre empieza en un periodo limpio.
+**Por qué hay [registros sombra](../glosario/#sombra).** Un registro sombra es una copia que el hardware solo pasa a usar en un momento seguro. Si se cambiase MRx a mitad de periodo, podría salir un pulso cortado o doble. Con LER, el valor nuevo espera al **siguiente MR0** y el cambio siempre empieza en un periodo limpio.
 
 ```c
 void set_ciclo(float ciclo) {          // ciclo en %, de 0 a 100
@@ -155,7 +200,18 @@ $$
 T_H = 0{,}4 + 2\cdot\frac{grados}{180}\ \text{ms}
 $$
 
+<Donde>
+
+- $T_H$: ancho del pulso, en ms.
+- $grados$: ángulo pedido, de 0 a 180.
+- $0{,}4$ ms: el ancho a 0°. $2$ ms: lo que se añade de 0° a 180°, así que a 180° el pulso es de 2,4 ms.
+
+</Donde>
+
+Para pasarlo a cuentas del PWM1 se multiplica por $F_{tick}$: con 25 MHz, 0,4 ms son 10 000 tics y 2,4 ms, 60 000.
+
 ```c
+// Ftick: F_tick del PWM1 en Hz
 void set_servo(float grados) {
   LPC_PWM1->MR5 = Ftick * 0.4e-3 + Ftick * 2e-3 * grados / 180;
   LPC_PWM1->LER = (1 << 5);

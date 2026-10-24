@@ -6,14 +6,16 @@ resumen: "Un pulso de duración exacta y medir frecuencia, ciclo de trabajo y an
 saber:
   - "Pulso de duración T: MR1 = F_tick·T − 1 con Stop y Reset en MCR. Se sube MATn.1 a mano (EM1 = 1), se arranca el timer y el Match lo baja solo (EMC1 = 01)"
   - "Captura: un flanco en el pin CAPn.x copia el TC en el registro CRx sin que intervenga la CPU. La medida no depende de la latencia de la ISR"
+  - "Cada Timer tiene dos entradas: CAPn.0 solo carga CR0 y CAPn.1 solo carga CR1. Los pines van en la función 11 de PINSEL (CAP0.0 = P1.26, CAP0.1 = P1.27…)"
   - "CCR elige para cada entrada el flanco (subida, bajada o ambos) y si interrumpe: CAP0RE, CAP0FE, CAP0I en los bits 0–2, CAP1 en los bits 3–5"
   - "Los flags de captura están en IR: bit 4 para CR0 y bit 5 para CR1. Se borran escribiendo un 1"
   - "Frecuencia: TC libre, se capturan los flancos de subida. N = CR0 − anterior y f = F_tick/N. Con uint32_t la resta funciona aunque el TC haya dado la vuelta"
-  - "Ciclo de trabajo y ancho de pulso: se captura en los dos flancos y la ISR mira cuál ha llegado. T_H = bajada − subida y D = T_H/T"
+  - "Ciclo de trabajo con una entrada: CAPn.0 en los dos flancos y la ISR averigua cuál ha llegado (dos interrupciones por periodo). Con dos entradas: la señal a CAPn.0 (subida → CR0) y a CAPn.1 (bajada → CR1), una interrupción por periodo y sin dudas sobre el flanco"
+  - "Resolución 1/F_tick; el intervalo más largo que se mide sin ambigüedad es 2³²/F_tick (172 s a 25 MHz)"
 fuentes:
   - "Apuntes de Miguel"
   - "Temporizadores del LPC17xx (diapositivas de clase)"
-  - "UM10360 (manual del LPC17xx), cap. 8 y 21"
+  - "UM10360 (manual del LPC17xx), cap. 8, 9 y 21"
 test:
   - p: "Con F_tick = 25 MHz quieres un pulso único de 2 ms. ¿Qué pones en MR1?"
     o: ["49 999", "50 000", "24 999", "49 998"]
@@ -35,24 +37,40 @@ test:
     o: ["LPC_TIM0->IR = (1 << 4);", "LPC_TIM0->IR = (1 << 0);", "LPC_TIM0->CCR = 0;", "LPC_TIM0->IR &= ~(1 << 4);"]
     c: 0
     e: "Los flags de IR se borran escribiendo un 1 en su bit, y el de CR0 es el bit 4 (los bits 0–3 son de los Match)."
+  - p: "Quieres que la misma señal deje las subidas en CR0 y las bajadas en CR1. ¿Qué hace falta?"
+    o: ["Llevarla a dos pines, CAPn.0 y CAPn.1, y configurar cada uno en su flanco", "Basta con un pin y CCR = 0x3F", "Poner CTCR = 01", "No se puede en el LPC1768"]
+    c: 0
+    e: "Cada CRx está unido a su entrada: CAPn.0 solo carga CR0 y CAPn.1 solo CR1. Con un pin, los dos flancos van al mismo registro."
 ---
 import Registro from '../../../src/asignaturas/seda/Registro.astro';
+import Donde from '../../../src/asignaturas/seda/Donde.astro';
+import CronogramaCaptura from '../../../src/asignaturas/seda/widgets/CronogramaCaptura.astro';
 
-**Idea clave.** Hasta aquí el Timer **sacaba** señales por los pines MAT. Ahora va al revés: con la **captura**, un flanco en un pin de entrada **copia el valor del TC** en un registro. Así se mide frecuencia, ciclo de trabajo o ancho de un pulso con la precisión del reloj, no con la de la ISR. Antes, un caso intermedio: sacar **un solo pulso** de duración exacta.
+**Idea clave.** Hasta aquí el [Timer](../glosario/#timer) **sacaba** señales por los pines [MATn.x](../glosario/#matnx). Ahora va al revés: con la **captura**, un [flanco](../glosario/#flanco) en un pin de entrada **copia el valor del [TC](../glosario/#tc)** en un registro. Así se mide frecuencia, ciclo de trabajo o ancho de un pulso con la precisión del reloj, no con la de la ISR. Antes, un caso intermedio: sacar **un solo pulso** de duración exacta.
 
 ## Un pulso de duración T
 
 Para un único pulso de **T segundos** en MATn.1 (por ejemplo, MAT0.1 en P1.29):
 
-- **MR1** con **Stop** y **Reset** en MCR: al llegar, el timer se para y vuelve a 0, listo para el siguiente pulso.
+- **MR1** con **Stop** y **Reset** en [MCR](../glosario/#mcr): al llegar, el timer se para y vuelve a 0, listo para el siguiente pulso.
 - **EMC1 = 01**: el Match pone MATn.1 a 0.
-- La subida se hace **a mano**: se escribe EM1 = 1 en EMR y se arranca el timer.
+- La subida se hace **a mano**: se escribe EM1 = 1 en [EMR](../glosario/#emr) y se arranca el timer.
 
 $$
 MR1 = F_{tick}\cdot T - 1
 $$
 
+<Donde>
+
+- $MR1$: valor del registro de Match 1, en tics (cuentas del TC).
+- $F_{tick}$: ritmo al que avanza el TC, $F_{PCLK}/(PR+1)$, en Hz. Con PR = 0, 25 MHz.
+- $T$: duración del pulso, en segundos.
+- El $-1$ es porque el TC cuenta de 0 a MR1: son MR1 + 1 tics.
+
+</Donde>
+
 ```c
+// Ftick: F_tick en Hz (por ejemplo, 25e6 con PR = 0)
 void set_pulso_alto(float duracion) {           // duración en segundos
   LPC_TIM0->MR1 = Ftick * duracion - 1;
   LPC_TIM0->EMR = (1 << 1) | (1 << 6);          // EM1 = 1 (pin a 1), EMC1 = 01 (bajar en MR1)
@@ -64,7 +82,9 @@ La subida es software (empieza cuando se ejecuta la función) y la bajada es har
 
 ## El modo captura
 
-Cada Timer tiene **dos entradas de captura**, CAPn.0 y CAPn.1, y dos registros **CR0** y **CR1**. Cuando llega el flanco elegido, el hardware copia el TC en CRx y, si se pide, interrumpe. El TC sigue contando: la captura **no lo para ni lo reinicia**.
+**Qué es.** Cada Timer tiene, además de los Match, **dos entradas de captura**, [CAPn.0 y CAPn.1](../glosario/#capnx), y dos registros, **[CR0 y CR1](../glosario/#cr)**. Cuando llega a la entrada el flanco elegido, el hardware copia el TC en su registro y, si se pide, interrumpe. El TC sigue contando: la captura **no lo para ni lo reinicia**. Cada registro está unido a su entrada: **CAPn.0 solo carga CR0 y CAPn.1 solo carga CR1**.
+
+**Para qué sirve.** Para saber **cuándo** ha pasado algo con la precisión de un tic. Si en vez de eso se leyese el TC dentro de una ISR de GPIO, el valor llegaría tarde: el TC avanza durante la [latencia](../glosario/#latencia) de la interrupción, y esa latencia cambia de una vez a otra. Con captura, el valor queda guardado en el instante del flanco y la ISR puede leerlo cuando quiera (antes del siguiente flanco).
 
 <Registro nombre="TnCCR" descripcion="control de captura" campos={[
   { bits: '0', nombre: 'CAP0RE', que: '1 = capturar en CR0 con flanco de <b>subida</b> en CAPn.0' },
@@ -73,9 +93,59 @@ Cada Timer tiene **dos entradas de captura**, CAPn.0 y CAPn.1, y dos registros *
   { bits: '3–5', nombre: 'CAP1RE, CAP1FE, CAP1I', que: 'Lo mismo para CAPn.1 y CR1' },
 ]} />
 
-Los flags están en **IR**: los bits 0–3 son de MR0–MR3 y los bits **4 y 5** de **CR0 y CR1**. Como siempre, se borran escribiendo un 1.
+Los flags están en **[IR](../glosario/#ir)**: los bits 0–3 son de MR0–MR3 y los bits **4 y 5** de **CR0 y CR1**. Como siempre, se borran escribiendo un 1. Los dos comparten la ISR del Timer (`TIMERn_IRQHandler`), así que, si se usan los dos, hay que mirar en IR cuál ha saltado.
 
-Algunos pines de captura: **CAP0.0 en P1.26**, CAP0.1 en P1.27, CAP1.0 en P1.18, CAP2.0 en P0.4 y CAP3.0 en P0.23. Hay que ponerlos en su función con PINSEL, como los MAT.
+### Los pines
+
+Todas las entradas de captura están en la función **11** de [PINSEL](../glosario/#pinsel):
+
+| Timer | CAPn.0 | CAPn.1 | PINSEL: bits |
+|---|---|---|---|
+| 0 | P1.26 | P1.27 | 3: 21:20, 23:22 |
+| 1 | P1.18 | P1.19 | 3: 5:4, 7:6 |
+| 2 | P0.4 | P0.5 | 0: 9:8, 11:10 |
+| 3 | P0.23 | P0.24 | 1: 15:14, 17:16 |
+
+En la columna de PINSEL, el primer número es el registro (3 = PINSEL3) y luego los bits de CAPn.0 y de CAPn.1. Timer 2 y 3 están apagados tras el reset: hay que poner a 1 su bit de PCONP (22 y 23).
+
+Algunos pines comparten función con otros periféricos (P0.23 y P0.24 son también AD0.0 y AD0.1): antes de elegir, mira en el esquema de la placa qué hay conectado a cada uno.
+
+### Cómo se configura
+
+Los pasos, en orden, para cualquier Timer n:
+
+1. **Alimentarlo** en [PCONP](../glosario/#pconp) (solo Timer 2 y 3).
+2. **Reloj** en PCLKSEL (si no se toca, $F_{PCLK} = 25$ MHz).
+3. **Pin** (o pines) a su función CAP con PINSEL. Para CAP0.0 en P1.26: `LPC_PINCON->PINSEL3 |= (3 << 20);`
+4. **[CTCR](../glosario/#ctcr) = 0** (modo Timer, el de reset): el TC cuenta tics de PCLK, no flancos del pin.
+5. **PR** según la resolución que se quiera (ver abajo).
+6. **MCR = 0**: ningún Match reinicia el TC, que corre **libre**. Así cada captura es una marca de tiempo y basta restar dos.
+7. **CCR** con el flanco o flancos y la interrupción.
+8. `NVIC_EnableIRQ(TIMERn_IRQn)` y, en TCR, poner el TC a 0 y arrancarlo.
+
+### Resolución y límites
+
+$$
+\Delta t = \frac{1}{F_{tick}}
+\qquad
+t_{max} = \frac{2^{32}}{F_{tick}}
+\qquad
+\varepsilon_f \approx \frac{1}{N}
+$$
+
+<Donde>
+
+- $\Delta t$: resolución, el tiempo más corto que se distingue (un tic), en segundos.
+- $t_{max}$: el intervalo más largo entre dos capturas que se mide sin ambigüedad, en segundos. Si pasa más, el TC ha dado más de una vuelta y la resta ya no lo nota.
+- $\varepsilon_f$: error relativo de la medida (sin unidades), porque N puede salir con un tic de más o de menos.
+- $N$: tics entre las dos capturas.
+- $2^{32}$: las cuentas que caben en el TC, que es de 32 bits.
+
+</Donde>
+
+Con $F_{tick} = 25$ MHz: $\Delta t = 40$ ns y $t_{max} = 2^{32}/(25\cdot 10^6) \approx 172$ s, así que la frecuencia más baja que se mide es $1/172 \approx 0{,}006$ Hz. Con PR = 24 ($F_{tick} = 1$ MHz) la resolución empeora a 1 µs, a cambio de que cada tic sea justo un microsegundo (las cuentas se leen directamente) y de que $t_{max}$ suba a 4 295 s, más de una hora.
+
+Por arriba, el límite lo pone la ISR: tiene que leer CRx **antes de que llegue el siguiente flanco** que lo sobrescribe.
 
 ## a) Medir la frecuencia
 
@@ -85,35 +155,128 @@ $$
 N = CR0_{k} - CR0_{k-1} \qquad f = \frac{F_{tick}}{N}
 $$
 
+<Donde>
+
+- $CR0_{k}$: valor de CR0 en la captura número $k$ (la que acaba de llegar); $CR0_{k-1}$, en la anterior. En tics.
+- $N$: tics de un periodo de la señal.
+- $f$: frecuencia de la señal, en Hz. $F_{tick}$ en Hz.
+
+</Donde>
+
 ```c
 void TIMER0_IRQHandler(void) {
   static uint32_t anterior;
   uint32_t n;
   LPC_TIM0->IR = (1 << 4);           // flag de CR0
   n = LPC_TIM0->CR0 - anterior;      // cuentas de un periodo
-  frecuencia = Ftick / n;
+  frecuencia = Ftick / n;            // frecuencia: variable global volatile
   anterior = LPC_TIM0->CR0;
 }
 ```
 
-El valor de CR0 es exacto aunque la ISR llegue tarde (la **latencia** solo retrasa cuándo se lee). Y con `uint32_t`, la resta da bien aunque el TC haya pasado de 2³² − 1 a 0 entre dos capturas.
+El valor de CR0 es exacto aunque la ISR llegue tarde (la **latencia** solo retrasa cuándo se lee). Y con `uint32_t`, la resta da bien aunque el TC haya pasado de 2³² − 1 a 0 entre dos capturas. La primera medida sale mal (`anterior` aún vale 0): se descarta.
 
-Los límites: a frecuencia muy baja, N se sale de 32 bits (con 25 MHz, por debajo de 0,006 Hz); a frecuencia muy alta, las capturas llegan más rápido de lo que la ISR las atiende. Con F_tick alto, N es grande y la medida más fina.
+**Ejemplo** (números inventados). Con $F_{tick} = 25$ MHz, la captura anterior fue 1 000 000 y la de ahora es 1 025 000: $N = 25\,000$ y $f = 25\cdot 10^6/25\,000 = 1$ kHz, con un error de $1/25\,000 = 0{,}004$ %.
 
 ## b) Medir el ciclo de trabajo
 
-Se capturan **los dos flancos** (CAP0RE y CAP0FE a 1). La ISR entra dos veces por periodo y tiene que saber cuál ha llegado: se guarda en una variable (o se lee el pin).
-
-- En la **subida**: el tiempo desde la subida anterior es el periodo T.
-- En la **bajada**: el tiempo desde la última subida es T_H.
+Ahora hacen falta **dos tiempos**: el periodo $T$ (de una subida a la siguiente) y el tiempo en alto $T_H$ (de una subida a la bajada que la sigue).
 
 $$
-D = \frac{T_H}{T} = \frac{CR0_{baja} - CR0_{sube}}{CR0_{sube,k} - CR0_{sube,k-1}}
+T = CR_{sube,k} - CR_{sube,k-1}
+\qquad
+T_H = CR_{baja,k} - CR_{sube,k}
+\qquad
+D = \frac{T_H}{T}
 $$
+
+<Donde>
+
+- $CR_{sube,k}$: valor capturado en la subida $k$ (la del periodo actual) y $CR_{sube,k-1}$ en la anterior. En tics.
+- $CR_{baja,k}$: valor capturado en la bajada que sigue a la subida $k$. En tics.
+- $T$, $T_H$: periodo y tiempo en alto, en tics (entre $F_{tick}$, en segundos).
+- $D$: [ciclo de trabajo](../glosario/#ciclo-trabajo), entre 0 y 1 (sin unidades, o en % multiplicado por 100).
+
+</Donde>
+
+Hay que capturar **los dos flancos**, y eso se puede hacer de dos maneras.
+
+<CronogramaCaptura />
+
+### Opción 1: una entrada, los dos flancos
+
+Se activan a la vez CAP0RE y CAP0FE: el manual lo permite, y entonces **las dos clases de flanco van a CR0**. La ISR entra dos veces por periodo y tiene que **averiguar cuál ha llegado**. La forma más directa es leer el nivel del pin con FIOPIN, que funciona aunque el pin esté en su función CAP: si ya está a 1, ha sido una subida.
+
+```text
+configuración: CCR = subida + bajada + interrumpir en CAPn.0   (bits 0, 1 y 2)
+
+ISR del Timer (salta en cada flanco):
+    borrar el flag de CR0                (IR, bit 4)
+    t ← CR0
+    si el pin está a 1:                  // ha sido una subida
+        T ← t − subida_anterior
+        subida_anterior ← t
+    si no:                               // ha sido una bajada
+        T_H ← t − subida_anterior        // subida_anterior es la de este periodo
+        D ← T_H / T
+```
+
+Las dos líneas clave, en C (Timer 0, CAP0.0 en P1.26):
+
+```c
+LPC_TIM0->CCR = (1 << 0) | (1 << 1) | (1 << 2);  // CAP0RE + CAP0FE + CAP0I: los dos flancos a CR0
+if (LPC_GPIO1->FIOPIN & (1 << 26))               // en la ISR: P1.26 a 1 → el flanco ha sido de subida
+```
+
+### Opción 2: dos entradas, una para cada flanco
+
+La señal se lleva **a los dos pines** del mismo Timer (CAPn.0 y CAPn.1, unidos con un cable). CAPn.0 captura las **subidas en CR0** y CAPn.1 las **bajadas en CR1**. Basta con **una interrupción por periodo**, en la bajada: en ese momento CR0 tiene la subida de este periodo y CR1 la bajada que acaba de llegar.
+
+```text
+configuración: la señal entra por CAPn.0 y por CAPn.1
+               CAPn.0: subida, sin interrupción      (CCR, bit 0)
+               CAPn.1: bajada, con interrupción      (CCR, bits 4 y 5)
+
+ISR del Timer (salta en cada bajada):
+    borrar el flag de CR1                (IR, bit 5)
+    subida ← CR0                         // la subida de este periodo
+    T_H ← CR1 − subida
+    T   ← subida − subida_anterior
+    subida_anterior ← subida
+    D ← T_H / T
+```
+
+Las líneas clave, en C (Timer 0: CAP0.0 en P1.26 y CAP0.1 en P1.27):
+
+```c
+LPC_TIM0->CCR = (1 << 0)                  // CAP0RE: subida en CAP0.0 → CR0, sin interrupción
+              | (1 << 4) | (1 << 5);      // CAP1FE + CAP1I: bajada en CAP0.1 → CR1, e interrumpe
+LPC_TIM0->IR = (1 << 5);                  // en la ISR: borrar el flag de CR1
+t_h = LPC_TIM0->CR1 - LPC_TIM0->CR0;      // uint32_t: vale aunque el TC haya dado la vuelta
+```
+
+### ¿Cuál elegir?
+
+| | Opción 1: una entrada | Opción 2: dos entradas |
+|---|---|---|
+| Pines | 1 | 2, unidos por fuera |
+| Interrupciones por periodo | 2 | 1 |
+| ¿Qué flanco ha llegado? | Lo averigua la ISR (leyendo el pin) | Lo dice el registro: CR0 siempre es subida y CR1 bajada |
+| Tiempo que tiene la ISR | Menos que el más corto de $T_H$ y $T_L$ | Menos que $T_L$ (leer CR0 antes de la siguiente subida) |
+| Si se pierde una interrupción | Si la ISR lee el pin tarde, confunde los flancos | Esa medida de T sale doble; $T_H$ sigue bien y la siguiente ya es correcta |
+| Lo que cuesta | Nada más | Las dos capturas del Timer quedan ocupadas |
+
+**En resumen.** Las dos funcionan. La opción 2 es **más robusta** y gasta la mitad de interrupciones, así que es la mejor para el ciclo de trabajo si hay dos pines libres del mismo Timer. La opción 1 ahorra un pin y deja libre la otra captura para medir otra señal. En las dos, si la señal se queda fija (D = 0 o D = 1) no llegan flancos y la ISR no se entera: hace falta un *timeout*, por ejemplo con un Match.
+
+**Ejemplo** (números inventados, opción 2). Con PR = 24, $F_{tick} = 1$ MHz y cada tic es 1 µs. La subida anterior se capturó en 10 000. En la bajada, la ISR lee CR0 = 10 500 y CR1 = 10 625:
+
+- $T = 10\,500 - 10\,000 = 500$ tics = 500 µs (2 kHz).
+- $T_H = 10\,625 - 10\,500 = 125$ tics = 125 µs.
+- $D = 125/500 = 0{,}25$, un 25 %.
 
 ## c) Medir el ancho de un pulso
 
-Es lo mismo pero solo hace falta **T_H**: más sencillo.
+Es lo mismo pero solo hace falta **$T_H$**: más sencillo. Con una entrada en los dos flancos, la ISR puede llevar la cuenta de qué flanco toca con una variable:
 
 ```c
 void TIMER0_IRQHandler(void) {
@@ -130,7 +293,9 @@ void TIMER0_IRQHandler(void) {
 }
 ```
 
-En vez de capturar en ambos flancos, se puede capturar solo en uno y **cambiar el flanco en CCR** dentro de la ISR (subida → bajada → subida…). Así no hay duda de qué flanco ha llegado.
+**Ojo:** si se pierde una interrupción (por ejemplo, porque otra más prioritaria la retrasa más allá del siguiente flanco), la variable queda desfasada y desde ahí se mide $T_L$ en vez de $T_H$ hasta que algo la recoloque. Leer el pin, como en la opción 1, o usar dos entradas, como en la opción 2 ($T_H = CR1 - CR0$ directamente), evita el problema.
+
+En vez de capturar en ambos flancos, se puede capturar solo en uno y **cambiar el flanco en CCR** dentro de la ISR (subida → bajada → subida…). Así no hay duda de qué flanco ha llegado, pero un flanco que llegue mientras se cambia CCR se pierde.
 
 ## Preguntas de examen
 
@@ -152,5 +317,12 @@ Porque la bajada no la hace la CPU: la hace el Match (EMC1 = 01) cuando el TC ll
 <summary>Una señal tiene T = 1 ms y T_H = 250 µs. Con F_tick = 25 MHz, ¿qué diferencias de CR0 lees y qué D sale?</summary>
 
 Periodo: 25 000 cuentas. Alto: 6 250 cuentas. D = 6 250/25 000 = 0,25. *(Respuesta redactada a partir de los apuntes.)*
+
+</details>
+
+<details>
+<summary>¿Se puede medir el ciclo de trabajo con una sola entrada de captura? ¿Por qué usarías dos?</summary>
+
+Sí: con CAP0RE y CAP0FE a 1, los dos flancos se capturan en CR0 y la ISR averigua cuál ha llegado (por ejemplo, leyendo el pin). Con dos entradas (la señal a CAPn.0 y a CAPn.1), CR0 guarda siempre la subida y CR1 la bajada: no hay que averiguar nada, basta una interrupción por periodo (en la bajada, $T_H = CR1 - CR0$) y una interrupción perdida solo estropea una medida. A cambio se ocupan dos pines y las dos capturas del Timer. *(Respuesta redactada a partir del UM10360, cap. 21.)*
 
 </details>

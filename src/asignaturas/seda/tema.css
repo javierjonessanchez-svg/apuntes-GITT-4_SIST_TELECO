@@ -75,6 +75,16 @@ html[data-asignatura="seda"] .tema-articulo pre {
   background: var(--superficie); box-shadow: inset 0 0 0 1px var(--linea);
 }
 
+/* ---------- Glosario: cada término es un ancla; al llegar desde un enlace se marca ---------- */
+html[data-asignatura="seda"] .tema-articulo dfn {
+  font-style: normal; font-weight: 700; scroll-margin-top: 80px;
+  border-radius: 4px; padding: 0 .15em; margin: 0 -.15em;
+}
+html[data-asignatura="seda"] .tema-articulo dfn:target {
+  background: var(--resalte);
+  color: var(--sobre-resalte);
+}
+
 /* ---------- Portada: la tira de pines ---------- */
 .sd-portada { padding-bottom: 40px; }
 .sd-cabecera { padding-top: 12px; margin-bottom: 26px; }
