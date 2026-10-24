@@ -1,0 +1,282 @@
+---
+titulo: "GPRS"
+orden: 7
+bloque: "Datos"
+resumen: "Red de paquetes sobre GSM: SGSN, GGSN, contexto PDP y radio"
+saber:
+  - "GPRS (2,5G) añade una red de paquetes superpuesta a la de circuitos de GSM y reutiliza la interfaz radio: la BTS solo necesita una actualización de software"
+  - "Nodos nuevos: SGSN (hace de MSC/VLR para paquetes) y GGSN (pasarela a redes externas, como un router/ISP); la PCU gestiona los recursos radio de GPRS junto a la BSC"
+  - "Esquemas de codificación CS-1 a CS-4 (9,05; 13,4; 15,6 y 21,4 kbps por ranura); con 8 ranuras y CS-4, 171,2 kbps teóricos"
+  - "Un contexto PDP es la sesión de datos: dirección IP, APN, QoS y TEID del túnel GTP entre SGSN y GGSN"
+  - "Tres estados de movilidad: IDLE, STANDBY (se conoce la RA) y READY (se conoce la célula)"
+  - "Multitrama de 52 tramas con 12 bloques radio de 4 ráfagas (456 bits) y canales lógicos propios (PRACH, PPCH, PAGCH, PDTCH, PACCH…)"
+fuentes:
+  - "Cx_GPRS.pdf"
+---
+
+GSM nació para voz, con canales de circuito. Para datos «a ráfagas» (web, correo) un circuito reservado todo el rato desperdicia el espectro. GPRS (**General Packet Radio Service**, 2,5G) resuelve eso añadiendo conmutación de paquetes sobre la misma red de radio.
+
+## De los circuitos a los paquetes
+
+| Tecnología | Modo | Idea | Velocidad |
+| --- | --- | --- | --- |
+| **CSD** | Circuito | Nueva codificación | 14,4 kbps (frente a 9,6 kbps iniciales) |
+| **HSCSD** | Circuito | Varias ranuras en paralelo | Teóricamente 14,4 × 8 = 115,2 kbps; en la práctica 3 ranuras, 43,2 kbps |
+| **GPRS** | Paquetes | Nuevos esquemas de codificación y varias ranuras | 171,2 kbps (típico 144 kbps) |
+| **EDGE** | Paquetes | Nuevas modulaciones y codificaciones; requiere cambios de hardware | Las diapositivas hablan de 484 kbps |
+
+> **Ojo.** Si el valor de EDGE te lo piden en un examen, comprueba la cifra con el profesor: las diapositivas dicen 484 kbps, pero con 8 ranuras a 59,2 kbps salen 473,6 kbps, que es lo que suele citarse.
+
+### Qué aporta GPRS
+
+- **Uso eficiente del espectro**: los recursos se usan solo cuando se necesitan. Encaja con transmisiones a ráfagas, frecuentes y pequeñas, o poco frecuentes y grandes.
+- **Mayor caudal** que los 9 kbps de GSM, con codificadores de canal más eficientes y paquetes.
+- **Ranuras variables**: se pueden combinar varias ranuras de la misma portadora en una comunicación, y varios usuarios pueden compartir una misma.
+- **Asimetría**: los recursos ascendentes y descendentes se asignan por separado.
+- **GPRS y GSM conviven** en la misma célula e incluso en la misma portadora.
+- **Siempre «conectado»**: el usuario tiene una dirección IP mientras dure el contexto, sin ocupar un canal.
+- **Calidad de servicio negociable** y **tarificación por volumen** y calidad.
+- Una **red troncal IP** paralela al NSS de circuitos de GSM.
+
+## Arquitectura de red
+
+Desde el BSC la red se divide en el dominio de **circuitos** (MSC, VLR, HLR…) y el de **paquetes** (SGSN, GGSN). Hacia el usuario la interfaz radio es común.
+
+| Elemento | Qué cambia en GPRS |
+| --- | --- |
+| **BTS** | Solo actualización de software |
+| **BSC + PCU** | La **PCU** (Packet Control Unit, normalmente junto a la BSC) gestiona los recursos radio de GPRS en coordinación con la BSC, según la disponibilidad y el perfil QoS de cada móvil: asignación de recursos, control de flujo y de errores (retransmisiones) |
+| **MSC, VLR, HLR** | Solo actualización de software |
+| **SGSN** y **GGSN** | Nodos nuevos |
+
+### SGSN (Serving GPRS Support Node)
+
+Es el equivalente del MSC/VLR para paquetes. Sirve a los móviles de su zona.
+
+- **Red de acceso**: aviso (paging) y control de acceso antes de permitir transmitir paquetes.
+- **Encaminamiento**: entrega y recibe paquetes de los móviles a los que sirve, con túneles hacia el GGSN.
+- **Gestión de movilidad**: mantiene la localización, autentica y registra a los móviles (con los registros de GSM).
+- Su zona se divide en **áreas de encaminamiento (Routing Areas, RA)**: son el equivalente de una LA. Una RA siempre está contenida en una LA o la completa.
+
+### GGSN (Gateway GPRS Support Node)
+
+Visto desde fuera es un **router** conectado a una subred: oculta la infraestructura GPRS. Cuando le llegan datos para un usuario, comprueba si su dirección está activa y los manda al SGSN que le toca.
+
+- Guarda cuál es el SGSN de cada usuario.
+- Hace de **ISP**: asigna direcciones IP de forma estática o dinámica.
+- Recibe datos de una intranet o de Internet y los envía al SGSN correcto.
+- Recibe señalización de la red de transporte y configura la operación.
+- Recoge datos de la sesión (APN, volumen ascendente y descendente, vida del contexto, uso de direcciones IP) para generar **CDR** y enviarlos al CG.
+- Protege la red de transporte y el terminal: actúa de pasarela con las redes externas.
+
+La relación SGSN–GGSN es de muchos a muchos. Los datos de un móvil viajan encapsulados en **túneles GTP** entre ellos. También hay nodos de apoyo: **BG** (Border Gateway), **CG** (Charging Gateway) y **DNS**.
+
+### Interfaces
+
+| Interfaz | Une |
+| --- | --- |
+| **Um** | MS con BTS (interfaz radio, común con GSM) |
+| **Gb** | BSS/PCU con SGSN |
+| **Gn** | Entre GSN (SGSN–GGSN, dentro de la red troncal IP) |
+| **Gi** | GGSN con la red externa (Internet, intranet) |
+| **Gs** | SGSN con MSC/VLR |
+| **Gr, Gc, Gf, Gd** | SGSN con HLR, GGSN con HLR, SGSN con EIR y SGSN con SMS-SC |
+
+*Las diapositivas dibujan estas interfaces sin describirlas todas; las de los registros (Gr, Gc, Gf, Gd) son por el estándar.*
+
+### La red troncal es una intranet IP
+
+- Los móviles son accesibles porque tienen una dirección IP.
+- Se usa **DNS**. El **APN** (Access Point Name) es el nombre simbólico del GGSN al que hay que conectarse para el servicio pedido. Se consulta al DNS para obtener las direcciones IP del GGSN.
+- El acceso a redes externas puede ser:
+  - **Transparente**: la dirección IP es del rango público del operador GPRS y se asigna dinámicamente al activar el contexto PDP.
+  - **No transparente**: la dirección es del espacio de la intranet o del ISP, y requiere que el GGSN hable con su servidor de direcciones (DHCP o RADIUS).
+
+## Calidad de servicio (QoS)
+
+Al activar el contexto PDP, el usuario pide un **perfil de QoS**. El SGSN lo negocia y responde. Se factura por tráfico, tipo de servicio y QoS.
+
+| Parámetro | Clases |
+| --- | --- |
+| Prioridad | 3 |
+| Fiabilidad | 3 |
+| Retardo | 4 |
+| Caudal máximo | 9 |
+| Caudal medio | 19 |
+
+Esos parámetros se asocian a otros de nivel inferior: entre el SGSN y el BSS, los paquetes van por colas. Hay **cuatro clases de cola** (de retardo) para datos y **una más para señalización**. La red puede cambiar los parámetros negociados cuando quiera.
+
+## Protocolos del plano de usuario
+
+Un dato de usuario atraviesa: MS → BSS/PCU → SGSN → GGSN → red externa.
+
+| Capa | MS | BSS/PCU | SGSN | GGSN |
+| --- | --- | --- | --- | --- |
+| Aplicación / red | Aplicación, IP | | | IP |
+| Convergencia | **SNDCP** | | SNDCP | |
+| Enlace lógico | **LLC** | | LLC | |
+| Radio / transporte | RLC, MAC | RLC, MAC y **BSSGP** (sobre Frame Relay) | BSSGP, **GTP-U** | GTP-U |
+| Transporte IP (solo en la red troncal) | | | TCP/UDP, IP | TCP/UDP, IP |
+| Física | TDMA/FDMA | PHY | PHY | PHY |
+| Interfaz | **Um** | **Gb** | **Gn** | **Gn** y **Gi** |
+
+- **SNDCP** (Subnetwork Dependent Convergence Protocol): adapta el nivel de red a la radio con QoS; multiplexa sesiones de usuario sobre una única conexión LLC; segmenta y comprime cabeceras y datos.
+- **LLC** (Logical Link Control): conexión lógica **entre el MS y el SGSN**, independiente de la radio.
+- **BSSGP**: entre el BSS y el SGSN, transmite paquetes e información de enrutamiento (basado en Frame Relay).
+- **GTP** (GPRS Tunnelling Protocol): lleva los paquetes por la red troncal entre GSN con información de encaminamiento. Cada túnel se identifica por un identificador (**TID/TEID**), que remite a un usuario (IMSI) y a un contexto PDP concretos. Junto con LLC forma un «circuito virtual» entre MS y GSN.
+
+## Registro, localización y estados del móvil
+
+### Registro (attach)
+
+Como en GSM, la red debe conocer el móvil y su posición para encaminar los paquetes. El **attach** se dirige al SGSN (puede ser conjunto GSM/GPRS). La red comprueba que está autorizado, **descarga su perfil del HLR** al SGSN y le asigna una identidad temporal, el **P-TMSI**.
+
+### Los tres estados
+
+Igual que en GSM, saber dónde está el móvil es un compromiso entre señalización y precisión.
+
+| Estado | Qué se sabe | Cuándo actualiza |
+| --- | --- | --- |
+| **IDLE** (desconectado) | Nada: localización desconocida | No hay actualización de posición GPRS |
+| **STANDBY** (espera) | La **RA** del móvil, no la célula | Con cada cambio de RA. Para contactarlo hace falta paging, como en GSM |
+| **READY** (disponible) | La **célula** concreta | Con cada cambio de célula |
+
+Transiciones: `IDLE → STANDBY` con el registro (attach) y `STANDBY → IDLE` con el desregistro; `STANDBY → READY` al transmitir datos; `READY → STANDBY` al vencer un plazo sin actividad.
+
+## Sesiones: el contexto PDP
+
+Cada sesión de datos se describe con un **contexto PDP** (Packet Data Protocol), una sesión lógica entre el dispositivo y una red externa como Internet (existe en GPRS, y en 2G/3G). Contiene:
+
+- **Dirección**: el terminal obtiene su IP al activar el contexto y la libera al desactivarlo. Puede ser **estática** (guardada en el HLR) o **dinámica** (la asigna el GGSN de un conjunto interno).
+- **APN**: nombre del GGSN al que conectarse para el servicio pedido.
+- **QoS**: prioridades, velocidad y ancho de banda según la aplicación.
+- **Identificadores de túnel** (TEID) para encapsular y dirigir el tráfico entre SGSN y GGSN.
+
+### Activación del contexto
+
+1. `MS → SGSN`: **Activate PDP Context Request** (tipo PDP, dirección PDP, QoS pedida, APN…).
+2. El SGSN hace las **funciones de seguridad** (autenticación, etc.).
+3. `SGSN → GGSN`: **Create PDP Context Request** (con la QoS negociada, APN…).
+4. `GGSN → SGSN`: **Create PDP Context Response** (dirección PDP, QoS negociada…).
+5. `SGSN → MS`: **Activate PDP Context Accept** (tipo, dirección, QoS negociada, APN…).
+
+## Seguridad
+
+- **Autenticación selectiva** del móvil. Las tripletas de seguridad salen del HLR/AuC; el mismo AuC puede servir a GSM y GPRS.
+- **Cifrado** con un algoritmo nuevo, el **GEA**, que usa un parámetro de la capa LLC junto con la clave Kc.
+- **Comprobación del equipo**: parecida a GSM, pero el SGSN consulta el EIR.
+
+## Interfaz radio
+
+### Multitrama de 52 tramas y bloques radio
+
+GPRS usa una multitrama nueva de **52 tramas** (≈ 240 ms) que transporta **12 bloques radio** (B0 a B11). Usa la **ráfaga normal** (114 bits de datos).
+
+- Un **bloque radio** son **4 ráfagas** de 114 bits (456 bits en total), enviadas en la misma ranura de 4 tramas sucesivas.
+- Cada 3 bloques hay una trama que no lleva datos (las tramas 12, 25, 38 y 51 de la multitrama).
+- Hay además una multitrama distinta para señalización.
+
+*Extra, no está en las diapositivas:* de esas tramas libres, las 12 y 38 suelen llevar el canal PTCCH (avance temporal) y las 25 y 51 quedan inactivas. Como un bloque tarda 240 ms / 12 = **20 ms**, la velocidad por ranura sale de dividir lo que cabe en un bloque entre 20 ms: CS-1 son 181 bits útiles por bloque (9,05 kbps) y CS-4 son 428 bits (21,4 kbps).
+
+### Esquemas de codificación y velocidad
+
+| Esquema | Velocidad por ranura | Con 8 ranuras |
+| --- | --- | --- |
+| **CS-1** | 9,05 kbps | 72,4 kbps |
+| **CS-2** | 13,4 kbps | 107,2 kbps |
+| **CS-3** | 15,6 kbps | 124,8 kbps |
+| **CS-4** | 21,4 kbps | **171,2 kbps** |
+
+*La última columna es mi cuenta (velocidad × 8). Solo la del CS-4 está en las diapositivas.*
+
+CS-1 protege más (más redundancia) y llega más lejos; CS-4 casi no protege y exige buena señal. (*Extra:* la elección entre ellos se hace según la calidad del enlace.)
+
+### Canales lógicos
+
+Los canales GPRS son análogos a los de GSM con el prefijo «P» (Packet).
+
+| Grupo | Canal | Sentido | Para qué |
+| --- | --- | --- | --- |
+| **PCCCH** (común) | **PRACH** | MS → BSC | Pedir recursos para transferir paquetes o responder a paging. ALOHA ranurado |
+| | **PPCH** | BSC → MS | Avisar del inicio de un servicio de circuitos o de una transferencia de paquetes |
+| | **PAGCH** | BSC → MS | Decir a los móviles que pidieron recursos por PRACH cuáles se les asignan |
+| | **PNCH** | BSC → MS | Avisar de una transferencia punto-multipunto y asignar sus recursos |
+| **PBCCH** | PBCCH | BSC → MS | Información específica del sistema (se inserta en el de GSM) |
+| **PTCH** | **PDTCH** | BSC ↔ MS | Datos. Se asigna temporalmente a uno o varios móviles. En multiranura, el móvil usa varios |
+| **PDCCH** | **PACCH** | BSC ↔ MS | Señalización de una transferencia (equivale a SDCCH + SACCH + FACCH): asentimientos, control de potencia, asignación y liberación de recursos |
+
+El **PACCH** no tiene posición fija como los canales de GSM, pero guarda una relación fija con los PDTCH a los que se refiere.
+
+### Transferencia: el TBF
+
+Cada sesión de transferencia de datos es un **TBF** (Temporary Block Flow): los paquetes se segmentan, se codifican y se convierten en bloques radio.
+
+Subida de paquetes (ejemplo):
+
+- Si el móvil **no tiene TBF**, envía una petición de canal de paquetes a la PCU por el **PRACH**.
+- Si **ya tiene un TBF**, envía la petición de recursos por el canal de control asociado al TBF descendente.
+
+### Administración de recursos
+
+- La célula asigna canales de datos **de forma permanente** si el tráfico es suficiente, o **dinámicamente** bajo demanda, quitándolos de los de circuitos.
+- Hay al menos un canal físico con la **señalización común**; los móviles que van a transmitir acceden a él.
+- Hay **29 clases** de agrupación de ranuras. Cada clase combina intervalos ascendentes y descendentes, desde **1+1** hasta **8+8** simultáneos. En la práctica, la complejidad y el consumo de potencia limitan mucho el número.
+- Como la bajada suele llevar más datos (web, descargas), se usan asignaciones asimétricas, p. ej. **1+4**.
+
+## Autoevaluación
+
+<details>
+<summary>¿Qué hacen SGSN y GGSN y con qué nodos de GSM se comparan?</summary>
+
+El **SGSN** entrega y recibe paquetes de los móviles a los que sirve y hace la gestión de movilidad (equivale al MSC/VLR). El **GGSN** es la pasarela hacia redes externas: parece un router, asigna IP y recoge datos de tarificación (funciona como un ISP).
+
+</details>
+
+<details>
+<summary>¿Qué partes de la red GSM cambian para añadir GPRS?</summary>
+
+La BTS, el MSC, el VLR y el HLR solo necesitan una actualización de software. Se añaden la PCU (junto a la BSC) y los nodos SGSN y GGSN, con una red troncal IP.
+
+</details>
+
+<details>
+<summary>Velocidad máxima teórica de GPRS y de dónde sale.</summary>
+
+21,4 kbps (CS-4) × 8 ranuras = **171,2 kbps**. Lo típico son unos 144 kbps.
+
+</details>
+
+<details>
+<summary>Diferencia entre IDLE, STANDBY y READY.</summary>
+
+IDLE: no se conoce la localización. STANDBY: se conoce la **RA** y se actualiza al cambiar de RA; para contactar hace falta paging. READY: se conoce la **célula** y se actualiza con cada cambio de célula.
+
+</details>
+
+<details>
+<summary>¿Qué es un contexto PDP y qué intercambian MS, SGSN y GGSN al activarlo?</summary>
+
+Es la sesión de datos con su IP, APN, QoS y túnel. El MS envía Activate PDP Context Request al SGSN; este hace la seguridad y manda Create PDP Context Request al GGSN; el GGSN contesta con Create PDP Context Response; y el SGSN cierra con Activate PDP Context Accept.
+
+</details>
+
+<details>
+<summary>¿Qué protocolo une MS y SGSN y cuál une SGSN y GGSN?</summary>
+
+LLC es la conexión lógica MS–SGSN (con SNDCP encima). Entre SGSN y GGSN va GTP, en túneles identificados por un TEID.
+
+</details>
+
+<details>
+<summary>¿Cuánto mide un bloque radio y cuántos caben en una multitrama?</summary>
+
+4 ráfagas de 114 bits = 456 bits. Caben 12 bloques en la multitrama de 52 tramas.
+
+</details>
+
+<details>
+<summary>¿Para qué sirve cada canal: PRACH, PAGCH, PDTCH y PACCH?</summary>
+
+PRACH: el móvil pide recursos. PAGCH: la red le dice cuáles le asigna. PDTCH: lleva los datos. PACCH: lleva la señalización de la transferencia.
+
+</details>

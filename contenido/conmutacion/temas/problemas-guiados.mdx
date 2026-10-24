@@ -1,6 +1,6 @@
 ---
 titulo: "Problemas guiados"
-orden: 7
+orden: 9
 bloque: "Tráfico"
 resumen: "Enunciados con pistas y resultados"
 saber:
@@ -10,9 +10,12 @@ saber:
   - "Dimensionar una célula con Erlang B o con Engset"
   - "Calcular el tamaño de un mensaje de capa 3 y comprobar si cabe en una trama LAPDm"
   - "Contar los grupos de paging de una célula"
+  - "Calcular la ocupación del RACH y del PCH de dos BTS que comparten área de localización"
+  - "Dimensionar los terminales de un sistema con los criterios de bloqueo de las interfaces Um y Abis"
 fuentes:
   - "Cx_EjerciciosMultiplex.pdf"
   - "Cx_EjerciciosRed1.pdf"
+  - "Cx_EjerciciosRed2.pdf"
 ---
 
 import ProblemaGuiado from '../../../src/asignaturas/conmutacion/widgets/ProblemaGuiado.astro';
@@ -114,6 +117,50 @@ Tema: Interfaz aérea (multitramas) y Gestión de movilidad (paging).
     String.raw`Fórmula habitual: $N_{PB} = (\text{grupos CCCH por multitrama} - \text{BS\_AG\_BLKS\_RES}) \times \text{BS\_PA\_MFRMS}$.`,
   ]}
   solucion={String.raw`$N_{PB} = (9 - 2) \times 3 =$ **21 grupos**. Para paging quedan $7 \times 4 = 28$ ráfagas por multitrama: $28 / 0{,}235365 \approx 119$ ráfagas/s. Con tres repeticiones por aviso: **≈ 39,7 avisos/s**.`}
+/>
+
+### Ocupación del RACH y del PCH
+
+Tema: Interfaz aérea (combinaciones) y Gestión de conexiones (MOC y MTC).
+
+<ProblemaGuiado
+  enunciado="Dos BTS dependientes del mismo BSC comparten área de localización. Cada una usa una combinación IV en su canal de control: el RACH tiene 51 ranuras por multitrama de 51 tramas, y el CCCH tiene 9 grupos de 4 ranuras, de los que el PCH tiene reservada la mitad. BTS1 tiene 400 terminales con 0,8 llamadas entrantes/h y 0,6 salientes/h cada uno. BTS2 tiene 250 terminales con 0,4 entrantes/h y 1 saliente/h cada uno. Cada petición consume 4 ranuras RACH y cada aviso de llamada entrante ocupa 4 ranuras CCCH. a) Ocupación del RACH en cada BTS. b) Ocupación del PCH en cada BTS: ¿es igual?"
+  pistas={[
+    "Una petición al RACH la hace el móvil tanto para llamar (saliente) como para contestar a un aviso (entrante). Cuenta los dos tipos.",
+    String.raw`Ranuras por segundo del RACH: $51 / 0{,}235365 \approx 216{,}7$. Ocupación = (peticiones/s × 4) / ranuras/s.`,
+    "El aviso se emite en todas las células del área de localización. Si las dos BTS comparten LA, cada una avisa por los móviles de la otra: suma los entrantes de las dos.",
+    String.raw`PCH: la mitad de $9 	imes 4 = 36$ ranuras son 18 por multitrama, es decir $18 / 0{,}235365 \approx 76{,}5$ ranuras/s.`,
+  ]}
+  solucion={String.raw`**RACH.** BTS1: $400 \cdot (0{,}8 + 0{,}6) = 560$ peticiones/h $= 0{,}1556$/s, que son $0{,}622$ ranuras/s: ocupación $0{,}622 / 216{,}7 \approx$ **0,29 %**. BTS2: $250 \cdot 1{,}4 = 350$/h $= 0{,}0972$/s, $0{,}389$ ranuras/s: **0,18 %**. **PCH.** Entrantes de las dos BTS: $400 \cdot 0{,}8 + 250 \cdot 0{,}4 = 420$ avisos/h $= 0{,}1167$/s, es decir $0{,}467$ ranuras/s: ocupación $0{,}467 / 76{,}5 \approx$ **0,61 % en las dos**, porque cada BTS avisa por todos los móviles del LA. Si cada BTS tuviera su propio LA saldrían 0,47 % (BTS1) y 0,15 % (BTS2).`}
+/>
+
+### Pérdidas en el SDCCH
+
+Tema: Gestión de conexiones y Tráfico y colas (Erlang B).
+
+<ProblemaGuiado
+  enunciado="Con los datos del problema anterior, cada petición de establecimiento de llamada ocupa un SDCCH 8 segundos de media (exponencial). Cada BTS lleva una combinación V, con 4 SDCCH. Calcula la probabilidad de pérdida en el SDCCH de la BTS1. ¿Y si se pasara a una combinación VII (8 SDCCH)?"
+  pistas={[
+    String.raw`Tráfico ofrecido al SDCCH: $A = \lambda \cdot T$, con $\lambda$ las peticiones por segundo (entrantes + salientes) y $T = 8$ s.`,
+    "Usa la calculadora de Erlang B de más abajo con A y N = 4, y luego con N = 8.",
+  ]}
+  solucion={String.raw`$\lambda = 560/3600 = 0{,}1556$ peticiones/s, así que $A = 0{,}1556 \cdot 8 =$ **1,244 E**. Con 4 SDCCH: Erlang B da **≈ 2,9 %**. Con 8 SDCCH: **≈ 0,004 %**, es decir, prácticamente cero.`}
+/>
+
+<ErlangB N={4} A={1.244} />
+
+### Terminales máximos con dos criterios de calidad
+
+Tema: Tráfico y colas (Erlang B) y Interfaz aérea (combinaciones).
+
+<ProblemaGuiado
+  enunciado="Un sistema tiene cuatro células, todas con una portadora: 1 ranura con combinación V para señalización y las otras 7 de tráfico con combinación II (2 canales TCH/H por ranura). Las cuatro dependen de un BSC al que se conectan por un E1 con 10 canales de 64 kbps para tráfico, y sobre cada canal se multiplexan 4 canales de tráfico. Cada terminal ofrece 0,04 E. Calidad: bloqueo de los canales de tráfico en cada célula < 2 % y bloqueo en la interfaz Abis < 1 %. ¿Cuántos terminales admite el sistema?"
+  pistas={[
+    "Cuenta los canales de tráfico de cada célula (7 ranuras × 2 TCH/H) y los canales de la Abis (10 × 4).",
+    "Con Erlang B inverso, halla el tráfico máximo por célula con N = 14 al 2 %, y el máximo de la Abis con N = 40 al 1 %.",
+    "El sistema se queda con el criterio más restrictivo: compara el tráfico total que admite cada interfaz. Divide entre los 0,04 E por terminal.",
+  ]}
+  solucion={String.raw`Por célula: $N = 7 \cdot 2 = 14$ TCH/H; al 2 % admite $\approx 8{,}20$ E, así que las cuatro admiten $\approx 32{,}8$ E. Abis: $N = 10 \cdot 4 = 40$ canales; al 1 % admite $\approx 29{,}0$ E. **La Abis es el cuello de botella**: $29{,}0 / 0{,}04 \approx$ **725 terminales**. Comprobación: repartidos a partes iguales son 7,25 E por célula, que con 14 canales da un bloqueo de 0,91 % < 2 %. Si la Abis tuviera 12 canales (48) cambiaría el cuello de botella.`}
 />
 
 ## Autoevaluación

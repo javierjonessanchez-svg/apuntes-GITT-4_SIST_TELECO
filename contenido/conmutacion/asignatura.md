@@ -4,8 +4,8 @@ corto: Conmutación
 slug: conmutacion
 estado: activa
 orden: 1
-descripcion: "GSM: arquitectura, interfaz aérea, señalización y movilidad. Tráfico y colas, con problemas guiados."
-nota: "GPRS, 3G/4G y SIP/IMS, en preparación."
+descripcion: "GSM: arquitectura, interfaz aérea, señalización, movilidad y conexiones. GPRS. Tráfico y colas, con problemas guiados."
+nota: "3G/4G y SIP/IMS, en preparación."
 # confirmar con Blackboard: fechas de la guía y de PLAN_ESTUDIO.md, aún sin comprobar
 pruebas:
   - fecha: "2026-10-13"
@@ -21,7 +21,7 @@ pruebas:
   - fecha: "2026-11-03"
     nombre: PS6
     peso: "0,15"
-    temas: []
+    temas: [gprs]
     confirmar: true
   # Prueba de laboratorio (grupo A2) y PEI: calendario oficial de la EPS
   - fecha: "2026-11-19"

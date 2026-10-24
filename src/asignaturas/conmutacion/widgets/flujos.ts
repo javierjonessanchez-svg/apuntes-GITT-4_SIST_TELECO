@@ -725,5 +725,281 @@ export const FLUJOS: Flujo[] = [
         respuesta: true
       }
     ]
+  },
+  {
+    id: "llamada-saliente",
+    titulo: "Llamada originada en el móvil (MOC)",
+    actores: ["MS", "BSS", "MSC"],
+    ancho: 860,
+    leyenda: {
+      radio: "Mensajes de la interfaz aérea (canal entre paréntesis)"
+    },
+    mensajes: [
+      {
+        de: "MS",
+        a: "BSS",
+        texto: "RR-Channel Request (RACH)",
+        nota: "El usuario marca y pulsa llamar: el móvil pide un canal por el acceso aleatorio.",
+        fase: "CONEXIÓN RR"
+      },
+      {
+        de: "BSS",
+        a: "MS",
+        texto: "RR-Immediate Assignment (AGCH)",
+        nota: "La BSC concede un SDCCH y se lo comunica por el AGCH.",
+        respuesta: true
+      },
+      {
+        de: "MS",
+        a: "MSC",
+        texto: "CM-Service Request (SDCCH)",
+        nota: "Primer mensaje por el canal dedicado: el móvil pide el servicio y se identifica (TMSI). La BSC lo reenvía al MSC/VLR.",
+        fase: "SOLICITUD DE SERVICIO"
+      },
+      {
+        de: "MSC",
+        a: "MS",
+        texto: "MM-Authentication Request (SDCCH)",
+        nota: "Si el móvil ya está registrado, el MSC/VLR le lanza el RAND. Si no, antes haría el registro con el HLR."
+      },
+      {
+        de: "MS",
+        a: "MSC",
+        texto: "MM-Authentication Response (SDCCH)",
+        nota: "El móvil devuelve SRES.",
+        respuesta: true
+      },
+      {
+        de: "MSC",
+        a: "MS",
+        texto: "RR-Cipher Command (SDCCH)",
+        nota: "Se ordena pasar a modo cifrado."
+      },
+      {
+        de: "MS",
+        a: "MSC",
+        texto: "RR-Cipher Complete (SDCCH)",
+        respuesta: true
+      },
+      {
+        de: "MS",
+        a: "MSC",
+        texto: "CM-Set-Up (SDCCH)",
+        nota: "Establecimiento de la llamada: lleva el número llamado (MSISDN). Opcionalmente el MSC pide antes el IMEI y lo comprueba en el EIR.",
+        fase: "ESTABLECIMIENTO DE LA LLAMADA (INICIAL)"
+      },
+      {
+        de: "MSC",
+        a: "MS",
+        texto: "CM-Call Proceeding (SDCCH)",
+        nota: "La red acepta el intento y lo encamina.",
+        respuesta: true
+      },
+      {
+        de: "MSC",
+        a: "MS",
+        texto: "RR-Assignment Command (SDCCH)",
+        nota: "El MSC pide un canal de tráfico al BSS, que se lo asigna al móvil por el SDCCH. Aquí acaba el uso del SDCCH.",
+        fase: "ASIGNACIÓN DEL CANAL DE TRÁFICO"
+      },
+      {
+        de: "MS",
+        a: "BSS",
+        texto: "RR-Assignment Complete (FACCH)",
+        nota: "Ya en el TCH, la señalización va por el FACCH (roba ráfagas a la voz).",
+        respuesta: true
+      },
+      {
+        de: "MSC",
+        a: "MS",
+        texto: "CM-Alerting (FACCH)",
+        nota: "El llamado está sonando: el móvil pone tono de llamada.",
+        fase: "ESTABLECIMIENTO DE LA LLAMADA (RESTO)"
+      },
+      {
+        de: "MSC",
+        a: "MS",
+        texto: "CM-Connect (FACCH)",
+        nota: "El llamado ha contestado (la red recibe ISUP-ANM)."
+      },
+      {
+        de: "MS",
+        a: "MSC",
+        texto: "CM-Connect Acknowledge (FACCH)",
+        nota: "Empieza la conversación por el TCH.",
+        respuesta: true
+      }
+    ]
+  },
+  {
+    id: "llamada-terminada",
+    titulo: "Llamada terminada en el móvil (MTC)",
+    actores: ["MS", "BSS", "MSC"],
+    ancho: 860,
+    leyenda: {
+      radio: "Mensajes de la interfaz aérea (canal entre paréntesis)"
+    },
+    mensajes: [
+      {
+        de: "MSC",
+        a: "MS",
+        texto: "RR-Paging Request (TMSI) (PCH)",
+        nota: "Se avisa por el PCH en todas las células del área de localización.",
+        fase: "AVISO Y CONEXIÓN RR"
+      },
+      {
+        de: "MS",
+        a: "BSS",
+        texto: "RR-Channel Request (RACH)",
+        nota: "El móvil se reconoce y pide un canal."
+      },
+      {
+        de: "BSS",
+        a: "MS",
+        texto: "RR-Immediate Assignment (AGCH)",
+        nota: "La BSC le da un SDCCH.",
+        respuesta: true
+      },
+      {
+        de: "MS",
+        a: "MSC",
+        texto: "CM-Paging Response (SDCCH)",
+        nota: "Hace de solicitud de servicio: el móvil contesta al aviso ya con canal dedicado.",
+        fase: "SOLICITUD DE SERVICIO"
+      },
+      {
+        de: "MSC",
+        a: "MS",
+        texto: "MM-Authentication Request (SDCCH)"
+      },
+      {
+        de: "MS",
+        a: "MSC",
+        texto: "MM-Authentication Response (SDCCH)",
+        respuesta: true
+      },
+      {
+        de: "MSC",
+        a: "MS",
+        texto: "RR-Cipher Command (SDCCH)"
+      },
+      {
+        de: "MS",
+        a: "MSC",
+        texto: "RR-Cipher Complete (SDCCH)",
+        respuesta: true
+      },
+      {
+        de: "MSC",
+        a: "MS",
+        texto: "CM-Set-Up (SDCCH)",
+        nota: "A diferencia del MOC, aquí es la red quien inicia el establecimiento.",
+        fase: "ESTABLECIMIENTO DE LA LLAMADA (INICIAL)"
+      },
+      {
+        de: "MS",
+        a: "MSC",
+        texto: "CM-Call Confirmed (SDCCH)",
+        nota: "Único mensaje nuevo de GSM respecto a Q.931: el móvil confirma que puede atender la llamada.",
+        respuesta: true
+      },
+      {
+        de: "MSC",
+        a: "MS",
+        texto: "RR-Assignment Command (SDCCH)",
+        nota: "Se asigna el canal de tráfico.",
+        fase: "ASIGNACIÓN DEL CANAL DE TRÁFICO"
+      },
+      {
+        de: "MS",
+        a: "BSS",
+        texto: "RR-Assignment Complete (FACCH)",
+        respuesta: true
+      },
+      {
+        de: "MS",
+        a: "MSC",
+        texto: "CM-Alerting (FACCH)",
+        nota: "El móvil suena: avisa a la red, que lo traslada al que llama.",
+        fase: "ESTABLECIMIENTO DE LA LLAMADA (RESTO)"
+      },
+      {
+        de: "MS",
+        a: "MSC",
+        texto: "CM-Connect (FACCH)",
+        nota: "El usuario descuelga."
+      },
+      {
+        de: "MSC",
+        a: "MS",
+        texto: "CM-Connect Acknowledge (FACCH)",
+        nota: "Empieza la conversación por el TCH.",
+        respuesta: true
+      }
+    ]
+  },
+  {
+    id: "encaminamiento-msrn",
+    titulo: "Encaminamiento de una llamada entrante con MSRN",
+    actores: ["GMSC", "HLR", "VLR", "MSC", "BSS", "MS"],
+    ancho: 980,
+    leyenda: {
+      radio: "ISUP y mensajes de la interfaz aérea",
+      map: "Mensajes MAP (SS7, red fija)"
+    },
+    mensajes: [
+      {
+        de: "GMSC",
+        a: "HLR",
+        texto: "MAP-SEND ROUTING INFO (MSISDN)",
+        nota: "La llamada llegó al GMSC con un ISUP-IAM(MSISDN). El GMSC pregunta al HLR dónde está el abonado.",
+        fase: "AVERIGUAR EL MSRN"
+      },
+      {
+        de: "HLR",
+        a: "VLR",
+        texto: "MAP-PROVIDE ROAMING NUMBER (IMSI)",
+        nota: "El HLR traduce el MSISDN a IMSI y pide un número de roaming al VLR donde está registrado el móvil."
+      },
+      {
+        de: "VLR",
+        a: "HLR",
+        texto: "MAP-PROVIDE ROAMING NUMBER ack (MSRN)",
+        nota: "El VLR crea un MSRN temporal (VCC + VNDC + SN) que oculta la identidad y la posición del móvil.",
+        respuesta: true
+      },
+      {
+        de: "HLR",
+        a: "GMSC",
+        texto: "MAP-SEND ROUTING INFO ack (MSRN)",
+        respuesta: true
+      },
+      {
+        de: "GMSC",
+        a: "MSC",
+        texto: "ISUP-IAM (MSRN)",
+        nota: "El GMSC ya encamina la llamada hacia el MSC visitado usando el MSRN.",
+        fase: "LLEGAR AL MÓVIL"
+      },
+      {
+        de: "MSC",
+        a: "VLR",
+        texto: "MAP-SEND INFO FOR INCOMING CALL (MSRN)",
+        nota: "El MSC visitado pregunta al VLR a quién corresponde ese MSRN."
+      },
+      {
+        de: "VLR",
+        a: "MSC",
+        texto: "MAP-PAGE (TMSI, LAI)",
+        nota: "El VLR devuelve el TMSI y el área de localización donde avisar.",
+        respuesta: true
+      },
+      {
+        de: "MSC",
+        a: "MS",
+        texto: "RR-PAGE (TMSI)",
+        nota: "El aviso sale por el PCH en el LA. Después siguen autenticación, cifrado y establecimiento de la llamada (como en el MTC)."
+      }
+    ]
   }
 ];
