@@ -624,58 +624,58 @@ guia:
               funciones: [Calcular_Interferencia, Calcular_XPD_lluvia]
   filas:
     # ----- Tema 1 -----
-    - {tema: Propagación, dan: 'Pt, Lt, Gt', piden: 'PIRE', funciones: [Calcular_PIRE], estado: hecho}
-    - {tema: Propagación, dan: 'PIRE, Lb, Gr, Lr', piden: 'Prx', funciones: [Calcular_Prx], estado: hecho}
-    - {tema: Propagación, dan: 'Prx, Lb, Gr, Lr, Gt, Lt', piden: 'Pt (o PIRE)', funciones: [Calcular_Pt], estado: hecho}
-    - {tema: Propagación, dan: 'PIRE (o Pt, Lt, Gt) y Prx', piden: 'Lb', funciones: [Calcular_Lb], estado: hecho}
-    - {tema: Propagación, dan: 'f, d', piden: 'Lbf y gases', funciones: [Calcular_Lb_std], estado: hecho}
-    - {tema: Propagación, dan: 'f, Lbf', piden: 'd', funciones: [Calcular_Distancia], estado: hecho}
-    - {tema: Propagación, dan: 'PIRE (o Pt, Lt, Gt), d', piden: 'campo E (V/m y dBµ)', funciones: [Calcular_Campo], estado: hecho}
-    - {tema: Propagación, dan: 'E en dBµ a una distancia (espacio libre), G, Lt', piden: 'Pt o PIRE necesarias', funciones: [Calcular_PIRE_campo], estado: hecho}
-    - {tema: Propagación, dan: 'E (o Φ), PIRE', piden: 'd', funciones: [Calcular_Distancia], estado: hecho}
-    - {tema: Propagación, dan: 'E', piden: 'Φ, Sef, Prx', funciones: [dBu2Vm, Calcular_Flujo, Calcular_Sef, Calcular_Prx_flujo], estado: hecho}
-    - {tema: Propagación, dan: 'f, G', piden: 'Sef', funciones: [Calcular_Sef], estado: hecho}
-    - {tema: Propagación, dan: 'Sef, f', piden: 'G', funciones: [Calcular_G_desde_Sef], estado: hecho}
-    - {tema: Propagación, dan: 'geometría del trayecto (obstáculos, d, alturas)', piden: '¿qué tipo de pérdida es?', funciones: [Clasificar_trayecto], estado: hecho}
-    - {tema: Propagación, dan: 'obstáculos (d, cota), alturas, K, f', piden: 'Ld (Bullington)', funciones: [Calcular_Lad_dif, Dibujar_Bullington], estado: hecho}
-    - {tema: Propagación, dan: 'obstáculos, alturas, K, f y Pt', piden: 'Prx', funciones: [Resolver_obstaculos], estado: hecho}
-    - {tema: Propagación, dan: 'obstáculos, alturas, K, f y E0 en espacio libre', piden: 'Prx', funciones: [Resolver_obstaculos], estado: hecho}
-    - {tema: Propagación, dan: 'obstáculos y alturas iniciales', piden: 'alturas mínimas de antena (het1, het2)', funciones: [Calcular_Alturas_despejamiento], estado: hecho}
-    - {tema: Propagación, dan: 'dN/dh (o «atmósfera estándar»)', piden: 'K y radio efectivo', funciones: [Calcular_K], estado: hecho}
-    - {tema: Propagación, dan: 'd ≤ 25 km al 99,9 %', piden: 'K99,9', funciones: [Calcular_K999], estado: hecho}
-    - {tema: Propagación, dan: 'alturas, cotas, K', piden: 'horizonte de cada antena y d_max', funciones: [Calcular_Horizonte], estado: hecho}
-    - {tema: Propagación, dan: 'mar o terreno liso (σ, εr, polarización)', piden: 'dos rayos: Lad,ref', funciones: [Calcular_Lad_ref, Resolver_mar], estado: hecho}
-    - {tema: Propagación, dan: 'd > d_max o φ < φmin (no hay reflexión)', piden: 'difracción por tierra esférica', funciones: [], estado: pendiente, nota: 'No hay función programada.'}
+    - {tema: Propagación, dan: 'Pt, Lt, Gt', piden: 'PIRE', funciones: [Calcular_PIRE], datos: ['Pt', 'Lt', 'Gt'], busco: ['PIRE'], estado: hecho}
+    - {tema: Propagación, dan: 'PIRE, Lb, Gr, Lr', piden: 'Prx', funciones: [Calcular_Prx], datos: ['PIRE', 'Lb', 'Gr', 'Lr'], busco: ['Prx'], estado: hecho}
+    - {tema: Propagación, dan: 'Prx, Lb, Gr, Lr, Gt, Lt', piden: 'Pt (o PIRE)', funciones: [Calcular_Pt], datos: ['Prx', 'Lb', 'Gr', 'Lr', 'Gt', 'Lt'], busco: ['Pt', 'PIRE'], estado: hecho}
+    - {tema: Propagación, dan: 'PIRE (o Pt, Lt, Gt) y Prx', piden: 'Lb', funciones: [Calcular_Lb], datos: ['PIRE', 'Prx', 'Gr', 'Lr'], busco: ['Lb'], estado: hecho}
+    - {tema: Propagación, dan: 'f, d', piden: 'Lbf y gases', funciones: [Calcular_Lb_std], datos: ['f', 'd'], busco: ['Lbf', 'gases'], estado: hecho}
+    - {tema: Propagación, dan: 'f, Lbf', piden: 'd', funciones: [Calcular_Distancia], datos: ['f', 'Lbf'], busco: ['d'], estado: hecho}
+    - {tema: Propagación, dan: 'PIRE (o Pt, Lt, Gt), d', piden: 'campo E (V/m y dBµ)', funciones: [Calcular_Campo], datos: ['PIRE', 'd'], busco: ['campo E'], estado: hecho}
+    - {tema: Propagación, dan: 'E en dBµ a una distancia (espacio libre), G, Lt', piden: 'Pt o PIRE necesarias', funciones: [Calcular_PIRE_campo], datos: ['campo E', 'd', 'Gt', 'Lt'], busco: ['PIRE', 'Pt'], estado: hecho}
+    - {tema: Propagación, dan: 'E (o Φ), PIRE', piden: 'd', funciones: [Calcular_Distancia], datos: ['campo E', 'PIRE'], busco: ['d'], estado: hecho}
+    - {tema: Propagación, dan: 'E', piden: 'Φ, Sef, Prx', funciones: [dBu2Vm, Calcular_Flujo, Calcular_Sef, Calcular_Prx_flujo], datos: ['campo E', 'f', 'G'], busco: ['flujo Φ', 'Prx'], estado: hecho}
+    - {tema: Propagación, dan: 'f, G', piden: 'Sef', funciones: [Calcular_Sef], datos: ['f', 'G'], busco: ['Sef'], estado: hecho}
+    - {tema: Propagación, dan: 'Sef, f', piden: 'G', funciones: [Calcular_G_desde_Sef], datos: ['Sef', 'f'], busco: ['G'], estado: hecho}
+    - {tema: Propagación, dan: 'geometría del trayecto (obstáculos, d, alturas)', piden: '¿qué tipo de pérdida es?', funciones: [Clasificar_trayecto], datos: ['obstáculos', 'd', 'alturas de antena'], busco: ['tipo de trayecto'], estado: hecho}
+    - {tema: Propagación, dan: 'obstáculos (d, cota), alturas, K, f', piden: 'Ld (Bullington)', funciones: [Calcular_Lad_dif, Dibujar_Bullington], datos: ['obstáculos', 'alturas de antena', 'K', 'f'], busco: ['Ld (Bullington)'], estado: hecho}
+    - {tema: Propagación, dan: 'obstáculos, alturas, K, f y Pt', piden: 'Prx', funciones: [Resolver_obstaculos], datos: ['obstáculos', 'alturas de antena', 'K', 'f', 'Pt'], busco: ['Prx'], estado: hecho}
+    - {tema: Propagación, dan: 'obstáculos, alturas, K, f y E0 en espacio libre', piden: 'Prx', funciones: [Resolver_obstaculos], datos: ['obstáculos', 'alturas de antena', 'K', 'f', 'E0'], busco: ['Prx'], estado: hecho}
+    - {tema: Propagación, dan: 'obstáculos y alturas iniciales', piden: 'alturas mínimas de antena (het1, het2)', funciones: [Calcular_Alturas_despejamiento], datos: ['obstáculos', 'alturas de antena', 'K', 'f'], busco: ['alturas mínimas'], estado: hecho}
+    - {tema: Propagación, dan: 'dN/dh (o «atmósfera estándar»)', piden: 'K y radio efectivo', funciones: [Calcular_K], datos: ['dN/dh'], busco: ['K'], estado: hecho}
+    - {tema: Propagación, dan: 'd ≤ 25 km al 99,9 %', piden: 'K99,9', funciones: [Calcular_K999], datos: ['d'], busco: ['K99,9'], estado: hecho}
+    - {tema: Propagación, dan: 'alturas, cotas, K', piden: 'horizonte de cada antena y d_max', funciones: [Calcular_Horizonte], datos: ['alturas de antena', 'K'], busco: ['horizonte'], estado: hecho}
+    - {tema: Propagación, dan: 'mar o terreno liso (σ, εr, polarización)', piden: 'dos rayos: Lad,ref', funciones: [Calcular_Lad_ref, Resolver_mar], datos: ['mar o terreno liso', 'f', 'alturas de antena', 'K'], busco: ['Lad,ref (dos rayos)'], estado: hecho}
+    - {tema: Propagación, dan: 'd > d_max o φ < φmin (no hay reflexión)', piden: 'difracción por tierra esférica', funciones: [], datos: ['d mayor que d_max'], busco: ['tierra esférica'], estado: pendiente, nota: 'No hay función programada.'}
     # ----- Tema 2 -----
-    - {tema: Antenas, dan: 'Gmax, θ3dB, desapuntamiento θ', piden: 'G(θ)', funciones: [Calcular_G_desapuntado], estado: hecho}
-    - {tema: Antenas, dan: 'diagrama RPE (puntos leídos de la gráfica) y ángulo', piden: 'discriminación D (dB)', funciones: [Calcular_Discriminacion], estado: hecho}
-    - {tema: Antenas, dan: '|s11|, RL o ROE', piden: 'los otros dos', funciones: [Calcular_ROE], estado: hecho}
-    - {tema: Antenas, dan: 'η y directividad', piden: 'ganancia', funciones: [Calcular_Antena], estado: hecho}
-    - {tema: Antenas, dan: 'D (dimensión mayor), f', piden: 'distancia de campo lejano 2D²/λ', funciones: [Calcular_Campo_Lejano], estado: hecho}
-    - {tema: Antenas, dan: 'D del lóbulo principal y del secundario o trasero', piden: 'SLL o FBR', funciones: [], estado: mano, nota: 'Resta directa de dos valores del diagrama.'}
+    - {tema: Antenas, dan: 'Gmax, θ3dB, desapuntamiento θ', piden: 'G(θ)', funciones: [Calcular_G_desapuntado], datos: ['Gmax', 'θ3dB', 'desapuntamiento'], busco: ['G(θ)'], estado: hecho}
+    - {tema: Antenas, dan: 'diagrama RPE (puntos leídos de la gráfica) y ángulo', piden: 'discriminación D (dB)', funciones: [Calcular_Discriminacion], datos: ['diagrama RPE', 'ángulo'], busco: ['discriminación'], estado: hecho}
+    - {tema: Antenas, dan: '|s11|, RL o ROE', piden: 'los otros dos', funciones: [Calcular_ROE], datos: ['s11, RL o ROE'], busco: ['s11, RL o ROE'], estado: hecho}
+    - {tema: Antenas, dan: 'η y directividad', piden: 'ganancia', funciones: [Calcular_Antena], datos: ['η', 'directividad'], busco: ['G'], estado: hecho}
+    - {tema: Antenas, dan: 'D (dimensión mayor), f', piden: 'distancia de campo lejano 2D²/λ', funciones: [Calcular_Campo_Lejano], datos: ['D de la antena', 'f'], busco: ['campo lejano'], estado: hecho}
+    - {tema: Antenas, dan: 'D del lóbulo principal y del secundario o trasero', piden: 'SLL o FBR', funciones: [], datos: ['D lóbulo principal', 'D lóbulo secundario'], busco: ['SLL o FBR'], estado: mano, nota: 'Resta directa de dos valores del diagrama.'}
     # ----- Tema 3 -----
-    - {tema: Desvanecimientos, dan: 'lat, lon', piden: 'R0,01 y P0', funciones: [], estado: hecho, nota: 'itur_p0837_7_annex1, en datos/uit-r/p837/ (no está en funciones/).'}
-    - {tema: Desvanecimientos, dan: 'f, polarización', piden: 'k, α', funciones: [Calcular_k_alfa], estado: hecho}
-    - {tema: Desvanecimientos, dan: 'f, d, R0,01, k, α (enlace terrenal)', piden: 'F0,01 (con d_eff y γR)', funciones: [Calcular_F001], estado: hecho}
-    - {tema: Desvanecimientos, dan: 'f, R0,01, k, α, cota+antena, h0 (isoterma 0 ºC), elevación, latitud (satélite)', piden: 'F0,01', funciones: [Calcular_F001_espacial], estado: hecho}
-    - {tema: Desvanecimientos, dan: 'F0,01, q %', piden: 'Fq (terrenal o satélite)', funciones: [Calcular_Fq], estado: hecho}
-    - {tema: Desvanecimientos, dan: 'margen FM, F0,01', piden: 'q % = U_lluvia', funciones: [Calcular_q_lluvia], estado: hecho}
-    - {tema: Desvanecimientos, dan: 'TH, Prx y mecanismo', piden: 'MD = FM', funciones: [Calcular_MD], estado: hecho}
-    - {tema: Desvanecimientos, dan: 'TH, Lb, Gr, Lr y MD (CAG o ATPC)', piden: 'PIRE_CN, PIRE_CMD y luego Pt', funciones: [Calcular_MD, Calcular_Pt], estado: hecho}
-    - {tema: Desvanecimientos, dan: 'f, Fq', piden: 'XPD por lluvia', funciones: [Calcular_XPD_lluvia], estado: hecho}
-    - {tema: Desvanecimientos, dan: 'MTBF y MTTR de N equipos', piden: 'U_equipos', funciones: [Calcular_U_equipos], estado: hecho}
-    - {tema: Desvanecimientos, dan: 'U objetivo, U_lluvia, MTBF, N', piden: 'MTTR máximo', funciones: [Calcular_MTTR_max], estado: hecho}
-    - {tema: Desvanecimientos, dan: 'U_lluvia, U_equipos, objetivo', piden: 'U_total, disponibilidad, ¿cumple?', funciones: [Calcular_Disponibilidad], estado: hecho}
-    - {tema: Desvanecimientos, dan: 'objetivo de U', piden: 'FM necesario', funciones: [Calcular_FM_necesario], estado: hecho}
-    - {tema: Desvanecimientos, dan: 'datos del enlace y objetivo de disponibilidad', piden: '¿qué Pt lo cumple?', funciones: [Resolver_diseno], estado: hecho}
-    - {tema: Desvanecimientos, dan: 'R0,01 a partir de datos mensuales', piden: 'R0,01', funciones: [], estado: pendiente, nota: 'No hay función; lo normal es que el enunciado dé R0,01.'}
+    - {tema: Desvanecimientos, dan: 'lat, lon', piden: 'R0,01 y P0', funciones: [], datos: ['lat y lon'], busco: ['R0,01'], estado: hecho, nota: 'itur_p0837_7_annex1, en datos/uit-r/p837/ (no está en funciones/).'}
+    - {tema: Desvanecimientos, dan: 'f, polarización', piden: 'k, α', funciones: [Calcular_k_alfa], datos: ['f', 'polarización'], busco: ['k y α'], estado: hecho}
+    - {tema: Desvanecimientos, dan: 'f, d, R0,01, k, α (enlace terrenal)', piden: 'F0,01 (con d_eff y γR)', funciones: [Calcular_F001], datos: ['f', 'd', 'R0,01', 'k y α'], busco: ['F0,01'], estado: hecho}
+    - {tema: Desvanecimientos, dan: 'f, R0,01, k, α, cota+antena, h0 (isoterma 0 ºC), elevación, latitud (satélite)', piden: 'F0,01', funciones: [Calcular_F001_espacial], datos: ['f', 'R0,01', 'k y α', 'elevación', 'h0 y cota', 'lat'], busco: ['F0,01'], estado: hecho}
+    - {tema: Desvanecimientos, dan: 'F0,01, q %', piden: 'Fq (terrenal o satélite)', funciones: [Calcular_Fq], datos: ['F0,01', 'q %'], busco: ['Fq'], estado: hecho}
+    - {tema: Desvanecimientos, dan: 'margen FM, F0,01', piden: 'q % = U_lluvia', funciones: [Calcular_q_lluvia], datos: ['FM', 'F0,01'], busco: ['q % (U lluvia)'], estado: hecho}
+    - {tema: Desvanecimientos, dan: 'TH, Prx y mecanismo', piden: 'MD = FM', funciones: [Calcular_MD], datos: ['TH', 'Prx', 'mecanismo'], busco: ['MD', 'FM'], estado: hecho}
+    - {tema: Desvanecimientos, dan: 'TH, Lb, Gr, Lr y MD (CAG o ATPC)', piden: 'PIRE_CN, PIRE_CMD y luego Pt', funciones: [Calcular_MD, Calcular_Pt], datos: ['TH', 'Lb', 'Gr', 'Lr', 'MD'], busco: ['PIRE_CN', 'Pt'], estado: hecho}
+    - {tema: Desvanecimientos, dan: 'f, Fq', piden: 'XPD por lluvia', funciones: [Calcular_XPD_lluvia], datos: ['f', 'Fq'], busco: ['XPD lluvia'], estado: hecho}
+    - {tema: Desvanecimientos, dan: 'MTBF y MTTR de N equipos', piden: 'U_equipos', funciones: [Calcular_U_equipos], datos: ['MTBF', 'MTTR'], busco: ['U equipos'], estado: hecho}
+    - {tema: Desvanecimientos, dan: 'U objetivo, U_lluvia, MTBF, N', piden: 'MTTR máximo', funciones: [Calcular_MTTR_max], datos: ['U objetivo', 'U lluvia', 'MTBF'], busco: ['MTTR máximo'], estado: hecho}
+    - {tema: Desvanecimientos, dan: 'U_lluvia, U_equipos, objetivo', piden: 'U_total, disponibilidad, ¿cumple?', funciones: [Calcular_Disponibilidad], datos: ['U lluvia', 'U equipos', 'U objetivo'], busco: ['disponibilidad'], estado: hecho}
+    - {tema: Desvanecimientos, dan: 'objetivo de U', piden: 'FM necesario', funciones: [Calcular_FM_necesario], datos: ['U objetivo', 'F0,01', 'f'], busco: ['FM necesario'], estado: hecho}
+    - {tema: Desvanecimientos, dan: 'datos del enlace y objetivo de disponibilidad', piden: '¿qué Pt lo cumple?', funciones: [Resolver_diseno], datos: ['U objetivo', 'TH', 'MTBF', 'f', 'd'], busco: ['Pt'], estado: hecho}
+    - {tema: Desvanecimientos, dan: 'R0,01 a partir de datos mensuales', piden: 'R0,01', funciones: [], datos: ['datos mensuales'], busco: ['R0,01'], estado: pendiente, nota: 'No hay función; lo normal es que el enunciado dé R0,01.'}
     # ----- Tema 4 -----
-    - {tema: Ruido e interferencias, dan: 'T y G de cada etapa (diagrama de bloques), pérdidas pasivas', piden: 'T equivalente de la cadena', funciones: [Calcular_T_cadena], estado: hecho}
-    - {tema: Ruido e interferencias, dan: 'T, Rb (con FEC), M, roll-off, Eb/N0, degradación', piden: 'TH, B, N', funciones: [Calcular_Umbral], estado: hecho}
-    - {tema: Ruido e interferencias, dan: 'T dada en otro punto («a la salida del mezclador»)', piden: 'TH en la entrada del receptor o en la antena', funciones: [Calcular_Umbral_referido], estado: hecho}
-    - {tema: Ruido e interferencias, dan: 'tres distancias (triángulo)', piden: 'ángulo del interferente', funciones: [Calcular_angulo_triangulo], estado: hecho}
-    - {tema: Ruido e interferencias, dan: 'PIRE, Lb, Gr, Lr, discriminaciones, XPD', piden: 'potencia interferente o parásita', funciones: [Calcular_Interferencia], estado: hecho}
-    - {tema: Ruido e interferencias, dan: 'Prx y P_I', piden: 'C/I', funciones: [], estado: mano, nota: 'Resta directa: C/I = Prx − P_I.'}
+    - {tema: Ruido e interferencias, dan: 'T y G de cada etapa (diagrama de bloques), pérdidas pasivas', piden: 'T equivalente de la cadena', funciones: [Calcular_T_cadena], datos: ['T de cada etapa', 'G de cada etapa'], busco: ['T de la cadena'], estado: hecho}
+    - {tema: Ruido e interferencias, dan: 'T, Rb (con FEC), M, roll-off, Eb/N0, degradación', piden: 'TH, B, N', funciones: [Calcular_Umbral], datos: ['T', 'Rb', 'M', 'roll-off', 'Eb/N0'], busco: ['TH', 'B', 'N'], estado: hecho}
+    - {tema: Ruido e interferencias, dan: 'T dada en otro punto («a la salida del mezclador»)', piden: 'TH en la entrada del receptor o en la antena', funciones: [Calcular_Umbral_referido], datos: ['TH en otro punto', 'G entre puntos'], busco: ['TH referido'], estado: hecho}
+    - {tema: Ruido e interferencias, dan: 'tres distancias (triángulo)', piden: 'ángulo del interferente', funciones: [Calcular_angulo_triangulo], datos: ['tres distancias'], busco: ['ángulo del interferente'], estado: hecho}
+    - {tema: Ruido e interferencias, dan: 'PIRE, Lb, Gr, Lr, discriminaciones, XPD', piden: 'potencia interferente o parásita', funciones: [Calcular_Interferencia], datos: ['PIRE', 'Lb', 'Gr', 'Lr', 'D_tx y D_rx', 'XPD'], busco: ['potencia interferente'], estado: hecho}
+    - {tema: Ruido e interferencias, dan: 'Prx y P_I', piden: 'C/I', funciones: [], datos: ['Prx', 'P_I'], busco: ['C/I'], estado: mano, nota: 'Resta directa: C/I = Prx − P_I.'}
   indice:
     # ----- Propagación -----
     - {tema: Propagación, funcion: Calcular_PIRE, que: 'PIRE = Pt − Lt + Gt', archivo: funciones/propagacion/Calcular_PIRE.m}

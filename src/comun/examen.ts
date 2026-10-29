@@ -37,6 +37,9 @@ const esquemaGuia = z.object({
     dan: z.string().min(1),
     piden: z.string().min(1),
     funciones: z.array(nombreFuncion),
+    // Etiquetas para el selector: lo que tienes (`datos`) y lo que te piden (`busco`)
+    datos: z.array(z.string().min(1)).min(1),
+    busco: z.array(z.string().min(1)).min(1),
     // hecho = hay función; mano = es una resta o cuenta directa; pendiente = sin programar
     estado: z.enum(['hecho', 'mano', 'pendiente']),
     nota: z.string().min(1).optional(),

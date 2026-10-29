@@ -67,3 +67,27 @@
 .gp-indice li { padding: 8px 0; border-top: 1px solid var(--linea); scroll-margin-top: 80px; }
 .gp-indice li:target { background: color-mix(in srgb, var(--acento) 18%, transparent); box-shadow: -8px 0 0 color-mix(in srgb, var(--acento) 18%, transparent), 8px 0 0 color-mix(in srgb, var(--acento) 18%, transparent); }
 .gp-indice .ver-codigo { min-height: 32px; margin-left: auto; }
+
+/* Selector de casillas: «me dan» y «me piden» */
+.gp-selector { display: grid; gap: 16px; }
+.gp-grupo-chips { margin: 0; padding: 0; border: 0; min-width: 0; }
+.gp-grupo-chips legend { padding: 0; margin-bottom: 8px; font-weight: 700; font-size: 1.05rem; }
+.gp-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.gp-chip { position: relative; display: inline-flex; }
+/* La casilla real queda invisible pero enfocable; el chip pintado hace de casilla */
+.gp-chip input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.gp-chip span {
+  display: inline-flex; align-items: center; min-height: 44px; padding: 6px 14px; border-radius: 999px;
+  background: var(--superficie); box-shadow: inset 0 0 0 1px var(--linea); font-weight: 600; font-size: .95rem;
+  transition-property: background-color, color; transition-duration: .15s; transition-timing-function: ease-out;
+}
+.gp-chip:hover span { background: color-mix(in srgb, var(--primario) 10%, var(--superficie)); }
+.gp-chip input:checked + span { background: var(--primario); color: var(--sobre-primario); box-shadow: none; }
+.gp-chip input:checked + span::before { content: "✓"; margin-right: 6px; }
+.gp-chip input:focus-visible + span { outline: 2px solid var(--primario); outline-offset: 2px; }
+.gp-aciertos { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.gp-acierto { display: grid; gap: 6px; }
+.gp-acierto > p { margin: 0; }
+.gp-casi { box-shadow: var(--sombra), inset 4px 0 0 var(--acento); }
+.gp-casi .gp-etiqueta { color: var(--texto); }
+.gp-acierto .gp-estado, .gp-acierto .gp-nota { margin-right: 8px; }

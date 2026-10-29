@@ -22,7 +22,10 @@ const resultados = guia.arbol.nodos.flatMap((n) => n.opciones.flatMap((o, i) => 
 
 const filas = porTema(guia.filas);
 const indice = porTema(guia.indice);
-const busca = (...partes: (string | undefined)[]) => normalizar(partes.filter(Boolean).join(' '));
+// Casillas del selector: cada etiqueta una vez, en el orden en que aparece
+const unicas = (lista: string[][]) => [...new Set(lista.flat())];
+const etiquetas = { datos: unicas(guia.filas.map((f) => f.datos)), busco: unicas(guia.filas.map((f) => f.busco)) };
+const busca =(...partes: (string | undefined)[]) => normalizar(partes.filter(Boolean).join(' '));
 const ESTADO = { mano: 'a mano', pendiente: 'sin programar' } as const;
 ---
 <div class="envoltura examen guia" data-guia data-inicio={guia.arbol.inicio}>
@@ -31,6 +34,29 @@ const ESTADO = { mano: 'a mano', pendiente: 'sin programar' } as const;
     <h1>¿Qué tipo de problema es?</h1>
     <p class="entradilla">Contesta unas pocas preguntas y te dice qué funciones de MATLAB usar. Si ya sabes qué tienes, busca abajo en la tabla «me dan → me piden». Las fórmulas y los pasos de cada tipo están en el <a href={ruta(asignatura.slug, 'examen')}>modo examen</a>.</p>
   </header>
+
+  <section aria-labelledby="selector-titulo">
+    <h2 id="selector-titulo">Marca lo que tienes y lo que te piden</h2>
+    <form class="gp-selector" data-selector-funcion>
+      <fieldset class="gp-grupo-chips">
+        <legend>Me dan</legend>
+        <div class="gp-chips">
+          {etiquetas.datos.map((t) => <label class="gp-chip"><input type="checkbox" name="tengo" value={t} /><span>{t}</span></label>)}
+        </div>
+      </fieldset>
+      <fieldset class="gp-grupo-chips">
+        <legend>Me piden</legend>
+        <div class="gp-chips">
+          {etiquetas.busco.map((t) => <label class="gp-chip"><input type="checkbox" name="pido" value={t} /><span>{t}</span></label>)}
+        </div>
+      </fieldset>
+      <p class="gp-controles">
+        <button type="submit" class="boton">Buscar función</button>
+        <button type="reset" class="boton-copiar">Borrar marcas</button>
+      </p>
+      <div class="gp-resultado-selector" data-resultado-selector aria-live="polite"></div>
+    </form>
+  </section>
 
   <section aria-labelledby="arbol-titulo">
     <h2 id="arbol-titulo">Árbol de decisión</h2>
@@ -80,7 +106,7 @@ const ESTADO = { mano: 'a mano', pendiente: 'sin programar' } as const;
             <thead><tr><th scope="col">Me dan</th><th scope="col">Me piden</th><th scope="col">Función</th></tr></thead>
             <tbody>
               {g.formulas.map((f) => (
-                <tr data-busca={busca(f.tema, f.dan, f.piden, f.funciones.join(' '), f.nota, f.estado === 'hecho' ? undefined : ESTADO[f.estado])}>
+                <tr data-datos={JSON.stringify(f.datos)} data-busco={JSON.stringify(f.busco)} data-busca={busca(f.tema, f.dan, f.piden, f.funciones.join(' '), f.nota, f.estado === 'hecho' ? undefined : ESTADO[f.estado])}>
                   <td data-etiqueta="Me dan">{f.dan}</td>
                   <td data-etiqueta="Me piden">{f.piden}</td>
                   <td data-etiqueta="Función">

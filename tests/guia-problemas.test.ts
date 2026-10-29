@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, test } from 'vitest';
 import { parse } from 'yaml';
 import { esquemaExamen, validarExamen, type ExamenMatlab } from '../src/comun/examen';
-import { coincide, normalizar } from '../src/comun/cliente/guia';
+import { buscarFunciones, coincide, normalizar } from '../src/comun/cliente/guia';
 
 const RUTA = 'contenido/radiacion-radiocomunicacion/examen.yaml';
 // Copia fresca del examen real para estropearla en cada prueba
@@ -107,5 +107,38 @@ describe('búsqueda', () => {
   test('una consulta vacía o de espacios lo encuentra todo', () => {
     expect(coincide('', 'cualquier cosa')).toBe(true);
     expect(coincide('   ', 'cualquier cosa')).toBe(true);
+  });
+});
+
+describe('selector de casillas', () => {
+  const filas = [
+    { datos: ['Pt', 'Lt', 'Gt'], busco: ['PIRE'] },
+    { datos: ['PIRE', 'Lb'], busco: ['Prx'] },
+    { datos: ['Pt', 'Lb'], busco: ['Prx'] },
+  ];
+  test('pone antes las filas que ya puedes resolver y dice qué te falta en las demás', () => {
+    expect(buscarFunciones(filas, ['Pt', 'Lb'], ['Prx'])).toEqual([
+      { indice: 2, faltan: [] },
+      { indice: 1, faltan: ['PIRE'] },
+    ]);
+  });
+  test('sin nada pedido no devuelve filas', () => {
+    expect(buscarFunciones(filas, ['Pt'], [])).toEqual([]);
+  });
+  test('varias cosas pedidas suman resultados', () => {
+    expect(buscarFunciones(filas, ['Pt', 'Lt', 'Gt'], ['PIRE', 'Prx']).map((a) => a.indice)).toEqual([0, 2, 1]);
+  });
+  test('en la guía real, cada fila se puede encontrar marcando sus propias etiquetas', () => {
+    const f = real().guia!.filas;
+    f.forEach((fila, i) => {
+      const r = buscarFunciones(f, fila.datos, fila.busco);
+      expect(r.find((a) => a.indice === i)?.faltan).toEqual([]);
+    });
+  });
+  test('«tengo Pt, Lt y Gt; piden la PIRE» da Calcular_PIRE', () => {
+    const f = real().guia!.filas;
+    const r = buscarFunciones(f, ['Pt', 'Lt', 'Gt'], ['PIRE']);
+    expect(f[r[0].indice].funciones).toContain('Calcular_PIRE');
+    expect(r[0].faltan).toEqual([]);
   });
 });
