@@ -178,12 +178,23 @@ En **doble flanco** (bits PWMSEL de PCR), la subida y la bajada las marcan dos M
 
 **Por qué hay [registros sombra](../glosario/#sombra).** Un registro sombra es una copia que el hardware solo pasa a usar en un momento seguro. Si se cambiase MRx a mitad de periodo, podría salir un pulso cortado o doble. Con LER, el valor nuevo espera al **siguiente MR0** y el cambio siempre empieza en un periodo limpio.
 
-```c
-void set_ciclo(float ciclo) {          // ciclo en %, de 0 a 100
-  LPC_PWM1->MR5 = ciclo * LPC_PWM1->MR0 / 100;
-  LPC_PWM1->LER = (1 << 5);            // se aplica en el próximo periodo
-}
+Cambiar el ciclo de trabajo de la salida PWM1.x son siempre dos pasos:
+
+```text
+ciclo D (de 0 a 1) en PWM1.x:
+    MRx ← D · (MR0 + 1)
+    bit x de LER ← 1
 ```
+
+La primera línea despeja MRx de $D = MRx/(MR0+1)$ (son los tics en alto); la segunda hace que el valor nuevo se aplique al empezar el siguiente periodo.
+
+En C, la línea que más se olvida es la de LER (aquí con x = 2, la salida PWM1.2):
+
+```c
+LPC_PWM1->LER = (1 << 2);   // sin esto, MR2 sigue con el valor antiguo
+```
+
+**Ejemplo** (números inventados). Con PWM1MR0 = 49 999 (500 Hz con $F_{tick} = 25$ MHz) y D = 0,6: $MR2 = 0{,}6\cdot 50\,000 = 30\,000$.
 
 La configuración inicial: alimentar (PWM1 ya está encendido tras el reset), llevar el pin a su función PWM1.x con PINSEL, escribir MR0 con **MR0R** en MCR, habilitar la salida en PCR, poner los bits de LER y arrancar con **Counter Enable + PWM Enable** en TCR.
 
@@ -208,15 +219,29 @@ $$
 
 </Donde>
 
-Para pasarlo a cuentas del PWM1 se multiplica por $F_{tick}$: con 25 MHz, 0,4 ms son 10 000 tics y 2,4 ms, 60 000.
+Para pasarlo a cuentas del PWM1 se multiplica por $F_{tick}$: con 25 MHz, 0,4 ms son 10 000 tics y 2,4 ms, 60 000. En general:
 
-```c
-// Ftick: F_tick del PWM1 en Hz
-void set_servo(float grados) {
-  LPC_PWM1->MR5 = Ftick * 0.4e-3 + Ftick * 2e-3 * grados / 180;
-  LPC_PWM1->LER = (1 << 5);
-}
+$$
+MRx = F_{tick}\cdot T_{H,min} + F_{tick}\cdot \Delta T_H\cdot\frac{grados}{180}
+$$
+
+<Donde>
+
+- $MRx$: Match de la salida del servo, en tics.
+- $T_{H,min}$: ancho a 0°, en segundos. $\Delta T_H$: lo que crece el ancho de 0° a 180°, en segundos.
+- $F_{tick}$ del PWM1, en Hz. $grados$, de 0 a 180.
+
+</Donde>
+
+```text
+servo en PWM1.x a «grados» (0–180):
+    MRx ← N_min + N_rango·grados/180
+    bit x de LER ← 1
 ```
+
+$N_{min} = F_{tick}\cdot T_{H,min}$ y $N_{rango} = F_{tick}\cdot \Delta T_H$ son los dos términos de la fórmula, en cuentas; LER hace que el valor se aplique en el siguiente periodo. El periodo ($T_{PWM}$, en MR0) se fija una vez al configurar y no cambia: solo se toca MRx.
+
+**Ejemplo** (números inventados, otro servo). Un servo de 0,5 ms a 2,5 ms ($T_{H,min} = 0{,}5$ ms, $\Delta T_H = 2$ ms) con $F_{tick} = 1$ MHz: $N_{min} = 500$ y $N_{rango} = 2000$, así que para 45°, $MRx = 500 + 2000\cdot 45/180$ = 1000 tics.
 
 Cada servo tiene sus extremos reales algo distintos, así que se **calibran** los anchos mínimo y máximo antes de fijar la fórmula.
 
@@ -238,8 +263,8 @@ No gasta CPU (no hay ISR por flanco), no tiene el límite de latencia (D muy peq
 </details>
 
 <details>
-<summary>Escribe set_servo(grados) para un servo de 0,4–2,4 ms y explica cada término.</summary>
+<summary>Un servo va de 0,4 ms (0°) a 2,4 ms (180°) y el PWM1 cuenta a 25 MHz. ¿Qué MRx das para 135° y qué más hay que escribir? Explica cada término.</summary>
 
-`MR5 = Ftick*0.4e-3 + Ftick*2e-3*grados/180`: el primer término son las cuentas del ancho mínimo (0,4 ms, 0°); el segundo añade la parte proporcional al ángulo, hasta 2 ms más a 180°. Luego `LER = (1 << 5)` para que se aplique en el siguiente periodo. *(Respuesta redactada a partir de los apuntes.)*
+$MRx = 25\cdot 10^6\cdot 0{,}4\cdot 10^{-3} + 25\cdot 10^6\cdot 2\cdot 10^{-3}\cdot 135/180 = 10\,000 + 37\,500 = 47\,500$. El primer término son las cuentas del ancho mínimo (0°); el segundo, la parte proporcional al ángulo (hasta 50 000 cuentas más a 180°). Después se pone a 1 el bit x de LER para que el valor se aplique en el siguiente periodo. *(Respuesta redactada a partir de los apuntes.)*
 
 </details>
