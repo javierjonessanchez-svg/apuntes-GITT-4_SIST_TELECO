@@ -5,6 +5,7 @@
 import './modo-examen.css';
 import { formula } from '../widgets/mates';
 import { enlace, porTema, type ExamenMatlab, type Formula } from './examen';
+import { ruta } from './rutas';
 import type { Asignatura } from './datos';
 
 interface Props { asignatura: Asignatura; examen: ExamenMatlab }
@@ -21,7 +22,7 @@ const codigo = (f: Formula) => ({ funcion: f.funcion, llamada: f.llamada, href: 
   <header class="examen-cabecera">
     <p class="examen-asig">{asignatura.nombre}</p>
     <h1>Modo examen</h1>
-    <p class="entradilla">Arriba, cada tipo de problema con sus pasos en orden. Abajo, todas las fórmulas con su función de MATLAB: márcalas cuando te salgan a mano y en MATLAB.</p>
+    <p class="entradilla">Arriba, cada tipo de problema con sus pasos en orden. Abajo, todas las fórmulas con su función de MATLAB: márcalas cuando te salgan a mano y en MATLAB.{examen.guia && <> ¿No sabes qué tipo de problema es? Mira <a href={ruta(asignatura.slug, 'tipo-de-problema')}>la guía «me dan → me piden»</a>.</>}</p>
     <div class="examen-barra">
       <p class="examen-resumen" aria-live="polite">
         <b data-cuenta="mano">0</b>/<span data-total>{total}</span> a mano · <b data-cuenta="matlab">0</b>/<span data-total>{total}</span> en MATLAB

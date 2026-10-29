@@ -85,7 +85,7 @@ html[data-asignatura="radiacion-radiocomunicacion"] body {
 .ra-cabecera h1 { font-size: clamp(2.1rem, 6vw, 3.4rem); line-height: 1.04; margin: 0 0 10px; font-weight: 750; }
 .ra-cabecera p { max-width: 62ch; margin: 0 0 14px; color: var(--suave); text-wrap: pretty; }
 .ra-cabecera .ra-elipsoide { display: block; width: 100%; max-width: 560px; height: auto; margin: 0 0 18px; }
-.ra-examen { display: inline-flex; align-items: center; gap: 8px; margin: 0 0 26px; padding: 12px 22px; font-size: 1.05rem; text-decoration: none; }
+.ra-examen { display: inline-flex; align-items: center; gap: 8px; margin: 0 10px 26px 0; padding: 12px 22px; font-size: 1.05rem; text-decoration: none; }
 
 /* La cadena del radioenlace: del transmisor al receptor */
 .ra-cadena ol { list-style: none; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 28px; padding: 0; }
