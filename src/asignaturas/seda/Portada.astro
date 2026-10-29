@@ -26,6 +26,17 @@ const id = (b: string) => `bloque-${b.toLowerCase().normalize('NFD').replace(/[�
     <p>{a.descripcion}</p>
   </header>
 
+  {temas.some((t) => t.slug === 'que-cae') && (
+    <nav class="sd-examen-ruta" aria-labelledby="sd-ruta-t">
+      <h2 id="sd-ruta-t">Preparando el examen</h2>
+      <ol>
+        <li><a href={ruta(a.slug, 'que-cae')}><b>Qué cae en el examen</b><span>Los temas por frecuencia y en qué orden estudiarlos</span></a></li>
+        <li><a href={ruta(a.slug, 'examen')}><b>Modo examen</b><span>Pasos por tipo de problema, fórmulas y registros</span></a></li>
+        <li><a href={ruta(a.slug, 'problemas-examen')}><b>Problemas tipo examen</b><span>Seis problemas resueltos para practicar</span></a></li>
+      </ol>
+    </nav>
+  )}
+
   {bloques.map((b, n) => (
     <section class="sd-bloque" aria-labelledby={`${id(b)}-t`}>
       <h2 id={`${id(b)}-t`}>J{n + 1} <span>· {b}</span></h2>
@@ -69,6 +80,15 @@ const id = (b: string) => `bloque-${b.toLowerCase().normalize('NFD').replace(/[�
     <LineaTiempo pruebas={a.pruebas.map((p) => ({ ...p, asignatura: a.corto }))} titulo="Calendario de pruebas" />
   </div>
 </div>
+<style>
+  .sd-examen-ruta { margin: 0 0 28px; padding: 14px 16px 16px; border-radius: 14px; background: color-mix(in srgb, var(--acento) 8%, var(--superficie)); box-shadow: inset 3px 0 0 var(--acento), inset 0 0 0 1px color-mix(in srgb, var(--acento) 25%, var(--linea)); }
+  .sd-examen-ruta h2 { margin: 0 0 10px; font-size: .8rem; letter-spacing: .06em; text-transform: uppercase; color: var(--suave); }
+  .sd-examen-ruta ol { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+  .sd-examen-ruta a { display: flex; flex-direction: column; gap: 2px; min-height: 44px; padding: 10px 12px; border-radius: 10px; text-decoration: none; color: var(--texto); background: var(--superficie); box-shadow: inset 0 0 0 1px var(--linea); transition: box-shadow .15s ease, transform .15s ease; }
+  .sd-examen-ruta a:hover, .sd-examen-ruta a:focus-visible { box-shadow: inset 0 0 0 1.5px var(--acento); transform: translateY(-1px); }
+  .sd-examen-ruta b { font-weight: 650; }
+  .sd-examen-ruta span { font-size: .85rem; line-height: 1.4; color: var(--suave); }
+</style>
 <script>
   import '../../comun/cliente/avance';
   import progreso from '../../comun/progreso';
