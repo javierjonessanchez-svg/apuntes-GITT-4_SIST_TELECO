@@ -1,0 +1,25 @@
+---
+// «¿Qué tipo de problema es?»: una página por asignatura cuyo examen.yaml (formato
+// MATLAB) trae la clave `guia`. El segmento fijo gana a [tema].
+import BaseLayout from '../../comun/BaseLayout.astro';
+import GuiaProblemas from '../../comun/GuiaProblemas.astro';
+import { asignaturasOrdenadas, examenDe, type Asignatura } from '../../comun/datos';
+import { esHoja, type ExamenMatlab } from '../../comun/examen';
+
+export async function getStaticPaths() {
+  const rutas: { params: { asignatura: string }; props: { asignatura: Asignatura; examen: ExamenMatlab } }[] = [];
+  for (const asignatura of await asignaturasOrdenadas()) {
+    const examen = await examenDe(asignatura.slug);
+    if (examen && !esHoja(examen) && examen.guia) rutas.push({ params: { asignatura: asignatura.slug }, props: { asignatura, examen } });
+  }
+  return rutas;
+}
+
+const { asignatura, examen } = Astro.props;
+---
+<BaseLayout titulo={`¿Qué tipo de problema es? · ${asignatura.nombre}`} asignatura={asignatura.slug}
+  descripcion={`Árbol de decisión y tabla «me dan → me piden → función» de ${asignatura.nombre}, con el índice de funciones de MATLAB por tema.`}>
+  <main id="contenido">
+    <GuiaProblemas asignatura={asignatura} examen={examen} />
+  </main>
+</BaseLayout>

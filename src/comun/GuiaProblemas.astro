@@ -1,0 +1,121 @@
+---
+// «¿Qué tipo de problema es?»: árbol de decisión paso a paso, tabla «me dan → me piden →
+// función» con búsqueda e índice de funciones por tema. Los datos salen de la clave `guia`
+// de contenido/<slug>/examen.yaml. Lógica en cliente/guia.ts; estilos en guia-problemas.css.
+import './guia-problemas.css';
+import { porTema, type ExamenMatlab } from './examen';
+import { normalizar } from './cliente/guia';
+import { ruta } from './rutas';
+import type { Asignatura } from './datos';
+
+interface Props { asignatura: Asignatura; examen: ExamenMatlab }
+const { asignatura, examen } = Astro.props;
+const guia = examen.guia!;
+const queDe = new Map(guia.indice.map((i) => [i.funcion, i.que]));
+
+// Los resultados del árbol son nodos más, con un id propio: «<nodo>--<opción>»
+const nodos = guia.arbol.nodos.map((n) => ({
+  ...n,
+  opciones: n.opciones.map((o, i) => ({ texto: o.texto, destino: o.a ?? `${n.id}--${i}` })),
+}));
+const resultados = guia.arbol.nodos.flatMap((n) => n.opciones.flatMap((o, i) => (o.resultado ? [{ id: `${n.id}--${i}`, ...o.resultado }] : [])));
+
+const filas = porTema(guia.filas);
+const indice = porTema(guia.indice);
+const busca = (...partes: (string | undefined)[]) => normalizar(partes.filter(Boolean).join(' '));
+const ESTADO = { mano: 'a mano', pendiente: 'sin programar' } as const;
+---
+<div class="envoltura examen guia" data-guia data-inicio={guia.arbol.inicio}>
+  <header class="examen-cabecera">
+    <p class="examen-asig">{asignatura.nombre}</p>
+    <h1>¿Qué tipo de problema es?</h1>
+    <p class="entradilla">Contesta unas pocas preguntas y te dice qué funciones de MATLAB usar. Si ya sabes qué tienes, busca abajo en la tabla «me dan → me piden». Las fórmulas y los pasos de cada tipo están en el <a href={ruta(asignatura.slug, 'examen')}>modo examen</a>.</p>
+  </header>
+
+  <section aria-labelledby="arbol-titulo">
+    <h2 id="arbol-titulo">Árbol de decisión</h2>
+    <ol class="gp-ruta" data-ruta hidden aria-label="Tus respuestas hasta ahora"></ol>
+    <div class="gp-nodos">
+      {nodos.map((n) => (
+        <div class="panel gp-nodo" data-nodo={n.id} id={`n-${n.id}`} role="group" aria-labelledby={`t-${n.id}`}>
+          <h3 class="gp-titulo" id={`t-${n.id}`} tabindex="-1">{n.pregunta}</h3>
+          {n.ayuda && <p class="gp-ayuda">{n.ayuda}</p>}
+          <ul class="gp-opciones">
+            {n.opciones.map((o) => <li><a class="gp-opcion" href={`#n-${o.destino}`} data-ir={o.destino}>{o.texto}</a></li>)}
+          </ul>
+        </div>
+      ))}
+      {resultados.map((r) => (
+        <div class="panel gp-nodo gp-resultado" data-nodo={r.id} id={`n-${r.id}`} role="group" aria-labelledby={`t-${r.id}`}>
+          <p class="gp-etiqueta">{r.pendiente ? 'Caso sin función programada' : 'Usa'}</p>
+          <h3 class="gp-titulo" id={`t-${r.id}`} tabindex="-1">{r.titulo}</h3>
+          <p>{r.texto}</p>
+          <ul class="gp-funciones">
+            {r.funciones.map((f) => (
+              <li><a href={`#fn-${f}`}><code>{f}</code></a><span class="gp-que">{queDe.get(f)}</span></li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </div>
+    <p class="gp-controles">
+      <button type="button" class="boton-copiar" data-atras disabled>← Atrás</button>
+      <button type="button" class="boton-copiar" data-reiniciar disabled>Empezar de nuevo</button>
+    </p>
+  </section>
+
+  <section aria-labelledby="buscar-titulo">
+    <h2 id="buscar-titulo">Me dan → me piden → función</h2>
+    <div class="gp-buscador">
+      <label for="gp-buscar">Busca un dato, lo que te piden o una función</label>
+      <input id="gp-buscar" type="search" data-buscar autocomplete="off" placeholder="p. ej. campo, umbral, ROE, MTTR…" />
+      <p class="gp-cuenta" aria-live="polite" data-cuenta-busqueda></p>
+    </div>
+    <p class="gp-vacio" data-vacio hidden>No hay nada con esas palabras. Prueba con una sola, o con el símbolo (Prx, F0,01, MD…).</p>
+    {filas.map((g) => (
+      <div class="gp-grupo" data-grupo>
+        <h3>{g.tema}</h3>
+        <div class="gp-tabla-caja">
+          <table class="gp-tabla">
+            <thead><tr><th scope="col">Me dan</th><th scope="col">Me piden</th><th scope="col">Función</th></tr></thead>
+            <tbody>
+              {g.formulas.map((f) => (
+                <tr data-busca={busca(f.tema, f.dan, f.piden, f.funciones.join(' '), f.nota, f.estado === 'hecho' ? undefined : ESTADO[f.estado])}>
+                  <td data-etiqueta="Me dan">{f.dan}</td>
+                  <td data-etiqueta="Me piden">{f.piden}</td>
+                  <td data-etiqueta="Función">
+                    {f.funciones.map((fn) => <a class="gp-fn" href={`#fn-${fn}`}><code>{fn}</code></a>)}
+                    {f.estado !== 'hecho' && <span class={`gp-estado gp-${f.estado}`}>{ESTADO[f.estado]}</span>}
+                    {f.nota && <span class="gp-nota">{f.nota}</span>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    ))}
+  </section>
+
+  <section aria-labelledby="indice-titulo">
+    <h2 id="indice-titulo">Índice de funciones por tema</h2>
+    <p class="entradilla">Todo lo que hay en la carpeta <code>funciones/</code>. Escribe <code>help Nombre</code> en MATLAB para ver las entradas y salidas.</p>
+    {indice.map((g) => (
+      <div class="gp-grupo" data-grupo>
+        <h3>{g.tema}</h3>
+        <ul class="gp-indice">
+          {g.formulas.map((i) => (
+            <li id={`fn-${i.funcion}`} data-busca={busca(i.tema, i.funcion, i.que)}>
+              <code class="codigo-funcion">{i.funcion}</code>
+              <span class="gp-que">{i.que}</span>
+              <a class="ver-codigo" href={examen.repo + i.archivo} target="_blank" rel="noopener">ver código <span aria-hidden="true">↗</span><span class="sr"> de {i.funcion} (se abre en otra pestaña)</span></a>
+            </li>
+          ))}
+        </ul>
+      </div>
+    ))}
+  </section>
+</div>
+<script>
+  import './cliente/guia';
+</script>

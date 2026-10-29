@@ -41,6 +41,7 @@ const conTest = temas.some((t) => (t.test?.length ?? 0) > 0);
     <p>{a.descripcion}</p>
     <Elipsoide etiqueta="Radioenlace entre dos mástiles: el rayo directo y el primer elipsoide de Fresnel a su alrededor" />
     <a class="boton ra-examen" href={ruta(a.slug, 'examen')}>Modo examen <span aria-hidden="true">→</span></a>
+    <a class="boton ra-examen" href={ruta(a.slug, 'tipo-de-problema')}>¿Qué tipo de problema es? <span aria-hidden="true">→</span></a>
   </header>
 
   {cadena.length > 0 && (

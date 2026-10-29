@@ -231,6 +231,124 @@ formulas:
     llamada: 'P_I_dBm = Calcular_Interferencia(PIRE_dBm, Lb_dB, Gr_dB, Lr_dB, D_tx_dB=Dtx, D_rx_dB=Drx)'
     archivo: funciones/ruido_interferencias/Calcular_Interferencia.m
     notas: 'Si va en la polarización cruzada, lee la curva cross-polar del diagrama y no sumes además XPD_ant. Opciones: Fq_dB, XPD_ll_dB, XPD_ant_dB. Provisional: revisar con el tema 4.'
+  # ---------- Funciones añadidas después (inversas, campo, atmósfera, antenas, satélite) ----------
+  - id: pt
+    tema: Propagación
+    prueba: PEI1
+    nombre: Potencia de transmisión necesaria (inversa de Friis)
+    tex: '\begin{gathered} PIRE = P_{rx} + L_b - G_r + L_r \\ P_t = PIRE + L_t - G_t \end{gathered}'
+    funcion: Calcular_Pt
+    llamada: '[Pt_dBm, PIRE_dBm] = Calcular_Pt(Prx_dBm, Lb_dB, Gt_dB, Lt_dB, Gr_dB, Lr_dB)'
+    archivo: funciones/propagacion/Calcular_Pt.m
+    notas: 'Cuando piden «la Pt necesaria» para una Prx o un umbral dados.'
+  - id: lb-desde-prx
+    tema: Propagación
+    prueba: PEI1
+    nombre: Pérdidas básicas a partir de lo que se recibe
+    tex: 'L_b = PIRE - P_{rx} + G_r - L_r'
+    funcion: Calcular_Lb
+    llamada: 'Lb_dB = Calcular_Lb(PIRE_dBm, Prx_dBm, Gr_dB, Lr_dB)'
+    archivo: funciones/propagacion/Calcular_Lb.m
+  - id: campo-espacio-libre
+    tema: Propagación
+    prueba: PEI1
+    nombre: Campo eléctrico en espacio libre
+    tex: 'E = \frac{\sqrt{30\, PIRE}}{d}'
+    funcion: Calcular_Campo
+    llamada: '[E_Vm, E_dBu] = Calcular_Campo(PIRE_dBm, d_m)'
+    archivo: funciones/propagacion/Calcular_Campo.m
+    notas: 'En la fórmula la PIRE va en vatios; la función recibe dBm y devuelve el campo en V/m y en dBµ.'
+  - id: pire-campo
+    tema: Propagación
+    prueba: PEI1
+    nombre: PIRE necesaria para un campo dado
+    tex: 'PIRE = \frac{(E\, d)^2}{30}'
+    funcion: Calcular_PIRE_campo
+    llamada: '[PIRE_dBm, Pt_dBm] = Calcular_PIRE_campo(E_dBu, d_m, Gt_dB, Lt_dB)'
+    archivo: funciones/propagacion/Calcular_PIRE_campo.m
+    notas: 'El campo entra en dBµ.'
+  - id: distancia
+    tema: Propagación
+    prueba: PEI1
+    nombre: Distancia en espacio libre
+    tex: 'd = \frac{\lambda}{4\pi}\, 10^{L_{bf}/20} = \frac{\sqrt{30\, PIRE}}{E} = \sqrt{\frac{PIRE}{4\pi\,\Phi}}'
+    funcion: Calcular_Distancia
+    llamada: 'd_m = Calcular_Distancia(Lbf_dB=Lbf, f_Hz=f)'
+    archivo: funciones/propagacion/Calcular_Distancia.m
+    notas: 'Se usa uno de tres grupos: Lbf_dB y f_Hz; E_Vm y PIRE_dBm; o Phi_Wm2 y PIRE_dBm.'
+  - id: factor-k
+    tema: Propagación
+    prueba: PEI1
+    nombre: Factor K y radio ficticio de la Tierra
+    tex: 'K = \frac{157}{157 + dN/dh}, \qquad R_{fic} = K\, R_T'
+    funcion: Calcular_K
+    llamada: '[K, Rfic_km] = Calcular_K(dNdh)'
+    archivo: funciones/propagacion/Calcular_K.m
+    notas: 'dN/dh en unidades N por km. Dice si la atmósfera es super o subrefractiva.'
+  - id: horizonte
+    tema: Propagación
+    prueba: PEI1
+    nombre: Horizonte radioeléctrico y visión directa
+    tex: 'd_i = \sqrt{2\, K\, R_T\, h_i}, \qquad d_{max} = d_1 + d_2'
+    funcion: Calcular_Horizonte
+    llamada: '[d_et1_km, d_et2_km, dmax_km, hayLOS] = Calcular_Horizonte(K, h1_m, h2_m, d_m)'
+    archivo: funciones/propagacion/Calcular_Horizonte.m
+    notas: 'Si d > d_max no hay visión directa: tierra esférica.'
+  - id: roe
+    tema: Antenas
+    prueba: PEI1
+    nombre: ROE, pérdidas de retorno y coeficiente de reflexión
+    tex: '\begin{gathered} ROE = \frac{1 + |s_{11}|}{1 - |s_{11}|} \\ RL = -20\log_{10}|s_{11}| \end{gathered}'
+    funcion: Calcular_ROE
+    llamada: 'r = Calcular_ROE(ROE=1.3)'
+    archivo: funciones/antenas/Calcular_ROE.m
+    notas: 'Se da uno de los tres (s11, RL_dB o ROE). Antena adaptada si RL > 15 dB o ROE < 1,5.'
+  - id: ganancia-rendimiento
+    tema: Antenas
+    prueba: PEI1
+    nombre: Ganancia, rendimiento y directividad
+    tex: 'g = \eta\, d'
+    funcion: Calcular_Antena
+    llamada: 'r = Calcular_Antena(eta=0.8, D_dBi=30, f_Hz=f)'
+    archivo: funciones/antenas/Calcular_Antena.m
+    notas: 'Con dos de eta, D_dBi y G_dBi saca la tercera; con f_Hz también el área efectiva.'
+  - id: campo-lejano
+    tema: Antenas
+    prueba: PEI1
+    nombre: Distancia de campo lejano
+    tex: 'R = \frac{2 D^2}{\lambda}'
+    funcion: Calcular_Campo_Lejano
+    llamada: '[R_m, lambda_m] = Calcular_Campo_Lejano(D_m, f_Hz)'
+    archivo: funciones/antenas/Calcular_Campo_Lejano.m
+    notas: 'D es la dimensión mayor de la antena.'
+  - id: fm-necesario
+    tema: Desvanecimientos
+    prueba: PEI1
+    nombre: Margen de desvanecimiento que hace falta
+    tex: 'FM = F_q \ \text{con}\ q = U_{lluvia,max}'
+    funcion: Calcular_FM_necesario
+    llamada: 'FM_dB = Calcular_FM_necesario(U_lluvia_max_pct, F001_dB, f_GHz)'
+    archivo: funciones/desvanecimientos/Calcular_FM_necesario.m
+    notas: 'Inversa de Calcular_q_lluvia: con U_lluvia = U_objetivo − U_equipos dice qué margen basta.'
+  - id: f001-espacial
+    tema: Desvanecimientos
+    prueba: PEI1
+    nombre: Atenuación por lluvia en un enlace por satélite
+    tex: '\gamma_R = k\, R_{0{,}01}^{\alpha}, \qquad F_{0{,}01} = \gamma_R\, d_{eff}'
+    funcion: Calcular_F001_espacial
+    llamada: '[F001_dB, deff_km, gammaR_dBkm] = Calcular_F001_espacial(f_GHz, R001_mmh, k, alfa, hs_km, h0_km, theta_deg, lat_deg)'
+    archivo: funciones/desvanecimientos/Calcular_F001_espacial.m
+    notas: 'La longitud efectiva sale del trayecto inclinado: altura de la antena, isoterma de 0 ºC, elevación y latitud.'
+  - id: umbral-referido
+    tema: Ruido e interferencias
+    prueba: PEI1
+    nombre: Umbral referido a otro punto de la cadena
+    tex: 'TH_{antena} = TH_{punto} - G_{entre}'
+    funcion: Calcular_Umbral_referido
+    llamada: 'TH_dBm = Calcular_Umbral_referido(TH_dBm_origen, G_entre_dB)'
+    archivo: funciones/ruido_interferencias/Calcular_Umbral_referido.m
+    notas: 'Se resta la ganancia que hay entre la antena y el punto donde viene dada la T (por ejemplo, la salida del mezclador).'
+  # ---------- Guía y flujos ----------
 flujos:
   - id: obstaculos-disponibilidad
     titulo: 'Radioenlace con obstáculos → Prx → margen dinámico → disponibilidad'
@@ -300,3 +418,325 @@ flujos:
       - formula: margen-dinamico
       - formula: f001
       - formula: q-lluvia
+# ---------- Guía «¿Qué tipo de problema es?» (página tipo-de-problema) ----------
+# Solo nombres de función y de qué trata cada tipo de dato: nada de enunciados ni de código.
+guia:
+  arbol:
+    inicio: que-piden
+    nodos:
+      - id: que-piden
+        pregunta: '¿De qué trata lo que te piden?'
+        opciones:
+          - texto: 'Propagación: potencias, pérdidas, campo, distancia, K (tema 1)'
+            a: prop
+          - texto: 'Antenas: ganancia, desapuntamiento, diagrama, ROE (tema 2)'
+            a: antena
+          - texto: 'Lluvia, margen de desvanecimiento o disponibilidad (tema 3)'
+            a: llu
+          - texto: 'Ruido, umbral o interferencia (tema 4)'
+            a: ruido
+          - texto: 'Un examen entero, con varios apartados encadenados'
+            resultado:
+              titulo: 'Resolutores de examen completo'
+              texto: 'Rellena una struct con los datos y deja que encadene los pasos e imprima cada uno. Empieza por Clasificar_trayecto para saber qué pérdida tiene el trayecto.'
+              funciones: [Clasificar_trayecto, Resolver_tipoA, Resolver_tipoB, Resolver_diseno]
+      - id: prop
+        pregunta: '¿Qué te piden?'
+        opciones:
+          - texto: 'Las pérdidas del trayecto (Lb), o saber de qué tipo son'
+            a: perdidas
+          - texto: 'Prx, Pt, PIRE o Lb, conociendo las demás'
+            resultado:
+              titulo: 'Friis y sus inversas'
+              texto: 'Prx = PIRE − Lb + Gr − Lr. Despeja lo que te falte: Pt, la PIRE o las pérdidas básicas.'
+              funciones: [Calcular_PIRE, Calcular_Prx, Calcular_Pt, Calcular_Lb]
+          - texto: 'Campo eléctrico, flujo o distancia en espacio libre'
+            a: campo
+          - texto: 'K, radio ficticio, horizonte o alcance con visión directa'
+            resultado:
+              titulo: 'Atmósfera y horizonte'
+              texto: 'K sale del gradiente de refractividad; para un vano concreto usa K99,9. Con K y las alturas se calcula el horizonte de cada antena.'
+              funciones: [Calcular_K, Calcular_K999, Calcular_Horizonte]
+          - texto: 'Alturas mínimas de antena para despejar los obstáculos'
+            resultado:
+              titulo: 'Alturas de despejamiento'
+              texto: 'Busca las menores alturas con v ≤ −0,78 en todo el perfil.'
+              funciones: [Calcular_Alturas_despejamiento, Calcular_Lad_dif]
+      - id: perdidas
+        pregunta: '¿El enunciado da obstáculos (distancias y cotas)?'
+        ayuda: 'Clasificar_trayecto(datos) hace estas preguntas por ti y dice el tipo y por qué.'
+        opciones:
+          - texto: 'Sí'
+            resultado:
+              titulo: 'Difracción por obstáculos (Bullington)'
+              texto: 'Si ningún obstáculo tiene v > −0,78 no hay difracción (Lad = 0). Si alguno lo tiene: Lb = Lbf + Lgas + Lad,dif. Dibujar_Bullington saca la figura.'
+              funciones: [Calcular_Lad_dif, Dibujar_Bullington, Calcular_Lb_std, Clasificar_trayecto]
+          - texto: 'No'
+            a: suelo
+      - id: suelo
+        pregunta: '¿Hay mar o terreno liso (σ, εr) que refleje?'
+        opciones:
+          - texto: 'No: enlace despejado'
+            resultado:
+              titulo: 'Trayecto libre'
+              texto: 'Lb = Lbf + Lgas.'
+              funciones: [Calcular_Lb_std]
+          - texto: 'Sí'
+            a: dmax
+      - id: dmax
+        pregunta: '¿La distancia supera el horizonte de las dos antenas (d > d_max)?'
+        ayuda: 'Calcula d_max con Calcular_Horizonte.'
+        opciones:
+          - texto: 'Sí'
+            resultado:
+              titulo: 'Tierra esférica con despejamiento positivo'
+              texto: 'Transhorizonte: difracción por tierra esférica. No hay función programada; solo puedes confirmar con Calcular_Horizonte que no hay visión directa.'
+              funciones: [Calcular_Horizonte]
+              pendiente: true
+          - texto: 'No'
+            a: angulo
+      - id: angulo
+        pregunta: '¿El ángulo rasante cumple φ ≥ φmin = (5400/f_MHz)^(1/3) mrad?'
+        opciones:
+          - texto: 'Sí'
+            resultado:
+              titulo: 'Reflexión en mar o terreno liso (dos rayos)'
+              texto: 'Lb = Lbf + Lgas + Lad,ref.'
+              funciones: [Calcular_Lad_ref, Calcular_Lb_std]
+          - texto: 'No'
+            resultado:
+              titulo: 'Tierra esférica con despejamiento negativo'
+              texto: 'No hay reflexión: difracción por tierra esférica. No hay función programada; Calcular_Lad_ref devuelve NaN y avisa de que no es reflexión.'
+              funciones: [Calcular_Lad_ref]
+              pendiente: true
+      - id: campo
+        pregunta: '¿Qué datos tienes y qué te piden?'
+        opciones:
+          - texto: 'Tengo la PIRE (o Pt, Lt, Gt) y d; piden el campo E'
+            resultado:
+              titulo: 'Campo en espacio libre'
+              texto: 'E = √(30·PIRE)/d. El flujo sale de E²/120π.'
+              funciones: [Calcular_PIRE, Calcular_Campo, Calcular_Flujo]
+          - texto: 'Tengo E en dBµ a una distancia; piden Pt o la PIRE'
+            resultado:
+              titulo: 'PIRE necesaria para un campo'
+              texto: 'La función ya trabaja con dBµ; dBu2Vm pasa a V/m si lo necesitas para otra cosa.'
+              funciones: [Calcular_PIRE_campo, dBu2Vm]
+          - texto: 'Tengo el campo, el flujo o Lbf; piden la distancia'
+            resultado:
+              titulo: 'Distancia en espacio libre'
+              texto: 'Se despeja de Lbf (con f), del campo o del flujo (con la PIRE).'
+              funciones: [Calcular_Distancia]
+          - texto: 'Tengo el campo E; piden la Prx'
+            resultado:
+              titulo: 'Del campo a la potencia recibida'
+              texto: 'E → Φ → Sef → Prx. La Prx por Friis sirve de comprobación.'
+              funciones: [dBu2Vm, Calcular_Flujo, Calcular_Sef, Calcular_Prx_flujo]
+      - id: antena
+        pregunta: '¿Qué te piden de la antena?'
+        opciones:
+          - texto: 'La ganancia con la antena desapuntada'
+            resultado:
+              titulo: 'Ganancia con desapuntamiento'
+              texto: 'G(θ) = Gmax − 12·(θ/θ3dB)² en el lóbulo principal. Solo cambia la antena desapuntada.'
+              funciones: [Calcular_G_desapuntado]
+          - texto: 'La discriminación leyendo el diagrama de radiación (RPE)'
+            resultado:
+              titulo: 'Discriminación del RPE'
+              texto: 'Apunta puntos (ángulo, dB) de la gráfica y la función interpola.'
+              funciones: [Calcular_Discriminacion]
+          - texto: 'ROE, pérdidas de retorno o |s11|'
+            resultado:
+              titulo: 'Adaptación de la antena'
+              texto: 'Dado uno de los tres, saca los otros dos y la potencia reflejada.'
+              funciones: [Calcular_ROE]
+          - texto: 'Ganancia, rendimiento o área efectiva'
+            resultado:
+              titulo: 'Ganancia, directividad y área efectiva'
+              texto: 'g = η·d; con dos de los tres, la tercera. El área efectiva sale de la ganancia y de la frecuencia.'
+              funciones: [Calcular_Antena, Calcular_Sef, Calcular_G_desde_Sef]
+          - texto: 'La distancia de campo lejano'
+            resultado:
+              titulo: 'Campo lejano'
+              texto: 'R = 2D²/λ con D la mayor dimensión de la antena.'
+              funciones: [Calcular_Campo_Lejano]
+      - id: llu
+        pregunta: '¿Qué te piden?'
+        opciones:
+          - texto: 'La atenuación por lluvia (F0,01 o Fq)'
+            a: llu-enlace
+          - texto: 'Margen dinámico o potencia con atenuador, CAG o ATPC'
+            resultado:
+              titulo: 'Mecanismo de protección'
+              texto: 'En los tres casos FM = MD. Con la PIRE en condiciones normales (CN) sacas Pt.'
+              funciones: [Calcular_MD, Calcular_Pt]
+          - texto: 'Qué margen hace falta, o qué % de tiempo se supera un margen'
+            resultado:
+              titulo: 'Margen y tiempo de lluvia'
+              texto: 'Son inversas: q despejando Fq = FM, o el FM que corresponde a un U de lluvia dado.'
+              funciones: [Calcular_q_lluvia, Calcular_FM_necesario]
+          - texto: 'Disponibilidad, indisponibilidad de equipos o MTTR máximo'
+            resultado:
+              titulo: 'Disponibilidad'
+              texto: 'U_total = U_lluvia + U_equipos. Con un objetivo y la U de lluvia, el MTTR máximo sale repartiendo por igual entre equipos.'
+              funciones: [Calcular_U_equipos, Calcular_MTTR_max, Calcular_Disponibilidad]
+          - texto: 'XPD por lluvia'
+            resultado:
+              titulo: 'Despolarización por lluvia'
+              texto: 'En desvanecimiento máximo, Fq = FM. Válido en enlace terrenal de 8 a 35 GHz.'
+              funciones: [Calcular_XPD_lluvia]
+      - id: llu-enlace
+        pregunta: '¿El enlace es terrenal o por satélite?'
+        ayuda: 'R0,01 viene en el enunciado o sale de itur_p0837_7_annex1 con la latitud y la longitud.'
+        opciones:
+          - texto: 'Terrenal'
+            resultado:
+              titulo: 'Lluvia en enlace terrenal'
+              texto: 'k y α según la frecuencia y la polarización; luego F0,01 con la longitud efectiva y Fq para otro porcentaje.'
+              funciones: [Calcular_k_alfa, Calcular_F001, Calcular_Fq]
+          - texto: 'Satélite'
+            resultado:
+              titulo: 'Lluvia en enlace por satélite'
+              texto: 'Trayecto inclinado: hacen falta la elevación, la altura de la antena, la isoterma de 0 ºC y la latitud. Con |lat| < 36º y q < 1 %, Fq también necesita la elevación.'
+              funciones: [Calcular_k_alfa, Calcular_F001_espacial, Calcular_Fq]
+      - id: ruido
+        pregunta: '¿Qué te piden?'
+        opciones:
+          - texto: 'La temperatura de ruido de una cadena de bloques'
+            resultado:
+              titulo: 'Temperatura de ruido de la cadena'
+              texto: 'Una etapa pasiva de L dB tiene G = −L. Da la T a la entrada y a la salida.'
+              funciones: [Calcular_T_cadena]
+          - texto: 'El umbral TH, el ancho de banda o la potencia de ruido'
+            resultado:
+              titulo: 'Umbral del receptor'
+              texto: 'TH sale referido al punto donde está T. Si la T viene dada en otro punto (por ejemplo a la salida del mezclador), llévalo con Calcular_Umbral_referido.'
+              funciones: [Calcular_Umbral, Calcular_Umbral_referido]
+          - texto: 'El ángulo del interferente (tres distancias)'
+            resultado:
+              titulo: 'Ángulo de llegada'
+              texto: 'Teorema del coseno; con el ángulo se lee la discriminación en el diagrama.'
+              funciones: [Calcular_angulo_triangulo, Calcular_Discriminacion]
+          - texto: 'La potencia interferente o parásita, o C/I'
+            resultado:
+              titulo: 'Potencia interferente'
+              texto: 'C/I = Prx − P_I (resta directa). Si va en polarización cruzada y lees la curva cross-polar, no sumes además el XPD de la antena.'
+              funciones: [Calcular_Interferencia, Calcular_XPD_lluvia]
+  filas:
+    # ----- Tema 1 -----
+    - {tema: Propagación, dan: 'Pt, Lt, Gt', piden: 'PIRE', funciones: [Calcular_PIRE], estado: hecho}
+    - {tema: Propagación, dan: 'PIRE, Lb, Gr, Lr', piden: 'Prx', funciones: [Calcular_Prx], estado: hecho}
+    - {tema: Propagación, dan: 'Prx, Lb, Gr, Lr, Gt, Lt', piden: 'Pt (o PIRE)', funciones: [Calcular_Pt], estado: hecho}
+    - {tema: Propagación, dan: 'PIRE (o Pt, Lt, Gt) y Prx', piden: 'Lb', funciones: [Calcular_Lb], estado: hecho}
+    - {tema: Propagación, dan: 'f, d', piden: 'Lbf y gases', funciones: [Calcular_Lb_std], estado: hecho}
+    - {tema: Propagación, dan: 'f, Lbf', piden: 'd', funciones: [Calcular_Distancia], estado: hecho}
+    - {tema: Propagación, dan: 'PIRE (o Pt, Lt, Gt), d', piden: 'campo E (V/m y dBµ)', funciones: [Calcular_Campo], estado: hecho}
+    - {tema: Propagación, dan: 'E en dBµ a una distancia (espacio libre), G, Lt', piden: 'Pt o PIRE necesarias', funciones: [Calcular_PIRE_campo], estado: hecho}
+    - {tema: Propagación, dan: 'E (o Φ), PIRE', piden: 'd', funciones: [Calcular_Distancia], estado: hecho}
+    - {tema: Propagación, dan: 'E', piden: 'Φ, Sef, Prx', funciones: [dBu2Vm, Calcular_Flujo, Calcular_Sef, Calcular_Prx_flujo], estado: hecho}
+    - {tema: Propagación, dan: 'f, G', piden: 'Sef', funciones: [Calcular_Sef], estado: hecho}
+    - {tema: Propagación, dan: 'Sef, f', piden: 'G', funciones: [Calcular_G_desde_Sef], estado: hecho}
+    - {tema: Propagación, dan: 'geometría del trayecto (obstáculos, d, alturas)', piden: '¿qué tipo de pérdida es?', funciones: [Clasificar_trayecto], estado: hecho}
+    - {tema: Propagación, dan: 'obstáculos (d, cota), alturas, K, f', piden: 'Ld (Bullington)', funciones: [Calcular_Lad_dif, Dibujar_Bullington], estado: hecho}
+    - {tema: Propagación, dan: 'obstáculos, alturas, K, f y Pt', piden: 'Prx', funciones: [Resolver_obstaculos], estado: hecho}
+    - {tema: Propagación, dan: 'obstáculos, alturas, K, f y E0 en espacio libre', piden: 'Prx', funciones: [Resolver_obstaculos], estado: hecho}
+    - {tema: Propagación, dan: 'obstáculos y alturas iniciales', piden: 'alturas mínimas de antena (het1, het2)', funciones: [Calcular_Alturas_despejamiento], estado: hecho}
+    - {tema: Propagación, dan: 'dN/dh (o «atmósfera estándar»)', piden: 'K y radio efectivo', funciones: [Calcular_K], estado: hecho}
+    - {tema: Propagación, dan: 'd ≤ 25 km al 99,9 %', piden: 'K99,9', funciones: [Calcular_K999], estado: hecho}
+    - {tema: Propagación, dan: 'alturas, cotas, K', piden: 'horizonte de cada antena y d_max', funciones: [Calcular_Horizonte], estado: hecho}
+    - {tema: Propagación, dan: 'mar o terreno liso (σ, εr, polarización)', piden: 'dos rayos: Lad,ref', funciones: [Calcular_Lad_ref, Resolver_mar], estado: hecho}
+    - {tema: Propagación, dan: 'd > d_max o φ < φmin (no hay reflexión)', piden: 'difracción por tierra esférica', funciones: [], estado: pendiente, nota: 'No hay función programada.'}
+    # ----- Tema 2 -----
+    - {tema: Antenas, dan: 'Gmax, θ3dB, desapuntamiento θ', piden: 'G(θ)', funciones: [Calcular_G_desapuntado], estado: hecho}
+    - {tema: Antenas, dan: 'diagrama RPE (puntos leídos de la gráfica) y ángulo', piden: 'discriminación D (dB)', funciones: [Calcular_Discriminacion], estado: hecho}
+    - {tema: Antenas, dan: '|s11|, RL o ROE', piden: 'los otros dos', funciones: [Calcular_ROE], estado: hecho}
+    - {tema: Antenas, dan: 'η y directividad', piden: 'ganancia', funciones: [Calcular_Antena], estado: hecho}
+    - {tema: Antenas, dan: 'D (dimensión mayor), f', piden: 'distancia de campo lejano 2D²/λ', funciones: [Calcular_Campo_Lejano], estado: hecho}
+    - {tema: Antenas, dan: 'D del lóbulo principal y del secundario o trasero', piden: 'SLL o FBR', funciones: [], estado: mano, nota: 'Resta directa de dos valores del diagrama.'}
+    # ----- Tema 3 -----
+    - {tema: Desvanecimientos, dan: 'lat, lon', piden: 'R0,01 y P0', funciones: [], estado: hecho, nota: 'itur_p0837_7_annex1, en datos/uit-r/p837/ (no está en funciones/).'}
+    - {tema: Desvanecimientos, dan: 'f, polarización', piden: 'k, α', funciones: [Calcular_k_alfa], estado: hecho}
+    - {tema: Desvanecimientos, dan: 'f, d, R0,01, k, α (enlace terrenal)', piden: 'F0,01 (con d_eff y γR)', funciones: [Calcular_F001], estado: hecho}
+    - {tema: Desvanecimientos, dan: 'f, R0,01, k, α, cota+antena, h0 (isoterma 0 ºC), elevación, latitud (satélite)', piden: 'F0,01', funciones: [Calcular_F001_espacial], estado: hecho}
+    - {tema: Desvanecimientos, dan: 'F0,01, q %', piden: 'Fq (terrenal o satélite)', funciones: [Calcular_Fq], estado: hecho}
+    - {tema: Desvanecimientos, dan: 'margen FM, F0,01', piden: 'q % = U_lluvia', funciones: [Calcular_q_lluvia], estado: hecho}
+    - {tema: Desvanecimientos, dan: 'TH, Prx y mecanismo', piden: 'MD = FM', funciones: [Calcular_MD], estado: hecho}
+    - {tema: Desvanecimientos, dan: 'TH, Lb, Gr, Lr y MD (CAG o ATPC)', piden: 'PIRE_CN, PIRE_CMD y luego Pt', funciones: [Calcular_MD, Calcular_Pt], estado: hecho}
+    - {tema: Desvanecimientos, dan: 'f, Fq', piden: 'XPD por lluvia', funciones: [Calcular_XPD_lluvia], estado: hecho}
+    - {tema: Desvanecimientos, dan: 'MTBF y MTTR de N equipos', piden: 'U_equipos', funciones: [Calcular_U_equipos], estado: hecho}
+    - {tema: Desvanecimientos, dan: 'U objetivo, U_lluvia, MTBF, N', piden: 'MTTR máximo', funciones: [Calcular_MTTR_max], estado: hecho}
+    - {tema: Desvanecimientos, dan: 'U_lluvia, U_equipos, objetivo', piden: 'U_total, disponibilidad, ¿cumple?', funciones: [Calcular_Disponibilidad], estado: hecho}
+    - {tema: Desvanecimientos, dan: 'objetivo de U', piden: 'FM necesario', funciones: [Calcular_FM_necesario], estado: hecho}
+    - {tema: Desvanecimientos, dan: 'datos del enlace y objetivo de disponibilidad', piden: '¿qué Pt lo cumple?', funciones: [Resolver_diseno], estado: hecho}
+    - {tema: Desvanecimientos, dan: 'R0,01 a partir de datos mensuales', piden: 'R0,01', funciones: [], estado: pendiente, nota: 'No hay función; lo normal es que el enunciado dé R0,01.'}
+    # ----- Tema 4 -----
+    - {tema: Ruido e interferencias, dan: 'T y G de cada etapa (diagrama de bloques), pérdidas pasivas', piden: 'T equivalente de la cadena', funciones: [Calcular_T_cadena], estado: hecho}
+    - {tema: Ruido e interferencias, dan: 'T, Rb (con FEC), M, roll-off, Eb/N0, degradación', piden: 'TH, B, N', funciones: [Calcular_Umbral], estado: hecho}
+    - {tema: Ruido e interferencias, dan: 'T dada en otro punto («a la salida del mezclador»)', piden: 'TH en la entrada del receptor o en la antena', funciones: [Calcular_Umbral_referido], estado: hecho}
+    - {tema: Ruido e interferencias, dan: 'tres distancias (triángulo)', piden: 'ángulo del interferente', funciones: [Calcular_angulo_triangulo], estado: hecho}
+    - {tema: Ruido e interferencias, dan: 'PIRE, Lb, Gr, Lr, discriminaciones, XPD', piden: 'potencia interferente o parásita', funciones: [Calcular_Interferencia], estado: hecho}
+    - {tema: Ruido e interferencias, dan: 'Prx y P_I', piden: 'C/I', funciones: [], estado: mano, nota: 'Resta directa: C/I = Prx − P_I.'}
+  indice:
+    # ----- Propagación -----
+    - {tema: Propagación, funcion: Calcular_PIRE, que: 'PIRE = Pt − Lt + Gt', archivo: funciones/propagacion/Calcular_PIRE.m}
+    - {tema: Propagación, funcion: Calcular_Prx, que: 'Friis: Prx = PIRE − Lb + Gr − Lr', archivo: funciones/propagacion/Calcular_Prx.m}
+    - {tema: Propagación, funcion: Calcular_Pt, que: 'Inversa de Friis: Pt y PIRE necesarias para una Prx dada', archivo: funciones/propagacion/Calcular_Pt.m}
+    - {tema: Propagación, funcion: Calcular_Lb, que: 'Pérdidas básicas a partir de lo que se recibe', archivo: funciones/propagacion/Calcular_Lb.m}
+    - {tema: Propagación, funcion: Calcular_Lb_std, que: 'Espacio libre y gases en atmósfera estándar', archivo: funciones/propagacion/Calcular_Lb_std.m}
+    - {tema: Propagación, funcion: Calcular_Campo, que: 'Campo en espacio libre (V/m y dBµ)', archivo: funciones/propagacion/Calcular_Campo.m}
+    - {tema: Propagación, funcion: Calcular_PIRE_campo, que: 'PIRE y Pt para producir un campo E (dBµ) a una distancia', archivo: funciones/propagacion/Calcular_PIRE_campo.m}
+    - {tema: Propagación, funcion: Calcular_Distancia, que: 'd despejada de Lbf, del campo o del flujo', archivo: funciones/propagacion/Calcular_Distancia.m}
+    - {tema: Propagación, funcion: Calcular_Flujo, que: 'Densidad de flujo Φ = E²/120π', archivo: funciones/propagacion/Calcular_Flujo.m}
+    - {tema: Propagación, funcion: Calcular_Sef, que: 'Área efectiva de la antena', archivo: funciones/propagacion/Calcular_Sef.m}
+    - {tema: Propagación, funcion: Calcular_Prx_flujo, que: 'Prx a partir del flujo y del área efectiva', archivo: funciones/propagacion/Calcular_Prx_flujo.m}
+    - {tema: Propagación, funcion: Calcular_K, que: 'K y radio ficticio; dice si es super o subrefractiva', archivo: funciones/propagacion/Calcular_K.m}
+    - {tema: Propagación, funcion: Calcular_K999, que: 'K superado el 99,9 % del peor mes', archivo: funciones/propagacion/Calcular_K999.m}
+    - {tema: Propagación, funcion: Calcular_Horizonte, que: 'Horizonte de cada antena y d_max de visión directa', archivo: funciones/propagacion/Calcular_Horizonte.m}
+    - {tema: Propagación, funcion: Calcular_Lcuch, que: 'Pérdidas en filo de cuchillo J(v)', archivo: funciones/propagacion/Calcular_Lcuch.m}
+    - {tema: Propagación, funcion: Calcular_Lad_dif, que: 'Bullington con varios obstáculos', archivo: funciones/propagacion/Calcular_Lad_dif.m}
+    - {tema: Propagación, funcion: Dibujar_Bullington, que: 'Figura del perfil, el rayo y el obstáculo equivalente', archivo: funciones/propagacion/Dibujar_Bullington.m}
+    - {tema: Propagación, funcion: Calcular_Alturas_despejamiento, que: 'Alturas de antena mínimas con v ≤ −0,78 en todo el perfil', archivo: funciones/propagacion/Calcular_Alturas_despejamiento.m}
+    - {tema: Propagación, funcion: Calcular_Lad_ref, que: 'Dos rayos: criterio de reflexión y Lad,ref (NaN si no hay reflexión)', archivo: funciones/propagacion/Calcular_Lad_ref.m}
+    # ----- Antenas -----
+    - {tema: Antenas, funcion: Calcular_G_desapuntado, que: 'G(θ) en el lóbulo principal con desapuntamiento', archivo: funciones/antenas/Calcular_G_desapuntado.m}
+    - {tema: Antenas, funcion: Calcular_Discriminacion, que: 'Discriminación del RPE interpolando los puntos leídos de la gráfica', archivo: funciones/antenas/Calcular_Discriminacion.m}
+    - {tema: Antenas, funcion: Calcular_ROE, que: 's11, pérdidas de retorno y ROE, uno a partir de otro', archivo: funciones/antenas/Calcular_ROE.m}
+    - {tema: Antenas, funcion: Calcular_Antena, que: 'g = η·d (dos de tres) y área efectiva', archivo: funciones/antenas/Calcular_Antena.m}
+    - {tema: Antenas, funcion: Calcular_G_desde_Sef, que: 'Ganancia a partir del área efectiva', archivo: funciones/antenas/Calcular_G_desde_Sef.m}
+    - {tema: Antenas, funcion: Calcular_Campo_Lejano, que: 'Distancia de campo lejano 2D²/λ', archivo: funciones/antenas/Calcular_Campo_Lejano.m}
+    # ----- Desvanecimientos -----
+    - {tema: Desvanecimientos, funcion: Calcular_k_alfa, que: 'Coeficientes k y α de la lluvia (UIT-R P.838)', archivo: funciones/desvanecimientos/Calcular_k_alfa.m}
+    - {tema: Desvanecimientos, funcion: Calcular_F001, que: 'F0,01 de un enlace terrenal', archivo: funciones/desvanecimientos/Calcular_F001.m}
+    - {tema: Desvanecimientos, funcion: Calcular_F001_espacial, que: 'F0,01 de un enlace por satélite (trayecto inclinado)', archivo: funciones/desvanecimientos/Calcular_F001_espacial.m}
+    - {tema: Desvanecimientos, funcion: Calcular_Fq, que: 'Atenuación por lluvia superada el q % (terrenal o satélite)', archivo: funciones/desvanecimientos/Calcular_Fq.m}
+    - {tema: Desvanecimientos, funcion: Calcular_q_lluvia, que: '% de tiempo en que la lluvia supera un margen (U_lluvia)', archivo: funciones/desvanecimientos/Calcular_q_lluvia.m}
+    - {tema: Desvanecimientos, funcion: Calcular_FM_necesario, que: 'Margen que hace falta para un U_lluvia admitido', archivo: funciones/desvanecimientos/Calcular_FM_necesario.m}
+    - {tema: Desvanecimientos, funcion: Calcular_MD, que: 'Atenuador, CAG o ATPC: MD = FM, PIRE en CN y en CMD', archivo: funciones/desvanecimientos/Calcular_MD.m}
+    - {tema: Desvanecimientos, funcion: Calcular_XPD_lluvia, que: 'XPD por lluvia en enlace terrenal', archivo: funciones/desvanecimientos/Calcular_XPD_lluvia.m}
+    - {tema: Desvanecimientos, funcion: Calcular_U_equipos, que: 'Indisponibilidad por fallos de equipos en serie', archivo: funciones/desvanecimientos/Calcular_U_equipos.m}
+    - {tema: Desvanecimientos, funcion: Calcular_MTTR_max, que: 'MTTR máximo para un objetivo de indisponibilidad', archivo: funciones/desvanecimientos/Calcular_MTTR_max.m}
+    - {tema: Desvanecimientos, funcion: Calcular_Disponibilidad, que: 'U_total, disponibilidad y si cumple el objetivo', archivo: funciones/desvanecimientos/Calcular_Disponibilidad.m}
+    # ----- Ruido e interferencias -----
+    - {tema: Ruido e interferencias, funcion: Calcular_T_cadena, que: 'Temperatura de ruido equivalente de una cadena (Friis)', archivo: funciones/ruido_interferencias/Calcular_T_cadena.m}
+    - {tema: Ruido e interferencias, funcion: Calcular_Umbral, que: 'Umbral por ruido TH, ancho de banda y potencia de ruido', archivo: funciones/ruido_interferencias/Calcular_Umbral.m}
+    - {tema: Ruido e interferencias, funcion: Calcular_Umbral_referido, que: 'Lleva un umbral a otro punto de la cadena', archivo: funciones/ruido_interferencias/Calcular_Umbral_referido.m}
+    - {tema: Ruido e interferencias, funcion: Calcular_Interferencia, que: 'Potencia interferente o despolarizada', archivo: funciones/ruido_interferencias/Calcular_Interferencia.m}
+    - {tema: Ruido e interferencias, funcion: Calcular_angulo_triangulo, que: 'Ángulo entre dos lados de un triángulo (teorema del coseno)', archivo: funciones/comunes/Calcular_angulo_triangulo.m}
+    # ----- Comunes -----
+    - {tema: Comunes, funcion: Vm2dBu, que: 'Campo de V/m a dBµ (20·log10)', archivo: funciones/comunes/Vm2dBu.m}
+    - {tema: Comunes, funcion: dBu2Vm, que: 'Campo de dBµ a V/m', archivo: funciones/comunes/dBu2Vm.m}
+    - {tema: Comunes, funcion: lin2db, que: '10·log10(x); sustituye a pow2db', archivo: funciones/comunes/lin2db.m}
+    - {tema: Comunes, funcion: db2lin, que: '10^(x/10); sustituye a db2pow', archivo: funciones/comunes/db2lin.m}
+    # ----- Resolutores -----
+    - {tema: Resolutores, funcion: Clasificar_trayecto, que: 'Al empezar: ¿libre, obstáculos, reflexión o tierra esférica?', archivo: funciones/resolutores/Clasificar_trayecto.m}
+    - {tema: Resolutores, funcion: Resolver_espacio_libre, que: 'Sin obstáculos ni mar: flujo, d, Prx o Lbf en cualquier orden', archivo: funciones/resolutores/Resolver_espacio_libre.m}
+    - {tema: Resolutores, funcion: Resolver_perdidas, que: 'Lbf + gases + Lad (libre, Bullington o dos rayos)', archivo: funciones/resolutores/Resolver_perdidas.m}
+    - {tema: Resolutores, funcion: Resolver_potencia, que: 'De los datos de potencia a la Prx (Pt, E0 o Prx dada)', archivo: funciones/resolutores/Resolver_potencia.m}
+    - {tema: Resolutores, funcion: Resolver_obstaculos, que: 'Bullington: Lb y Prx', archivo: funciones/resolutores/Resolver_obstaculos.m}
+    - {tema: Resolutores, funcion: Resolver_mar, que: 'Mar o terreno liso: Lad,ref, Lb y Prx', archivo: funciones/resolutores/Resolver_mar.m}
+    - {tema: Resolutores, funcion: Resolver_proteccion, que: 'Umbral por ruido y atenuador, CAG o ATPC', archivo: funciones/resolutores/Resolver_proteccion.m}
+    - {tema: Resolutores, funcion: Resolver_disponibilidad, que: 'Lluvia, equipos y MTTR máximo', archivo: funciones/resolutores/Resolver_disponibilidad.m}
+    - {tema: Resolutores, funcion: Resolver_interferencia, que: 'XPD por lluvia, estación interferente, RPE y C/I', archivo: funciones/resolutores/Resolver_interferencia.m}
+    - {tema: Resolutores, funcion: Resolver_tipoA, que: 'Examen completo de tipo A, encadenado', archivo: funciones/resolutores/Resolver_tipoA.m}
+    - {tema: Resolutores, funcion: Resolver_tipoB, que: 'Examen completo de tipo B, encadenado', archivo: funciones/resolutores/Resolver_tipoB.m}
+    - {tema: Resolutores, funcion: Resolver_diseno, que: '¿Qué Pt cumple una disponibilidad objetivo? FM, Pt y potencia parásita', archivo: funciones/resolutores/Resolver_diseno.m}
