@@ -1,6 +1,6 @@
 ---
 titulo: "Máquinas de estados y StateCharts"
-orden: 7
+orden: 9
 bloque: "Diseño software"
 resumen: "De la FSM con switch-case a los StateCharts de UML: entry, do, exit, jerarquía, historia y concurrencia"
 saber:
@@ -38,6 +38,9 @@ test:
     e: "Es la gracia de la jerarquía: una transición del superestado sirve para todos sus subestados y ahorra flechas."
 ---
 import MaquinaEstados from '../../../src/asignaturas/seda/widgets/MaquinaEstados.astro';
+import Frecuencia from '../../../src/asignaturas/seda/Frecuencia.astro';
+
+<Frecuencia sale="9 de 13" donde="PEI1 (desde 2024), PEI2 y final" practica="dibujar el StateChart de un protocolo de tramas y pasarlo a un switch con un caso por estado." peso="media" />
 
 **Idea clave.** Casi todo programa de un sistema empotrado reacciona a **eventos** (una tecla, un byte por la UART, un Timer que vence) y lo que hace depende de **lo que ya ha pasado**. Eso es una **máquina de estados**. Se diseña con un diagrama y se programa con un `switch`. Cuando el diagrama crece, los **StateCharts** lo mantienen legible. Es la parte de la asignatura que más pesa en el examen.
 

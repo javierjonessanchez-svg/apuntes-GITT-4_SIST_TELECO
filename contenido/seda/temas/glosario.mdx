@@ -128,7 +128,11 @@ Los registros de flags (IR de los Timers, EXTINT…) y FIOSET/FIOCLR se escriben
 - <dfn id="adcr">AD0CR</dfn> (`LPC_ADC->ADCR`). El control del ADC: canal (SEL), divisor del reloj (CLKDIV), ráfaga (BURST), encendido (PDN) y disparo (START).
 - <dfn id="pdn">PDN</dfn> (*Power-Down*). Bit 21 de AD0CR. Pese al nombre, **1 = ADC funcionando** y 0 = apagado.
 - <dfn id="adgdr">AD0GDR, AD0DRx</dfn>. Los registros de resultado: el último convertido (*Global Data Register*) y uno por canal. RESULT va en los bits 15:4.
-- <dfn id="dma">DMA</dfn> (*Direct Memory Access*). Un periférico que mueve datos entre memoria y periféricos sin la CPU. Se verá en la PEI2.
+- <dfn id="dma">DMA</dfn> (*Direct Memory Access*). Un periférico que mueve datos entre memoria y periféricos sin la CPU. Tema: [DMA](../dma/).
+- <dfn id="gpdma">GPDMA</dfn> (*General Purpose DMA*). El controlador de DMA del LPC1768: 8 canales de un solo sentido y 16 líneas de petición.
+- <dfn id="canal-dma">Canal de DMA</dfn>. Una copia de un origen a un destino, con su dirección, tamaño de bloque, ancho y petición. Cada canal va en un solo sentido.
+- <dfn id="bloque-dma">Bloque</dfn> (*TransferSize*). El número de transferencias de un canal. Máximo 4095.
+- <dfn id="lli">LLI</dfn> (*Linked List Item*). El puntero de un canal al siguiente bloque. Con `DMACCLLI = 0` no hay más bloques.
 
 ## Diseño software
 
@@ -137,3 +141,9 @@ Los registros de flags (IR de los Timers, EXTINT…) y FIOSET/FIOCLR se escriben
 - <dfn id="rebote">Rebote</dfn>. Los flancos falsos que da un pulsador mecánico durante unos milisegundos al pulsarlo o soltarlo.
 - <dfn id="histeresis">Histéresis</dfn>. Usar dos umbrales distintos para encender y para apagar, de modo que el ruido cerca de un umbral no haga conmutar la salida sin parar.
 - <dfn id="timeout">Timeout</dfn>. Un tiempo máximo de espera: si se pasa sin que llegue el evento esperado, la máquina hace otra cosa (por ejemplo, volver al estado inicial).
+- <dfn id="tarea">Tarea</dfn>. El código que se ejecuta con cada evento, casi siempre una ISR. Lo que hace el hardware solo (PWM) no es una tarea. Tema: [Ejecutabilidad](../ejecutabilidad/).
+- <dfn id="ejecutabilidad">Ejecutabilidad</dfn>. Que a la CPU le dé tiempo a atender todas las tareas antes de su plazo: $R_i \le D_i$ para todas.
+- <dfn id="c-t-d-r">C, T, D, R</dfn>. De una tarea: $C$ lo que dura sin interrupciones, $T$ el tiempo mínimo entre dos eventos que la lanzan, $D$ su plazo para acabar y $R$ el tiempo máximo real de respuesta.
+- <dfn id="bloqueo">Bloqueo</dfn> ($B_i$). El retraso que le causa a una tarea otra menos prioritaria (o una región crítica) que no se puede interrumpir. Solo cuenta el peor.
+- <dfn id="interferencia">Interferencia</dfn> ($I_i$). El retraso que le causan las tareas más prioritarias que la interrumpen durante su respuesta.
+- <dfn id="region-critica">Región crítica</dfn>. Un trozo de código con las interrupciones deshabilitadas: durante él nada lo interrumpe, así que retrasa a las tareas que lleguen.

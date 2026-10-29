@@ -1,0 +1,228 @@
+---
+titulo: "DMA: mover datos sin la CPU"
+orden: 7
+bloque: "Analógico"
+resumen: "El GPDMA del LPC1768: qué pide cada canal, cuántas muestras caben en un bloque y cómo grabar con el ADC y reproducir con el DAC sin interrupciones"
+saber:
+  - "El DMA copia datos entre memoria y periféricos sin que la CPU ejecute código por cada dato. El LPC1768 tiene 8 canales, cada uno en un solo sentido"
+  - "Un canal se configura con: dirección de origen, de destino, tamaño del bloque, ancho (8, 16 o 32 bits), si se incrementa cada dirección, el tipo de transferencia y la señal que pide cada dato"
+  - "Un bloque no puede pasar de 4095 transferencias (el campo TransferSize tiene 12 bits). Para grabar o reproducir más muestras hay que encadenar canales o volver a apuntar el canal cuando acaba"
+  - "Grabar con el ADC: el Timer dispara cada conversión por MAT, el ADC pide un dato al DMA y se habilita su interrupción en ADINTEN pero no en el NVIC. Reproducir con el DAC: DACCNTVAL fija el ritmo y el DAC pide cada muestra"
+  - "N = f_s · t son las muestras, y los bytes dependen del ancho: 1 por muestra de 8 bits, 2 por muestra de 10 o 12 bits"
+  - "Lo que se pide en el examen casi siempre es la lista de ajustes del canal con sus números, no el programa entero"
+fuentes:
+  - "UM10360 (manual del LPC17xx), cap. 31 (GPDMA), cap. 29 (DAC) y cap. 30 (ADC)"
+  - "LPC17xx GPDMA (diapositivas de clase)"
+  - "Apuntes de Miguel"
+test:
+  - p: "Quieres grabar 20 000 muestras con el DMA y cada bloque admite 4095 transferencias como máximo. ¿Cuántos bloques necesitas como mínimo?"
+    o: ["5", "4", "20", "6"]
+    c: 0
+    e: "20 000 / 4095 = 4,88, y hay que redondear hacia arriba: 5 bloques. Con 5 bloques iguales serían 4000 muestras cada uno, que sí caben."
+  - p: "¿Por qué se habilita la interrupción del canal en ADINTEN pero no en el NVIC cuando el ADC trabaja con el DMA?"
+    o: ["Porque el ADC usa ese flag para pedirle un dato al DMA; si además interrumpiera a la CPU, ejecutaría una ISR por cada muestra", "Porque el NVIC no admite la interrupción del ADC", "Porque ADINTEN apaga el ADC al terminar", "Porque el DMA lee el ADC por sondeo"]
+    c: 0
+    e: "El flag de fin de conversión es la petición que el DMA atiende. Dejar el NVIC sin habilitar evita que la CPU vuelva a quedar ocupada con cada muestra."
+  - p: "El DAC reproduce a 8 kHz con F_PCLK = 25 MHz. ¿Qué DACCNTVAL se pone?"
+    o: ["3124", "3125", "6250", "1562"]
+    c: 0
+    e: "DACCNTVAL = F_PCLK/f_s − 1 = 25·10⁶/8000 − 1 = 3124. El periodo son DACCNTVAL + 1 = 3125 ciclos de PCLK."
+  - p: "Un canal de DMA va de memoria al DAC con muestras de 8 bits. ¿Qué tienen que valer SI y DI en DMACCControl?"
+    o: ["SI = 1 (la memoria avanza) y DI = 0 (el DAC es una dirección fija)", "SI = 0 y DI = 1", "Los dos a 1", "Los dos a 0"]
+    c: 0
+    e: "El origen es un array: cada transferencia lee la siguiente posición. El destino es siempre el mismo registro del DAC."
+  - p: "Con la lista encadenada (linked list), ¿cuándo interrumpe el último canal?"
+    o: ["Cuando acaba su bloque, y solo en ese se habilita la interrupción de terminación", "Nunca: la lista no puede interrumpir", "Después de cada muestra", "Cuando se llena la FIFO del DMA"]
+    c: 0
+    e: "Los canales intermedios pasan al siguiente descriptor sin avisar. Solo el último tiene el bit de interrupción de terminación a 1."
+---
+import Practica from '../../../src/asignaturas/seda/Practica.astro';
+import Frecuencia from '../../../src/asignaturas/seda/Frecuencia.astro';
+import Registro from '../../../src/asignaturas/seda/Registro.astro';
+import Donde from '../../../src/asignaturas/seda/Donde.astro';
+import EnExamen from '../../../src/comun/EnExamen.astro';
+
+<Frecuencia sale="12 de 13" donde="PEI1 y final" practica="contar muestras y bloques, dar DACCNTVAL y escribir la lista de ajustes de un canal (origen, destino, tamaño, ancho, petición)." />
+
+**Idea clave.** El **[DMA](../glosario/#dma)** (*Direct Memory Access*, acceso directo a memoria) es un periférico que **copia datos por su cuenta**: lee de un sitio y escribe en otro sin que la CPU ejecute una instrucción por cada dato. Sin él, grabar audio a 8 kHz son 8000 interrupciones por segundo, cada una con su entrada y salida de la ISR. Con él, la CPU hace otras cosas y solo se entera al final del bloque. El del LPC1768 se llama **GPDMA** (*General Purpose DMA*).
+
+## Qué ofrece el GPDMA
+
+- **8 canales**, cada uno en un solo sentido (un canal es una copia de A a B; para ir y volver hacen falta dos). Cada canal tiene su prioridad: el canal 0 es el más prioritario.
+- **Cuatro tipos de transferencia**: memoria→memoria, memoria→periférico, periférico→memoria y periférico→periférico.
+- **Ancho de 8, 16 o 32 bits** por transferencia, distinto en origen y destino si hace falta.
+- **16 líneas de petición**: la señal con la que un periférico dice «ya puedes mover un dato». Las que más se usan:
+
+| Petición | Quién la genera |
+|---|---|
+| 4 | ADC (al terminar una conversión) |
+| 7 | DAC (cuando su contador llega a 0) |
+| 8 a 15 | Las UART 0–3 (Tx y Rx) **o** un Match de los Timers 0–3 (se elige con DMAREQSEL) |
+
+Que un Match de un Timer sirva de petición es lo que permite **mover datos a un ritmo fijo** a un pin o a un registro cualquiera: el Timer solo marca el compás, y el DMA hace la copia.
+
+<Registro nombre="DMAREQSEL" descripcion="qué genera las peticiones 8 a 15 (en LPC_SC)" campos={[
+  { bits: '0–7', nombre: 'Petición 8 a 15', que: '0 = la UART correspondiente (valor tras el reset); <b>1 = el Match del Timer</b>. El bit 0 es la petición 8 (UART0 Tx o MAT0.0), el bit 1 la 9 (MAT0.1)… el bit 2 la 10 (MAT1.0)' },
+]} />
+
+## Los ajustes de un canal
+
+Cualquier transferencia se describe con **los mismos seis datos**. Esta lista es lo que más se pregunta, en forma de «indica cómo configurarías el DMA»:
+
+1. **Origen** (`DMACCSrcAddr`) y **destino** (`DMACCDestAddr`): direcciones de 32 bits. Un array en RAM o un registro de un periférico.
+2. **Tamaño del bloque** (`TransferSize`, bits 11:0 de `DMACCControl`): cuántas transferencias hace el canal. Máximo **4095**.
+3. **Ancho** de origen y destino (`SWidth`, `DWidth`): 8, 16 o 32 bits.
+4. **Incremento** (`SI`, `DI`): si la dirección avanza tras cada dato. Un array de origen sí (`SI = 1`); un registro de destino no (`DI = 0`).
+5. **Tipo de transferencia y petición** (`DMACCConfig`): memoria→periférico, periférico→memoria…, y cuál es la señal que pide cada dato (`SrcPeripheral` o `DestPeripheral`).
+6. **Qué pasa al acabar**: si interrumpe (`I` en `DMACCControl` más `ITC` en `DMACCConfig`) y si hay otro bloque detrás (`DMACCLLI`).
+
+<Registro nombre="DMACCControl" descripcion="tamaño y forma de la transferencia de un canal" campos={[
+  { bits: '11:0', nombre: 'TransferSize', que: 'Número de transferencias del bloque. <b>Máximo 4095</b>' },
+  { bits: '14:12, 17:15', nombre: 'SBSize, DBSize', que: 'Tamaño de ráfaga de origen y destino. <code>000</code> = 1 dato' },
+  { bits: '20:18, 23:21', nombre: 'SWidth, DWidth', que: 'Ancho de origen y destino: <code>000</code> = 8 bits, <code>001</code> = 16, <code>010</code> = 32' },
+  { bits: '26, 27', nombre: 'SI, DI', que: '1 = la dirección de origen (SI) o destino (DI) avanza tras cada dato' },
+  { bits: '31', nombre: 'I', que: '1 = al terminar el bloque, pide interrupción (hay que habilitarla también en DMACCConfig)' },
+]} />
+
+<Registro nombre="DMACCConfig" descripcion="tipo de transferencia, petición y encendido de un canal" campos={[
+  { bits: '0', nombre: 'E', que: '1 = canal habilitado. Se pone el último, cuando todo lo demás está escrito' },
+  { bits: '5:1, 10:6', nombre: 'SrcPeripheral, DestPeripheral', que: 'Número de la petición del periférico de origen y de destino (4 = ADC, 7 = DAC…)' },
+  { bits: '13:11', nombre: 'FlowCntrl', que: '<code>000</code> memoria→memoria, <code>001</code> memoria→periférico, <code>010</code> periférico→memoria, <code>011</code> periférico→periférico' },
+  { bits: '14, 15', nombre: 'IE, ITC', que: 'Habilitan la interrupción de error y la de fin de bloque (terminal count)' },
+]} />
+
+Antes de configurar ningún canal, el DMA hay que **encenderlo**: `PCONP` bit 29 (PCGPDMA) y `DMACConfig` bit 0 (habilita el controlador entero). No tiene `PCLKSEL`: va con el reloj de la CPU. Y tras terminar un bloque se **borra** la interrupción de ese canal en `DMACIntTCClear` (y los errores en `DMACIntErrClr`), escribiendo un 1 en su bit.
+
+## Cuántas muestras, cuántos bloques
+
+Lo primero que hay que calcular casi siempre es **cuántos datos** hay que mover:
+
+$$
+N = f_s \cdot t
+\qquad
+n_{bloques} = \left\lceil \frac{N}{4095} \right\rceil
+\qquad
+bytes = N \cdot b
+$$
+
+<Donde>
+
+- $N$: número de muestras (adimensional). $f_s$: frecuencia de muestreo, en Hz. $t$: duración de la grabación o reproducción, en s.
+- $\lceil\ \rceil$: redondear hacia arriba (cuántos bloques de 4095 como máximo hacen falta como mínimo).
+- $4095$: el mayor tamaño de bloque que admite el campo `TransferSize`.
+- $b$: bytes por muestra. 1 con 8 bits, 2 con 10 o 12 bits (el array es de `uint16_t`). $bytes$: lo que ocupa el array en memoria.
+
+</Donde>
+
+Luego se reparte $N$ entre los bloques que salgan, preferiblemente **iguales** (más fáciles de encadenar o de repetir). Y a cada bloque le corresponde un tiempo, útil para saber cuánto margen tiene la CPU entre dos interrupciones del DMA:
+
+$$
+t_{bloque} = \frac{\text{TransferSize}}{f_s}
+$$
+
+<Donde>
+
+- $t_{bloque}$: lo que tarda en terminar un bloque, en s. $\text{TransferSize}$: muestras de ese bloque. $f_s$: muestras por segundo.
+
+</Donde>
+
+**Ejemplo (números inventados).** Grabar 2,5 s de un sensor a $f_s = 6$ kHz con muestras de 8 bits: $N = 6000\cdot 2{,}5 = 15\,000$ muestras, 15 000 bytes. Con un bloque máximo de 4095, hacen falta $\lceil 15\,000/4095\rceil = 4$ bloques; 4 bloques de 3750 caben y cada uno dura $3750/6000 = 0{,}625$ s.
+
+## Grabar con el ADC: del pin a la memoria
+
+El esquema de la grabación a ritmo fijo, sin una sola interrupción por muestra:
+
+1. **El Timer marca el ritmo.** Un Timer con un Match en modo conmutar (EMC = 11) saca una señal MATn.x que sube cada $T_s$. Con reset en el Match, el periodo de la salida son **dos** Match, de modo que $MR = F_{tick}/(2\cdot f_s) - 1$.
+2. **El ADC arranca con esa señal.** En `AD0CR`, `BURST = 0` y `START` el código de ese MAT (por ejemplo `100` para MAT0.1 o `110` para MAT1.0). Tiene que cumplirse que la conversión cabe en el periodo: $t_{conv} = 65/F_{CLK\,ADC} \le T_s$.
+3. **El ADC pide un dato al DMA.** Se habilita en `AD0INTEN` el bit del canal, **pero no** la interrupción del ADC en el NVIC: ese flag es lo que atiende el DMA.
+4. **El canal del DMA copia.** Periférico→memoria, petición 4, origen en el registro de datos del canal del ADC, destino el array con `DI = 1`.
+5. **Cuántos bits.** Con muestras de 8 bits, el origen es el byte alto del resultado (bits 15:8 de `ADDRn`, o sea la dirección de `ADDRn` más 1) y el ancho es de 8 bits. Con 12 bits, ancho de 16 y un array de `uint16_t`.
+
+En pseudocódigo, el orden de los pasos:
+
+```c
+// PSEUDOCÓDIGO: grabar N muestras del ADC en el array grabacion[]
+encender_DMA();                        // PCONP bit 29 y DMACConfig bit 0
+borrar_flags_de_fin_y_de_error();      // DMACIntTCClear, DMACIntErrClr
+canal.origen   = dirección_del_resultado_del_ADC;
+canal.destino  = grabacion;
+canal.siguiente = 0;                   // sin lista encadenada
+canal.control  = bloque | ancho_8_bits | incrementar_destino | pedir_interrupcion_al_acabar;
+canal.config   = periférico_a_memoria | peticion_ADC | habilitar;
+iniciar_timer_y_ADC();                 // el Timer ya marca el ritmo: no hay más código
+```
+
+## Reproducir con el DAC: de la memoria al pin
+
+El DAC tiene su **propio contador**, así que no hace falta un Timer. Dos registros lo manejan:
+
+- `DACCNTVAL`: el valor de recarga del contador. El DAC pide una muestra al DMA cada $DACCNTVAL + 1$ ciclos de PCLK.
+- `DACCTRL`: `CNT_ENA` (bit 2) activa el contador y `DMA_ENA` (bit 3) hace que su fin de cuenta sea una petición de DMA.
+
+$$
+DACCNTVAL = \frac{F_{PCLK}}{f_s} - 1
+\qquad
+f_s = \frac{F_{PCLK}}{DACCNTVAL + 1}
+$$
+
+<Donde>
+
+- $F_{PCLK}$: reloj del DAC, en Hz (25 MHz por defecto). $f_s$: muestras por segundo que salen al pin, en Hz.
+- $DACCNTVAL$: número de 16 bits (hasta 65 535). El «−1» es porque el contador cuenta $DACCNTVAL + 1$ ciclos.
+
+</Donde>
+
+**Ejemplo (números inventados).** Reproducir a 16 kHz con $F_{PCLK} = 25$ MHz: $DACCNTVAL = 25\cdot 10^6/16\,000 - 1 = 1561{,}5$. Como no es entero, se redondea (1561 o 1562) y sale $f_s \approx 16\,005$ Hz o 15 994 Hz: un 0,04 % de error, sin importancia para audio.
+
+El canal es memoria→DAC: `SI = 1`, `DI = 0`, petición 7. Si las muestras son de 8 bits, el destino es el byte alto de `DACR` (el registro entero, más 1) para no tener que desplazar. Si el array tiene muestras de 16 bits ya colocadas como pide `DACR`, el ancho es de 16 bits y se escribe `DACR` tal cual.
+
+## Cuando 4095 no llega
+
+Un solo canal solo mueve 4095 transferencias. Hay dos formas de seguir:
+
+**Lista encadenada** (*linked list*). Cada canal tiene un puntero `DMACCLLI` al descriptor del siguiente bloque (origen, destino, siguiente y control). Al acabar un bloque, el DMA carga el siguiente **solo**, sin CPU. Todos los bloques menos el último tienen la interrupción apagada; solo el último avisa. Se necesita un descriptor por bloque. Es la respuesta de «sin intervención de la CPU».
+
+**Volver a apuntar en la ISR.** Un solo canal con `DMACCLLI = 0` interrumpe al acabar cada bloque. En la ISR se borra el flag, se suma el tamaño del bloque a la dirección de origen (o de destino) y se vuelve a habilitar el canal. Es más simple, pero la CPU se despierta una vez por bloque (no por muestra), y hay un hueco corto entre bloques.
+
+La elección se justifica por **cuántas veces despierta a la CPU**: una por muestra (sin DMA), una por bloque (volver a apuntar) o ninguna hasta el final (lista).
+
+<Practica n={7} nombre="Grabación y reproducción de audio" />
+
+<EnExamen asignatura="seda" ids={['dma-muestras', 'dma-cntval']} />
+
+## Preguntas de examen
+
+<details>
+<summary>Se graba audio de 12 s a 8 kHz con muestras de 8 bits. ¿Cuántas muestras y cuántos bloques de DMA hacen falta, y cuánto ocupa?</summary>
+
+$N = 8000\cdot 12 = 96\,000$ muestras, 96 000 bytes. $\lceil 96\,000/4095\rceil = 24$ bloques como mínimo; con 24 bloques de 4000 muestras cada uno (4000 ≤ 4095) sale justo. Cada bloque dura $4000/8000 = 0{,}5$ s. *(Respuesta redactada a partir de los apuntes; números inventados.)*
+
+</details>
+
+<details>
+<summary>Reproduces 40 000 muestras de 8 bits a 10 kHz con el DAC y el DMA. Calcula DACCNTVAL y dime cuántos canales encadenas.</summary>
+
+$DACCNTVAL = 25\cdot 10^6/10\,000 - 1 = 2499$. $\lceil 40\,000/4095\rceil = 10$ bloques; con 10 canales de 4000 muestras, encadenados con `DMACCLLI`. Solo el último lleva la interrupción de fin de bloque. Dura $40\,000/10\,000 = 4$ s. *(Respuesta redactada a partir de los apuntes; números inventados.)*
+
+</details>
+
+<details>
+<summary>¿Por qué grabar con el DMA y no con una ISR del ADC?</summary>
+
+Porque la ISR gasta CPU en cada muestra: guardar registros, leer el resultado, escribirlo en el array, volver. A 10 kHz son 10 000 entradas por segundo que quitan tiempo a otras tareas (y que pueden retrasar a otras ISR si no hay prioridades bien puestas). Con el DMA, la CPU solo interviene al terminar un bloque. *(Respuesta redactada a partir de los apuntes.)*
+
+</details>
+
+<details>
+<summary>Un canal va de periférico a memoria con muestras de 12 bits en un array de uint16_t. ¿Qué ancho y qué incrementos pones?</summary>
+
+Ancho de 16 bits en origen y destino (el resultado de 12 bits cabe en 16), incremento solo en el destino (`DI = 1`, `SI = 0`: el origen es un registro fijo). El tamaño del bloque cuenta **transferencias**, no bytes: 4095 transferencias de 16 bits son 8190 bytes. *(Respuesta redactada a partir de los apuntes.)*
+
+</details>
+
+<details>
+<summary>¿Por qué un bloque de 5000 muestras no se puede hacer con un solo canal?</summary>
+
+Porque `TransferSize` tiene 12 bits: el máximo es $2^{12} - 1 = 4095$. Habría que partirlo en dos bloques de 2500 (encadenados o volviendo a apuntar el canal). *(Respuesta redactada a partir de los apuntes.)*
+
+</details>

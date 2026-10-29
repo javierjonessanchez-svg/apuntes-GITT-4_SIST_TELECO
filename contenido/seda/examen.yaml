@@ -68,8 +68,96 @@ problemas:
       - 'Dónde corre: en la ISR del periférico que trae los eventos (UART, captura) o en una ISR periódica si hay tiempos. Los tiempos se cuentan en ticks: 5 s con un tick de 20 ms son 250.'
       - 'Código: un <code>switch (estado)</code>; cada caso da un paso y vuelve, sin bucles de espera. Los pulsadores, por flanco.'
       - 'Repasa los casos raros: timeout si se pierde un dato, qué pasa tras el reset, un evento que llega en el estado «equivocado».'
+  - id: sistema-completo
+    titulo: Pregunta larga con varios periféricos (ADC, servo, captura, DAC, DMA)
+    cuando: 'un sistema con sensor, servo y alarma, con apartados a, b, c… que se apoyan unos en otros; la primera pregunta de casi todas las pruebas'
+    pasos:
+      - 'Lee <b>todos</b> los apartados antes de empezar y apunta qué reloj, qué Timer y qué canal usa cada uno: los recursos no se pueden repetir (un Timer, un Match, un pin).'
+      - 'Escribe una sola vez lo común: F_PCLK = 25 MHz, F_tick y la lista de pines con su función (PINSEL).'
+      - 'ADC: SEL (canal) | CLKDIV &lt;&lt; 8 | PDN (bit 21) | START. Calcula t_conv = 65/F_ADC y f_s = F_ADC/(65·N) si es ráfaga, o MR = F_tick/(2·f_s) − 1 si lo arranca un Timer por MAT.'
+      - 'Servo: Timer con Match (periodo y ancho en tics) o módulo PWM. Dos Match (uno sube y otro baja), uno solo con conmutar, o PWM1 con MR0 y MRx.'
+      - 'Captura: CCR con el flanco y la interrupción, TC sin reset, y en la ISR la resta de dos capturas (periodo) o de las de flancos distintos (ancho).'
+      - 'DAC con ISR: un Timer que interrumpe a f_s (MR = F_tick/f_s − 1), el valor <b>desplazado</b> (&lt;&lt; 6, o &lt;&lt; 8 si la muestra es de 8 bits), índice que da la vuelta y parada al final.'
+      - 'DMA: N = f_s·t, bloques = ⌈N/4095⌉, ancho 8 o 16 bits, incrementos y petición. Para el DAC, DACCNTVAL = F_PCLK/f_s − 1.'
+      - 'Escribe comentarios en el código de registros (cuentan) y pseudocódigo claro en las ISR.'
+  - id: dma-grabar-reproducir
+    titulo: Grabar con el ADC o reproducir con el DAC usando el DMA
+    cuando: '«sin cargar la CPU», «con DMA», «graba durante t segundos», «reproduce la tabla», «lista encadenada»'
+    pasos:
+      - 'Muestras: N = f_s·t. Bytes: N·b (b = 1 con 8 bits, 2 con 10 o 12 bits).'
+      - 'Bloques: ⌈N/4095⌉ como mínimo. Reparte N en bloques iguales ≤ 4095 y di el tamaño de cada uno.'
+      - 'Encender y habilitar: PCONP bit 29 y DMACConfig bit 0. Borrar DMACIntTCClear y DMACIntErrClr.'
+      - 'Canal: origen, destino, TransferSize, ancho (8 o 16 bits), SI/DI, tipo (periférico→memoria o memoria→periférico) y petición (ADC = 4, DAC = 7).'
+      - 'Ritmo: ADC arrancado por un MAT (MR = F_tick/(2·f_s) − 1), con <b>ADINTEN del canal a 1 y la interrupción del ADC sin habilitar en el NVIC</b>. DAC: DACCNTVAL = F_PCLK/f_s − 1 y DACCTRL con CNT_ENA y DMA_ENA.'
+      - 'Más de 4095: lista encadenada con DMACCLLI (solo el último bloque interrumpe) o un canal que vuelve a apuntar en su ISR (suma el tamaño del bloque a la dirección).'
+      - 'Justifica el ahorro: la CPU solo atiende un aviso por bloque (o ninguno hasta el final), no uno por muestra.'
+  - id: ejecutabilidad-td
+    titulo: T y D de una lista de tareas
+    cuando: '«indica el subsistema, T y D», «qué tareas hay», una lista de a), b), c)… de funciones del sistema'
+    pasos:
+      - 'Para cada función: subsistema del LPC1768 (Timer con Match, captura, ADC con Timer, UART, SysTick, módulo PWM) y cómo lo configuras en una línea.'
+      - '¿Hay código en una ISR con cada evento? Si <b>no</b> (PWM, o un Timer que arranca el ADC por MAT sin interrumpir), no hay tarea.'
+      - '<b>T</b> = el menor tiempo entre dos eventos: 1/(2f) para una cuadrada con Match en conmutar, 1/f_s al muestrear, 1/f_max al medir un rango de frecuencias, bits·t_bit en la UART.'
+      - '<b>D</b>: por lo general D = T. Más pequeño cuando hay que hacer algo antes de que cambie otro dato (encoder: T/4; ráfaga de ADC leída con el registro global: una conversión).'
+      - 'UART sin datos de formato: 8N1 = 10 bits por byte. Con paridad o 2 stops, 11 o 12.'
+      - 'Escribe la tabla (tarea, T, D) y una frase de justificación por fila.'
+  - id: tiempo-respuesta
+    titulo: Tiempo de respuesta y ejecutabilidad
+    cuando: '«calcula R de cada tarea», «¿es ejecutable?», «región crítica máxima», varios escenarios de prioridades'
+    pasos:
+      - 'Tabla de tareas con C, T, D y nivel de prioridad (menor número = mayor nivel). Marca las que comparten nivel: no se interrumpen entre sí.'
+      - 'Bloqueo B = el <b>mayor</b> de: la región crítica del main o de una tarea menos prioritaria, y el C de las tareas de nivel igual o menor que no se pueden interrumpir. No se suman.'
+      - 'Interferencia I = suma de ⌈R/T_j⌉·C_j de las tareas de mayor nivel. Si la tarea j es del mismo nivel y no interrumpe, usa ⌈(R − C_i)/T_j⌉·C_j.'
+      - 'Itera: R₀ = C + B; R₁ = C + B + I(R₀); sigue hasta que dos valores seguidos coincidan. Si superas D, ya no es ejecutable.'
+      - 'Conclusión por tarea: R ≤ D, sí o no. Un sistema es ejecutable si lo cumplen todas.'
+      - 'Región crítica máxima: despeja RC en C + RC + I ≤ D de la tarea con el plazo más justo.'
 
 formulas:
+  - id: dma-muestras
+    tema: DMA
+    nombre: Muestras, bloques y memoria
+    tex: 'N = f_s\cdot t \qquad n_{bloques} = \left\lceil \frac{N}{4095} \right\rceil \qquad bytes = N\cdot b'
+    notas: 'f_s en Hz, t en s, b = 1 con 8 bits y 2 con 10 o 12 bits. 4095 es el máximo de TransferSize (12 bits). Reparte N en bloques iguales.'
+  - id: dma-cntval
+    tema: DMA
+    nombre: Ritmo del DAC con DMA
+    tex: 'DACCNTVAL = \frac{F_{PCLK}}{f_s} - 1 \qquad f_s = \frac{F_{PCLK}}{DACCNTVAL + 1}'
+    notas: 'Con 25 MHz y 8 kHz: 3124. DACCTRL: CNT_ENA (bit 2) y DMA_ENA (bit 3).'
+  - id: adc-rafaga
+    tema: ADC y DAC
+    nombre: Muestreo en ráfaga
+    tex: 'f_s = \frac{F_{CLK\,ADC}}{65\cdot N_{canales}} \qquad CLKDIV + 1 = \frac{F_{PCLK}}{f_s\cdot 65\cdot N_{canales}}'
+    notas: 'f_s es por canal. Con BURST = 1 y START = 000. Redondea CLKDIV y calcula la f_s real.'
+  - id: adc-mat
+    tema: ADC y DAC
+    nombre: ADC arrancado por un Timer (MAT)
+    tex: 'MR = \frac{F_{tick}}{2\cdot f_s} - 1 \qquad t_{conv} \le \frac{1}{f_s}'
+    notas: 'Con el MAT en conmutar (EMC = 11) y START = 100 (MAT0.1) o 110 (MAT1.0), BURST = 0. Cada flanco de subida inicia una conversión.'
+  - id: uart-trama
+    tema: UART
+    nombre: Duración de una trama
+    tex: 't_{trama} = \frac{N_{bytes}\cdot n_{bits}}{V_{real}}'
+    notas: 'n_bits = 1 start + datos + paridad (0 o 1) + stop (1 o 2): 8N1 son 10, 8E1 son 11, 8O2 son 12. Usa la velocidad real, no la pedida.'
+  - id: td-uart
+    tema: Ejecutabilidad
+    nombre: T y D de la recepción por UART
+    tex: 'T = D = \frac{n_{bits}}{V}'
+    notas: 'Un byte tiene que leerse antes de que llegue el siguiente. 9600 bit/s con 8N1: 1,04 ms.'
+  - id: td-periodica
+    tema: Ejecutabilidad
+    nombre: T y D de señales y muestreo
+    tex: 'T = D = \frac{1}{2\,f} \ \text{(cuadrada con Match)} \qquad T = D = \frac{1}{f_s} \ \text{(muestreo)}'
+    notas: 'En captura, T = D = 1/f_max del rango. Encoder en cuadratura: T = 1/(pulsos/s) y D = T/4.'
+  - id: tr-respuesta
+    tema: Ejecutabilidad
+    nombre: Tiempo de respuesta y bloqueo
+    tex: 'R_i = C_i + B_i + I_i \qquad B_i = \max_j\{B_{ij}\} \qquad R_i \le D_i'
+    notas: 'B es el peor bloqueo (región crítica o tarea de menor o igual nivel que no se interrumpe), no la suma.'
+  - id: tr-interferencia
+    tema: Ejecutabilidad
+    nombre: Interferencia de las tareas más prioritarias
+    tex: 'I_i = \sum_j \left\lceil \frac{R_i}{T_j} \right\rceil C_j \qquad \left(\text{mismo nivel: } \left\lceil \frac{R_i - C_i}{T_j} \right\rceil C_j\right)'
+    notas: 'Redondeo hacia arriba. R está en los dos lados: itera desde R = C + B hasta que dos valores seguidos coincidan.'
   - id: pclk
     tema: Reloj
     nombre: Reloj de los periféricos
@@ -274,3 +362,32 @@ registros:
     campos:
       - { bits: '15:6', nombre: 'VALUE', que: 'El valor de 10 bits' }
       - { bits: '16', nombre: 'BIAS', que: '0 = se estabiliza en 1 µs (hasta 1 MHz, 700 µA); 1 = 2,5 µs (hasta 400 kHz, 350 µA)' }
+  - tema: ADC y DAC
+    nombre: DACCTRL
+    descripcion: 'DAC con contador y DMA'
+    campos:
+      - { bits: '1', nombre: 'DBLBUF_ENA', que: '1 = el nuevo valor de DACR se aplica cuando acaba la cuenta (doble buffer)' }
+      - { bits: '2', nombre: 'CNT_ENA', que: '1 = el contador del DAC cuenta (DACCNTVAL)' }
+      - { bits: '3', nombre: 'DMA_ENA', que: '1 = al llegar a 0 la cuenta, el DAC pide una muestra al DMA' }
+  - tema: DMA
+    nombre: DMACCControl
+    descripcion: 'forma de la transferencia de un canal'
+    campos:
+      - { bits: '11:0', nombre: 'TransferSize', que: 'Número de transferencias del bloque. <b>Máximo 4095</b>' }
+      - { bits: '20:18, 23:21', nombre: 'SWidth, DWidth', que: 'Ancho de origen y destino: <code>000</code> 8 bits, <code>001</code> 16, <code>010</code> 32' }
+      - { bits: '26, 27', nombre: 'SI, DI', que: '1 = la dirección de origen (SI) o destino (DI) avanza tras cada dato' }
+      - { bits: '31', nombre: 'I', que: '1 = interrumpir al acabar el bloque' }
+  - tema: DMA
+    nombre: DMACCConfig
+    descripcion: 'tipo, petición y encendido de un canal'
+    campos:
+      - { bits: '0', nombre: 'E', que: '1 = canal habilitado (se escribe el último)' }
+      - { bits: '5:1, 10:6', nombre: 'SrcPeripheral, DestPeripheral', que: 'Petición del origen y del destino: 4 = ADC, 7 = DAC, 8 a 15 = UART o Match de Timer' }
+      - { bits: '13:11', nombre: 'FlowCntrl', que: '<code>000</code> mem→mem, <code>001</code> mem→periférico, <code>010</code> periférico→mem, <code>011</code> periférico→periférico' }
+      - { bits: '14, 15', nombre: 'IE, ITC', que: 'Habilitan la interrupción de error y la de fin de bloque' }
+  - tema: DMA
+    nombre: DMACCLLI y DMAREQSEL
+    descripcion: 'lista encadenada y elección de la petición 8 a 15'
+    campos:
+      - { bits: 'DMACCLLI', nombre: 'LLI', que: '0 = no hay más bloques; si no, la dirección del descriptor del siguiente' }
+      - { bits: 'DMAREQSEL 0–7', nombre: 'Petición 8 a 15', que: '0 = UART (reset); <b>1 = Match del Timer</b>. El bit 2 es MAT1.0' }

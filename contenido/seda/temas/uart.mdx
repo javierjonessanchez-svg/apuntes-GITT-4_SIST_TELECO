@@ -41,6 +41,9 @@ import Practica from '../../../src/asignaturas/seda/Practica.astro';
 import Registro from '../../../src/asignaturas/seda/Registro.astro';
 import CalculadoraBaudios from '../../../src/asignaturas/seda/widgets/CalculadoraBaudios.astro';
 import Donde from '../../../src/asignaturas/seda/Donde.astro';
+import Frecuencia from '../../../src/asignaturas/seda/Frecuencia.astro';
+
+<Frecuencia sale="11 de 13" donde="PEI1 (desde 2024), PEI2 y final" practica="DL y velocidad real, duración de una trama (con paridad y 2 stops) y dibujar la señal; la ISR con IIR." peso="alta" />
 
 **Idea clave.** La **[UART](../glosario/#uart)** (*Universal Asynchronous Receiver-Transmitter*) manda bytes de uno en uno por un solo hilo (TxD) y los recibe por otro (RxD), sin reloj compartido. Por eso los dos extremos tienen que acordar de antemano el **formato** y la **velocidad**. El LPC1768 tiene cuatro (UART0–UART3). En la Mini-DK2, la **UART0** (P0.2 y P0.3) va a un conversor USB-serie: es la que se usa para hablar con el PC y la que usa el *bootloader* para grabar la flash.
 

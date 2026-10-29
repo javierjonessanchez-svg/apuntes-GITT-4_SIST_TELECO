@@ -40,6 +40,9 @@ test:
 import Practica from '../../../src/asignaturas/seda/Practica.astro';
 import Registro from '../../../src/asignaturas/seda/Registro.astro';
 import Donde from '../../../src/asignaturas/seda/Donde.astro';
+import Frecuencia from '../../../src/asignaturas/seda/Frecuencia.astro';
+
+<Frecuencia sale="10 de 13" donde="PEI1 y final" practica="periodo y ancho de pulso de un servo (con dos Match, con uno en conmutar o con el PWM1) y la función que fija el ángulo." peso="alta" />
 
 **Idea clave.** Una **[PWM](../glosario/#pwm)** (*Pulse Width Modulation*, modulación por ancho de pulso) es una señal de periodo fijo en la que solo cambia cuánto tiempo está en alto. Con eso se regula el brillo de una pantalla o se le dice a un servo a qué ángulo ir. Se puede generar con un Timer normal (gastando interrupciones) o con el periférico **PWM1**, que lo hace todo en hardware.
 

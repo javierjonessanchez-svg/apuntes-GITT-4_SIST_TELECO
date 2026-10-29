@@ -40,6 +40,9 @@ test:
 import Practica from '../../../src/asignaturas/seda/Practica.astro';
 import Registro from '../../../src/asignaturas/seda/Registro.astro';
 import Donde from '../../../src/asignaturas/seda/Donde.astro';
+import Frecuencia from '../../../src/asignaturas/seda/Frecuencia.astro';
+
+<Frecuencia sale="10 de 13" donde="PEI1 y final" practica="completar los bits de ADCR, calcular t_conv y f_s (ráfaga o arrancado por un Timer) y la ISR del DAC con el valor desplazado." peso="alta" />
 
 **Idea clave.** El **[ADC](../glosario/#adc)** (*Analog-to-Digital Converter*) convierte una tensión del pin en un número de 12 bits (0–4095) y el **[DAC](../glosario/#dac)** (*Digital-to-Analog Converter*) hace lo contrario con 10 bits (0–1023). Los dos van referidos a una [tensión de referencia](../glosario/#vref) $V_{REF}$, la que corresponde al número más alto, que en la Mini-DK2 es 3,3 V. Con el ADC se leen sensores (una LDR, un potenciómetro, un micrófono); con el DAC se sacan señales analógicas, como audio.
 
