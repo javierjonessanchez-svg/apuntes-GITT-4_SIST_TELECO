@@ -36,24 +36,34 @@ const ESTADO = { mano: 'a mano', pendiente: 'sin programar' } as const;
   </header>
 
   <section aria-labelledby="selector-titulo">
-    <h2 id="selector-titulo">Marca lo que tienes y lo que te piden</h2>
+    <h2 id="selector-titulo">Elige la función en dos pasos</h2>
     <form class="gp-selector" data-selector-funcion>
-      <fieldset class="gp-grupo-chips">
-        <legend>Me dan</legend>
-        <div class="gp-chips">
-          {etiquetas.datos.map((t) => <label class="gp-chip"><input type="checkbox" name="tengo" value={t} /><span>{t}</span></label>)}
-        </div>
-      </fieldset>
-      <fieldset class="gp-grupo-chips">
-        <legend>Me piden</legend>
-        <div class="gp-chips">
-          {etiquetas.busco.map((t) => <label class="gp-chip"><input type="checkbox" name="pido" value={t} /><span>{t}</span></label>)}
-        </div>
-      </fieldset>
-      <p class="gp-controles">
-        <button type="submit" class="boton">Buscar función</button>
-        <button type="reset" class="boton-copiar">Borrar marcas</button>
-      </p>
+      <div class="gp-paso" data-paso="1">
+        <fieldset class="gp-grupo-chips">
+          <legend><span class="gp-num">1</span> ¿Qué te dan? <small>Marca todo lo que tengas</small></legend>
+          <div class="gp-chips">
+            {etiquetas.datos.map((t) => <label class="gp-chip"><input type="checkbox" name="tengo" value={t} /><span>{t}</span></label>)}
+          </div>
+        </fieldset>
+        <p class="gp-controles">
+          <button type="button" class="boton" data-continuar>Continuar →</button>
+          <button type="reset" class="boton-copiar">Borrar marcas</button>
+        </p>
+      </div>
+      <div class="gp-paso" data-paso="2">
+        <p class="gp-resumen" data-resumen></p>
+        <fieldset class="gp-grupo-chips">
+          <legend><span class="gp-num">2</span> ¿Qué te piden? <small>Marca una o varias</small></legend>
+          <div class="gp-chips">
+            {etiquetas.busco.map((t) => <label class="gp-chip"><input type="checkbox" name="pido" value={t} /><span>{t}</span></label>)}
+          </div>
+        </fieldset>
+        <p class="gp-controles">
+          <button type="submit" class="boton">Buscar función</button>
+          <button type="button" class="boton-copiar" data-volver>← Cambiar lo que me dan</button>
+          <button type="reset" class="boton-copiar">Empezar de nuevo</button>
+        </p>
+      </div>
       <div class="gp-resultado-selector" data-resultado-selector aria-live="polite"></div>
     </form>
   </section>

@@ -82,8 +82,29 @@ if (raiz) {
       p.textContent = texto;
       return p;
     };
+    // Dos pasos: primero lo que te dan, luego lo que te piden (sin JavaScript se ven los dos)
+    const pasos = [...selector.querySelectorAll<HTMLElement>('[data-paso]')];
+    const resumen = selector.querySelector<HTMLElement>('[data-resumen]')!;
+    let paso = 1;
+    const irA = (n: number, foco = true): void => {
+      paso = n;
+      for (const p of pasos) p.hidden = p.dataset.paso !== String(n);
+      if (foco) pasos[n - 1].querySelector<HTMLElement>('legend')?.setAttribute('tabindex', '-1');
+      if (foco) pasos[n - 1].querySelector<HTMLElement>('legend')?.focus();
+    };
+    const continuar = (): void => {
+      const tengo = marcadas('tengo');
+      if (!tengo.length) { resultado.replaceChildren(nota('gp-vacio', 'Marca al menos un dato de los que te dan.')); return; }
+      resultado.replaceChildren();
+      resumen.textContent = 'Te dan: ' + tengo.join(', ');
+      irA(2);
+    };
+    selector.querySelector('[data-continuar]')!.addEventListener('click', continuar);
+    selector.querySelector('[data-volver]')!.addEventListener('click', () => { resultado.replaceChildren(); irA(1); });
+    irA(1, false);
     selector.addEventListener('submit', (e) => {
       e.preventDefault();
+      if (paso === 1) { continuar(); return; }
       const pido = marcadas('pido');
       if (!pido.length) { resultado.replaceChildren(nota('gp-vacio', 'Marca al menos una cosa en «Me piden».')); return; }
       const aciertos = buscarFunciones(etiquetas, marcadas('tengo'), pido);
@@ -102,7 +123,7 @@ if (raiz) {
       resultado.replaceChildren(lista);
       resultado.querySelector<HTMLElement>('li')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     });
-    selector.addEventListener('reset', () => resultado.replaceChildren());
+    selector.addEventListener('reset', () => { resultado.replaceChildren(); irA(1, false); });
   }
 
   // Búsqueda: tabla e índice se filtran con la misma consulta

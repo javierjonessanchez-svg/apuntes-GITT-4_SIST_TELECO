@@ -91,3 +91,10 @@
 .gp-casi { box-shadow: var(--sombra), inset 4px 0 0 var(--acento); }
 .gp-casi .gp-etiqueta { color: var(--texto); }
 .gp-acierto .gp-estado, .gp-acierto .gp-nota { margin-right: 8px; }
+
+/* Selector en dos pasos */
+.gp-paso[hidden] { display: none; }
+.gp-paso { display: grid; gap: 16px; }
+.gp-num { display: inline-grid; place-items: center; width: 28px; height: 28px; margin-right: 8px; border-radius: 50%; background: var(--primario); color: var(--sobre-primario); font-size: .9rem; font-variant-numeric: tabular-nums; }
+.gp-grupo-chips legend small { margin-left: 8px; color: var(--suave); font-weight: 400; font-size: .9rem; }
+.gp-resumen { margin: 0; padding: 10px 14px; border-radius: 12px; background: color-mix(in srgb, var(--primario) 8%, var(--superficie)); box-shadow: inset 0 0 0 1px var(--linea); }
