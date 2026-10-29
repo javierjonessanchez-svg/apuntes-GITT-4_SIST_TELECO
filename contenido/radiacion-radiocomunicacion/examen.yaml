@@ -740,3 +740,112 @@ guia:
     - {tema: Resolutores, funcion: Resolver_tipoA, que: 'Examen completo de tipo A, encadenado', archivo: funciones/resolutores/Resolver_tipoA.m}
     - {tema: Resolutores, funcion: Resolver_tipoB, que: 'Examen completo de tipo B, encadenado', archivo: funciones/resolutores/Resolver_tipoB.m}
     - {tema: Resolutores, funcion: Resolver_diseno, que: '¿Qué Pt cumple una disponibilidad objetivo? FM, Pt y potencia parásita', archivo: funciones/resolutores/Resolver_diseno.m}
+  avisos:
+    - 'Todo esto está pensado y comprobado con MATLAB R2023b (la versión del examen), y los números del ejemplo se han calculado en R2023b Update 11. En otra versión pueden cambiar detalles (por ejemplo los gases de gaspl), así que no te fíes de los mismos resultados.'
+    - 'Es una guía para estudiar: la resuelve MATLAB, no esta web. El examen es offline y sin IA, así que ahí usas el repo de funciones (iniciar y las plantillas), no la web.'
+    - 'No hay función para tierra esférica (difracción con d > d_max o sin reflexión) ni para R0,01 por datos mensuales; la discriminación del RPE se lee a ojo de la gráfica y se interpola.'
+    - 'Las funciones del tema 4 (ruido e interferencias) están marcadas como provisionales: revísalas con las transparencias.'
+  ejemplo:
+    titulo: 'Un problema inventado, de principio a fin'
+    aviso: 'Ejercicio inventado por mí, del mismo tipo que los de examen (obstáculos, margen dinámico, disponibilidad y XPD) pero con números propios. Los resultados salen de las funciones en MATLAB R2023b; en las llamadas van las entradas redondeadas, así que puede cambiar una centésima.'
+    datos:
+      - 'Enlace terrenal A–B de 30 km a 18 GHz, polarización vertical, K = 4/3.'
+      - 'Antena A: 40 m sobre una cota de 100 m. Antena B: 30 m sobre una cota de 120 m.'
+      - 'Dos obstáculos: a 12 km con cota 135 m y a 21 km con cota 125 m.'
+      - 'Pt = 30 dBm, Gt = Gr = 44 dBi, pérdidas de terminal de 2 dB en cada extremo. Mecanismo de protección: atenuador variable.'
+      - 'Receptor: filtro (T = 120 K, G = −1,5 dB), LNA (T = 150 K, G = 25 dB) y mezclador (T = 2500 K, G = 10 dB).'
+      - 'Señal de 140 Mbit/s en 16-QAM, roll-off 0,3, Eb/N0 = 14 dB y degradación de 2 dB.'
+      - 'R0,01 = 35 mm/h. Cuatro equipos en serie con MTBF = 150000 h y MTTR = 4 h. Objetivo de indisponibilidad: 0,06 %.'
+    apartados:
+      - titulo: '1) Potencia recibida en condiciones normales'
+        pasos:
+          - dan: ['f', 'd']
+            piden: ['Lbf', 'gases']
+            como: 'Siempre se empieza por el espacio libre y los gases. Ojo: la función pide Hz y metros.'
+            funcion: Calcular_Lb_std
+            llamada: '[Lbf, Latm] = Calcular_Lb_std(18e9, 30e3)'
+            resultado: 'Lbf = 147,09 dB y gases = 1,848 dB'
+          - dan: ['obstáculos', 'alturas de antena', 'K', 'f']
+            piden: ['Ld (Bullington)']
+            como: 'El enunciado da obstáculos con distancia y cota: es Bullington (rama «obstáculos» del árbol). Las cotas van sin flecha: la función la suma.'
+            funcion: Calcular_Lad_dif
+            llamada: '[Ld, Lcuch, caso] = Calcular_Lad_dif(18e9, 30e3, 4/3, 40, 100, 30, 120, [12e3 21e3], [135 125])'
+            resultado: 'Ld = 18,76 dB (rayo obstruido, con obstáculo ficticio)'
+          - dan: ['Pt', 'Lt', 'Gt']
+            piden: ['PIRE']
+            como: 'Las pérdidas de terminal van en el transmisor y también en el receptor.'
+            funcion: Calcular_PIRE
+            llamada: 'PIRE_dBm = Calcular_PIRE(30, 2, 44)'
+            resultado: 'PIRE = 72,00 dBm'
+          - dan: ['PIRE', 'Lb', 'Gr', 'Lr']
+            piden: ['Prx']
+            como: 'Lb = Lbf + gases + Ld = 167,70 dB.'
+            funcion: Calcular_Prx
+            llamada: 'Prx_dBm = Calcular_Prx(72, 167.70, 44, 2)'
+            resultado: 'Prx en CN = −53,70 dBm'
+      - titulo: '2) Margen dinámico del atenuador'
+        pasos:
+          - dan: ['T de cada etapa', 'G de cada etapa']
+            piden: ['T de la cadena']
+            como: 'Una etapa pasiva de L dB entra con G = −L.'
+            funcion: Calcular_T_cadena
+            llamada: 'Tent_K = Calcular_T_cadena([120 150 2500], [-1.5 25 10])'
+            resultado: 'T a la entrada = 343,05 K'
+          - dan: ['T', 'Rb', 'M', 'roll-off', 'Eb/N0']
+            piden: ['TH', 'B', 'N']
+            como: 'El umbral sale referido al punto donde está T, que aquí es la entrada de la cadena: el mismo punto que la Prx.'
+            funcion: Calcular_Umbral
+            llamada: '[TH_dBm, B_Hz, N_dBm] = Calcular_Umbral(343.05, 140e6, 16, 0.3, 14, 2)'
+            resultado: 'TH = −75,78 dBm (B = 45,5 MHz, N = −96,67 dBm)'
+          - dan: ['TH', 'Prx', 'mecanismo']
+            piden: ['MD', 'FM']
+            como: 'Con atenuador, MD = Prx en CN − TH, y FM = MD.'
+            funcion: Calcular_MD
+            llamada: 'r = Calcular_MD("atenuador", TH_dBm=-75.78, Lb_dB=167.70, Gr_dB=44, Lr_dB=2, PIRE_dBm=72)'
+            resultado: 'MD = FM = 22,09 dB'
+      - titulo: '3) Calidad de disponibilidad y MTTR máximo'
+        pasos:
+          - dan: ['f', 'polarización']
+            piden: ['k y α']
+            como: 'Coeficientes de la lluvia (UIT-R P.838) para 18 GHz y polarización vertical.'
+            funcion: Calcular_k_alfa
+            llamada: '[k, alfa] = Calcular_k_alfa(18, "V")'
+            resultado: 'k = 0,07708 y α = 1,0025'
+          - dan: ['f', 'd', 'R0,01', 'k y α']
+            piden: ['F0,01']
+            como: 'Enlace terrenal: se usa la longitud efectiva, no los 30 km.'
+            funcion: Calcular_F001
+            llamada: '[F001_dB, deff_km, gammaR_dBkm] = Calcular_F001(18, 30, 35, k, alfa)'
+            resultado: 'F0,01 = 37,59 dB (d_eff = 13,81 km)'
+          - dan: ['FM', 'F0,01']
+            piden: ['q % (U lluvia)']
+            como: 'La indisponibilidad por lluvia es el q % que cumple Fq = FM.'
+            funcion: Calcular_q_lluvia
+            llamada: 'U_lluvia_pct = Calcular_q_lluvia(22.09, 37.59, 18)'
+            resultado: 'U lluvia = 0,0382 %'
+          - dan: ['MTBF', 'MTTR']
+            piden: ['U equipos']
+            como: 'Equipos en serie: se suman los cuatro.'
+            funcion: Calcular_U_equipos
+            llamada: 'U_eq_pct = Calcular_U_equipos([150000 150000 150000 150000], 4)'
+            resultado: 'U equipos = 0,0107 %'
+          - dan: ['U lluvia', 'U equipos', 'U objetivo']
+            piden: ['disponibilidad']
+            como: 'Suma las dos y compara con el objetivo.'
+            funcion: Calcular_Disponibilidad
+            llamada: 'r = Calcular_Disponibilidad(0.0382, 0.0107, 0.06)'
+            resultado: 'U total = 0,0489 %, disponibilidad 99,9511 %: cumple'
+          - dan: ['U objetivo', 'U lluvia', 'MTBF']
+            piden: ['MTTR máximo']
+            como: 'Lo que deja la lluvia del objetivo se reparte por igual entre los equipos.'
+            funcion: Calcular_MTTR_max
+            llamada: 'MTTR_h = Calcular_MTTR_max(0.06 - 0.0382, [150000 150000 150000 150000], 4)'
+            resultado: 'MTTR máximo = 8,17 h por equipo'
+      - titulo: '4) XPD por lluvia en el máximo desvanecimiento'
+        pasos:
+          - dan: ['f', 'Fq']
+            piden: ['XPD lluvia']
+            como: 'En el máximo desvanecimiento, Fq = FM.'
+            funcion: Calcular_XPD_lluvia
+            llamada: 'XPD_dB = Calcular_XPD_lluvia(18, 22.09)'
+            resultado: 'XPD = 22,86 dB'

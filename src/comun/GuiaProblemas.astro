@@ -35,6 +35,12 @@ const ESTADO = { mano: 'a mano', pendiente: 'sin programar' } as const;
     <p class="entradilla">Contesta unas pocas preguntas y te dice qué funciones de MATLAB usar. Si ya sabes qué tienes, busca abajo en la tabla «me dan → me piden». Las fórmulas y los pasos de cada tipo están en el <a href={ruta(asignatura.slug, 'examen')}>modo examen</a>.</p>
   </header>
 
+  {guia.avisos && (
+    <aside class="hoja-aviso gp-avisos" aria-label="Qué cubre esta guía y qué no">
+      <ul>{guia.avisos.map((a) => <li>{a}</li>)}</ul>
+    </aside>
+  )}
+
   <section aria-labelledby="selector-titulo">
     <h2 id="selector-titulo">Elige la función en dos pasos</h2>
     <form class="gp-selector" data-selector-funcion>
@@ -99,6 +105,33 @@ const ESTADO = { mano: 'a mano', pendiente: 'sin programar' } as const;
       <button type="button" class="boton-copiar" data-reiniciar disabled>Empezar de nuevo</button>
     </p>
   </section>
+
+  {guia.ejemplo && (
+    <section aria-labelledby="ejemplo-titulo">
+      <h2 id="ejemplo-titulo">Ejemplo resuelto: {guia.ejemplo.titulo}</h2>
+      <p class="hoja-aviso">{guia.ejemplo.aviso}</p>
+      <div class="panel gp-enunciado">
+        <h3>Datos</h3>
+        <ul>{guia.ejemplo.datos.map((d) => <li>{d}</li>)}</ul>
+      </div>
+      {guia.ejemplo.apartados.map((ap) => (
+        <div class="gp-apartado">
+          <h3>{ap.titulo}</h3>
+          <ol class="gp-pasos">
+            {ap.pasos.map((p) => (
+              <li class="panel gp-paso-ej">
+                <p class="gp-casillas"><b>Me dan</b> {p.dan.map((t) => <span class="gp-marca">{t}</span>)} <b>Me piden</b> {p.piden.map((t) => <span class="gp-marca gp-marca-pido">{t}</span>)}</p>
+                <p class="gp-como">{p.como}</p>
+                <p class="gp-llamada"><a class="gp-fn" href={`#fn-${p.funcion}`}><code>{p.funcion}</code></a></p>
+                <div class="llamada"><code>{p.llamada}</code></div>
+                <p class="gp-res">→ {p.resultado}</p>
+              </li>
+            ))}
+          </ol>
+        </div>
+      ))}
+    </section>
+  )}
 
   <section aria-labelledby="buscar-titulo">
     <h2 id="buscar-titulo">Me dan → me piden → función</h2>

@@ -142,3 +142,24 @@ describe('selector de casillas', () => {
     expect(r[0].faltan).toEqual([]);
   });
 });
+
+describe('ejemplo resuelto', () => {
+  test('cada paso se encuentra con el selector: marcando sus casillas sale su función sin que falte nada', () => {
+    const g = real().guia!;
+    for (const ap of g.ejemplo!.apartados) {
+      for (const p of ap.pasos) {
+        const r = buscarFunciones(g.filas, p.dan, p.piden).filter((a) => a.faltan.length === 0);
+        const funciones = r.flatMap((a) => g.filas[a.indice].funciones);
+        expect(funciones, `${ap.titulo}: ${p.funcion}`).toContain(p.funcion);
+      }
+    }
+  });
+  test('la llamada de cada paso usa la función que dice', () => {
+    for (const ap of real().guia!.ejemplo!.apartados) for (const p of ap.pasos) expect(p.llamada).toContain(p.funcion);
+  });
+  test('avisa de que todo está pensado para MATLAB R2023b', () => {
+    const g = real().guia!;
+    expect(g.avisos!.join(' ')).toContain('R2023b');
+    expect(g.ejemplo!.aviso).toContain('R2023b');
+  });
+});

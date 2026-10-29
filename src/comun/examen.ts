@@ -50,6 +50,25 @@ const esquemaGuia = z.object({
     que: z.string().min(1),
     archivo: z.string().min(1),
   })).min(1),
+  // Qué cubre y qué no (versión de MATLAB, examen offline, huecos)
+  avisos: z.array(z.string().min(1)).optional(),
+  // Un problema inventado resuelto paso a paso: cada paso dice qué casillas marcarías y qué función sale
+  ejemplo: z.object({
+    titulo: z.string().min(1),
+    aviso: z.string().min(1),
+    datos: z.array(z.string().min(1)).min(1),
+    apartados: z.array(z.object({
+      titulo: z.string().min(1),
+      pasos: z.array(z.object({
+        dan: z.array(z.string().min(1)).min(1),
+        piden: z.array(z.string().min(1)).min(1),
+        como: z.string().min(1),
+        funcion: nombreFuncion,
+        llamada: z.string().min(1),
+        resultado: z.string().min(1),
+      })).min(1),
+    })).min(1),
+  }).optional(),
 });
 
 const esquemaMatlab = z.object({
@@ -165,6 +184,8 @@ function validarGuia(g: Guia, errores: string[]): void {
     if (f.estado === 'hecho' && !f.funciones.length && !f.nota) errores.push(`guía: la fila ${i + 1} (${f.piden}) está «hecho» sin función ni nota`);
     if (f.estado === 'pendiente' && f.funciones.length) errores.push(`guía: la fila ${i + 1} (${f.piden}) está pendiente pero cita funciones`);
   });
+
+  g.ejemplo?.apartados.forEach((a) => a.pasos.forEach((p, i) => citar(`el ejemplo (${a.titulo}, paso ${i + 1})`, [p.funcion])));
 
   const nodos = new Map(g.arbol.nodos.map((n) => [n.id, n]));
   if (nodos.size !== g.arbol.nodos.length) errores.push('guía: hay ids de nodo repetidos en el árbol');

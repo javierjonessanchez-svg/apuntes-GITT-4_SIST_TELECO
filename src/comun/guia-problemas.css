@@ -98,3 +98,19 @@
 .gp-num { display: inline-grid; place-items: center; width: 28px; height: 28px; margin-right: 8px; border-radius: 50%; background: var(--primario); color: var(--sobre-primario); font-size: .9rem; font-variant-numeric: tabular-nums; }
 .gp-grupo-chips legend small { margin-left: 8px; color: var(--suave); font-weight: 400; font-size: .9rem; }
 .gp-resumen { margin: 0; padding: 10px 14px; border-radius: 12px; background: color-mix(in srgb, var(--primario) 8%, var(--superficie)); box-shadow: inset 0 0 0 1px var(--linea); }
+
+/* Avisos y ejemplo resuelto */
+.gp-avisos ul { margin: 0; padding-left: 1.2em; display: grid; gap: 6px; }
+.gp-enunciado ul { margin: 0; padding-left: 1.2em; display: grid; gap: 4px; }
+.gp-enunciado h3 { margin-top: 0; }
+.gp-pasos { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.gp-paso-ej { display: grid; gap: 6px; min-width: 0; }
+.gp-paso-ej > p { margin: 0; }
+.gp-casillas { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: .92rem; }
+.gp-casillas b { color: var(--suave); font-size: .8rem; text-transform: uppercase; letter-spacing: .04em; margin-right: 2px; }
+.gp-casillas b:not(:first-child) { margin-left: 8px; }
+.gp-marca { padding: 1px 10px; border-radius: 999px; background: var(--primario); color: var(--sobre-primario); font-weight: 600; }
+.gp-marca-pido { background: var(--acento); color: var(--texto); }
+.gp-como { color: var(--suave); font-size: .95rem; text-wrap: pretty; }
+.gp-paso-ej .llamada code { white-space: pre-wrap; overflow-wrap: anywhere; }
+.gp-res { font-weight: 700; }
