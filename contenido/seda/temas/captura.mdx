@@ -45,6 +45,9 @@ test:
 import Registro from '../../../src/asignaturas/seda/Registro.astro';
 import Donde from '../../../src/asignaturas/seda/Donde.astro';
 import CronogramaCaptura from '../../../src/asignaturas/seda/widgets/CronogramaCaptura.astro';
+import Frecuencia from '../../../src/asignaturas/seda/Frecuencia.astro';
+
+<Frecuencia sale="9 de 13" donde="PEI1 y final" practica="medir el ancho, el ciclo de trabajo o la frecuencia restando capturas, y escribir la ISR que alterna el flanco." peso="alta" />
 
 **Idea clave.** Hasta aquí el [Timer](../glosario/#timer) **sacaba** señales por los pines [MATn.x](../glosario/#matnx). Ahora va al revés: con la **captura**, un [flanco](../glosario/#flanco) en un pin de entrada **copia el valor del [TC](../glosario/#tc)** en un registro. Así se mide frecuencia, ciclo de trabajo o ancho de un pulso con la precisión del reloj, no con la de la ISR. Antes, un caso intermedio: sacar **un solo pulso** de duración exacta.
 

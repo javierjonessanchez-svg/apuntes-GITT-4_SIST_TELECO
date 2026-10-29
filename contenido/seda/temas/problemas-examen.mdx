@@ -1,8 +1,8 @@
 ---
 titulo: "Problemas tipo examen"
-orden: 8
+orden: 10
 bloque: "Examen"
-resumen: "Cuatro problemas resueltos paso a paso: trama por UART, barrera con servo, depósito con histéresis y mando Sony"
+resumen: "Seis problemas resueltos paso a paso: trama por UART, barrera con servo, depósito con histéresis, mando Sony, grabación con DMA y tiempo de respuesta de varias tareas"
 saber:
   - "Método: 1) entradas, salidas y eventos; 2) estados (qué hay que recordar); 3) transiciones con evento [condición] / acción; 4) dónde se ejecuta la máquina; 5) código"
   - "Una trama por UART se recibe con una máquina de estados en la ISR de RDA: un byte, un paso. Hace falta un timeout para no quedarse colgado a mitad de trama"
@@ -10,9 +10,12 @@ saber:
   - "Histéresis: dos umbrales (encender por debajo de uno, apagar por encima de otro) evitan que la salida conmute sin parar por el ruido"
   - "Mando Sony: portadora de 38 kHz con un Timer en toggle (MR0 = F_PCLK/(2·38 kHz) − 1) y los tiempos (4T, 2T, T con T = 600 µs) con otro Timer"
   - "Sony: start de 4T con portadora, luego 12 bits empezando por el de menos peso (7 de comando y 5 de dirección). Un 1 es 2T de portadora y un 0 es T, cada uno seguido de T sin ella"
+  - "Pregunta larga de ADC con DMA: N = f_s · t, bloques = ⌈N/4095⌉, MR = F_tick/(2·f_s) − 1 y DACCNTVAL = F_PCLK/f_s − 1. Se calculan los valores de AD0CR y de DMACCConfig con desplazamientos"
+  - "Ejecutabilidad: T y D de cada función (la UART son 10 bits por byte con 8N1) y R = C + B + I iterando hasta que dos valores seguidos coincidan"
 fuentes:
   - "Apuntes de Miguel"
   - "Máquinas de estados finitas programadas y StateCharts (diapositivas de clase)"
+  - "LPC17xx GPDMA y Análisis de ejecutabilidad en un sistema reactivo (diapositivas de clase)"
   - "Problemas de máquinas de estados de exámenes anteriores (solo como referencia del estilo; los enunciados no se reproducen)"
   - "UM10360 (manual del LPC17xx), cap. 14, 21, 24 y 29"
 test:
@@ -469,5 +472,128 @@ void TIMER2_IRQHandler(void) {
 ```
 
 Midiendo la marca (y no el periodo entre bajadas) el último bit también se mide, aunque detrás no venga otro flanco de bajada.
+
+</details>
+
+## Problema 5. Sonómetro con grabación y reproducción
+
+<details>
+<summary>Enunciado</summary>
+
+Un sonómetro portátil con un LPC1768 (F_PCLK = 25 MHz en todos los periféricos) mide tres señales analógicas con el ADC y, al pulsar un botón, graba y reproduce el ruido ambiente. Las señales están en AD0.0 (micrófono), AD0.1 y AD0.3.
+
+a) Las tres señales se leen **en ráfaga**. Calcula CLKDIV para unos 800 Hz por canal, la frecuencia real y el tiempo de conversión, y escribe el valor de `AD0CR`.
+b) La grabación dura 3,2 s a 10 kHz con 8 bits, solo del micrófono (AD0.0), arrancada por MAT1.0 del Timer 1. Calcula el MR, el número de muestras y de bloques de DMA, y la memoria que ocupa. ¿Qué valor tiene `AD0CR`?
+c) Escribe los ajustes del canal de DMA de la grabación.
+d) La reproducción por el DAC se hace también con DMA a 10 kHz. Calcula `DACCNTVAL` y escribe los ajustes del canal.
+e) ¿Cuántas interrupciones por segundo se ahorra la CPU frente a hacerlo con ISR?
+
+</details>
+
+<details>
+<summary>Solución guiada</summary>
+
+**Respuesta corta (pseudocódigo).**
+
+```text
+a) CLKDIV + 1 = 25·10⁶/(800·65·3) = 160,3 → CLKDIV = 159
+   F_ADC = 25 MHz/160 = 156,25 kHz · f_s real = 156 250/(65·3) ≈ 801 Hz · t_conv = 65/156 250 = 416 µs
+   SEL = canales 0, 1 y 3 = 0x0B · BURST = 1 · PDN = 1 · START = 000
+   AD0CR = 0x0B | (159 << 8) | (1 << 16) | (1 << 21) = 0x219F0B
+
+b) MR1 = 25·10⁶/(2·10 000) − 1 = 1249 (MAT1.0 en conmutar, reset en MR1)
+   N = 10 000·3,2 = 32 000 muestras = 32 000 bytes (8 bits)
+   bloques = ⌈32 000/4095⌉ = 8, de 4000 muestras (cada uno dura 0,4 s)
+   AD0CR = 0x01 | (1 << 8) | (1 << 21) | (6 << 24) = 0x06200101   // t_conv = 5,2 µs ≤ 100 µs
+
+c) origen = byte alto del resultado de AD0DR0 · destino = grabacion[]
+   TransferSize = 4000 · ancho 8 bits · SI = 0 · DI = 1
+   DMACCConfig = (4 << 1) | (2 << 11) | 1 = 0x1009      // petición del ADC, periférico → memoria
+   8 canales encadenados con LLI; solo el último con I = 1 (y ITC)
+
+d) DACCNTVAL = 25·10⁶/10 000 − 1 = 2499 · DACCTRL = CNT_ENA | DMA_ENA = 0x0C
+   origen = grabacion[] · destino = byte alto de DACR · TransferSize = 4000 · ancho 8 bits · SI = 1 · DI = 0
+   DMACCConfig = (7 << 6) | (1 << 11) | 1 = 0x9C1        // petición del DAC, memoria → periférico
+   8 bloques encadenados; solo el último interrumpe
+
+e) Con ISR serían 10 000 interrupciones por segundo; con DMA, una por bloque o una al final.
+```
+
+**Paso a paso:**
+
+**a)** En ráfaga, cada conversión tarda 65 ciclos del reloj del ADC y se hace un canal tras otro, así que cada canal se muestrea con $f_s = F_{CLK\,ADC}/(65\cdot 3)$. Despejando, $CLKDIV + 1 = 25\cdot 10^6/(800\cdot 65\cdot 3) = 160{,}3$. CLKDIV tiene que ser entero (y $F_{CLK\,ADC} \le 13$ MHz, que se cumple de sobra): CLKDIV = 159, el divisor es 160 y salen 156,25 kHz, **801 Hz** por canal y $t_{conv} = 65/156\,250 = 416$ µs. En `AD0CR`: SEL = bits 0, 1 y 3 = `0x0B`, CLKDIV en los bits 15:8 (159 = `0x9F`), BURST (bit 16) a 1 y PDN (bit 21) a 1, con START = 000 (en ráfaga no se arranca a mano).
+
+**b)** El Timer 1 conmuta MAT1.0 en cada Match, así que una subida de MAT1.0 (que inicia cada conversión) ocurre **cada dos Match**: $MR_1 = F_{tick}/(2f_s) - 1 = 25\cdot 10^6/20\,000 - 1 = 1249$, justo entero. $N = 32\,000$ muestras de 8 bits son 32 000 bytes. Un bloque admite 4095, y $\lceil 32\,000/4095\rceil = 8$ bloques; con 8 bloques de 4000 sale justo (0,4 s cada uno). `AD0CR`: un solo canal (SEL = `0x01`), `BURST = 0`, START = 110 (MAT1.0) en los bits 26:24 y CLKDIV = 1 para que $t_{conv} = 65/12{,}5\,\text{MHz} = 5{,}2$ µs quepa de sobra en los 100 µs: `0x06200101`. Además, `AD0INTEN` con el bit del canal 0 y **sin** habilitar la interrupción del ADC en el NVIC.
+
+**c)** Canal de periférico a memoria: origen el byte alto del registro de datos del canal 0 del ADC (los 8 bits de más peso del resultado de 12), destino `grabacion[]`. `TransferSize = 4000`, ancho de 8 bits, `SI = 0` (el registro es fijo) y `DI = 1`. En `DMACCConfig`: `SrcPeripheral = 4` (ADC), `FlowCntrl = 010` y `E = 1`: $(4 \ll 1) \mid (2 \ll 11) \mid 1 = $ `0x1009`. Como hay 8 bloques de 4000, se encadenan 8 canales con `DMACCLLI` y solo el último lleva `I = 1`.
+
+**d)** El DAC cuenta $DACCNTVAL + 1$ ciclos entre muestras: $25\cdot 10^6/10\,000 - 1 = 2499$. `DACCTRL` con `CNT_ENA` y `DMA_ENA`: `0x0C`. Canal memoria→periférico: origen `grabacion[]` (`SI = 1`), destino el byte alto de `DACR` (`DI = 0`), 8 bits, `DestPeripheral = 7`, `FlowCntrl = 001`: $(7 \ll 6) \mid (1 \ll 11) \mid 1 = $ `0x9C1`. Otra vez 8 bloques encadenados, con `I = 1` solo en el último.
+
+**e)** Sin DMA, tanto al grabar como al reproducir habría 10 000 interrupciones por segundo. Con DMA, la CPU atiende como mucho una cada 0,4 s (o una sola al final de la lista).
+
+</details>
+
+## Problema 6. Cuatro tareas: T, D y tiempo de respuesta
+
+<details>
+<summary>Enunciado</summary>
+
+Un sistema con un LPC1768 (CCLK = 100 MHz) tiene que hacer estas cuatro cosas:
+
+1. Sacar una señal cuadrada de 4 kHz con un Match en conmutar.
+2. Muestrear un sensor a 25 kHz con el ADC arrancado por un Timer, leyendo cada resultado con una ISR.
+3. Recibir por la UART a 57 600 baudios, 8N1.
+4. Un tic de SysTick cada 50 ms para temporizaciones.
+
+a) Da T y D de cada tarea.
+b) Con los tiempos de ejecución C indicados abajo y estas prioridades (de mayor a menor): muestreo, cuadrada, UART, SysTick, calcula R de cada tarea y di si el sistema es ejecutable. El `main` tiene una región crítica de 5 µs.
+c) Ahora la UART tiene **el mismo nivel** que la cuadrada (la cuadrada con menor subprioridad). Recalcula R de la cuadrada y de la UART.
+d) Con las prioridades del apartado b, ¿cuánto puede durar como máximo la región crítica del `main`?
+
+| Tarea | C |
+|---|---|
+| Muestreo | 6 µs |
+| Cuadrada | 12 µs |
+| UART | 30 µs |
+| SysTick | 400 µs |
+
+</details>
+
+<details>
+<summary>Solución guiada</summary>
+
+**Respuesta corta.**
+
+```text
+a) cuadrada: T = D = 1/(2·4000) = 125 µs      muestreo: T = D = 1/25 000 = 40 µs
+   UART: T = D = 10/57 600 = 173,6 µs          SysTick: T = D = 50 ms
+
+b) muestreo:  B = 5 · R = 6 + 5 = 11 µs ≤ 40  ✓
+   cuadrada:  B = 5 · R = 12 + 5 + ⌈R/40⌉·6 → 23 µs ≤ 125  ✓
+   UART:      B = 5 · R = 30 + 5 + ⌈R/40⌉·6 + ⌈R/125⌉·12 → 59 µs ≤ 173,6  ✓
+   SysTick:   B = 5 · R → 741 µs ≤ 50 000  ✓      Sí es ejecutable
+
+c) cuadrada: B = máx{5, C_UART = 30} = 30 · R = 12 + 30 + ⌈R/40⌉·6 = 54 µs ≤ 125  ✓
+   UART: R = 30 + 5 + ⌈R/40⌉·6 + ⌈(R − 30)/125⌉·12 = 59 µs ≤ 173,6  ✓
+
+d) El plazo más justo es el del muestreo: 6 + RC ≤ 40 → RC ≤ 34 µs
+```
+
+**Paso a paso:**
+
+**a)** Con Match en conmutar, cada ISR da medio periodo: $T = D = 1/(2\cdot 4000) = 125$ µs. El muestreo a 25 kHz son 40 µs; el resultado se lee antes de la siguiente conversión. En la UART un byte 8N1 son 10 bits: $10/57\,600 = 173{,}6$ µs. SysTick, 50 ms (sin más restricciones, $D = T$).
+
+**b)** De mayor a menor nivel: muestreo, cuadrada, UART y SysTick, todos de niveles distintos. Los bloqueos vienen solo de la región crítica del `main` (5 µs): el resto de tareas sí se pueden interrumpir.
+
+- *Muestreo*: nadie la interfiere. $R = 6 + 5 = 11$ µs ≤ 40.
+- *Cuadrada*: $R_0 = 12 + 5 = 17$. Con 17, $\lceil 17/40\rceil\cdot 6 = 6$ → 23. Con 23, otra vez 6 → 23. **23 µs** ≤ 125.
+- *UART*: $R_0 = 30 + 5 = 35$. Con 35: $\lceil 35/40\rceil\cdot 6 + \lceil 35/125\rceil\cdot 12 = 18$ → 53. Con 53: $12 + 12 = 24$ → 59. Con 59: $12 + 12$ → 59. **59 µs** ≤ 173,6.
+- *SysTick*: $R_0 = 405$. Con 405: $11\cdot 6 + 4\cdot 12 + 3\cdot 30 = 204$ → 609. Con 609: $16\cdot 6 + 5\cdot 12 + 4\cdot 30 = 276$ → 681. Con 681: $18\cdot 6 + 6\cdot 12 + 4\cdot 30 = 300$ → 705. Con 705: $18\cdot 6 + 6\cdot 12 + 5\cdot 30 = 330$ → 735. Con 735: $19\cdot 6 + 6\cdot 12 + 5\cdot 30 = 336$ → 741. Con 741: 336 → **741 µs** ≤ 50 000.
+
+Todas cumplen $R \le D$: **es ejecutable**. El SysTick tarda 741 µs en acabar en el peor caso, y aun así es mucho menos que sus 50 ms.
+
+**c)** Ahora la UART y la cuadrada son del mismo nivel y no se interrumpen. *Cuadrada*: si la UART acaba de empezar, la cuadrada espera a que termine: $B = \max\{5,\ C_{UART} = 30\} = 30$. $R_0 = 12 + 30 = 42$; $\lceil 42/40\rceil\cdot 6 = 12$ → 54; $\lceil 54/40\rceil = 2$ → 54. $R = 54$ µs ≤ 125 ✓. *UART*: la cuadrada **no la interrumpe**, así que solo se cuela antes de que empiece: se usa $R - C$: $R = 30 + 5 + \lceil R/40\rceil\cdot 6 + \lceil (R - 30)/125\rceil\cdot 12$. Con $R_0 = 35$: $6 + \lceil 5/125\rceil\cdot 12 = 18$ → 53; con 53: $12 + 12 = 24$ → 59; con 59: $12 + 12$ → 59. $R = 59$ µs ≤ 173,6 ✓. Sigue siendo ejecutable.
+
+**d)** La que tiene menos margen es la de muestreo (plazo de 40 µs): $R = C + RC \le D$ → $RC \le 40 - 6 = 34$ µs. Con 34 µs, la cuadrada tendría $R = 12 + 34 + 2\cdot 6 = 58$ ≤ 125 (el muestreo la interrumpe dos veces) y la UART seguiría por debajo de 173,6, así que manda el muestreo.
 
 </details>

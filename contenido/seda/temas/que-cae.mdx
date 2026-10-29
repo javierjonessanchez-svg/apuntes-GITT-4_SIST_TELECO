@@ -1,0 +1,99 @@
+---
+titulo: "Qué cae en el examen"
+orden: 0
+bloque: "Empieza aquí"
+resumen: "Qué temas se repiten en los exámenes de 2022 a 2026, con qué tipo de pregunta y en qué orden estudiarlos"
+saber:
+  - "Casi todos los exámenes abren con una pregunta larga de un sistema con sensores: apartados encadenados de ADC, servo con Timer, captura, DAC y DMA. Es lo más repetido de toda la asignatura"
+  - "El DMA sale en 12 de los 13 exámenes con solución, el ADC en 10, el servo con Timer en 10 y la UART en 11. Son lo primero que hay que dominar"
+  - "En la primera prueba intermedia (noviembre) entran ADC, DAC, Timers, PWM y DMA; desde 2024 también la UART con una máquina de estados y, en la última convocatoria, la ejecutabilidad. La segunda y el final añaden I²C, HTTP, memoria de doble puerto, DSP y RTOS"
+  - "Los tipos de pregunta se repiten: poner los bits de un registro, calcular un tiempo o una frecuencia, escribir una ISR (el pseudocódigo se acepta), dibujar una trama o una máquina de estados, y T y D o R de una lista de tareas"
+  - "Las convocatorias extraordinarias reciclan preguntas de otros años con los números cambiados: practicar un problema con otros valores sirve más que memorizar el resultado"
+fuentes:
+  - "Exámenes de SEDA de 2022 a 2026 con solución (recuento propio; no se reproducen enunciados ni soluciones)"
+  - "Apuntes de Miguel"
+---
+import Donde from '../../../src/asignaturas/seda/Donde.astro';
+
+**Cómo se ha hecho esta guía.** Se han leído los **13 exámenes con solución** que hay de enero de 2022 a junio de 2026 (primera y segunda prueba intermedia, finales y extraordinarias) y se han contado los apartados por tema. Es un recuento a mano: una diferencia de ±1 por tema es normal. Y faltan convocatorias enteras de las que no hay examen (la segunda intermedia de 2023, el final de 2024 y las extraordinarias de 2022 a 2024). Sirve para **decidir en qué gastar el tiempo**, no para adivinar el examen. Aquí no hay enunciados ni soluciones de esos exámenes: los problemas de la página de [problemas tipo examen](../problemas-examen/) son propios.
+
+> **Qué entra en la primera intermedia (9 de noviembre).** La guía de la asignatura no publica la lista de temas. Por lo que ha entrado en las primeras intermedias anteriores, es razonable preparar: ADC, DAC, Timers (Match, captura, PWM y servos), DMA, SysTick y la UART con su máquina de estados. La **ejecutabilidad** entró por primera vez en la de 2025. Confírmalo con el profesor.
+
+## Lo que más cae
+
+| Tema | Exámenes (de 13) | Dónde suele salir | Qué piden | Página |
+|---|---|---|---|---|
+| **DMA** | 12 | Intermedia 1 y final | Lista de ajustes de un canal; muestras, bloques y DACCNTVAL | [DMA](../dma/) |
+| **UART** | 11 | Intermedia 2, final | DL, velocidad real, tiempo de una trama, dibujar la señal, máquina de estados de una trama | [UART](../uart/) |
+| **ADC** | 10 | Intermedia 1 y final | Bits de ADCR, CLKDIV, tiempo de conversión, frecuencia de muestreo, ISR que guarda muestras | [ADC y DAC](../adc-dac/) |
+| **Servo con Timer** | 10 | Intermedia 1 y final | Periodo y ancho de pulso, valores de Match, ISR | [PWM y servos](../pwm-servos/), [Timers](../timers-match/) |
+| **Captura** | 9 | Intermedia 1 y final | Medir ancho de pulso, ciclo de trabajo o frecuencia; ISR | [Pulsos y captura](../captura/) |
+| **Máquinas de estados** | 9 | Intermedia 2, final | Dibujar un StateChart de un protocolo serie o de un control; a veces el código | [Máquinas de estados](../maquinas-estados/) |
+| **Ejecutabilidad** | 9 | Desde 2025 también en intermedia 1 | T y D de una lista de tareas; tiempo de respuesta en varios escenarios | [Ejecutabilidad](../ejecutabilidad/) |
+| **DAC** | 8 | Intermedia 1 y final | ISR que saca una tabla de muestras, frecuencia de interrupción, tamaño de la tabla | [ADC y DAC](../adc-dac/) |
+| I²C, HTTP/CGI, doble puerto, DSP, RTOS | 9 cada uno | Intermedia 2, final | Funciones de lectura/escritura; teoría y cálculo de direcciones | (próximamente) |
+| PWM por módulo, SysTick | 4 cada uno | Intermedia 1 | Función que fija el ciclo de trabajo; contar tics | [PWM](../pwm-servos/), [reloj](../reloj-gpio-interrupciones/) |
+
+## La pregunta grande
+
+La mayoría de las pruebas empiezan con **una sola pregunta larga** (a, b, c… hasta ocho o nueve apartados) sobre un mismo sistema, por ejemplo un monitor de temperatura con alarma, un servo y un sensor de posición. Los apartados van **encadenados**: la configuración del ADC del primero se reutiliza luego en la grabación con DMA. Cada uno tiene una forma que se repite:
+
+1. **ADC**: completar los bits de `ADCR` (canal, divisor de reloj, ráfaga o disparo, encendido) con comentarios, y calcular $t_{conv}$ y $f_s$.
+2. **Servo con Timer**: elegir el recurso, calcular los Match y escribir la ISR o el pseudocódigo.
+3. **Captura**: medir el ancho de un pulso, un ciclo de trabajo o una posición.
+4. **Audio con el DAC**: ISR de un Timer que saca muestras de una tabla, con su frecuencia y el tamaño de la tabla.
+5. **DMA**: lo mismo sin interrupciones por muestra: lista de ajustes, número de bloques, `DACCNTVAL`.
+6. **UART, I²C o web** (final y segunda intermedia): una función o una trama.
+
+Por eso conviene **practicar la cadena entera**, no cada tema suelto: el ADC por Timer y DMA ([DMA](../dma/)) y el servo ([PWM y servos](../pwm-servos/)) son las piezas que más se repiten juntas.
+
+## Tipos de pregunta y cómo responderlas
+
+| Tipo | Ejemplo de lo que piden | Qué cuenta en la respuesta |
+|---|---|---|
+| Bits de un registro | Completar `ADCR`, `LCR`, `MCR`… | El valor con **desplazamientos** y un **comentario** por campo (los comentarios puntúan) |
+| Cálculo | $f_s$, $MR$, $DL$, $t_{trama}$, `DACCNTVAL` | La fórmula, la sustitución y el resultado **con unidades** |
+| ISR o función | Guardar muestras, avanzar una máquina de estados | **Borrar el flag**, lo mínimo imprescindible, variables `volatile`. El pseudocódigo claro suele valer |
+| Dibujo | Trama de la UART, StateChart | Start, bits de menos a más peso, paridad y stop; en el StateChart, evento [condición] / acción |
+| Tabla de tareas | T y D de cada una | Qué subsistema usas y **por qué** esa T y esa D |
+| Tiempo de respuesta | Escenarios con prioridades distintas | La tabla de iteraciones y la conclusión (¿$R \le D$?) |
+| Teoría | Qué es un DSP, ventajas de un RTOS | Explicar y **justificar**, no solo enumerar |
+
+## Tendencias de 2022 a 2026
+
+- **Suben**: la ejecutabilidad (de ninguna en las primeras intermedias hasta 2024 a aparecer ya en la de 2025), las máquinas de estados de **tramas por UART** con cálculo de velocidad y dibujo de la señal, y las preguntas de I²C y de servidor web con chips distintos cada año.
+- **Bajan**: la lectura de un mando de infrarrojos, el brillo con el módulo PWM, y los controles por temporizador (aire acondicionado, cafetera), que solo salieron en 2022 y 2023.
+- **Siempre**: DMA y UART casi todos los años. La teoría de DSP, RTOS y memoria de doble puerto sale en **todas** las pruebas distintas de la primera intermedia.
+- **Se reciclan**: en las extraordinarias suelen volver apartados de otras convocatorias con otros valores (otra velocidad, paridad distinta, otro tiempo de grabación). Si sabes hacer un problema con unos números, sabes hacerlo con otros.
+
+## Fallos que se repiten
+
+Estos errores **cuestan puntos** y salen una y otra vez:
+
+- **Parar un Timer con `TC = 0x02`.** El bit de parada está en el control (`TCR`), no en el contador (`TC`). Mira la fórmula en el [modo examen](../examen/).
+- **No desplazar la muestra del DAC.** `DACR` guarda el valor en los bits 15:6: un valor de 8 bits va `<< 8`.
+- **Olvidar el 4095 del DMA.** Un bloque tiene como mucho 4095 transferencias, así que 50 000 muestras no caben en uno.
+- **DLAB.** Escribir DLL o DLM sin poner antes `DLAB = 1`, o no devolverlo a 0.
+- **Contar mal los bits de la trama.** 8N1 son 10; 8E1, 11; 8O2, 12.
+- **Redondear hacia abajo** en el número de veces que una tarea interrumpe a otra: es hacia arriba.
+- **El flag.** Olvidar borrar el flag del Timer (`IR`) o el de captura en la ISR.
+
+## Cómo estudiar según el tiempo
+
+1. **Si te quedan días**: lee los temas en orden, haz las preguntas tipo test y rehaz los problemas con **otros números**.
+2. **Si te quedan pocas horas**: cada tema tiene arriba un aviso de cuánto cae («Cae casi siempre» o «Cae a menudo»). Empieza por **DMA, ADC, servo, captura, UART** y luego **ejecutabilidad**. Ensaya con la hoja del [modo examen](../examen/): pasos por tipo de problema, fórmulas y registros.
+3. **El día antes**: el modo examen, solo el recuadro «Practica» de cada tema, y un problema entero de cada tipo.
+
+<details>
+<summary>¿Qué significa que algo salga «en 10 de 13 exámenes»?</summary>
+
+Que en 10 de los 13 exámenes con solución hay al menos un apartado de ese tema. No quiere decir que vaya a salir el mismo número de veces ni con el mismo peso (en los archivos no se ven las puntuaciones). Sirve como orden de prioridad, no como probabilidad. *(Explicación del propio recuento.)*
+
+</details>
+
+<details>
+<summary>¿Por qué la ejecutabilidad entra en la guía si solo ha salido en la primera intermedia una vez?</summary>
+
+Porque en las demás pruebas y en los finales sale casi siempre, y porque ya apareció en la primera intermedia más reciente. Es tema nuevo para esa prueba: mejor llevarlo preparado. *(Valoración a partir del recuento.)*
+
+</details>

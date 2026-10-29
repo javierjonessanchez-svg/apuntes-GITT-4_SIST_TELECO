@@ -42,6 +42,9 @@ test:
 import Practica from '../../../src/asignaturas/seda/Practica.astro';
 import Registro from '../../../src/asignaturas/seda/Registro.astro';
 import Donde from '../../../src/asignaturas/seda/Donde.astro';
+import Frecuencia from '../../../src/asignaturas/seda/Frecuencia.astro';
+
+<Frecuencia sale="4 de 13" donde="PEI1" practica="SysTick_Config y los contadores por software (3 s con un tic de 10 ms); y las prioridades del NVIC, que son la base de la ejecutabilidad." peso="baja" />
 
 **Idea clave.** Antes de usar cualquier periférico del LPC1768 hay que hacer siempre lo mismo: **alimentarlo** ([PCONP](../glosario/#pconp)), elegir su **reloj** ([PCLKSEL](../glosario/#pclk)), llevarlo a sus **pines** ([PINSEL](../glosario/#pinsel)) y, si va a interrumpir, **habilitar su interrupción** en el [NVIC](../glosario/#nvic). Este tema explica cada paso. Los siguientes solo cambian el periférico.
 

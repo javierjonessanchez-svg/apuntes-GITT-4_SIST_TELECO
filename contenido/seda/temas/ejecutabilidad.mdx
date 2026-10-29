@@ -1,0 +1,217 @@
+---
+titulo: "Ejecutabilidad: tareas, plazos y tiempo de respuesta"
+orden: 8
+bloque: "Diseño software"
+resumen: "Cómo saber si al procesador le da tiempo: identificar T y D de cada tarea y calcular el tiempo de respuesta con bloqueo e interferencia"
+saber:
+  - "Un sistema es ejecutable si cada tarea acaba, en el peor caso, antes de su plazo: R ≤ D para todas. Una tarea es el código que lanza un evento (casi siempre una ISR)"
+  - "C es lo que dura la tarea sin interrupciones, T el tiempo mínimo entre dos eventos que la lanzan, D el plazo para acabar y R el tiempo máximo real desde el evento hasta que termina"
+  - "Interrupción con menor número de prioridad = mayor nivel. Una ISR solo interrumpe a otra de menor nivel; del mismo nivel no se interrumpen entre sí. Tras el reset todas están al mismo nivel"
+  - "R = C + B + I. B (bloqueo) viene de tareas menos prioritarias; I (interferencia) de las más prioritarias. B es el peor bloqueo, no la suma"
+  - "I = suma de ⌈R/T_j⌉·C_j sobre las tareas más prioritarias que pueden interrumpir. Si son del mismo nivel y no interrumpen, se usa R − C en vez de R"
+  - "R sale a ambos lados de la fórmula: se resuelve iterando desde R = C + B hasta que dos pasadas seguidas dan lo mismo"
+  - "Una señal que genera el hardware sin interrupción (PWM, un Timer que arranca el ADC por MAT) no es una tarea: solo lo es el código que se ejecuta con cada evento"
+fuentes:
+  - "Análisis de ejecutabilidad en un sistema reactivo (diapositivas de clase)"
+  - "Resumen de interrupciones del LPC1768 (diapositivas de clase)"
+  - "UM10360 (manual del LPC17xx), cap. 6 (NVIC)"
+test:
+  - p: "Una tarea que se lanza cada 100 µs tiene C = 20 µs y la interrumpen otras dos que valen 15 µs y 30 µs de C, con T = 250 µs y 400 µs. Con R = 80 µs, ¿cuál es la interferencia?"
+    o: ["45 µs", "20 µs", "90 µs", "15 µs"]
+    c: 0
+    e: "⌈80/250⌉·15 + ⌈80/400⌉·30 = 1·15 + 1·30 = 45 µs. Hay que redondear hacia arriba: aunque solo una fracción del periodo quepa, la tarea puede llegar una vez."
+  - p: "Dos tareas con el mismo nivel de prioridad, ¿puede una interrumpir a la otra?"
+    o: ["No: la que llega mientras la otra se ejecuta espera a que termine", "Sí, la de menor subprioridad", "Sí, siempre", "Solo si lo permite el NVIC con un registro"]
+    c: 0
+    e: "Solo interrumpe quien tiene más nivel de prioridad. La subprioridad solo decide cuál va primero si las dos están pendientes a la vez."
+  - p: "Cuando una tarea de mayor prioridad no puede interrumpir a la tarea i (mismo nivel), ¿qué intervalo se usa en el número de veces que puede retrasarla?"
+    o: ["R − C de la tarea i, porque no puede empezar durante su ejecución", "R", "T de la tarea más prioritaria", "C de la tarea i"]
+    c: 0
+    e: "Esa tarea solo puede colarse antes de que i empiece. Una vez que i está ejecutándose, la espera."
+  - p: "Se recibe por la UART a 38 400 baudios, 8N1. ¿Cuánto valen T y D de la tarea de recepción?"
+    o: ["Unos 260 µs cada una (10 bits · 26 µs)", "Unos 26 µs", "Unos 2,6 ms", "Unos 8 bits · 26 µs"]
+    c: 0
+    e: "El bit dura 1/38 400 = 26 µs y la trama son 10 bits: T = D = 260 µs. Si el dato se queda sin leer más tiempo, el siguiente lo pisa."
+  - p: "Un PWM de 20 kHz generado por el módulo PWM sin interrupciones, ¿es una tarea?"
+    o: ["No: no hay código que se ejecute con cada periodo", "Sí, con T = 50 µs", "Sí, con D = 25 µs", "Solo si usa el reloj de la CPU"]
+    c: 0
+    e: "El hardware genera la señal solo. Solo cuenta como tarea lo que hace la CPU en respuesta a un evento."
+---
+import Frecuencia from '../../../src/asignaturas/seda/Frecuencia.astro';
+import Donde from '../../../src/asignaturas/seda/Donde.astro';
+import EnExamen from '../../../src/comun/EnExamen.astro';
+
+<Frecuencia sale="9 de 13" donde="PEI1 (desde la última convocatoria), PEI2 y final" practica="dar T y D de una lista de tareas (con su subsistema) y calcular R_i con la tabla de bloqueo e interferencia, iterando." />
+
+**Idea clave.** Un microcontrolador atiende muchos eventos a la vez con una sola CPU: un Timer, una conversión, un byte que llega. La **ejecutabilidad** responde a una pregunta: *¿le da tiempo a la CPU a atenderlos todos antes de que sea tarde?* Se contesta con números: cuánto dura cada tarea, cada cuánto llega y cuánto puede retrasarla otra.
+
+## Qué es una tarea
+
+Una **tarea** es el trozo de código que se ejecuta cuando llega un evento: casi siempre, una **ISR** (la rutina de interrupción de un Timer, de la UART, del ADC…). Lo que hace el hardware solo no es una tarea. Dos ejemplos:
+
+- El módulo PWM saca una cuadrada sin interrupciones: **no hay tarea**.
+- Un Timer arranca el ADC por MAT y no interrumpe: **no hay tarea** por el Timer. Si luego el ADC interrumpe al terminar, la ISR del ADC **sí** es una tarea.
+
+## Prioridades del LPC1768 (repaso)
+
+Cada interrupción tiene un número de prioridad: **cuanto más bajo, mayor nivel**. Se compone de un campo de prioridad y otro de subprioridad (reparten 5 bits). Las reglas:
+
+- Una ISR **interrumpe** a otra solo si tiene **mayor nivel** (menor número de prioridad).
+- Del **mismo nivel**, no se interrumpen entre sí. Si hay dos pendientes, va primero la de menor número de **subprioridad**; si empatan, la de menor número de excepción.
+- **Tras el reset** todas valen 0: todas al mismo nivel, ninguna interrumpe a ninguna.
+
+El programa principal (el `main`) es lo de menor prioridad: cualquier ISR lo interrumpe. Salvo que tenga una **región crítica** (un trozo con las interrupciones deshabilitadas): durante ella nada lo interrumpe.
+
+## Los cuatro tiempos de una tarea
+
+<Donde>
+
+- $C_i$ (*Computation time*): lo que dura la tarea $i$ **si nadie la interrumpe**, en el peor camino del código. En µs o ms.
+- $T_i$ (periodo mínimo): el tiempo **mínimo** entre dos eventos que la lanzan. Si el evento es asíncrono, el menor intervalo posible entre dos consecutivos.
+- $D_i$ (*Deadline*, plazo): el tiempo que tiene la tarea para acabar. Si se pasa, el sistema falla. Lo marca el hardware o el diseñador.
+- $R_i$ (*Response time*, tiempo de respuesta): el máximo que puede pasar desde que llega el evento hasta que la tarea acaba, contando los retrasos de las demás.
+
+</Donde>
+
+El sistema es **ejecutable** si, para todas las tareas,
+
+$$
+R_i \le D_i
+$$
+
+Se ve en un cronograma: el evento llega, la tarea espera si hay algo más importante (o algo que no se puede interrumpir), se ejecuta y acaba. De la llegada al final pasa $R_i$; no puede pasar de $D_i$.
+
+## Cómo sacar T y D de cada tarea
+
+Es la parte que más se pregunta: una lista de funciones del sistema y, para cada una, **qué subsistema usas** y **cuánto valen T y D**. La regla general: $T$ es cada cuánto se repite el evento en el peor caso (el más rápido), y $D$ es el tiempo hasta que el resultado se estropea o se pierde. Con frecuencia **D = T**. Casos que se repiten (todos con números inventados):
+
+| Qué hay que hacer | Subsistema | T y D |
+|---|---|---|
+| Cuadrada de 5 kHz con un Match en conmutar | Timer con MAT en conmutar y ISR que suma medio periodo al Match | $T = D = \frac{1}{2\cdot 5000} = 100$ µs. Cada ISR hace un flanco, y un retraso de menos de $T$ no estropea la señal |
+| Muestrear a 20 kHz | Timer con MAT que arranca el ADC e interrupción del ADC | $T = D = 50$ µs. La muestra tiene que leerse antes de que la siguiente conversión la pise |
+| Medir una frecuencia de 200 Hz a 2 kHz | Captura con interrupción en un flanco | $T = D = 1/2000 = 0{,}5$ ms (manda la frecuencia más alta) |
+| Tic periódico cada 20 ms para temporizaciones | SysTick con interrupción | $T = D = 20$ ms si nadie pide más precisión |
+| Recibir por la UART a 19 200 baudios, 8N1 | UART con RDA | $T = D = 10\cdot \frac{1}{19\,200} \approx 0{,}52$ ms (10 bits por byte) |
+| Dos señales PWM de 20 kHz | Módulo PWM | **Sin tarea**: el hardware las genera solo |
+| Medir la velocidad de un motor con encoder en cuadratura de 200 pulsos por vuelta a 3000 rpm | Captura de un canal; en la ISR se lee el otro canal para saber el sentido | $T = \frac{1}{(3000/60)\cdot 200} = 100$ µs; $D = T/4 = 25$ µs (hay que leer el otro canal antes de que cambie) |
+
+Dos detalles del UART: si la trama lleva paridad o 2 stops, los bits por byte son 11 o 12, no 10. Y con una ráfaga de $N$ canales en el ADC, cada canal se convierte una vez por vuelta, así que $T$ es el tiempo de la vuelta completa; si lees con el registro global (AD0GDR), cada conversión pisa a la anterior y $D$ baja al tiempo de **una** conversión.
+
+## El tiempo de respuesta
+
+$$
+R_i = C_i + B_i + I_i
+$$
+
+<Donde>
+
+- $R_i$: tiempo de respuesta de la tarea $i$. $C_i$: su duración sin interrupciones.
+- $B_i$: **bloqueo**, el retraso que le causan tareas **menos** prioritarias.
+- $I_i$: **interferencia**, el retraso que le causan tareas **más** prioritarias.
+
+</Donde>
+
+**Bloqueo $B_i$.** El peor caso es que el evento de $i$ llegue justo después de que algo menos importante haya empezado y no se pueda interrumpir:
+
+- una **región crítica** del `main` o de una tarea menos prioritaria que $i$ (que $i$ podría interrumpir, pero que tiene las interrupciones deshabilitadas): el bloqueo es lo que dura esa región;
+- una tarea de **menor o igual** prioridad que $i$ y que $i$ **no** puede interrumpir (mismo nivel): el bloqueo es su $C$ entero.
+
+De todas esas fuentes solo cuenta **la peor**, porque tras un bloqueo la tarea $i$ ya manda:
+
+$$
+B_i = \max_j \{B_{ij}\}
+$$
+
+<Donde>
+
+- $B_{ij}$: el retraso que causaría la fuente $j$ (la duración de su región crítica o su $C_j$ si no se puede interrumpir), en µs o ms.
+- $\max$: el mayor de todos. **No se suman.**
+
+</Donde>
+
+**Interferencia $I_i$.** Cada tarea $j$ de **mayor nivel** que sí interrumpe a $i$ se cuela cuantas veces pueda llegar mientras $i$ aún no ha acabado, es decir, durante $R_i$:
+
+$$
+I_i = \sum_{j} \left\lceil \frac{R_i}{T_j} \right\rceil C_j
+$$
+
+<Donde>
+
+- $j$: cada tarea de mayor nivel de prioridad que $i$. $T_j$ y $C_j$: su periodo mínimo y su duración.
+- $\lceil\ \rceil$: redondeo **hacia arriba**: si en $R_i$ cabe una vez y media el periodo de $j$, $j$ puede llegar dos veces.
+
+</Donde>
+
+Si la tarea más prioritaria $j$ es del **mismo nivel** que $i$ (con menor subprioridad), **no puede interrumpirla**: solo se cuela si llega antes de que $i$ empiece. Por eso su ventana no es $R_i$ sino lo que pasa **antes** de que $i$ arranque, $R_i - C_i$:
+
+$$
+I_{ij} = \left\lceil \frac{R_i - C_i}{T_j} \right\rceil C_j
+$$
+
+**Cómo se resuelve.** $R_i$ aparece a los dos lados (dentro del redondeo), así que no se despeja: se **itera**.
+
+1. Empieza con $R^{(0)} = C_i + B_i$ (nadie interfiere todavía).
+2. Calcula $I_i$ con ese $R$ y obtén $R^{(1)} = C_i + B_i + I_i$.
+3. Repite con $R^{(1)}$ en el redondeo, y así hasta que **dos valores seguidos sean iguales**. Ese es $R_i$.
+4. Compara con $D_i$. Si $R_i > D_i$, la tarea no es ejecutable (si en algún paso el valor ya supera $D_i$ puedes parar: no lo será).
+
+## Ejemplo resuelto (números inventados)
+
+Tres tareas del mismo sistema, de mayor a menor prioridad (todas de niveles distintos), y un `main` con una región crítica de 10 µs:
+
+| Tarea | C (µs) | T (µs) | D (µs) |
+|---|---|---|---|
+| $\tau_1$ | 20 | 100 | 45 |
+| $\tau_2$ | 40 | 250 | 250 |
+| $\tau_3$ | 150 | 1000 | 1000 |
+
+**$\tau_1$.** Nadie la interfiere. Bloqueo: la región crítica de 10 µs (las demás sí se pueden interrumpir). $R_1 = 20 + 10 = 30$ µs ≤ 45 ✓.
+
+**$\tau_2$.** $B_2 = 10$. Interfiere $\tau_1$. $R^{(0)} = 40 + 10 = 50$; $I = \lceil 50/100\rceil\cdot 20 = 20$ → $R^{(1)} = 70$; $\lceil 70/100\rceil = 1$ → sigue en 70. $R_2 = 70 \le 250$ ✓.
+
+**$\tau_3$.** $B_3 = 10$. Interfieren $\tau_1$ y $\tau_2$. $R^{(0)} = 150 + 10 = 160$. Con 160: $\lceil 160/100\rceil\cdot 20 + \lceil 160/250\rceil\cdot 40 = 40 + 40$ → $R^{(1)} = 240$. Con 240: $60 + 40$ → 260. Con 260: $60 + 80$ → 300. Con 300: $60 + 80$ → 300 (igual): $R_3 = 300 \le 1000$ ✓.
+
+**El sistema es ejecutable.** Y se ve **qué manda**: $\tau_1$ tiene un plazo de solo 45 µs, así que su margen se agota con el bloqueo: $R_1 = 20 + RC \le 45$, luego la región crítica del `main` no puede pasar de **25 µs**.
+
+**Cambio de escenario.** Ahora $\tau_1$ y $\tau_2$ tienen **el mismo nivel** de prioridad ($\tau_1$ con menos subprioridad). $\tau_1$ ya no puede interrumpir a $\tau_2$, así que si $\tau_2$ acaba de empezar, $\tau_1$ espera: $B_1 = \max\{10,\ C_2 = 40\} = 40$ y $R_1 = 20 + 40 = 60 > 45$ ✗. **No es ejecutable**: hay que darle a $\tau_1$ un nivel de prioridad mayor que el de $\tau_2$ (o acortar $\tau_2$ a 25 µs o menos).
+
+## Método rápido
+
+1. Lista las tareas: solo las que tienen código en una ISR. Descarta lo que hace el hardware solo.
+2. Anota $C$, $T$ y $D$ de cada una (el enunciado da $C$, o hay que estimarlo).
+3. Ordena por **nivel de prioridad**, marcando las que comparten nivel.
+4. Para cada tarea: $B_i$ (peor región crítica y peor tarea no interrumpible) e $I_i$ con la tabla de las más prioritarias.
+5. Itera hasta que $R$ se repita. Compara con $D$.
+6. Si te piden **el mayor tiempo de región crítica posible**, despeja $C_i + RC + I_i \le D_i$ para la tarea con el plazo más justo.
+
+<EnExamen asignatura="seda" ids={['td-uart', 'tr-respuesta', 'tr-interferencia']} />
+
+## Preguntas de examen
+
+<details>
+<summary>Dos tareas de distinto nivel: $\tau_A$ (C = 15 µs, T = 80 µs) más prioritaria y $\tau_B$ (C = 50 µs, T = 500 µs, D = 120 µs). No hay regiones críticas. ¿Es ejecutable?</summary>
+
+$\tau_A$: sin bloqueo ni interferencia, $R_A = 15$ µs. $\tau_B$: $R^{(0)} = 50$; con 50: $\lceil 50/80\rceil\cdot 15 = 15$ → 65; con 65: $\lceil 65/80\rceil = 1$ → 65. $R_B = 65 \le 120$ ✓. Ejecutable. *(Respuesta redactada a partir de los apuntes; números inventados.)*
+
+</details>
+
+<details>
+<summary>La tarea de recepción de la UART a 57 600 baudios con 8E1 y una tarea de captura con frecuencia máxima de 4 kHz. Da T y D de cada una.</summary>
+
+8E1 son 11 bits por byte; un bit dura $1/57\,600 = 17{,}4$ µs, luego $T = D = 11\cdot 17{,}4 \approx 191$ µs. Captura: $T = D = 1/4000 = 250$ µs. *(Respuesta redactada a partir de los apuntes; números inventados.)*
+
+</details>
+
+<details>
+<summary>¿Por qué el bloqueo no se suma, solo se toma el peor?</summary>
+
+Porque cuando acaba el bloqueo, la tarea $i$ (que es más prioritaria que lo que bloqueaba) pasa por delante de todo lo que estuviera esperando y no se vuelve a bloquear. Solo puede ocurrir un bloqueo por activación. *(Respuesta redactada a partir de los apuntes.)*
+
+</details>
+
+<details>
+<summary>¿Por qué se redondea hacia arriba en la interferencia?</summary>
+
+Porque la tarea más prioritaria llega un número **entero** de veces: si el periodo es de 100 µs y el intervalo de 130 µs, puede llegar al inicio y otra vez a los 100 µs, es decir, dos veces. Redondear hacia abajo daría un tiempo de respuesta optimista, que es lo que no se puede permitir. *(Respuesta redactada a partir de los apuntes.)*
+
+</details>
