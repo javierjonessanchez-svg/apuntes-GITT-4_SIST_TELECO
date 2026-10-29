@@ -39,16 +39,30 @@ test:
 ---
 import Practica from '../../../src/asignaturas/seda/Practica.astro';
 import Registro from '../../../src/asignaturas/seda/Registro.astro';
+import Donde from '../../../src/asignaturas/seda/Donde.astro';
 
-**Idea clave.** El **ADC** convierte una tensión del pin en un número de 12 bits (0–4095) y el **DAC** hace lo contrario con 10 bits (0–1023). Los dos van referidos a $V_{REF}$, que en la Mini-DK2 es 3,3 V. Con el ADC se leen sensores (una LDR, un potenciómetro, un micrófono); con el DAC se sacan señales analógicas, como audio.
+**Idea clave.** El **[ADC](../glosario/#adc)** (*Analog-to-Digital Converter*) convierte una tensión del pin en un número de 12 bits (0–4095) y el **[DAC](../glosario/#dac)** (*Digital-to-Analog Converter*) hace lo contrario con 10 bits (0–1023). Los dos van referidos a una [tensión de referencia](../glosario/#vref) $V_{REF}$, la que corresponde al número más alto, que en la Mini-DK2 es 3,3 V. Con el ADC se leen sensores (una LDR, un potenciómetro, un micrófono); con el DAC se sacan señales analógicas, como audio.
 
 ## El ADC
 
-El LPC1768 tiene **un convertidor** de 12 bits por aproximaciones sucesivas y un **multiplexor de 8 entradas** (AD0.0–AD0.7) delante. Solo convierte un canal cada vez.
+El LPC1768 tiene **un convertidor** de 12 bits y un **multiplexor de 8 entradas** (AD0.0–AD0.7) delante: un conmutador que elige qué pin llega al convertidor. Solo convierte un canal cada vez.
+
+El convertidor es de **[aproximaciones sucesivas](../glosario/#sar)**: prueba los bits de uno en uno, del de más peso al de menos. Pone el bit a 1, compara la entrada con la tensión que corresponde a ese número y, si se ha pasado, lo vuelve a poner a 0. Con 12 bits son 12 comparaciones. Una conversión completa tarda 65 ciclos del reloj del ADC.
 
 $$
 V_{in} = \frac{RESULT}{2^{12}}\,(V_{REFP} - V_{REFN}) = RESULT\cdot\frac{3{,}3}{4096}
 $$
+
+<Donde>
+
+- $V_{in}$: tensión en el pin, en voltios.
+- $RESULT$: el número que da el ADC, de 0 a 4095 (sin unidades).
+- $V_{REFP}$, $V_{REFN}$: referencias positiva y negativa, en voltios. En la Mini-DK2, 3,3 V y 0 V.
+- $2^{12} = 4096$: los valores posibles con 12 bits.
+
+</Donde>
+
+Un paso de RESULT vale $3{,}3/4096 \approx 0{,}81$ mV: es la **[resolución](../glosario/#lsb)** (o LSB, el bit de menos peso). Dos tensiones más cercanas que eso pueden dar el mismo número.
 
 Algunos pines: **AD0.0 en P0.23**, AD0.1 en P0.24, AD0.2 en P0.25, AD0.3 en P0.26 (compartido con la salida del DAC), AD0.4 en P1.30 y AD0.5 en P1.31.
 
@@ -60,7 +74,17 @@ F_{CLK\,ADC} = \frac{F_{PCLK}}{CLKDIV + 1} \le 13\ \text{MHz}
 t_{conv} = \frac{65}{F_{CLK\,ADC}}
 $$
 
+<Donde>
+
+- $F_{CLK\,ADC}$: reloj del convertidor, en Hz. $F_{PCLK}$: el PCLK del ADC, en Hz.
+- $CLKDIV$: campo de AD0CR (bits 15:8), de 0 a 255.
+- $t_{conv}$: lo que tarda una conversión, en segundos. $65$: ciclos de reloj por conversión.
+
+</Donde>
+
 Con $F_{PCLK} = 25$ MHz, CLKDIV = 1 da 12,5 MHz y 5,2 µs por conversión (unas 190 000 por segundo). Cuanto más rápido el reloj, antes acaba.
+
+**Ojo con los nombres.** En este periférico el manual y el código no coinciden: el manual dice `AD0CR`, `AD0GDR`, `AD0INTEN` y `AD0DR0`…`AD0DR7`, y en C son `LPC_ADC->ADCR`, `ADGDR`, `ADINTEN` y `ADDR0`…`ADDR7`. Son los mismos registros. Y el bit **[PDN](../glosario/#pdn)** (*Power-Down*) funciona al revés de lo que sugiere el nombre: **1 = encendido**.
 
 <Registro nombre="AD0CR" descripcion="control del ADC" campos={[
   { bits: '7:0', nombre: 'SEL', que: 'Un 1 en el canal que se convierte (en modo software, solo uno)' },
@@ -117,6 +141,14 @@ $$
 V_{out} = VALUE\cdot\frac{V_{REF}}{1024} = VALUE\cdot\frac{3{,}3}{1024}
 $$
 
+<Donde>
+
+- $V_{out}$: tensión en AOUT, en voltios.
+- $VALUE$: el número que se escribe, de 0 a 1023 (bits 15:6 de DACR).
+- $V_{REF}$: 3,3 V en la Mini-DK2. $1024 = 2^{10}$: los valores posibles con 10 bits.
+
+</Donde>
+
 <Registro nombre="DACR" descripcion="valor y modo del DAC" campos={[
   { bits: '15:6', nombre: 'VALUE', que: 'El valor de 10 bits' },
   { bits: '16', nombre: 'BIAS', que: '0 = se estabiliza en 1 µs (hasta 1 MHz, 700 µA); 1 = 2,5 µs (hasta 400 kHz, 350 µA)' },
@@ -127,7 +159,21 @@ LPC_PINCON->PINSEL1 |= (2 << 20);            // P0.26 = AOUT
 LPC_DAC->DACR = (valor & 0x3FF) << 6;         // valor de 0 a 1023
 ```
 
-**Generar una señal.** Se guarda un periodo en una tabla de N muestras y un Timer interrumpe a $f_s$; en cada interrupción se escribe la siguiente muestra en DACR. La frecuencia de salida es $f_{out} = f_s/N$. Lo mismo vale para reproducir audio grabado con el ADC: se muestrea y se reproduce a la misma $f_s$ (al menos 8 kHz para voz). Para no gastar CPU en cada muestra, se usa el **DMA**.
+**Generar una señal.** Se guarda un periodo en una tabla de N muestras y un Timer interrumpe a $f_s$; en cada interrupción se escribe la siguiente muestra en DACR:
+
+$$
+f_{out} = \frac{f_s}{N}
+$$
+
+<Donde>
+
+- $f_{out}$: frecuencia de la señal que sale, en Hz.
+- $f_s$: frecuencia de muestreo, las interrupciones por segundo del Timer, en Hz.
+- $N$: muestras de un periodo guardadas en la tabla.
+
+</Donde>
+
+Por ejemplo (números inventados), una tabla de 50 muestras con $f_s = 20$ kHz da $f_{out} = 400$ Hz. Lo mismo vale para reproducir audio grabado con el ADC: se muestrea y se reproduce a la misma $f_s$ (al menos 8 kHz para voz). Para no gastar CPU en cada muestra, se usa el **[DMA](../glosario/#dma)** (*Direct Memory Access*), que copia los datos de la memoria al DAC sin la CPU.
 
 <Practica n={7} nombre="Grabación y reproducción de audio" />
 

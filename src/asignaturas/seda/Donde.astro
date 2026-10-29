@@ -1,0 +1,24 @@
+---
+// Leyenda «donde» bajo una fórmula: qué es cada símbolo y en qué unidades va.
+// El contenido es una lista en Markdown (con los símbolos en $…$) entre las dos etiquetas.
+---
+<div class="sd-donde">
+  <p class="sd-donde-t">donde</p>
+  <slot />
+</div>
+
+<style>
+  .sd-donde {
+    margin: -4px 0 20px; padding: 8px 14px 8px 12px; border-radius: 10px;
+    font-size: .93rem; line-height: 1.5;
+    background: var(--superficie); box-shadow: inset 3px 0 0 var(--pista), inset 0 0 0 1px var(--linea);
+  }
+  .sd-donde-t {
+    margin: 0 0 2px; font-family: var(--fuente-mono); font-size: .72rem; font-weight: 700;
+    letter-spacing: .08em; text-transform: uppercase; color: var(--serigrafia);
+  }
+  /* La lista llega desde el MDX: los estilos con ámbito no la alcanzan sin :global */
+  .sd-donde :global(ul) { margin: 0; padding-left: 1.1em; }
+  .sd-donde :global(li) { margin: 2px 0; }
+  .sd-donde :global(li::marker) { color: var(--pista); }
+</style>

@@ -43,7 +43,7 @@ import MaquinaEstados from '../../../src/asignaturas/seda/widgets/MaquinaEstados
 
 ## Máquinas de estados finitas (FSM)
 
-Una FSM tiene:
+Una [FSM](../glosario/#fsm) (*Finite State Machine*) tiene:
 
 - **Estados**: en qué situación está el sistema (p. ej. REPOSO, LLENANDO, ALARMA). Siempre está en uno solo.
 - **Eventos**: lo que llega de fuera (una entrada que cambia, un *timeout*, un dato).
@@ -75,7 +75,7 @@ void maquina(void) {                  // se llama periódicamente, p. ej. cada 1
 }
 ```
 
-Las reglas que hay que cumplir:
+`nivel` y `bomba()` son de ejemplo: una variable con la última lectura del sensor (en %) y una función que enciende (1) o apaga (0) la bomba. Las reglas que hay que cumplir:
 
 - Cada llamada **da un paso y vuelve**. Nada de `while` esperando una entrada ni retardos dentro: esperar es **quedarse en un estado**. Si la máquina va dentro de una ISR (por ejemplo, la de la UART), esto es obligatorio.
 - Se llama desde un sitio con **ritmo conocido**: una ISR periódica (SysTick o un Timer) o la ISR del periférico que trae el evento.
@@ -83,7 +83,7 @@ Las reglas que hay que cumplir:
 
 ### Pulsadores: mejor leerlos que interrumpir
 
-Para pulsadores y menús, en clase se recomienda **no usar interrupciones** de GPIO. Un pulsador rebota: al pulsarlo da varios flancos en pocos milisegundos y cada uno sería una interrupción. Es mejor **leer el pin periódicamente** (cada 10–50 ms, más que lo que dura el rebote) y compararlo con la **lectura anterior**:
+Para pulsadores y menús, en clase se recomienda **no usar interrupciones** de GPIO. Un pulsador [rebota](../glosario/#rebote): al pulsarlo da varios flancos en pocos milisegundos y cada uno sería una interrupción. Es mejor **leer el pin periódicamente** (cada 10–50 ms, más que lo que dura el rebote) y compararlo con la **lectura anterior**:
 
 ```c
 void tick_10ms(void) {
@@ -106,7 +106,7 @@ Con problemas reales, una FSM plana se vuelve inmanejable:
 
 ## StateCharts
 
-Los propuso **David Harel en 1986** y UML los adoptó (*UML State Machine*). Añaden a la FSM lo que le falta.
+Los propuso **David Harel en 1986** y UML (*Unified Modeling Language*, el lenguaje de diagramas estándar en ingeniería del software) los adoptó como *UML State Machine*. Añaden a la FSM lo que le falta.
 
 ### Estados con entry, do y exit
 

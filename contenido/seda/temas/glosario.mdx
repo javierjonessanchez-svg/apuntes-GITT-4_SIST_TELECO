@@ -1,0 +1,139 @@
+---
+titulo: "Glosario y cómo leer los nombres"
+orden: 0
+bloque: "Empieza aquí"
+resumen: "Qué significa cada sigla, cómo se escriben los registros en C y qué es un flag, la latencia o un tic"
+saber:
+  - "En el manual un registro se llama T0MR0, U0LCR o AD0CR; en C (Keil, CMSIS) es LPC_TIM0->MR0, LPC_UART0->LCR o LPC_ADC->ADCR. Son el mismo registro"
+  - "En MATn.x, CAPn.x o PWM1.x, la n es el número de periférico (Timer 0–3) y la x el canal. P1.26 es el bit 26 del puerto 1"
+  - "(1 << k) es la máscara del bit k. Con |= se pone a 1, con &= ~ se pone a 0 y con = se escribe el registro entero"
+  - "Un flag es un bit que el periférico pone a 1 cuando pasa algo y que mantiene la interrupción pedida hasta que el programa lo borra"
+fuentes:
+  - "UM10360 (manual del LPC17xx)"
+  - "Apuntes de Miguel"
+  - "Diapositivas de clase"
+---
+**Para qué sirve esta página.** Los demás temas usan muchas siglas y nombres de registros. Aquí está cada uno con una o dos frases y el tema donde se explica a fondo. En los temas, la primera vez que sale un término lleva un enlace que te trae aquí.
+
+## Cómo leer los nombres
+
+**Registros: manual frente a código.** El UM10360 (el manual del LPC1768) llama a cada registro con el periférico delante: `T0MR0` es el registro MR0 del Timer 0. En Keil se usa la cabecera `LPC17xx.h` (de <dfn id="cmsis">CMSIS</dfn>, el estándar de ARM para programar microcontroladores Cortex-M), que agrupa los registros de cada periférico en una estructura. Los dos nombres son el mismo registro:
+
+| En el manual | En C (CMSIS) | Qué es |
+|---|---|---|
+| `T0MR0`, `T2CCR` | `LPC_TIM0->MR0`, `LPC_TIM2->CCR` | Registros de los Timers 0–3 |
+| `PWM1MR0`, `PWM1LER` | `LPC_PWM1->MR0`, `LPC_PWM1->LER` | Registros del PWM1 |
+| `U0LCR`, `U0DLL` | `LPC_UART0->LCR`, `LPC_UART0->DLL` | Registros de la UART0 |
+| `AD0CR`, `AD0GDR`, `AD0DR0` | `LPC_ADC->ADCR`, `LPC_ADC->ADGDR`, `LPC_ADC->ADDR0` | Registros del ADC (ojo: aquí cambian de nombre) |
+| `PCONP`, `PCLKSEL0`, `EXTINT` | `LPC_SC->PCONP`, `LPC_SC->PCLKSEL0`… | Bloque de control del sistema |
+| `PINSEL3`, `PINMODE1` | `LPC_PINCON->PINSEL3`… | Función y modo de los pines |
+| `FIO2PIN` | `LPC_GPIO2->FIOPIN` | GPIO del puerto 2 |
+
+En las tablas de registros de estos apuntes se escribe `Tn…` cuando vale para cualquier Timer: `TnMCR` es `T0MCR`, `T1MCR`, `T2MCR` o `T3MCR`.
+
+**Pines y canales.** En <dfn id="matnx">MATn.x</dfn> (salida de Match), <dfn id="capnx">CAPn.x</dfn> (entrada de captura) y PWM1.x, la **n** es el número de periférico y la **x** el canal: CAP2.1 es la entrada de captura 1 del Timer 2. Los pines se nombran por puerto y bit: **P1.26** es el bit 26 del puerto 1. Cada pin puede tener varias funciones, y PINSEL elige cuál (por ejemplo, P1.26 puede ser GPIO, PWM1.6 o CAP0.0).
+
+**Operaciones con bits.** Casi todo se configura poniendo bits a 1 o a 0:
+
+| En C | Qué hace |
+|---|---|
+| `(1 << k)` | La **máscara** del bit k: un 1 en la posición k y ceros en el resto. `(1 << 4)` vale `0x10` |
+| `REG \|= (1 << k);` | Pone a 1 el bit k y deja los demás como estaban (lee, hace «o», escribe) |
+| `REG &= ~(1 << k);` | Pone a 0 el bit k y deja los demás (`~` invierte la máscara: todo unos menos el bit k) |
+| `REG = (1 << k);` | Escribe el registro **entero**: el bit k a 1 y todos los demás a 0 |
+| `(REG >> k) & 1` | Lee el bit k (vale 0 o 1) |
+
+Los registros de flags (IR de los Timers, EXTINT…) y FIOSET/FIOCLR se escriben con `=`: en ellos un 0 no hace nada, así que no hace falta leer antes.
+
+## Conceptos generales
+
+- <dfn id="registro">Registro</dfn>. Una palabra de 32 bits en una dirección fija de memoria con la que se controla un periférico. Cada grupo de bits de un registro es un **campo** (por ejemplo, CLKDIV son los bits 15:8 de AD0CR).
+- <dfn id="flag">Flag</dfn> (bandera). Un bit que el periférico pone a 1 cuando pasa algo (un Match, un byte recibido, una conversión terminada). Mientras siga a 1, la interrupción sigue pedida. Por eso la ISR tiene que **borrarlo**; en el LPC1768 casi siempre se hace **escribiendo un 1** en ese bit.
+- <dfn id="isr">ISR</dfn> (*Interrupt Service Routine*, rutina de atención a la interrupción). La función que ejecuta la CPU cuando un periférico interrumpe. Tiene un nombre fijo, como `TIMER0_IRQHandler`. Tema: [Reloj, GPIO e interrupciones](../reloj-gpio-interrupciones/).
+- <dfn id="nvic">NVIC</dfn> (*Nested Vectored Interrupt Controller*). El controlador de interrupciones del Cortex-M3: las habilita, les da prioridad (0 = la más alta) y deja que una más prioritaria interrumpa a otra.
+- <dfn id="latencia">Latencia</dfn> de una interrupción. El tiempo desde que el periférico la pide hasta que empieza la ISR. En el Cortex-M3 son al menos 12 ciclos de CPU (120 ns a 100 MHz), y más si se está atendiendo otra interrupción de igual o mayor prioridad.
+- <dfn id="volatile">volatile</dfn>. Palabra de C para las variables que cambia una ISR: obliga al compilador a leerlas de memoria cada vez, en vez de quedarse con una copia antigua.
+- <dfn id="mini-dk2">Mini-DK2</dfn>. La placa de prácticas: un LPC1768 con cristal de 12 MHz, pulsadores, pantalla y un conversor USB-serie en la UART0.
+- <dfn id="lpc1768">LPC1768</dfn>. El microcontrolador de NXP de la asignatura: CPU ARM Cortex-M3 a 100 MHz con Timers, PWM, UART, ADC, DAC y más periféricos dentro.
+
+## Reloj, energía y pines
+
+- <dfn id="pll">PLL</dfn> (*Phase-Locked Loop*, lazo de enganche de fase). Circuito que **multiplica** una frecuencia. La PLL0 sube los 12 MHz del cristal a la frecuencia $F_{CCO}$ (400 MHz por defecto).
+- <dfn id="cco">F_CCO</dfn>. La frecuencia de salida de la PLL0, la de su oscilador interno (*Current Controlled Oscillator*). Tiene que estar entre 275 y 550 MHz.
+- <dfn id="cclk">CCLK</dfn>. El reloj de la CPU: $F_{CCO}$ dividido entre el divisor de CPU. Por defecto, 100 MHz.
+- <dfn id="pclk">PCLK</dfn> ($F_{PCLK}$). El reloj que recibe cada periférico: CCLK dividido entre 1, 2, 4 u 8 según sus bits de **PCLKSEL0/1**. Por defecto, CCLK/4 = 25 MHz.
+- <dfn id="pconp">PCONP</dfn> (*Power Control for Peripherals*). Un bit por periférico: 1 = alimentado. Timer 2/3, UART 2/3 y el ADC arrancan apagados.
+- <dfn id="pinsel">PINSEL</dfn> (*Pin Select*, PINSEL0…10). Elige la función de cada pin con 2 bits: `00` GPIO y `01`, `10`, `11` las alternativas.
+- <dfn id="pinmode">PINMODE</dfn>. Elige la resistencia interna de cada pin: pull-up (por defecto), repetidor, ninguna o pull-down.
+- <dfn id="pull-up">Pull-up / pull-down</dfn>. Resistencia que lleva un pin a 1 (pull-up) o a 0 (pull-down) cuando nada lo conduce. Por eso un pulsador a masa con pull-up lee 1 suelto y 0 pulsado.
+- <dfn id="gpio">GPIO</dfn> (*General Purpose Input/Output*). Usar un pin como entrada o salida digital normal, con FIODIR (dirección), FIOSET y FIOCLR (poner a 1 o a 0) y FIOPIN (leer el nivel).
+- <dfn id="eint">EINT0–3</dfn>. Las cuatro interrupciones externas (P2.10–P2.13), por nivel o por flanco.
+- <dfn id="systick">SysTick</dfn>. Un temporizador de 24 bits del propio Cortex-M3 para dar un tic periódico. `SystemCoreClock` es la variable de CMSIS que guarda CCLK en Hz.
+
+## Timers
+
+- <dfn id="timer">Timer</dfn>. Un contador que avanza solo a ritmo fijo y compara su cuenta con unos valores (Match) o la guarda cuando llega un flanco (captura). El LPC1768 tiene cuatro, del 0 al 3. Tema: [Timers](../timers-match/).
+- <dfn id="tc">TC</dfn> (*Timer Counter*). El contador de 32 bits del Timer. Tras $2^{32} - 1$ vuelve a 0.
+- <dfn id="pr">PR</dfn> (*Prescale Register*) y <dfn id="pc">PC</dfn> (*Prescale Counter*). El PC cuenta ciclos de PCLK; cuando llega a PR, vuelve a 0 y el TC avanza uno. Así el TC avanza cada PR + 1 ciclos de PCLK.
+- <dfn id="tic">Tic</dfn> ($F_{tick}$). Un paso del TC. $F_{tick} = F_{PCLK}/(PR + 1)$ es cuántos tics hay por segundo, en Hz, y $1/F_{tick}$ lo que dura cada uno.
+- <dfn id="match">Match</dfn> (MR0–MR3). Registros con un valor que se compara con el TC en cada tic. Cuando coinciden, el Timer puede interrumpir, reiniciar o parar el TC (según **MCR**) y cambiar un pin MATn.x (según **EMR**).
+- <dfn id="mcr">MCR</dfn> (*Match Control Register*). Tres bits por Match: interrumpir (I), reiniciar el TC (R) y pararlo (S).
+- <dfn id="ir">IR</dfn> (*Interrupt Register*). Los flags del Timer: bits 0–3 para MR0–MR3 y bits 4–5 para CR0–CR1. Se borran escribiendo un 1.
+- <dfn id="emr">EMR</dfn> (*External Match Register*). Qué hace cada pin MATn.x en su Match (nada, a 0, a 1 o conmutar) y su nivel actual.
+- <dfn id="toggle">Toggle</dfn> (conmutar). Cambiar un pin al nivel contrario: de 0 a 1 o de 1 a 0.
+- <dfn id="tcr">TCR</dfn> (*Timer Control Register*). Arranca (bit 0) o pone a 0 (bit 1) el TC y el PC.
+- <dfn id="ctcr">CTCR</dfn> (*Count Control Register*). Elige si el TC cuenta tics de PCLK (modo Timer, `00`, el de reset) o flancos de un pin CAP (modo contador).
+
+## PWM
+
+- <dfn id="pwm">PWM</dfn> (*Pulse Width Modulation*, modulación por ancho de pulso). Una señal de periodo fijo en la que cambia el tiempo en alto. Tema: [PWM y servos](../pwm-servos/).
+- <dfn id="ciclo-trabajo">Ciclo de trabajo</dfn> ($D$, *duty cycle*). La fracción del periodo en alto: $D = T_H/T$, entre 0 y 1 (o entre 0 % y 100 %). $T_H$ es el tiempo en alto y $T_L = T - T_H$ el tiempo en bajo.
+- <dfn id="pwm1">PWM1</dfn>. El periférico PWM del LPC1768: un Timer con 7 Match (MR0 marca el periodo, MR1–MR6 el ancho) y 6 salidas PWM1.1–PWM1.6.
+- <dfn id="sombra">Registro sombra</dfn>. Una copia de un registro que el hardware solo pasa a usar en un momento seguro. En el PWM1, el MRx nuevo se aplica al empezar el siguiente periodo si se ha puesto su bit en **LER** (*Latch Enable Register*).
+- <dfn id="pcr">PCR</dfn> (*PWM Control Register*). Habilita cada salida (PWMENA) y elige flanco único o doble (PWMSEL).
+
+## Captura
+
+- <dfn id="captura">Captura</dfn>. Copiar el valor del TC en un registro en el instante en que llega un flanco a un pin, sin que intervenga la CPU. Tema: [Pulsos y captura](../captura/).
+- <dfn id="cr">CR0, CR1</dfn> (*Capture Registers*). Donde se copia el TC. **CR0 solo lo carga la entrada CAPn.0 y CR1 solo la CAPn.1.**
+- <dfn id="ccr">CCR</dfn> (*Capture Control Register*). Para cada entrada, si captura en subida, en bajada (o en las dos) y si interrumpe.
+- <dfn id="flanco">Flanco</dfn>. El cambio de nivel de una señal: **de subida** (de 0 a 1) o **de bajada** (de 1 a 0).
+
+## UART
+
+- <dfn id="uart">UART</dfn> (*Universal Asynchronous Receiver-Transmitter*). Periférico que manda y recibe bytes bit a bit por un hilo, sin reloj compartido (**asíncrona**). Tema: [UART](../uart/).
+- <dfn id="baudio">Baudio</dfn> (bit/s). Bits por segundo de la línea. En la UART cada símbolo es un bit, así que baudios y bit/s coinciden.
+- <dfn id="trama">Trama</dfn>. Lo que se manda por cada byte: start (un 0), los datos, la paridad opcional y el stop (un 1). **8N1** = 8 bits de datos, sin paridad (*None*) y 1 de stop.
+- <dfn id="paridad">Paridad</dfn>. Un bit extra que hace par (o impar) el número de unos de la trama. Si llega mal un bit, la paridad no cuadra.
+- <dfn id="thr">THR</dfn> (*Transmit Holding Register*). Donde se escribe el byte que se quiere mandar.
+- <dfn id="tsr">Registro de desplazamiento</dfn> (*Transmit Shift Register*). Donde el byte pasa desde THR y sale bit a bit por TxD. Mientras sale uno, THR ya admite el siguiente.
+- <dfn id="thre">THRE</dfn> (*THR Empty*). Interrupción que salta cuando THR queda vacío: ya cabe otro byte.
+- <dfn id="rbr">RBR</dfn> (*Receiver Buffer Register*). Donde queda el byte recibido.
+- <dfn id="rda">RDA</dfn> (*Receive Data Available*). Interrupción que salta cuando hay un byte en RBR.
+- <dfn id="lcr">LCR</dfn> (*Line Control Register*). El formato de la trama y el bit DLAB.
+- <dfn id="dl">DLL, DLM</dfn> (*Divisor Latch LSB / MSB*). Los bytes bajo y alto del divisor $DL = 256\cdot DLM + DLL$ que fija la velocidad.
+- <dfn id="dlab">DLAB</dfn> (*Divisor Latch Access Bit*). Bit 7 de LCR. DLL y DLM comparten dirección con RBR/THR e IER: con DLAB = 1 se accede al divisor y con DLAB = 0 a los datos.
+- <dfn id="fdr">FDR</dfn> (*Fractional Divider Register*). Multiplica el divisor por $1 + DivAddVal/MulVal$ para que el divisor total no tenga que ser entero.
+- <dfn id="ier">IER</dfn> e <dfn id="iir">IIR</dfn> (*Interrupt Enable / Identification Register*). IER elige qué interrupciones de la UART se habilitan; IIR dice cuál ha saltado.
+- <dfn id="lsr">LSR</dfn> (*Line Status Register*). El estado de la línea: hay dato recibido, THR vacío, errores de paridad, de trama o de desbordamiento.
+- <dfn id="fifo">FIFO</dfn> (*First In, First Out*). Una cola: lo primero que entra es lo primero que sale. Las UART del LPC1768 tienen una de 16 bytes para recibir y otra para transmitir.
+
+## ADC y DAC
+
+- <dfn id="adc">ADC</dfn> (*Analog-to-Digital Converter*). Convierte una tensión en un número. El del LPC1768 es de 12 bits: de 0 a 4095. Tema: [ADC y DAC](../adc-dac/).
+- <dfn id="dac">DAC</dfn> (*Digital-to-Analog Converter*). Convierte un número en una tensión. El del LPC1768 es de 10 bits: de 0 a 1023.
+- <dfn id="vref">V_REF</dfn> (tensión de referencia). La tensión que corresponde al fondo de escala. En la Mini-DK2, 3,3 V. En el ADC es $V_{REFP} - V_{REFN}$ (positiva menos negativa, que es 0 V).
+- <dfn id="lsb">Resolución</dfn> (LSB, *Least Significant Bit*). Lo que vale en tensión un paso del número: $V_{REF}/2^{n}$ con n bits. Con 12 bits y 3,3 V, unos 0,81 mV.
+- <dfn id="sar">Aproximaciones sucesivas</dfn>. El método del ADC: prueba los bits de uno en uno, del de más peso al de menos, comparando la entrada con una tensión de prueba. Con 12 bits, 12 comparaciones.
+- <dfn id="adcr">AD0CR</dfn> (`LPC_ADC->ADCR`). El control del ADC: canal (SEL), divisor del reloj (CLKDIV), ráfaga (BURST), encendido (PDN) y disparo (START).
+- <dfn id="pdn">PDN</dfn> (*Power-Down*). Bit 21 de AD0CR. Pese al nombre, **1 = ADC funcionando** y 0 = apagado.
+- <dfn id="adgdr">AD0GDR, AD0DRx</dfn>. Los registros de resultado: el último convertido (*Global Data Register*) y uno por canal. RESULT va en los bits 15:4.
+- <dfn id="dma">DMA</dfn> (*Direct Memory Access*). Un periférico que mueve datos entre memoria y periféricos sin la CPU. Se verá en la PEI2.
+
+## Diseño software
+
+- <dfn id="fsm">FSM</dfn> (*Finite State Machine*, máquina de estados finita). Un sistema que está siempre en uno de unos pocos estados y cambia de uno a otro con los eventos. Tema: [Máquinas de estados](../maquinas-estados/).
+- <dfn id="statechart">StateChart</dfn>. Una FSM con jerarquía, acciones entry/do/exit, histórico y concurrencia. Es la máquina de estados de UML (*Unified Modeling Language*, el lenguaje de diagramas estándar en ingeniería del software).
+- <dfn id="rebote">Rebote</dfn>. Los flancos falsos que da un pulsador mecánico durante unos milisegundos al pulsarlo o soltarlo.
+- <dfn id="histeresis">Histéresis</dfn>. Usar dos umbrales distintos para encender y para apagar, de modo que el ruido cerca de un umbral no haga conmutar la salida sin parar.
+- <dfn id="timeout">Timeout</dfn>. Un tiempo máximo de espera: si se pasa sin que llegue el evento esperado, la máquina hace otra cosa (por ejemplo, volver al estado inicial).

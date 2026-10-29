@@ -1,0 +1,50 @@
+---
+// Cronograma de la medida del ciclo de trabajo con dos entradas de captura: la misma señal
+// llega a CAPn.0 (copia el TC en CR0 en cada subida) y a CAPn.1 (en CR1 en cada bajada).
+// Dibujo estático, sin JavaScript. Ejemplo con D = 0,25 (T_H es la cuarta parte de T).
+const alto = 70, bajo = 120;
+const s1 = 60, b1 = 125, s2 = 320, b2 = 385, s3 = 580;
+const senal = `M20 ${bajo} H${s1} V${alto} H${b1} V${bajo} H${s2} V${alto} H${b2} V${bajo} H${s3} V${alto} H610`;
+const flancos = [
+  { x: s1, cr: 'CR0' }, { x: b1, cr: 'CR1' }, { x: s2, cr: 'CR0' }, { x: b2, cr: 'CR1' }, { x: s3, cr: 'CR0' },
+];
+---
+<figure class="sd-crono">
+  <div class="desliza">
+    <svg viewBox="0 0 620 205" width="620" height="205" role="img"
+      aria-label="Señal cuadrada con dos periodos. En cada flanco de subida el TC se copia en CR0 y en cada flanco de bajada en CR1. T va de una subida a la siguiente; T_H, de una subida a la bajada que la sigue. La interrupción salta en la bajada y lee los dos registros.">
+      {[s1, s2, b2].map((x) => <path class="guia" d={`M${x} 30 V176`} />)}
+      <path class="senal" d={senal} />
+      {flancos.map((f) => (
+        <text class:list={['cr', f.cr === 'CR0' ? 'sube' : 'baja']} x={f.x} y="144" text-anchor="middle">
+          {f.cr === 'CR0' ? '↑' : '↓'} {f.cr}
+        </text>
+      ))}
+      <g class="cota">
+        <path d={`M${s2} 34 H${b2} M${s2} 28 V40 M${b2} 28 V40`} />
+        <text x={(s2 + b2) / 2} y="22" text-anchor="middle">T<tspan class="sub" dy="4">H</tspan></text>
+        <path d={`M${s1} 170 H${s2} M${s1} 164 V176 M${s2} 164 V176`} />
+        <text x={(s1 + s2) / 2} y="194" text-anchor="middle">T</text>
+      </g>
+      <circle class="isr" cx={b2} cy={bajo} r="5" />
+      <text class="nota" x={b2 + 12} y="102">ISR: lee CR0 y CR1</text>
+    </svg>
+  </div>
+  <figcaption>La misma señal entra por CAPn.0 y por CAPn.1. Cada registro guarda siempre el mismo tipo de flanco, así que la ISR no tiene que averiguar cuál ha llegado.</figcaption>
+</figure>
+
+<style>
+  .sd-crono { margin: 18px 0 22px; }
+  .sd-crono svg { display: block; min-width: 520px; width: 100%; height: auto; font-family: var(--fuente-mono); font-variant-ligatures: none; }
+  .guia { stroke: var(--linea); stroke-width: 1.2; stroke-dasharray: 4 4; }
+  .senal { fill: none; stroke: var(--texto); stroke-width: 2.4; stroke-linejoin: round; }
+  .cr { font-size: 13px; font-weight: 700; }
+  .cr.sube { fill: var(--primario); }
+  .cr.baja { fill: var(--acento2); }
+  .cota path { fill: none; stroke: var(--suave); stroke-width: 1.4; }
+  .cota text { font-family: var(--fuente-texto); font-size: 15px; font-weight: 700; fill: var(--texto); }
+  .cota .sub { font-size: 11px; }
+  .isr { fill: var(--resalte); stroke: var(--texto); stroke-width: 1.2; }
+  .nota { font-size: 12px; fill: var(--suave); }
+  figcaption { margin-top: 6px; font-size: .88rem; color: var(--suave); text-wrap: pretty; }
+</style>

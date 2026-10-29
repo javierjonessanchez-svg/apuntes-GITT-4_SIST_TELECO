@@ -41,12 +41,15 @@ test:
 ---
 import Practica from '../../../src/asignaturas/seda/Practica.astro';
 import Registro from '../../../src/asignaturas/seda/Registro.astro';
+import Donde from '../../../src/asignaturas/seda/Donde.astro';
 
-**Idea clave.** Antes de usar cualquier periférico del LPC1768 hay que hacer siempre lo mismo: **alimentarlo** (PCONP), elegir su **reloj** (PCLKSEL), llevarlo a sus **pines** (PINSEL) y, si va a interrumpir, **habilitar su interrupción** en el NVIC. Este tema explica cada paso. Los siguientes solo cambian el periférico.
+**Idea clave.** Antes de usar cualquier periférico del LPC1768 hay que hacer siempre lo mismo: **alimentarlo** ([PCONP](../glosario/#pconp)), elegir su **reloj** ([PCLKSEL](../glosario/#pclk)), llevarlo a sus **pines** ([PINSEL](../glosario/#pinsel)) y, si va a interrumpir, **habilitar su interrupción** en el [NVIC](../glosario/#nvic). Este tema explica cada paso. Los siguientes solo cambian el periférico.
+
+Si es la primera vez que ves esto, empieza por el [glosario](../glosario/): explica cómo se leen nombres como `LPC_TIM0->MR0` o `MATn.x` y qué hacen `|=` y `&= ~` con los bits.
 
 ## El reloj: de 12 MHz a 100 MHz
 
-La Mini-DK2 lleva un cristal de **12 MHz** (el oscilador principal). Al arrancar, la función `SystemInit()` de `system_LPC17xx.c` monta esta cadena:
+La [Mini-DK2](../glosario/#mini-dk2) lleva un cristal de **12 MHz** (el oscilador principal). Ese reloj es lento para la CPU, así que una [PLL](../glosario/#pll) lo multiplica y luego unos divisores reparten el resultado: uno para la CPU y otro para cada periférico. Al arrancar, la función `SystemInit()` de `system_LPC17xx.c` monta esta cadena:
 
 | Paso | Qué hace | Valor por defecto |
 |---|---|---|
@@ -56,12 +59,23 @@ La Mini-DK2 lleva un cristal de **12 MHz** (el oscilador principal). Al arrancar
 | PCLKSEL0/1 | Reloj de cada periférico | ÷4 → **25 MHz** |
 
 $$
-PLLCLK = \frac{2\cdot 100\cdot 12\ \text{MHz}}{6} = 400\ \text{MHz}
+F_{CCO} = \frac{2\cdot 100\cdot 12\ \text{MHz}}{6} = 400\ \text{MHz}
 \qquad
 CCLK = \frac{400}{4} = 100\ \text{MHz}
 \qquad
 F_{PCLK} = \frac{CCLK}{4} = 25\ \text{MHz}
 $$
+
+<Donde>
+
+- $F_{in}$: frecuencia que entra en la PLL0, la del cristal: 12 MHz.
+- $M$: multiplicador de la PLL0 ($M = MSEL + 1$, de su registro PLL0CFG). Por defecto, 100.
+- $N$: divisor previo de la PLL0 ($N = NSEL + 1$). Por defecto, 6.
+- $F_{CCO}$: frecuencia de salida de la PLL0, en Hz. Tiene que quedar entre 275 y 550 MHz.
+- $CCLKSEL$: valor del divisor de CPU (registro CCLKCFG). Con 3, divide entre 4.
+- $CCLK$: reloj de la CPU, en Hz. $F_{PCLK}$: reloj del periférico, en Hz.
+
+</Donde>
 
 Ese **25 MHz** aparece en casi todas las cuentas de timers, PWM y UART. Si en un examen no dicen otra cosa, es el $F_{PCLK}$ de partida.
 
@@ -93,12 +107,30 @@ El `|=` («o» bit a bit) pone a 1 **solo** el bit 22 y deja el resto como estab
 
 Cada pin del LPC1768 puede tener hasta **cuatro funciones** (GPIO o la de un periférico). Se elige con **PINSEL0…10**, con **2 bits por pin**: `00` es GPIO y `01`, `10`, `11` son las funciones alternativas que da la tabla del manual (cap. 8).
 
-**PINMODE** elige la resistencia interna del pin, también con 2 bits:
+**Qué registro y qué bits.** Cada PINSEL tiene 32 bits, así que da para 16 pines: medio puerto. Para el pin **Pp.b** (puerto p, bit b):
+
+$$
+\text{registro} = PINSEL\,(2p + \lfloor b/16 \rfloor)
+\qquad
+\text{bits} = 2r + 1 : 2r, \ \ r = b \bmod 16
+$$
+
+<Donde>
+
+- $p$: número de puerto (0–4). $b$: número de bit dentro del puerto (0–31).
+- $\lfloor b/16 \rfloor$: 0 si el pin está en la mitad baja del puerto (bits 0–15) y 1 si está en la alta (16–31).
+- $r$: posición del pin dentro de su PINSEL (0–15). Cada pin ocupa los bits $2r$ y $2r + 1$.
+
+</Donde>
+
+**Ejemplo.** P1.26: $2\cdot 1 + \lfloor 26/16 \rfloor = 3$, así que es **PINSEL3**; $r = 26 - 16 = 10$, bits **21:20**. Para su función `11` (CAP0.0): `LPC_PINCON->PINSEL3 |= (3 << 20);` (3 es `11` en binario). Para las funciones `01` o `10`, si el pin venía de otra función, conviene borrar antes los dos bits con `&= ~(3 << 20)`: el `|=` solo pone unos.
+
+**PINMODE** elige la resistencia interna del pin, también con 2 bits (y con el mismo reparto de registros y bits que PINSEL):
 
 | PINMODE | Modo |
 |---|---|
 | `00` | **Pull-up** (el de reset) |
-| `01` | Repetidor |
+| `01` | Repetidor: mantiene el último nivel (pull-up si estaba a 1, pull-down si estaba a 0) |
 | `10` | Ni pull-up ni pull-down |
 | `11` | Pull-down |
 
@@ -132,7 +164,8 @@ El **NVIC** (*Nested Vectored Interrupt Controller*) del Cortex-M3 decide qué i
 - Cada fuente tiene su **rutina de atención** (ISR) con un nombre fijo, que viene en `startup_LPC17xx.s`: `TIMER0_IRQHandler`, `UART0_IRQHandler`, `EINT1_IRQHandler`…
 - Se **habilita** con `NVIC_EnableIRQ(TIMER0_IRQn)`.
 - **Prioridad de 0 a 31**, con `NVIC_SetPriority()`: el número **más bajo** es el **más prioritario**. Una interrupción más prioritaria puede interrumpir a otra que se esté atendiendo (por eso *nested*, anidadas). Si tienen la misma prioridad, espera.
-- Dentro de la ISR hay que **borrar el flag** del periférico. Si no, al salir el NVIC ve que sigue pendiente y vuelve a entrar sin fin.
+- Cada periférico avisa con un **[flag](../glosario/#flag)**: un bit que pone a 1 cuando pasa algo (un Match, un byte recibido) y que mantiene la petición de interrupción mientras siga a 1. Dentro de la ISR hay que **borrarlo**. Si no, al salir el NVIC ve que sigue pendiente y vuelve a entrar sin fin.
+- Entre la petición y la primera instrucción de la ISR pasa un tiempo, la **[latencia](../glosario/#latencia)**: en el Cortex-M3, al menos 12 ciclos de CPU (120 ns a 100 MHz), y más si se está atendiendo otra interrupción de igual o mayor prioridad. Por eso leer un contador dentro de una ISR da un valor algo tardío.
 - La ISR tiene que ser **corta**: guardar un dato, poner una bandera y salir. Lo largo se hace en el programa principal.
 - Las variables que comparten la ISR y el `main` se declaran `volatile`, para que el compilador las lea de memoria cada vez.
 
@@ -159,7 +192,21 @@ Por nivel, el flag no se puede borrar mientras el nivel siga activo, así que la
 
 ### SysTick
 
-Es un temporizador de **24 bits** que lleva el propio Cortex-M3, pensado para dar un «tic» periódico. `SysTick_Config(SystemCoreClock / 100)` genera una interrupción cada 10 ms en `SysTick_Handler`. Para periodos que no caben en 24 bits, o para varias señales, se usan los Timers del tema siguiente.
+Es un temporizador de **24 bits** que lleva el propio Cortex-M3, pensado para dar un «tic» periódico. Cuenta ciclos de CCLK, y `SystemCoreClock` es la variable de CMSIS que guarda CCLK en Hz (100 000 000 por defecto). `SysTick_Config(n)` interrumpe cada n ciclos en `SysTick_Handler`:
+
+$$
+T_{SysTick} = \frac{n}{CCLK} \qquad n \le 2^{24}
+$$
+
+<Donde>
+
+- $n$: ciclos de CPU entre dos interrupciones (el argumento de `SysTick_Config`).
+- $CCLK$: reloj de la CPU, en Hz. $T_{SysTick}$: periodo de la interrupción, en segundos.
+- $2^{24}$: lo que cabe en el contador de 24 bits.
+
+</Donde>
+
+Así, `SysTick_Config(SystemCoreClock / 100)` es $n = 10^6$: una interrupción cada 10 ms. El periodo más largo es $2^{24}/(100\cdot 10^6) \approx 168$ ms. Para periodos mayores, o para varias señales, se usan los Timers del tema siguiente.
 
 ## Preguntas de examen
 
