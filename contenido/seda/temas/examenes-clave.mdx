@@ -1,0 +1,310 @@
+---
+titulo: "Tres exámenes clave, ejercicio a ejercicio"
+orden: 11
+bloque: "Examen"
+resumen: "Los tres exámenes de la primera intermedia que mejor resumen lo que se pide (noviembre de 2023, 2024 y 2025): qué pregunta cada apartado, qué hay que saber antes, el proceso de la solución y la trampa de cada uno"
+saber:
+  - "Los tres exámenes siguen el mismo esqueleto: un sistema con un sensor, un servo y un mensaje de audio. Primero se configura el ADC, luego el servo con un Timer, luego se mide con captura, y al final se graba y se reproduce con DMA"
+  - "El proceso de casi cada apartado es el mismo: dibujar qué hace el hardware solo, decidir qué queda para la ISR y comprobar los números en los dos extremos (valor mínimo y máximo)"
+  - "Las cuentas que se repiten: tiempo de conversión 65/F_ADC, frecuencia de muestreo en ráfaga F_ADC/(65·N), MR del Timer para el ancho del pulso, divisor de la UART redondeado y bloques de DMA de 4095 muestras como máximo"
+  - "Los tres usan la misma salida para el audio: o una ISR de Timer que escribe en el DAC, o el DMA. Con DMA, una grabación larga se parte en bloques que caben en TransferSize"
+  - "La trampa más habitual es de unidades: bytes frente a muestras al avanzar la dirección del DMA, división entera en C al escalar, y el sentido de la fórmula del ancho del pulso"
+  - "De 2024 en adelante hay que saber una trama por UART (velocidad real, duración y máquina de estados), y en 2025 entra la ejecutabilidad"
+fuentes:
+  - "Pruebas de evaluación intermedia 1 de SEDA, noviembre de 2023, 2024 y 2025 (con solución, solo en el material privado de la asignatura)"
+  - "Diapositivas de clase de ADC/DAC, Timers, DMA y análisis de ejecutabilidad"
+  - "UM10360 (manual del LPC17xx)"
+test:
+  - p: "El ADC trabaja a 12,5 MHz en modo ráfaga con 4 canales activos. ¿A qué frecuencia se muestrea cada canal?"
+    o: ["Unos 48 kHz", "Unos 192 kHz", "12,5 MHz", "Unos 12 kHz"]
+    c: 0
+    e: "Cada conversión dura 65 ciclos y la ráfaga recorre 4 canales: 12,5 MHz / (65·4) ≈ 48,1 kHz por canal."
+  - p: "Un audio de 3 s a 8 kHz con muestras de 8 bits se envía con DMA. ¿Cuántos bloques de 4000 muestras hacen falta?"
+    o: ["6", "3", "12", "1"]
+    c: 0
+    e: "3 s · 8000 muestras/s = 24 000 muestras, y 24 000 / 4000 = 6 bloques. Cada bloque cabe en el límite de 4095 de TransferSize."
+  - p: "Una UART a 115 200 baudios con PCLK de 25 MHz. ¿Qué divisor se carga y cuál es la velocidad real?"
+    o: ["14, unos 111 600 baudios", "13, unos 120 100 baudios", "13,56, 115 200 baudios", "14, 115 200 baudios"]
+    c: 0
+    e: "DL = 25 000 000 / (16 · 115 200) = 13,56, que se redondea a 14 (los registros solo guardan enteros). La velocidad real es 25 000 000 / (16 · 14) ≈ 111 607 baudios, un 3 % menos."
+  - p: "Se divide un valor de 8 bits (0 a 255) entre 255 en C y se guarda en un float, sin ningún cast. ¿Qué sale?"
+    o: ["0 salvo cuando vale 255, que sale 1", "El valor correcto entre 0 y 1", "Un error del compilador", "Siempre 1"]
+    c: 0
+    e: "Si los dos operandos son enteros, la división es entera y trunca. Hay que convertir uno a float antes de dividir."
+---
+import Frecuencia from '../../../src/asignaturas/seda/Frecuencia.astro';
+import Donde from '../../../src/asignaturas/seda/Donde.astro';
+
+<Frecuencia sale="Una vez al año" donde="Primera intermedia (noviembre) y, con otros periféricos, la segunda y el final" practica="rehacer cada apartado con otros números antes de mirar la solución del profesor." />
+
+**Idea clave.** Si solo vas a repasar tres exámenes, estos son los de **noviembre de 2023, 2024 y 2025** de la primera intermedia. Cada uno añade algo nuevo sobre el anterior, así que juntos cubren casi todo lo que puede caer en el parcial. Esta página no copia ningún enunciado ni ninguna solución: cuenta qué pide cada apartado **en general**, qué tienes que saber **antes** de hacerlo, cómo es el **proceso** que sigue la solución y **dónde se falla**. Los números de los ejemplos son inventados; los reales están en el material privado de la asignatura.
+
+## Cómo usar esta página
+
+1. Elige un examen y **hazlo tú entero** con el material de clase (el enunciado lo tienes en el campus virtual).
+2. Compáralo con la solución oficial y vuelve aquí: mira los apartados donde te hayas atascado.
+3. Repite esos apartados con **otros números** (los ejemplos de abajo te sirven de plantilla).
+
+## Qué hay que saber antes de empezar
+
+| Si el apartado pide… | Tienes que dominar antes | Dónde |
+|---|---|---|
+| Configurar el ADC, calcular tiempo de conversión y frecuencia de muestreo | Campos del registro `AD0CR`, ráfaga frente a disparo por Match, resultado en `AD0DR` | [ADC y DAC](../adc-dac/) |
+| Mover un servo con un Timer | Match con salida en el pin (set, clear, toggle), recargar el Match en la ISR | [Timers y Match](../timers-match/), [PWM y servos](../pwm-servos/) |
+| Brillo de la pantalla con una PWM de 1 kHz | Módulo PWM: `MR0` periodo, `MRx` ancho, `LER` | [PWM y servos](../pwm-servos/) |
+| Medir el ancho o el ciclo de trabajo de una señal | Captura en uno o dos flancos, resta de capturas | [Captura](../captura/) |
+| Sacar el audio por el DAC con una ISR | Alineación del valor en `DACR`, tamaño del `buffer` | [ADC y DAC](../adc-dac/) |
+| Grabar o reproducir con DMA | `TransferSize` ≤ 4095, lista de descriptores o reconfigurar en la ISR, `DACCNTVAL` | [DMA](../dma/) |
+| Velocidad de una UART y trama | Divisor, velocidad real, duración de una trama | [UART](../uart/) |
+| Decodificar una trama | Máquina de estados con un byte por paso | [Máquinas de estados](../maquinas-estados/) |
+| Interrupciones periódicas con SysTick | `SysTick_Config`, contar ticks | [Reloj, GPIO e interrupciones](../reloj-gpio-interrupciones/) |
+| Lista de tareas con T, D y tiempo de respuesta | Prioridades, bloqueo, interferencia, iterar | [Ejecutabilidad](../ejecutabilidad/) |
+
+## Examen 1 · Noviembre de 2025: el más completo
+
+**Por qué es clave.** Es el único que mezcla **todo**: ADC en ráfaga disparada por un Timer, servo con un solo Match, captura de dos canales, audio desde Flash con DMA, SysTick con contadores y, por primera vez en una primera intermedia, **ejecutabilidad** con cuatro escenarios de prioridades. Si te sale este, te sale el parcial.
+
+**Qué cuenta el enunciado en general.** Un sistema de medida de temperatura con un marcador movido por un servo, un umbral que se ajusta con un potenciómetro, un brillo de pantalla con otro y una alarma de audio guardada en la Flash. Luego tres cuestiones: el sistema completo, una lista de tareas para dar T y D, y un análisis de ejecutabilidad.
+
+### Cuestión 1: el sistema completo
+
+**1. Configurar el ADC para varios canales.**
+
+- *Qué se pide.* Rellenar una función con los bits de `AD0CR`, dibujar qué canal va a qué sensor y calcular el tiempo de conversión.
+- *Antes.* Qué pin es cada canal (AD0.0, AD0.1…), el reloj del ADC y que cada conversión son **65 ciclos** del reloj del ADC.
+- *Proceso de la solución.* (1) Deduce los canales del esquema: un potenciómetro y un sensor son tres canales, y eso sale de los pines dibujados. (2) La máscara de canales es una suma de bits: si usas los canales 0, 1 y 2, vale `0b111 = 7`. (3) Para la **máxima velocidad**, el divisor se pone al mínimo que respete el límite de 13 MHz del ADC. (4) $t_{conv} = 65/F_{ADC}$.
+- *Truco.* Los exámenes alternan entre pedir el **máximo** y el **mínimo** de velocidad. Con la máxima el divisor va a 0 (si el reloj ya es 12,5 MHz o menos) y con la mínima a 255. Lee bien cuál piden.
+
+<Donde>
+
+- $t_{conv}$: tiempo de una conversión, en segundos.
+- $F_{ADC}$: reloj del ADC, igual al reloj del periférico entre (CLKDIV + 1), como mucho 13 MHz.
+- 65: ciclos del reloj del ADC que tarda una conversión de 12 bits.
+
+</Donde>
+
+Ejemplo propio: con $F_{ADC} = 6{,}25$ MHz, $t_{conv} = 65/6{,}25\cdot10^6 = 10{,}4$ µs.
+
+**2. Disparar la ráfaga con un Timer a una frecuencia concreta.**
+
+- *Qué se pide.* Que el ADC tome una muestra de cada canal a una frecuencia fija (por ejemplo, 50 veces por segundo) sin que la CPU espere.
+- *Antes.* El modo ráfaga convierte sin parar mientras `BURST = 1`; un Timer puede dar el ritmo; la interrupción del ADC se habilita por canal.
+- *Proceso.* El Timer interrumpe a $F_s$ y en su ISR pone `BURST = 1`; el ADC convierte todos los canales una vez; cuando acaba, interrumpe **un** canal, y la ISR del ADC pone `BURST = 0`. Así hay **una vuelta por cada tic del Timer**.
+- *Truco.* Se habilita la interrupción de **un** canal, no de todos. Si habilitaras todos, entrarías en la ISR tantas veces como canales.
+
+**3. Leer los resultados en la ISR y escalar.**
+
+- *Qué se pide.* Guardar en variables globales el ciclo de trabajo del brillo (0 a 1), el umbral (en grados) y la temperatura (en grados).
+- *Antes.* El resultado de 12 bits está en los bits 15:4 de `AD0DRx`. El factor de escala sale de la tensión de referencia y de lo que cambia el sensor por grado.
+- *Proceso.* (1) `(ADDRx >> 4) & 0xFFF` da el valor de 0 a 4095. (2) Se multiplica por el factor de escala. (3) Para el brillo basta con 8 bits: `(ADDRx >> 8) & 0xFF` da de 0 a 255.
+- *Truco.* **División entera.** Si divides un entero entre otro entero en C, el resultado trunca: $200/255 = 0$. Convierte a `float` **antes** de dividir. Comprueba los extremos: con la lectura máxima, el brillo debe valer 1 y el umbral su máximo.
+
+Ejemplo propio: sensor de 10 mV/°C con referencia 3,3 V: $T = \text{lectura}\cdot 3{,}3/4096/0{,}01 = \text{lectura}\cdot 330/4096$ en °C. Con lectura 2048, 165 °C.
+
+**4. Mover el servo con un solo Match.**
+
+- *Qué se pide.* Generar el pulso del servo de periodo fijo con **un** Match de un Timer, y mover el servo según el valor del sensor.
+- *Antes.* Match con salida en toggle y Timer que **no se resetea** (modo *running*). El pulso del servo mide de 0,5 a 2,5 ms para 0 a 180°.
+- *Proceso.* El Timer corre libre y el Match interrumpe en **cada flanco**. En la ISR: si el pin está en alto, el próximo Match va a $T_H$ cuentas más tarde (el ancho del pulso, según el sensor); si está en bajo, va a $T - T_H$ cuentas más tarde (lo que falta para completar el periodo). Se suma al valor anterior, no se pone.
+- *Truco.* **Suma, no escribas.** `MR0 = MR0 + cuentas`. Si escribes solo `cuentas`, el Match ya habrá pasado. Y comprueba los extremos del servo: con el sensor en 0, el ancho debe salir 0,5 ms y con el máximo, 2,5 ms.
+
+<Donde>
+
+- $T_H$: duración del nivel alto, en cuentas del Timer.
+- $F_{tick}$: frecuencia a la que cuenta el Timer, en Hz.
+- $v$ y $v_{max}$: valor medido y su máximo (por ejemplo, 0 y 50 °C).
+- $T$: periodo de la señal del servo, en cuentas.
+
+</Donde>
+
+$$
+T_H = F_{tick}\left(0{,}5\ \text{ms} + 2\ \text{ms}\cdot \frac{v}{v_{max}}\right),\qquad
+\text{siguiente Match} = \begin{cases} +T_H & \text{si el pin está en alto}\\ +(T - T_H) & \text{si está en bajo}\end{cases}
+$$
+
+**5. Medir el ancho del pulso con captura.**
+
+- *Qué se pide.* Una ISR que mida el tiempo en alto de la señal del servo y lo convierta al valor medido.
+- *Antes.* Cada canal de captura tiene su pin: para medir con dos canales, hay que **llevar la señal a los dos pines** (y por eso el esquema importa). Uno captura el flanco de subida y el otro el de bajada. Máxima resolución es PCLK del Timer = reloj de la CPU.
+- *Proceso.* Se interrumpe en el flanco de **bajada**: ya están las dos capturas. $\text{cuentas} = CR1 - CR0$. Se invierte la fórmula del servo para sacar el valor.
+- *Truco.* Es la fórmula del apartado 4 **al revés**. Si la fórmula del servo era $T_H = a + b\,v$, aquí $v = (T_H - a)/b$. Una forma de comprobarlo: mete un valor en el servo y mide si sale el mismo.
+
+**6. Audio guardado en Flash y reproducido por el DAC.**
+
+- *Qué se pide.* Declarar el array y escribir la ISR del Timer que saca las muestras. Después, usar el DMA para quitar esa ISR.
+- *Antes.* Tamaño = frecuencia de muestreo · duración · bytes por muestra. En Flash va `const`. El DAC toma el valor en los bits 15:6.
+- *Proceso.* (1) $N = F_s \cdot t$ muestras: ese es el tamaño del array. (2) La ISR escribe `DACR = muestra << 8` (8 bits en la parte alta del campo del DAC), incrementa el índice y, cuando llega al final, para el Timer. (3) Con DMA hay que partir en bloques si $N > 4095$.
+- *Truco.* Con un solo canal de DMA que se reconfigura en la ISR, **la dirección origen avanza en bytes**, no en muestras: con muestras de 8 bits es el tamaño del bloque; con 16 bits, el doble. Y el destino de 8 bits es la dirección de `DACR` **más 1** (el byte alto del campo).
+
+**7. SysTick con contadores.**
+
+- *Qué se pide.* Una ISR periódica que comprueba si cambió el potenciómetro, enciende la alarma si la temperatura pasa del umbral y refresca la pantalla cada cierto tiempo largo.
+- *Antes.* `SysTick_Config(n)` interrumpe cada $n$ ciclos de CPU.
+- *Proceso.* $\text{periodo} = n/F_{CPU}$. Para "cada 30 s" con un tic de 50 ms: $30/0{,}05 = 600$ tics, y en la ISR `if (contador % 600 == 0)`.
+- *Truco.* Compara el valor nuevo con el **anterior** (una variable `static`) y actualiza el anterior al final. Si no, cambias el brillo en cada tic.
+
+### Cuestión 2: T y D de una lista de tareas
+
+Una lista de siete funciones, y para cada una: **qué subsistema** y **cuánto valen T y D**. La regla de la página de [ejecutabilidad](../ejecutabilidad/): $T$ es cada cuánto llega el evento y $D$ es el tiempo que tiene hasta que se pierde. Casos que enseña este examen:
+
+- Una señal generada **por el módulo PWM** no es una tarea: no hay código que se ejecute.
+- Una cuadrada generada con un Timer que conmuta tiene una tarea **por flanco**: $T = D = $ el tramo más corto de la señal (periodo mínimo · ciclo de trabajo).
+- Una grabación de dos canales con ráfaga: $T$ es lo que tarda **una vuelta completa** del ADC y $D$ es la mitad, porque el primer resultado hay que leerlo antes de que acabe la conversión que está en curso.
+- Una recepción por UART con paridad y dos bits de stop son **12 bits** por byte, no 10.
+- Con un error admisible del 30 %, $D = 0{,}3\,T$ para una tarea cuya precisión importa.
+
+### Cuestión 3: ejecutabilidad en cuatro escenarios
+
+Tres tareas con $C$, $T$, $D$ y regiones críticas, y **cuatro asignaciones distintas** de prioridad y subprioridad. Se pide decidir en cada una si es ejecutable.
+
+- *Antes.* La [tabla de bloqueo e interferencia](../ejecutabilidad/) y cómo iterar.
+- *Proceso.* Por escenario y por tarea: (1) bloqueo $B$, el **máximo** entre la región crítica del `main`, las de las tareas menos prioritarias y la $C$ de las del mismo nivel; (2) interferencia $I$ con las tareas de mayor nivel; (3) iterar hasta que $R$ se repita; (4) comparar con $D$.
+- *Truco.* En cada escenario **basta con que falle una tarea** para que no sea ejecutable. No hace falta calcular las demás. Y mira primero la tarea con el plazo más justo.
+
+Ejemplo propio (en ms; `main` con región crítica de 1): $\tau_1$ con $C = 2$, $T = D = 10$; $\tau_2$ con $C = 4$, $T = D = 20$, región crítica de 1; $\tau_3$ con $C = 8$, $T = D = 40$, región crítica de 2.
+
+| Escenario | Prioridades | $R_1$ | $R_2$ | $R_3$ | ¿Ejecutable? |
+|---|---|---|---|---|---|
+| A | $\tau_1 > \tau_2 > \tau_3$ | 4 | 8 | 17 | Sí |
+| B | $\tau_3 > \tau_2 > \tau_1$ | 15 (supera 10) | — | — | **No** |
+| C | $\tau_1$ y $\tau_2$ del mismo nivel, $\tau_3$ más baja | 6 | 8 | 17 | Sí |
+
+**Escenario A.** $\tau_1$: bloqueo $\max\{1, 1, 2\} = 2$, luego $R_1 = 2 + 2 = 4$. $\tau_2$: bloqueo $\max\{1, 2\} = 2$; $R^{(0)} = 6$, interfiere $\tau_1$ con $\lceil 6/10\rceil\cdot 2 = 2$, luego $8$, y $\lceil 8/10\rceil\cdot 2 = 2$ se repite: $R_2 = 8$. $\tau_3$: bloqueo $1$; $R^{(0)} = 9$, interferencia $2 + 4 = 6$ da $15$; con 15, $4 + 4 = 8$ da $17$; con 17, $4 + 4 = 8$ otra vez: $R_3 = 17$.
+
+**Escenario B.** La que menos plazo tiene va la última. $\tau_1$: bloqueo $1$ (el `main`); $R^{(0)} = 3$; interfieren $\tau_2$ y $\tau_3$: $4 + 8 = 12$ da $15$, y con 15, $4 + 8 = 12$ se repite: $R_1 = 15 > 10$. **No es ejecutable**, y se ve por qué: la tarea más rápida debe ser la más prioritaria.
+
+**Escenario C.** Al estar en el mismo nivel, $\tau_1$ no puede interrumpir a $\tau_2$: $B_1 = \max\{1,\ C_2 = 4,\ 2\} = 4$ y $R_1 = 6$. Para $\tau_2$, $\tau_1$ no la interrumpe, solo se cuela antes de que empiece: $R^{(0)} = 4 + 2 = 6$ y la interferencia usa $R - C$: $\lceil (6 - 4)/10\rceil\cdot 2 = 2$ da $8$, y se repite. $R_3 = 17$ como en A.
+
+**Pregunta típica de remate.** *"¿Cuánto puede durar como máximo la región crítica del `main`?"* En el escenario A, el límite lo pone $\tau_1$: $R_1 = 2 + RC_{main} \le 10$, luego $RC_{main} \le 8$ ms. Se comprueba que con 8 ms el resto sigue valiendo: $R_2 = 16 \le 20$ y $R_3 = 30 \le 40$.
+
+## Examen 2 · Noviembre de 2024: la UART y las tramas
+
+**Por qué es clave.** Es el que introduce la **segunda cuestión de comunicaciones**: una trama de un sensor de presencia por la UART que hay que decodificar con una máquina de estados. Desde entonces, cae todos los años.
+
+**Qué cuenta el enunciado en general.** El mismo marcador con servo de 2025, pero con un micrófono, una grabación y la reproducción de una alarma, más un sensor que manda tramas por la UART.
+
+### Cuestión 1 (en lo que se diferencia del de 2025)
+
+**1. ADC a la mínima velocidad.** Aquí piden la **mínima** frecuencia de muestreo: divisor 255, $F_{ADC} = 25\ \text{MHz}/256 \approx 97{,}7$ kHz, y con $N$ canales en ráfaga cada uno se muestrea a $F_{ADC}/(65\,N)$. *Truco:* el enunciado dice "exacta" para la frecuencia de muestreo: no la redondees.
+
+**2. Servo con dos Match.** Alternativa al método de 2025:
+
+- *Proceso.* El Timer se **resetea** en el Match 0 (periodo) y ese mismo Match pone el pin en alto por hardware. El Match 1 interrumpe y la ISR baja el pin a mano. Así el ancho es el valor de `MR1` y no hay que alternar entre alto y bajo.
+- *Antes.* Los bits `EMR` (`EM0`, `EMC0`) para controlar el pin a mano.
+- *Truco.* La resolución de 1 µs fija el prescaler: $F_{tick} = 1$ MHz, es decir, `PR = PCLK/1e6 - 1`.
+
+**3. Ciclo de trabajo con una sola captura.** Aquí no hay dos pines: una captura en **los dos flancos**, y en la ISR se mira cuál fue.
+
+- *Proceso.* En el flanco de subida: periodo = captura actual − captura anterior; se guarda la captura actual; se cambia a sensibilidad de bajada. En el de bajada: ciclo $= (CR - \text{subida})\cdot 100/\text{periodo}$; se vuelve a subida.
+- *Truco.* El flanco se cambia **en la ISR** y se empieza siempre por la subida.
+
+**4. ADC que graba, con disparo por Match.** El micrófono se muestrea a 12 kHz o similar. Disparo del ADC por el Match de un Timer en toggle (`START = 100`, 4 en el campo de `AD0CR`): hacen falta **dos** Match por muestra, así que `MR = F_tick/(2·F_s) - 1`.
+
+<Donde>
+
+- $F_s$: frecuencia de muestreo, en Hz. $F_{tick}$: frecuencia del Timer, en Hz.
+- Dos Match por muestra porque el pin conmuta: solo el flanco correcto arranca la conversión.
+- El $-1$ porque el Timer cuenta desde 0.
+
+</Donde>
+
+**5. Reproducir con escala de amplitud.** La ISR escribe la muestra multiplicada por un `float` entre 0 y 1. *Antes:* el resultado del ADC (bits 15:4) y el valor del DAC (bits 15:6) caen en las **mismas posiciones**, así que una muestra grabada con DMA desde `AD0DR` se puede copiar al `DACR` sin desplazar. *Truco:* el tamaño del array es en **bytes** el doble que en muestras, porque cada muestra de 12 bits ocupa 2 bytes.
+
+**6. DMA en lista.** Una grabación de 1,3 s a 12 kHz son 15 600 muestras: no caben en un bloque. La solución las parte en **cuatro bloques iguales** (de 3900) y los une con una lista de descriptores (`DMACCLLI`), con interrupción solo en el último. *Proceso:* busca un divisor de $N$ que sea $\le 4095$. *Truco:* un número de bloques que no divida $N$ deja muestras sin enviar; si no encuentras divisor, el último bloque va más corto.
+
+### Cuestión 2: la trama por UART
+
+La parte que hace de este examen un examen clave. Cuatro apartados encadenados.
+
+**a) Velocidad.** Divisor $DL = \text{PCLK}/(16\cdot\text{baudios})$, **redondeado** al entero más cercano, y velocidad real con ese divisor.
+
+<Donde>
+
+- $DL$: divisor de la UART, entero (`U2DLL`, con `U2DLM` a 0 si cabe en 8 bits).
+- PCLK: reloj del periférico, en Hz.
+- $F_{real}$: velocidad real con el divisor entero, en baudios.
+
+</Donde>
+
+$$
+DL = \mathrm{round}\!\left(\frac{PCLK}{16\cdot \text{baudios}}\right),\qquad
+F_{real} = \frac{PCLK}{16\cdot DL}
+$$
+
+Ejemplo propio: 115 200 baudios con PCLK de 25 MHz: $DL = 13{,}56 \to 14$ y $F_{real} = 111\,607$ baudios (un 3 % menos).
+
+**b) Dibujar la señal y la duración de la trama.** Un byte son **10 bits** en 8N1: start (0), 8 de datos con el de menos peso primero y stop (1). Duración de la trama $= N_{bytes}\cdot 10/F_{real}$. Ejemplo propio: 20 bytes a 111 607 baudios son $200/111\,607 = 1{,}79$ ms. *Truco:* la señal en reposo está en **alto**, y el primer bit que dibujas es el de arranque, en bajo.
+
+**c) y d) La máquina de estados.** Se pide el diagrama y la función que lo implementa, que se llama **con cada byte** desde la ISR de la UART.
+
+- *Antes.* La [técnica de la máquina de estados](../maquinas-estados/): un estado por cada cosa que hay que recordar.
+- *Proceso.* (1) Estados para la **cabecera** (uno por cada byte fijo que se espera). (2) Estados para los **datos** que te interesan (los de un solo objetivo: unos pocos bytes). (3) Los bytes que no te interesan se descartan, pero **hay que contarlos** para llegar al final. (4) Estados para la **cola**. (5) Solo cuando la cola es correcta se copian los valores a la estructura global.
+- *Truco.* Dos bytes se juntan en un número de 16 bits: `valor = (alto << 8) | bajo`, y el orden depende del sensor. Y **si falla un byte de la cabecera, se vuelve al estado inicial**; sin eso, un byte perdido te deja atascado mitad de trama.
+
+## Examen 3 · Noviembre de 2023: lo básico bien hecho
+
+**Por qué es clave.** Es el más sencillo de los tres y el que mejor enseña **cada técnica por separado**. Si llegas al parcial y no tienes claros el módulo PWM, la captura o el ADC en ráfaga, empieza por aquí.
+
+**Qué cuenta el enunciado en general.** Un marcador con servo que muestra dos magnitudes (temperatura y humedad) con dos LED que indican cuál, y mensajes de voz grabados con un micrófono para la alarma de cada una.
+
+**1. ADC en ráfaga lenta.** Es el mismo apartado que en 2024, con tres canales y divisor 255. $t_{conv} = 65/F_{ADC} \approx 0{,}665$ ms y $F_s = F_{ADC}/(65\cdot 3) \approx 500$ Hz por canal. *Antes:* pines AD0.0 a AD0.2 y sin resistencias de pull-up.
+
+**2. Brillo con el módulo PWM.** Aquí sí piden **configurar el módulo PWM** (en 2025 ya viene hecho). *Proceso:* pin como PWM1.6; `MR0` = periodo ($F_{PCLK}/F_{pwm} - 1$); reset en Match 0; habilitar la salida 6; arrancar. La función de brillo es `MR6 = MR0 · brillo` y después `LER` para que se cargue en el siguiente ciclo. *Truco:* sin escribir `LER`, el cambio **no se aplica**. Es el olvido más habitual.
+
+**3. Servo con un Timer.** Igual que el método de dos Match de 2024, con periodo de 20 ms (50 Hz). *Truco:* en la ISR hay que decidir qué magnitud se muestra con una variable booleana; el cambio es una línea, pero es lo que se pregunta.
+
+**4. Medir la posición del servo.** Aquí se pide además **dibujar la conexión**: el pin del servo va a los dos pines de captura del Timer 2. *Proceso:* igual que el apartado 5 de 2025, con subida en un canal y bajada en el otro, y la fórmula del servo al revés para sacar los grados. *Truco:* la captura se hace con Timer en modo *running* sin reset, así la resta de capturas siempre vale.
+
+**5. ISR periódica con contador.** Cada 50 ms se lee el potenciómetro y se actualizan los sensores; cada 10 s, se visualizan. *Truco:* $10/0{,}05 = 200$ tics. Y los sensores no escalan igual: uno tiene una **tensión de salida con un desfase** (no empieza en 0 V), así que $\text{valor} = (V - V_0)/\text{pendiente}$.
+
+**6. Grabar el micrófono con DMA.** El ADC convierte el canal del micrófono con disparo del Timer (Match en toggle), la interrupción del ADC está **habilitada pero la del NVIC no**, porque quien atiende es el DMA. *Cálculo:* $N = F_s \cdot t$ y la RAM = $N$ por bytes por muestra, **por cada mensaje**.
+
+**7. Dos mensajes, una ISR.** Un `if` según la variable de tipo de alarma elige entre dos arrays; el resto de la ISR es el mismo. *Truco:* la variable que indica el final del mensaje.
+
+**8. DMA en lista, con origen variable.** Cinco bloques de 4000 muestras con interrupción solo en el último. El origen (`DMACCSrcAddr`) se elige **al arrancar** según el tipo de alarma. *Truco:* no hay que reconfigurar nada en la ISR: la lista se encarga.
+
+## Lo que se repite en los tres
+
+| Patrón | 2023 | 2024 | 2025 | Qué hay que hacer |
+|---|---|---|---|---|
+| ADC en ráfaga y cálculo de $t_{conv}$ y $F_s$ | Sí | Sí | Sí | Máscara de canales, divisor, `65/F_ADC` |
+| Servo con un Timer y Match | Dos Match | Dos Match | **Un** Match | Comprobar los extremos del ancho |
+| Captura para medir el pulso | Dos canales | Un canal, dos flancos | Dos canales | Resta de capturas y fórmula inversa |
+| Audio por DAC | ISR | ISR | ISR | Alinear en `DACR`, tamaño del array |
+| Audio con DMA | Lista de 5 bloques | Lista de 4 bloques | **Un canal** y se reconfigura | Bloques de 4095 como máximo |
+| Interrupción periódica con contador | Timer 2 | — | SysTick | $T_{largo}/T_{tic}$ tics |
+| UART y trama | — | **Sí** | — | Divisor redondeado y máquina de estados |
+| Ejecutabilidad | — | — | **Sí** | Iterar $R = C + B + I$ |
+
+## Errores de unidades que te cuestan puntos
+
+1. **Bytes frente a muestras.** Las direcciones del DMA avanzan en bytes. Con muestras de 16 bits, un bloque de 2000 muestras son 4000 bytes.
+2. **División entera.** `lectura / 255` con dos enteros da 0. Convierte antes: `(float)lectura / 255`.
+3. **Redondear el divisor de la UART hacia abajo.** Se redondea al **más cercano** y luego se calcula la velocidad real; el error de baudios de la tabla del examen se calcula con ese redondeo.
+4. **Olvidar `LER`** al cambiar un ancho en el módulo PWM.
+5. **Escribir el Match en lugar de sumar** cuando el Timer no se resetea.
+6. **Ráfaga que no para.** Si el ADC no desactiva `BURST`, interrumpe sin parar.
+7. **Dar $T$ sin comprobar los bits por byte** de la UART (paridad y dos stop suman 12).
+
+## Preguntas de examen
+
+<details>
+<summary>Un Timer arranca el ADC por Match en toggle para muestrear a 8 kHz con un reloj de 1 MHz. ¿Qué valor lleva el Match?</summary>
+
+Dos Match por muestra: $MR = 10^6/(2\cdot 8000) - 1 = 61{,}5$, y no es entero. Con `MR = 61` (62 cuentas por mitad) la frecuencia real es $10^6/(2\cdot 62) \approx 8065$ Hz; con `MR = 62`, $\approx 7937$ Hz. Se elige el entero que deje el error menor. *(Respuesta redactada a partir de los apuntes; números inventados.)*
+
+</details>
+
+<details>
+<summary>Una grabación de 2 s a 16 kHz con muestras de 12 bits guardadas en 16, ¿cuánta RAM ocupa y cómo se trocea para el DMA?</summary>
+
+$N = 16\,000\cdot 2 = 32\,000$ muestras, es decir, $64\,000$ bytes. Cabe en bloques de 4000 muestras (8 bloques), todos por debajo del límite de 4095. *(Respuesta redactada a partir de los apuntes; números inventados.)*
+
+</details>
+
+<details>
+<summary>La captura de una señal da `CR0 = 1000` en el flanco de subida y `CR1 = 76 000` en el de bajada, con el Timer a 25 MHz. ¿Cuánto dura el pulso?</summary>
+
+$(76\,000 - 1000)/25\cdot10^6 = 3$ ms. *(Números inventados.)*
+
+</details>
