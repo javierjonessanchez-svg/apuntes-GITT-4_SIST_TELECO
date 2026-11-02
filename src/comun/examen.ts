@@ -101,6 +101,8 @@ const esquemaMatlab = z.object({
 
 const esquemaHoja = z.object({
   tipo: z.literal('hoja'),
+  // Slug de la página que explica qué cae en los exámenes (opcional): se enlaza arriba de la hoja
+  guia: id.optional(),
   formulas: z.array(z.object({
     id,
     tema: z.string().min(1),
@@ -121,6 +123,8 @@ const esquemaHoja = z.object({
     titulo: z.string().min(1),
     cuando: z.string().min(1),
     pasos: z.array(z.string().min(1)).min(1),
+    // Slug del tema donde se explica (opcional): el modo examen enlaza «Estudia el tema»
+    tema: id.optional(),
   })).min(1),
 });
 

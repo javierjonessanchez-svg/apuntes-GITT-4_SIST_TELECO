@@ -509,7 +509,7 @@ b) MR1 = 25·10⁶/(2·10 000) − 1 = 1249 (MAT1.0 en conmutar, reset en MR1)
 c) origen = byte alto del resultado de AD0DR0 · destino = grabacion[]
    TransferSize = 4000 · ancho 8 bits · SI = 0 · DI = 1
    DMACCConfig = (4 << 1) | (2 << 11) | 1 = 0x1009      // petición del ADC, periférico → memoria
-   8 canales encadenados con LLI; solo el último con I = 1 (y ITC)
+   8 bloques en una lista encadenada (DMACCLLI); solo el último con I = 1 (y ITC)
 
 d) DACCNTVAL = 25·10⁶/10 000 − 1 = 2499 · DACCTRL = CNT_ENA | DMA_ENA = 0x0C
    origen = grabacion[] · destino = byte alto de DACR · TransferSize = 4000 · ancho 8 bits · SI = 1 · DI = 0
@@ -525,7 +525,7 @@ e) Con ISR serían 10 000 interrupciones por segundo; con DMA, una por bloque o 
 
 **b)** El Timer 1 conmuta MAT1.0 en cada Match, así que una subida de MAT1.0 (que inicia cada conversión) ocurre **cada dos Match**: $MR_1 = F_{tick}/(2f_s) - 1 = 25\cdot 10^6/20\,000 - 1 = 1249$, justo entero. $N = 32\,000$ muestras de 8 bits son 32 000 bytes. Un bloque admite 4095, y $\lceil 32\,000/4095\rceil = 8$ bloques; con 8 bloques de 4000 sale justo (0,4 s cada uno). `AD0CR`: un solo canal (SEL = `0x01`), `BURST = 0`, START = 110 (MAT1.0) en los bits 26:24 y CLKDIV = 1 para que $t_{conv} = 65/12{,}5\,\text{MHz} = 5{,}2$ µs quepa de sobra en los 100 µs: `0x06200101`. Además, `AD0INTEN` con el bit del canal 0 y **sin** habilitar la interrupción del ADC en el NVIC.
 
-**c)** Canal de periférico a memoria: origen el byte alto del registro de datos del canal 0 del ADC (los 8 bits de más peso del resultado de 12), destino `grabacion[]`. `TransferSize = 4000`, ancho de 8 bits, `SI = 0` (el registro es fijo) y `DI = 1`. En `DMACCConfig`: `SrcPeripheral = 4` (ADC), `FlowCntrl = 010` y `E = 1`: $(4 \ll 1) \mid (2 \ll 11) \mid 1 = $ `0x1009`. Como hay 8 bloques de 4000, se encadenan 8 canales con `DMACCLLI` y solo el último lleva `I = 1`.
+**c)** Canal de periférico a memoria: origen el byte alto del registro de datos del canal 0 del ADC (los 8 bits de más peso del resultado de 12), destino `grabacion[]`. `TransferSize = 4000`, ancho de 8 bits, `SI = 0` (el registro es fijo) y `DI = 1`. En `DMACCConfig`: `SrcPeripheral = 4` (ADC), `FlowCntrl = 010` y `E = 1`: $(4 \ll 1) \mid (2 \ll 11) \mid 1 = $ `0x1009`. Como hay 8 bloques de 4000, se encadenan 8 descriptores con `DMACCLLI` (el examen lo llama a veces «canales enlazados») y solo el último lleva `I = 1`.
 
 **d)** El DAC cuenta $DACCNTVAL + 1$ ciclos entre muestras: $25\cdot 10^6/10\,000 - 1 = 2499$. `DACCTRL` con `CNT_ENA` y `DMA_ENA`: `0x0C`. Canal memoria→periférico: origen `grabacion[]` (`SI = 1`), destino el byte alto de `DACR` (`DI = 0`), 8 bits, `DestPeripheral = 7`, `FlowCntrl = 001`: $(7 \ll 6) \mid (1 \ll 11) \mid 1 = $ `0x9C1`. Otra vez 8 bloques encadenados, con `I = 1` solo en el último.
 

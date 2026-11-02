@@ -6,7 +6,7 @@ resumen: "El GPDMA del LPC1768: qué pide cada canal, cuántas muestras caben en
 saber:
   - "El DMA copia datos entre memoria y periféricos sin que la CPU ejecute código por cada dato. El LPC1768 tiene 8 canales, cada uno en un solo sentido"
   - "Un canal se configura con: dirección de origen, de destino, tamaño del bloque, ancho (8, 16 o 32 bits), si se incrementa cada dirección, el tipo de transferencia y la señal que pide cada dato"
-  - "Un bloque no puede pasar de 4095 transferencias (el campo TransferSize tiene 12 bits). Para grabar o reproducir más muestras hay que encadenar canales o volver a apuntar el canal cuando acaba"
+  - "Un bloque no puede pasar de 4095 transferencias (el campo TransferSize tiene 12 bits). Para grabar o reproducir más muestras hay que encadenar bloques (lista de descriptores) o volver a apuntar el canal cuando acaba"
   - "Grabar con el ADC: el Timer dispara cada conversión por MAT, el ADC pide un dato al DMA y se habilita su interrupción en ADINTEN pero no en el NVIC. Reproducir con el DAC: DACCNTVAL fija el ritmo y el DAC pide cada muestra"
   - "N = f_s · t son las muestras, y los bytes dependen del ancho: 1 por muestra de 8 bits, 2 por muestra de 10 o 12 bits"
   - "Lo que se pide en el examen casi siempre es la lista de ajustes del canal con sus números, no el programa entero"
@@ -31,10 +31,10 @@ test:
     o: ["SI = 1 (la memoria avanza) y DI = 0 (el DAC es una dirección fija)", "SI = 0 y DI = 1", "Los dos a 1", "Los dos a 0"]
     c: 0
     e: "El origen es un array: cada transferencia lee la siguiente posición. El destino es siempre el mismo registro del DAC."
-  - p: "Con la lista encadenada (linked list), ¿cuándo interrumpe el último canal?"
+  - p: "Con la lista encadenada (linked list), ¿en qué bloque se habilita la interrupción de terminación?"
     o: ["Cuando acaba su bloque, y solo en ese se habilita la interrupción de terminación", "Nunca: la lista no puede interrumpir", "Después de cada muestra", "Cuando se llena la FIFO del DMA"]
     c: 0
-    e: "Los canales intermedios pasan al siguiente descriptor sin avisar. Solo el último tiene el bit de interrupción de terminación a 1."
+    e: "Los bloques intermedios pasan al siguiente descriptor sin avisar. Solo el último tiene el bit de interrupción de terminación a 1."
 ---
 import Practica from '../../../src/asignaturas/seda/Practica.astro';
 import Frecuencia from '../../../src/asignaturas/seda/Frecuencia.astro';
@@ -180,7 +180,7 @@ El canal es memoria→DAC: `SI = 1`, `DI = 0`, petición 7. Si las muestras son 
 
 Un solo canal solo mueve 4095 transferencias. Hay dos formas de seguir:
 
-**Lista encadenada** (*linked list*). Cada canal tiene un puntero `DMACCLLI` al descriptor del siguiente bloque (origen, destino, siguiente y control). Al acabar un bloque, el DMA carga el siguiente **solo**, sin CPU. Todos los bloques menos el último tienen la interrupción apagada; solo el último avisa. Se necesita un descriptor por bloque. Es la respuesta de «sin intervención de la CPU».
+**Lista encadenada** (*linked list*). El canal tiene un puntero `DMACCLLI` al descriptor del siguiente bloque (una pequeña estructura en memoria con origen, destino, siguiente y control). Al acabar un bloque, el DMA carga el siguiente descriptor **solo**, sin CPU. Un único canal recorre toda la lista, así que el límite no son los 8 canales. En los exámenes de clase se llama a veces «canales enlazados» y se contesta igual: un bloque tras otro. Todos los bloques menos el último tienen la interrupción apagada; solo el último avisa. Se necesita un descriptor por bloque. Es la respuesta de «sin intervención de la CPU».
 
 **Volver a apuntar en la ISR.** Un solo canal con `DMACCLLI = 0` interrumpe al acabar cada bloque. En la ISR se borra el flag, se suma el tamaño del bloque a la dirección de origen (o de destino) y se vuelve a habilitar el canal. Es más simple, pero la CPU se despierta una vez por bloque (no por muestra), y hay un hueco corto entre bloques.
 
@@ -200,9 +200,9 @@ $N = 8000\cdot 12 = 96\,000$ muestras, 96 000 bytes. $\lceil 96\,000/4095\rceil 
 </details>
 
 <details>
-<summary>Reproduces 40 000 muestras de 8 bits a 10 kHz con el DAC y el DMA. Calcula DACCNTVAL y dime cuántos canales encadenas.</summary>
+<summary>Reproduces 40 000 muestras de 8 bits a 10 kHz con el DAC y el DMA. Calcula DACCNTVAL y dime cuántos bloques encadenas.</summary>
 
-$DACCNTVAL = 25\cdot 10^6/10\,000 - 1 = 2499$. $\lceil 40\,000/4095\rceil = 10$ bloques; con 10 canales de 4000 muestras, encadenados con `DMACCLLI`. Solo el último lleva la interrupción de fin de bloque. Dura $40\,000/10\,000 = 4$ s. *(Respuesta redactada a partir de los apuntes; números inventados.)*
+$DACCNTVAL = 25\cdot 10^6/10\,000 - 1 = 2499$. $\lceil 40\,000/4095\rceil = 10$ bloques; con 10 bloques de 4000 muestras, en una lista encadenada con `DMACCLLI`. Solo el último lleva la interrupción de fin de bloque. Dura $40\,000/10\,000 = 4$ s. *(Respuesta redactada a partir de los apuntes; números inventados.)*
 
 </details>
 

@@ -21,6 +21,9 @@ const total = examen.problemas.length;
     <h1>Modo examen</h1>
     <p class="entradilla">La hoja del último repaso: los pasos de cada tipo de problema, las fórmulas que hay que saber y los bits de los registros. Se imprime en limpio.</p>
     <p class="hoja-aviso">En las preguntas de código vale <b>pseudocódigo claro</b> con los valores de los registros: no hace falta el C completo. Hay ejemplos en <a href={ruta(asignatura.slug, 'problemas-examen')}>Problemas tipo examen</a>.</p>
+    {examen.guia && (
+      <p class="hoja-aviso"><b>Qué estudiar primero:</b> <a href={ruta(asignatura.slug, examen.guia)}>Qué cae en el examen</a> ordena los temas por cuántas veces han salido. Cada tipo de problema de abajo enlaza el tema donde se explica.</p>
+    )}
     <p class="examen-resumen" aria-live="polite"><b data-cuenta>0</b>/{total} tipos de problema que ya te salen</p>
     <p class="examen-nota" role="status" data-nota hidden>Tu navegador no deja guardar el avance; las marcas se pierden al cerrar.</p>
   </header>
@@ -35,6 +38,7 @@ const total = examen.problemas.length;
           <ol class="hoja-pasos">
             {p.pasos.map((paso) => <li set:html={paso} />)}
           </ol>
+          {p.tema && <p class="flujo-cuando"><a href={ruta(asignatura.slug, p.tema)}>Estudia el tema →</a></p>}
           <label class="marca"><input type="checkbox" data-id={p.id} /><span><span class="sr">{p.titulo}: </span>me sale</span></label>
         </li>
       ))}

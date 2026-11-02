@@ -3,9 +3,11 @@
 # los pasos resumen el método de cada tipo de problema. Nada de enunciados de exámenes.
 # Lo comprueban tests/examen.test.ts y la construcción (src/comun/examen.ts).
 tipo: hoja
+guia: que-cae
 
 problemas:
   - id: interrupcion-periodica
+    tema: timers-match
     titulo: Interrupción periódica con un Timer
     cuando: '«cada T ms», «parpadear», «muestrear cada…», un tick para una máquina de estados'
     pasos:
@@ -17,6 +19,7 @@ problemas:
       - 'TCR = 2 (TC a 0) y luego TCR = 1 (contar).'
       - 'ISR: <b>IR = 1</b> (borrar el flag de MR0 escribiendo un 1), algo corto y salir. Variables compartidas, volatile.'
   - id: pwm-servo
+    tema: pwm-servos
     titulo: PWM y servos
     cuando: '«ciclo de trabajo», «servo», «ángulo», «brillo de un LED», «periodo de 20 ms»'
     pasos:
@@ -28,6 +31,7 @@ problemas:
       - 'LER: bits 0 y x a 1. Cada vez que cambies MRx, otra vez LER: el valor entra en el siguiente periodo.'
       - 'TCR = (1 &lt;&lt; 0) | (1 &lt;&lt; 3): Counter Enable + PWM Enable.'
   - id: captura
+    tema: captura
     titulo: Captura y medida de pulsos
     cuando: '«medir la frecuencia», «ancho del pulso», «tiempo entre flancos», un receptor (mando, sensor)'
     pasos:
@@ -38,6 +42,7 @@ problemas:
       - 'ISR: <b>IR = (1 &lt;&lt; 4)</b> (flag de CR0), leer CR0 y restar con el anterior: N = CR0_k − CR0_{k−1} en uint32_t (vale aunque el TC desborde).'
       - 'Periodo: f = F_tick/N. Ancho: alterna el flanco en CCR en cada captura y resta subida y bajada.'
   - id: uart
+    tema: uart
     titulo: Configurar la UART
     cuando: '«bit/s», «trama», «8N1», «recibir por la serie», «enviar una cadena»'
     pasos:
@@ -48,6 +53,7 @@ problemas:
       - 'IER: bit 0 (RDA, dato recibido) y/o bit 1 (THRE, THR vacío). NVIC_EnableIRQ(UART0_IRQn).'
       - 'ISR: IntId = (IIR >> 1) &amp; 7. Si es 2 (RDA), leer RBR (borra la interrupción). Si es 1 (THRE), escribir el siguiente byte en THR.'
   - id: adc
+    tema: adc-dac
     titulo: Muestrear con el ADC
     cuando: '«sensor analógico», «tensión de 0 a 3,3 V», «muestrear a f_s», «nivel en %»'
     pasos:
@@ -58,6 +64,7 @@ problemas:
       - 'A ritmo fijo: START = 100 (MAT0.1) con TIMER0 en conmutar (EMC1 = 11) y el Match a la mitad del periodo de muestreo. Una sola vez: START = 001.'
       - 'Resultado: espera DONE (bit 31) o usa la interrupción (AD0INTEN + ADC_IRQn); RESULT = (GDR >> 4) &amp; 0xFFF y V = RESULT·3,3/4096.'
   - id: maquina-estados
+    tema: maquinas-estados
     titulo: Máquina de estados
     cuando: '«dibuja el diagrama de estados», «StateChart», «programa el control», tiempos y pulsadores'
     pasos:
@@ -69,6 +76,7 @@ problemas:
       - 'Código: un <code>switch (estado)</code>; cada caso da un paso y vuelve, sin bucles de espera. Los pulsadores, por flanco.'
       - 'Repasa los casos raros: timeout si se pierde un dato, qué pasa tras el reset, un evento que llega en el estado «equivocado».'
   - id: sistema-completo
+    tema: adc-dac
     titulo: Pregunta larga con varios periféricos (ADC, servo, captura, DAC, DMA)
     cuando: 'un sistema con sensor, servo y alarma, con apartados a, b, c… que se apoyan unos en otros; la primera pregunta de casi todas las pruebas'
     pasos:
@@ -81,6 +89,7 @@ problemas:
       - 'DMA: N = f_s·t, bloques = ⌈N/4095⌉, ancho 8 o 16 bits, incrementos y petición. Para el DAC, DACCNTVAL = F_PCLK/f_s − 1.'
       - 'Escribe comentarios en el código de registros (cuentan) y pseudocódigo claro en las ISR.'
   - id: dma-grabar-reproducir
+    tema: dma
     titulo: Grabar con el ADC o reproducir con el DAC usando el DMA
     cuando: '«sin cargar la CPU», «con DMA», «graba durante t segundos», «reproduce la tabla», «lista encadenada»'
     pasos:
@@ -92,6 +101,7 @@ problemas:
       - 'Más de 4095: lista encadenada con DMACCLLI (solo el último bloque interrumpe) o un canal que vuelve a apuntar en su ISR (suma el tamaño del bloque a la dirección).'
       - 'Justifica el ahorro: la CPU solo atiende un aviso por bloque (o ninguno hasta el final), no uno por muestra.'
   - id: ejecutabilidad-td
+    tema: ejecutabilidad
     titulo: T y D de una lista de tareas
     cuando: '«indica el subsistema, T y D», «qué tareas hay», una lista de a), b), c)… de funciones del sistema'
     pasos:
@@ -102,6 +112,7 @@ problemas:
       - 'UART sin datos de formato: 8N1 = 10 bits por byte. Con paridad o 2 stops, 11 o 12.'
       - 'Escribe la tabla (tarea, T, D) y una frase de justificación por fila.'
   - id: tiempo-respuesta
+    tema: ejecutabilidad
     titulo: Tiempo de respuesta y ejecutabilidad
     cuando: '«calcula R de cada tarea», «¿es ejecutable?», «región crítica máxima», varios escenarios de prioridades'
     pasos:
