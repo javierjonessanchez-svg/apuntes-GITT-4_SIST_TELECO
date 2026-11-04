@@ -11,6 +11,10 @@ saber:
   - "El resultado está en ADDRx (por canal) y en ADGDR (el último). RESULT ocupa los bits 15:4: (ADGDR >> 4) & 0xFFF. DONE (bit 31) se borra al leer"
   - "ADINTEN se escribe con = y no con |=: tras el reset su bit 8 (ADGINTEN) está a 1 y haría interrumpir por cualquier canal"
   - "DAC: 10 bits, salida AOUT en P0.26. DACR = valor << 6 y V = VALUE·3,3/1024. BIAS elige entre 1 µs (hasta 1 MHz) y 2,5 µs (hasta 400 kHz, menos consumo)"
+  - "Alineación: el bit más alto de la muestra va al bit 15 de DACR. Con 10 bits, << 6; con 8 bits, << 8; con 12 bits (del ADC), (m << 4) & 0xFFC0. Una muestra de 8 bits en DACR sin desplazar sale casi a 0 V"
+  - "El DAC no necesita PCONP, pero antes de tocar sus registros hay que llevar P0.26 a AOUT con PINSEL1. El pin se comparte con AD0.3"
+  - "Audio con ISR: un Timer interrumpe a f_s (MR0 = F_tick/f_s − 1) y la ISR escribe la siguiente muestra. A 8 kHz son 8000 interrupciones por segundo. Con DMA, el contador del DAC pide cada muestra: DACCNTVAL = F_PCLK/f_s − 1, con CNT_ENA y DMA_ENA en DACCTRL"
+  - "El silencio de un audio sin signo de 8 bits es 128 (la mitad de la escala, 1,65 V), no 0. Escalar el volumen multiplicando solo es correcto si el resultado vuelve a ser entero antes de desplazar"
 fuentes:
   - "Apuntes de Miguel"
   - "Periféricos del LPC1768 (diapositivas de clase)"
@@ -36,6 +40,26 @@ test:
     o: ["512 << 6", "512", "2048 << 4", "1023 << 6"]
     c: 0
     e: "VALUE = 1,65·1024/3,3 = 512, y VALUE va en los bits 15:6."
+  - p: "Una ISR escribe en DACR una muestra de 8 bits (0 a 255) para sacar audio. ¿Qué escribes?"
+    o: ["(uint32_t)muestra << 8", "muestra << 6", "muestra", "muestra << 16"]
+    c: 0
+    e: "El bit más alto de la muestra tiene que caer en el bit 15 de DACR: 8 bits van desplazados 8 posiciones. Sin desplazar, la muestra cae en los bits 7:0 y la salida casi no se mueve."
+  - p: "El ADC da RESULT = 3000 (12 bits) y lo sacas por el DAC con DACR = (3000 << 4) & 0xFFC0. ¿Qué VALUE ve el DAC?"
+    o: ["750", "3000", "1500", "187"]
+    c: 0
+    e: "El DAC solo tiene 10 bits: se pierden los 2 bajos y VALUE = 3000/4 = 750. La tensión es 750·3,3/1024 = 2,42 V, la misma que leía el ADC (3000·3,3/4096)."
+  - p: "Para que el DAC pida muestras al DMA hay que poner en DACCTRL…"
+    o: ["CNT_ENA (bit 2) y DMA_ENA (bit 3), o sea 0x0C", "Solo DMA_ENA", "BIAS y CNT_ENA", "DBLBUF_ENA (bit 1)"]
+    c: 0
+    e: "El contador (CNT_ENA) es quien marca el ritmo y DMA_ENA deja pasar su petición al GPDMA. Sin el contador, nadie genera peticiones."
+  - p: "Con F_PCLK = 25 MHz, ¿cuál es la frecuencia de muestreo más baja que se puede dar con DACCNTVAL?"
+    o: ["Unos 381 Hz", "Unos 25 kHz", "1 Hz", "Unos 3,2 kHz"]
+    c: 0
+    e: "DACCNTVAL tiene 16 bits: como máximo 65 535, y f_s = 25·10⁶/65 536 ≈ 381 Hz. Para menos hay que usar un Timer."
+  - p: "Un audio de 8 bits sin signo se reproduce con silencio entre palabras. ¿Qué valor de muestra da el silencio?"
+    o: ["128 (la mitad de la escala, 1,65 V)", "0", "255", "64"]
+    c: 0
+    e: "El audio sin signo vive centrado: 128 equivale a 1,65 V. Con 0 el DAC bajaría a 0 V, un salto que se oye como un chasquido."
 ---
 import Practica from '../../../src/asignaturas/seda/Practica.astro';
 import Registro from '../../../src/asignaturas/seda/Registro.astro';
@@ -158,11 +182,48 @@ $$
 ]} />
 
 ```c
-LPC_PINCON->PINSEL1 |= (2 << 20);            // P0.26 = AOUT
+LPC_PINCON->PINSEL1 |= (2 << 20);            // P0.26 = AOUT (antes de tocar ningún registro del DAC)
 LPC_DAC->DACR = (valor & 0x3FF) << 6;         // valor de 0 a 1023
 ```
 
-**Generar una señal.** Se guarda un periodo en una tabla de N muestras y un Timer interrumpe a $f_s$; en cada interrupción se escribe la siguiente muestra en DACR:
+El código más alto, 1023, da $1023\cdot 3{,}3/1024 \approx 3{,}297$ V: **nunca llega del todo a $V_{REF}$**, siempre falta un LSB (3,2 mV). Para pasar de una tensión a su código se invierte la fórmula: $VALUE = V_{out}\cdot 1024/3{,}3$, redondeado. **Ejemplo (números inventados):** para 2,5 V, $VALUE = 2{,}5\cdot 1024/3{,}3 = 775{,}8 \approx 776$, que escrito es `776 << 6` y da $776\cdot 3{,}3/1024 = 2{,}501$ V.
+
+**Dos cosas que conviene tener en cuenta.** `DACR` no está en el periférico `PCONP` (no tiene bit de alimentación), pero el manual exige llevar el pin a AOUT con `PINSEL1` **antes** de acceder a cualquiera de sus registros. Y P0.26 es también AD0.3: si el pin se usa de entrada del ADC, no puede ser a la vez la salida del DAC.
+
+## Cómo se alinea la muestra en DACR
+
+El DAC solo mira los bits 15:6. Lo que se escribe tiene que estar colocado ahí, y la regla para colocarlo es una sola: **el bit más alto de la muestra va al bit 15**.
+
+$$
+DACR = muestra \ll (16 - n)
+\qquad
+VALUE = \frac{DACR}{64}
+$$
+
+<Donde>
+
+- $muestra$: número de $n$ bits que se quiere sacar, sin signo (sin unidades). $n$: bits de la muestra, 10 como máximo para que no sobren bits.
+- $\ll$: desplazar a la izquierda ($x \ll k$ = $x\cdot 2^k$). $16 - n$: posiciones a desplazar, para que el bit más alto caiga en el 15.
+- $DACR$: lo que se escribe en el registro. $VALUE$: el valor de 10 bits que ve el DAC, bits 15:6 de $DACR$ (se obtiene dividiendo entre $2^6 = 64$).
+
+</Donde>
+
+| Muestra | Qué se escribe | Por qué |
+|---|---|---|
+| 10 bits | `m << 6` | `VALUE` es el campo 15:6 |
+| 8 bits | `m << 8` | el bit 7 de la muestra cae en el bit 15; `VALUE` queda igual a $4m$ |
+| 12 bits (como las da el ADC) | `(m << 4) & 0xFFC0` | caben 12, el DAC se queda con los 10 altos; la máscara protege los bits 5:0, que son reservados |
+| Lectura directa de `ADDR0` | `ADDR0 & 0xFFC0` | el resultado del ADC (bits 15:4) y el valor del DAC (bits 15:6) **caen en las mismas posiciones** |
+
+**Ejemplo (números inventados).** Una muestra de 8 bits vale 200. Se escribe `200 << 8 = 51 200` (`0xC800`), así que $VALUE = 51\,200/64 = 800$ y $V_{out} = 800\cdot 3{,}3/1024 = 2{,}58$ V, que es $200/256\cdot 3{,}3 = 2{,}58$ V: la fracción de la escala se conserva. Si se escribiera `200` sin desplazar, $VALUE = 200/64 = 3$ y la salida sería de unos 10 mV: parece que el DAC «no suena».
+
+**Volumen.** Para bajar el volumen se multiplica la muestra por un número entre 0 y 1, y en el examen se hace directamente: `DACR = ((uint32_t)(muestra * amplitud)) << 8`. Dos advertencias: (1) el desplazamiento solo existe para enteros, así que `(muestra * amplitud) << 8` con `amplitud` de tipo `float` **no compila**: hay que convertir a entero antes de desplazar; (2) multiplicar la muestra tal cual también reduce el nivel continuo (el 128 del silencio pasa a ser 64 con $amplitud = 0{,}5$). Un volumen «de verdad» resta antes el centro y lo vuelve a sumar: `128 + amplitud * (muestra - 128)`.
+
+**Muestras con signo.** Si el audio tiene valores negativos (de $-128$ a $+127$), el DAC no entiende el signo: hay que sumar el centro, 128 con 8 bits o 512 con 10, para que el cero sea la mitad de la escala. Es la misma razón por la que el ADC con un micrófono da 128 (o 2048 con 12 bits) en silencio.
+
+## Generar una señal con una ISR de Timer
+
+Se guarda un periodo en una tabla de N muestras y un Timer interrumpe a $f_s$; en cada interrupción se escribe la siguiente muestra en DACR:
 
 $$
 f_{out} = \frac{f_s}{N}
@@ -177,6 +238,114 @@ $$
 </Donde>
 
 Por ejemplo (números inventados), una tabla de 50 muestras con $f_s = 20$ kHz da $f_{out} = 400$ Hz. Lo mismo vale para reproducir audio grabado con el ADC: se muestrea y se reproduce a la misma $f_s$ (al menos 8 kHz para voz). Para no gastar CPU en cada muestra, se usa el **[DMA](../glosario/#dma)** (*Direct Memory Access*), que copia los datos de la memoria al DAC sin la CPU.
+
+**La tabla de un seno.** Con 10 bits, un seno centrado se calcula una vez (en el PC o al arrancar):
+
+$$
+tabla[k] = \text{round}\!\left(512 + A\,\sin\frac{2\pi k}{N}\right)
+\qquad k = 0,\ 1,\ \dots,\ N-1
+$$
+
+<Donde>
+
+- $tabla[k]$: la muestra $k$ del periodo, de 0 a 1023 (sin unidades), a la que luego se le aplica `<< 6`.
+- $512$: el centro de la escala (1,65 V). $A$: la amplitud en códigos, como mucho 511 para no salirse de 0–1023.
+- $N$: muestras por periodo. $k$: índice de la muestra. $2\pi k/N$: la fase, en radianes.
+
+</Donde>
+
+**Ejemplo (números inventados).** Con $N = 32$ y $A = 400$: $tabla[0] = 512$ (centro), $tabla[8] = 512 + 400 = 912$ (el pico, 2,94 V) y $tabla[24] = 112$ (el valle, 0,36 V). La señal va de 0,36 V a 2,94 V: $V_{pp} = 800\cdot 3{,}3/1024 = 2{,}58$ V, centrada en 1,65 V. Si la ISR del Timer interrumpe a 16 kHz, $f_{out} = 16\,000/32 = 500$ Hz.
+
+**El Timer.** Con el Timer en reset en el Match 0, su interrupción sale cada $MR0 + 1$ ciclos de $F_{tick}$:
+
+$$
+MR0 = \frac{F_{tick}}{f_s} - 1
+$$
+
+<Donde>
+
+- $MR0$: valor del Match 0, sin unidades. $F_{tick}$: lo que cuenta el Timer, en Hz ($F_{PCLK}/(PR+1)$, 25 MHz si $PR = 0$).
+- $f_s$: interrupciones por segundo, igual a las muestras por segundo, en Hz.
+
+</Donde>
+
+Sin factor 2: aquí no se conmuta ninguna salida, interrumpe en cada Match. Con $f_s = 8$ kHz y 25 MHz: $MR0 = 3124$.
+
+```c
+// Timer 3 interrumpe a f_s y saca un audio de 8 bits sin signo guardado en Flash
+const uint8_t audio[N_AUDIO];                     // en Flash: const (no cabe en los 64 kB de RAM si es largo)
+volatile uint32_t indice = 0;
+volatile uint8_t  fin_audio = 0;
+
+void TIMER3_IRQHandler(void) {
+  LPC_TIM3->IR = (1 << 0);                        // borrar el flag del Match 0
+  LPC_DAC->DACR = (uint32_t)audio[indice++] << 8; // la muestra, ya en los bits 15:8
+  if (indice >= N_AUDIO) {                        // última muestra
+    indice = 0;
+    LPC_TIM3->TCR = 0x02;                         // parar y poner a cero el Timer
+    fin_audio = 1;
+  }
+}
+```
+
+Tres detalles que se preguntan: el array es **`const`** si está en Flash (la RAM tiene solo 64 kB; la Flash, 512 kB); su tamaño es $N = f_s\cdot t$ en bytes si las muestras son de 8 bits (y el doble si son de 12 en 16); y el índice se pone a 0 al acabar para poder reproducir de nuevo. **Ejemplo (números inventados):** 3 s a 8 kHz con 8 bits son 24 000 bytes; la ISR entra 8000 veces por segundo y entre dos entradas hay $100\ \text{MHz}/8\ \text{kHz} = 12\,500$ ciclos de CPU, así que hay holgura, pero no es gratis.
+
+**Para tonos.** Si la tabla es un periodo de $N$ muestras, el índice se reduce con `indice = (indice + 1) % N` (o `indice &= 31` cuando $N = 32$, una potencia de 2) y la ISR no termina nunca.
+
+**Cuánta CPU gasta.** Una ISR por muestra son $f_s$ interrupciones por segundo; con 50 ciclos por ISR, a 8 kHz son $8000\cdot 50/10^8 = 0{,}4\,\%$ de la CPU. Poco, pero se suma a las demás, y además cada muestra puede salir tarde si otra ISR con más prioridad se interpone (ruido en el audio). Para quitarla se usa el contador del DAC y el DMA.
+
+## El contador del DAC y el DMA
+
+El DAC trae un **contador de 16 bits** que cuenta hacia atrás desde `DACCNTVAL` a la velocidad de PCLK. Cada vez que llega a 0, se recarga y pone una petición. Con `DMA_ENA = 1`, la petición va al GPDMA (**petición 7**): una muestra por petición, a un ritmo que no depende de ninguna ISR.
+
+<Registro nombre="DACCTRL" descripcion="control del contador y del DMA del DAC" campos={[
+  { bits: '0', nombre: 'INT_DMA_REQ', que: 'Solo estado: 1 cuando el contador llega a 0. Se borra con cualquier escritura en DACR' },
+  { bits: '1', nombre: 'DBLBUF_ENA', que: 'Con CNT_ENA también a 1, las escrituras en DACR van a un registro previo y pasan al DAC en el siguiente fin de cuenta' },
+  { bits: '2', nombre: 'CNT_ENA', que: '<b>1 = contador funcionando</b>' },
+  { bits: '3', nombre: 'DMA_ENA', que: '<b>1 = la petición del contador va al DMA</b> (petición 7)' },
+]} />
+
+<Registro nombre="DACCNTVAL" descripcion="valor de recarga del contador" campos={[
+  { bits: '15:0', nombre: 'VALUE', que: 'El contador cuenta DACCNTVAL + 1 ciclos de PCLK entre peticiones. Máximo 65 535' },
+]} />
+
+Para reproducir con DMA hay que escribir las dos cosas:
+
+```c
+LPC_DAC->DACCNTVAL = 25000000 / 8000 - 1;        // 3124: una muestra cada 125 µs
+LPC_DAC->DACCTRL   = (1 << 2) | (1 << 3);        // CNT_ENA | DMA_ENA = 0x0C
+// ...y el canal 0 del GPDMA configurado como memoria -> DAC (petición 7)
+```
+
+Y para pararla, `LPC_DAC->DACCTRL &= ~(1 << 2);` (quitar `CNT_ENA`). La configuración completa del canal, los bloques de 4095, los desplazamientos en bytes y la lista de descriptores están en el tema [DMA](../dma/). La cuenta de $DACCNTVAL$ es la misma fórmula que en el tema de Timers cambiando $F_{tick}$ por $F_{PCLK}$:
+
+$$
+DACCNTVAL = \frac{F_{PCLK}}{f_s} - 1
+\qquad
+381\ \text{Hz} \lesssim f_s \le 1\ \text{MHz}
+$$
+
+<Donde>
+
+- $DACCNTVAL$: valor de recarga, sin unidades, de 0 a 65 535. $F_{PCLK}$: reloj del DAC, en Hz (25 MHz por defecto). $f_s$: muestras por segundo, en Hz.
+- 381 Hz es $25\cdot 10^6/65\,536$, el límite inferior con 25 MHz. 1 MHz es el máximo del DAC con `BIAS = 0` (400 kHz con `BIAS = 1`).
+
+</Donde>
+
+**Doble búfer (poco frecuente).** Con `DBLBUF_ENA = 1` y `CNT_ENA = 1`, escribir en `DACR` no cambia la salida: el valor espera en un registro previo y pasa al DAC justo cuando el contador llega a 0. La salida cambia así en instantes exactos aunque la CPU tarde un poco en escribir. Con cualquiera de los dos a 0, la escritura es directa. No se usa en los problemas de examen: basta saber qué hace.
+
+**ISR frente a DMA en una frase.** La ISR de un Timer gasta una interrupción por muestra y su exactitud depende de la latencia; el DMA con el contador del DAC no gasta ninguna por muestra y se sincroniza solo. Cuántas interrupciones hacen falta, bloque a bloque, está en el tema [DMA](../dma/).
+
+## Trampas del DAC
+
+1. **Muestra sin desplazar.** Con 8 bits, `<< 8`; con 10 bits, `<< 6`. Sin él la salida se queda a unos mV.
+2. **`<< 6` con 12 bits.** El resultado del ADC ya está en 15:4 en `ADDR0`; no se desplaza otra vez ni se mete tal cual (solo con la máscara `0xFFC0`, para no escribir en bits reservados).
+3. **Valores de 10 bits fuera de rango.** Un valor de 1024 con `<< 6` se sale del campo (bit 16, `BIAS`): se enmascara con `& 0x3FF`.
+4. **Olvidar `PINSEL1`**: sin el pin en AOUT, el DAC puede estar bien escrito y no salir nada.
+5. **`DACCNTVAL` sin el «−1»** o con un PCLK que no es el de verdad (si PCLKSEL del DAC no es el de por defecto, $F_{PCLK}$ cambia).
+6. **El silencio no es 0**: con audio sin signo, el reposo es la mitad de la escala.
+7. **Multiplicar un `float` y desplazar**: no compila; se convierte a entero antes.
+8. **`DMA_ENA` sin `CNT_ENA`** (o al revés): ni peticiones ni reloj; el DAC se queda parado.
 
 <Practica n={7} nombre="Grabación y reproducción de audio" />
 
@@ -200,5 +369,33 @@ ADC: 3,3/4096 ≈ 0,81 mV. DAC: 3,3/1024 ≈ 3,2 mV. *(Respuesta redactada a par
 <summary>Con una tabla de 32 muestras de un seno, ¿a qué frecuencia debe interrumpir el Timer para sacar 500 Hz por el DAC? ¿Qué MR0?</summary>
 
 $f_s = 32\cdot 500 = 16$ kHz. Con F_PCLK = 25 MHz y reset en MR0: MR0 = 25·10⁶/16 000 − 1 = 1561,5, que no es entero: con 1561 o 1562 el error es de un 0,03 % (unos 500,2 o 499,8 Hz). *(Respuesta redactada a partir de los apuntes.)*
+
+</details>
+
+<details>
+<summary>Un mensaje de audio de 8 bits sin signo, de 5 s a 10 kHz, está en Flash. Declara el array y escribe la ISR del Timer 3 que lo saca por el DAC. ¿Con qué frecuencia interrumpe el Timer?</summary>
+
+$N = 10\,000\cdot 5 = 50\,000$ muestras de 1 byte: `const uint8_t mensaje[50000];` (en Flash, por eso `const`; no cabría en la RAM de 64 kB junto al resto). El Timer interrumpe a $f_s = 10$ kHz, con $MR0 = F_{tick}/10\,000 - 1 = 2499$ si $F_{tick} = 25$ MHz. La ISR borra el flag (`LPC_TIM3->IR = 1 << 0`), escribe `LPC_DAC->DACR = (uint32_t)mensaje[indice++] << 8` y, al llegar a 50 000, pone el índice a 0, para el Timer y avisa con una bandera. *(Respuesta redactada a partir de los apuntes; números inventados.)*
+
+</details>
+
+<details>
+<summary>Un seno de 64 muestras de 10 bits con amplitud 400 se saca a 1 kHz. ¿Qué frecuencia de interrupción, qué MR0, y entre qué tensiones oscila la salida?</summary>
+
+$f_s = 64\cdot 1000 = 64$ kHz. $MR0 = 25\cdot 10^6/64\,000 - 1 = 389{,}6$, o sea 390 o 389 (el error en la frecuencia es de menos de un 0,2 %, aceptable para un tono). La tabla va de $512 - 400 = 112$ a $512 + 400 = 912$: $V_{min} = 112\cdot 3{,}3/1024 = 0{,}36$ V y $V_{max} = 912\cdot 3{,}3/1024 = 2{,}94$ V. Cada muestra se escribe como `tabla[k] << 6`, o se guarda ya desplazada en el array. *(Respuesta redactada a partir de los apuntes; números inventados.)*
+
+</details>
+
+<details>
+<summary>Sin ISR por muestra: ¿qué registros del DAC pones para reproducir a 22 050 Hz con DMA, y qué valores?</summary>
+
+$DACCNTVAL = 25\cdot 10^6/22\,050 - 1 = 1132{,}8$, que se redondea a 1133 (el periodo real son 1134 ciclos, $f_s = 22\,046$ Hz, un 0,02 % de error). `DACCTRL = (1 << 2) | (1 << 3)` (`CNT_ENA` y `DMA_ENA`). El pin P0.26 tiene que estar en AOUT (`PINSEL1`) y el canal del GPDMA configurado memoria→DAC con la petición 7. Para pararlo, se quita `CNT_ENA`. *(Respuesta redactada a partir de los apuntes; números inventados.)*
+
+</details>
+
+<details>
+<summary>Un compañero escribe LPC_DAC->DACR = muestra; con muestras de 8 bits y «no se oye nada». ¿Qué le pasa?</summary>
+
+Falta el desplazamiento: la muestra cae en los bits 7:0 de `DACR` y el DAC solo mira los 15:6, de modo que lo que ve es `muestra/64`, de 0 a 3, y la salida se mueve unos 10 mV. Con 8 bits hay que escribir `(uint32_t)muestra << 8`. *(Respuesta redactada a partir de los apuntes.)*
 
 </details>
