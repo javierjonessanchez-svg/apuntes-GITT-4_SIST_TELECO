@@ -6,3 +6,5 @@ dist/
 /conmutacion/
 /comunicaciones-opticas/
 .claude/
+# Capa solo local: material del profesor (exámenes con soluciones y figuras). NUNCA se sube.
+/contenido/*/privado/

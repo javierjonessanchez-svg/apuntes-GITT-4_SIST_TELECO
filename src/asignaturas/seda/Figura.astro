@@ -1,0 +1,15 @@
+---
+// Figura con pie. La imagen se importa en el MDX (import f from './img/x.png') y se pasa aquí.
+interface Props { src: ImageMetadata; alt: string; pie?: string }
+const { src, alt, pie } = Astro.props;
+---
+<figure class="sd-fig">
+  <img src={src.src} width={src.width} height={src.height} alt={alt} loading="lazy" decoding="async" />
+  {pie && <figcaption>{pie}</figcaption>}
+</figure>
+
+<style>
+  .sd-fig { margin: 14px 0 22px; }
+  .sd-fig img { display: block; max-width: 100%; height: auto; border-radius: 10px; background: #fff; box-shadow: 0 0 0 1px var(--linea); }
+  .sd-fig figcaption { margin-top: 6px; font-size: .84rem; color: var(--suave); }
+</style>
