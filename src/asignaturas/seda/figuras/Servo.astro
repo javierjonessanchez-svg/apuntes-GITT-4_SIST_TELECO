@@ -1,0 +1,20 @@
+---
+import Fig from './Fig.astro';
+import { cota } from './escalera';
+// Escala: 28 px por ms (15 ms = 420 px). T_H = 0,4 + 2·grados/180 ms.
+const px = 28;
+const filas = [{ g: 0, th: 0.4, y: 50 }, { g: 90, th: 1.4, y: 110 }, { g: 180, th: 2.4, y: 170 }];
+---
+<Fig alt="Tres señales PWM de servo con periodo 15 ms: a 0 grados el pulso dura 0,4 ms, a 90 grados 1,4 ms y a 180 grados 2,4 ms" ancho={560}>
+  <svg slot="dibujo" viewBox="0 0 620 215">
+    {filas.map((f) => (
+      <g>
+        <text class="tb" x="10" y={f.y - 6}>{f.g}°</text>
+        <path class="sen" d={`M70 ${f.y} V${f.y - 26} H${70 + f.th * px} V${f.y} H${70 + 15 * px} V${f.y - 26} H${70 + 15 * px + f.th * px} V${f.y}`} />
+        <text class="tn" x={70 + f.th * px + 8} y={f.y - 10}>T_H = {String(f.th).replace('.', ',')} ms</text>
+      </g>
+    ))}
+    <path class="cota" d={cota(70, 70 + 15 * px, 200)} /><text class="tb c" x={70 + 7.5 * px} y="214">T_PWM = 15 ms (en clase)</text>
+  </svg>
+  El ángulo lo fija solo el ancho del pulso: 0,4 ms es 0° y 2,4 ms es 180°; el periodo no cambia.
+</Fig>

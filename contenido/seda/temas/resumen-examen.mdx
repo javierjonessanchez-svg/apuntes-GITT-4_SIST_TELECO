@@ -1,0 +1,639 @@
+---
+titulo: "Hoja de apuntes para el examen"
+orden: 12
+bloque: "Examen"
+resumen: "Una sola hoja, dividida en tareas: reloj, Timer, interrupciones periódicas, cuadradas, PWM, servo, pulso, captura, UART, ADC, DAC, mando Sony y máquinas de estados, con una figura y las fórmulas de cada una"
+saber:
+  - "Todo Timer es un contador TC que avanza a F_tick = F_PCLK/(PR+1) (25 MHz con PR = 0) y un comparador por cada MRx. Al coincidir puede interrumpir (MCR), reiniciar o parar TC (MCR) o cambiar el pin MATn.x (EMR)"
+  - "Casi todas las fórmulas son la misma cuenta: MR = F_tick · tiempo − 1. Lo que cambia es el tiempo que se mete (T entero, medio periodo T/2 o el ancho del pulso T_H) y si el pin conmuta (÷2) o no"
+  - "PWM con un Timer: MR0 = F_tick/F_PWM − 1 fija el periodo, MR1 el ancho (D ≈ MR1/MR0). Con el periférico PWM1 se escribe MRx y después LER; sin LER el valor nuevo no se aplica"
+  - "Servo: T_H = 0,4 + 2·grados/180 ms. En el código, la trampa es la escala: 2 ms son 2e-3 s y la división de los grados, en coma flotante"
+  - "Captura: en cada flanco el hardware copia TC en CRx; la frecuencia es F_tick/N con N = CR0 − anterior. Para el ciclo de trabajo se usan los dos flancos: T_H = CR1 − CR0"
+  - "UART: DL = F_PCLK/(16·V), que se redondea; la velocidad real es F_PCLK/(16·DL). Para escribir DL hay que poner DLAB = 1 en LCR y volver a ponerlo a 0 después"
+  - "ADC: t_conv = 65/F_ADC con F_ADC ≤ 13 MHz. En ráfaga f_s = F_PCLK/(65·(CLKDIV+1)·N). Con un Timer, MR1 = F_tick/(2·f_s) − 1 (el ÷2 es porque el pin conmuta). ADINTEN se escribe con = (1 << canal), nunca con |="
+  - "DAC: V_out = VALUE·3,3/1024, con VALUE en los bits 15:6 de DACR (muestra << 6). Una senoide son M muestras de una tabla calculada antes, una por ISR: F_int = f_out · M"
+fuentes:
+  - "Apuntes propios manuscritos de SEDA (reloj, Timers, PWM, servo, captura, UART, FSM, mando Sony y ADC)"
+  - "Apuntes de Miguel (Timers, PWM y servos, captura, ADC y DAC)"
+  - "UM10360 (manual del LPC17xx)"
+test:
+  - p: "Con F_tick = 25 MHz, ¿qué MR0 da una cuadrada de 2 kHz por hardware (toggle con reset en MR0)?"
+    o: ["6249", "12 499", "12 500", "3124"]
+    c: 0
+    e: "MR0 = F_tick/(2·f_out) − 1 = 25·10⁶/4000 − 1 = 6249. El pin conmuta en cada Match, así que MR0 es medio periodo."
+  - p: "PWM con un Timer a 500 Hz y ciclo de trabajo del 40 % (F_tick = 25 MHz). ¿MR0 y MR1?"
+    o: ["MR0 = 49 999 y MR1 ≈ 20 000", "MR0 = 25 000 y MR1 = 10 000", "MR0 = 49 999 y MR1 ≈ 29 999", "MR0 = 99 999 y MR1 ≈ 40 000"]
+    c: 0
+    e: "MR0 = F_tick/F_PWM − 1 = 49 999. MR1 ≈ D·(MR0+1) = 0,4 · 50 000 = 20 000."
+  - p: "Un servo sigue T_H = 0,4 + 2·grados/180 ms. ¿Qué MR5 del PWM1 (F_tick = 25 MHz) da 45°?"
+    o: ["22 500", "10 000", "45 000", "11 250"]
+    c: 0
+    e: "T_H = 0,4 + 2·45/180 = 0,9 ms y MR5 = 25·10⁶ · 0,9·10⁻³ = 22 500. Después, LER = (1 << 5)."
+  - p: "ADC en ráfaga con 2 canales, F_PCLK = 25 MHz y CLKDIV = 1. ¿Con qué frecuencia se muestrea cada canal?"
+    o: ["Unos 96 kHz", "Unos 192 kHz", "12,5 MHz", "Unos 48 kHz"]
+    c: 0
+    e: "f_s = 25·10⁶/(65 · 2 · 2) ≈ 96 154 Hz. F_ADC = 12,5 MHz (≤ 13 MHz) y cada conversión dura 65 ciclos."
+  - p: "Una senoide de 500 Hz con 32 muestras por periodo sale por el DAC con un Timer. ¿A qué frecuencia interrumpe?"
+    o: ["16 kHz", "500 Hz", "32 kHz", "1 MHz"]
+    c: 0
+    e: "F_int = f_out · M = 500 · 32 = 16 000 Hz: una ISR por muestra."
+  - p: "Captura de frecuencia con F_tick = 1 MHz: entre dos subidas consecutivas, CR0 avanza 4000 tics. ¿Qué frecuencia tiene la señal?"
+    o: ["250 Hz", "4 kHz", "400 Hz", "2,5 kHz"]
+    c: 0
+    e: "f = F_tick/N = 10⁶/4000 = 250 Hz."
+---
+import Donde from '../../../src/asignaturas/seda/Donde.astro';
+import Registro from '../../../src/asignaturas/seda/Registro.astro';
+import RelojArbol from '../../../src/asignaturas/seda/figuras/RelojArbol.astro';
+import TimerBloque from '../../../src/asignaturas/seda/figuras/TimerBloque.astro';
+import Escalera from '../../../src/asignaturas/seda/figuras/Escalera.astro';
+import Toggle from '../../../src/asignaturas/seda/figuras/Toggle.astro';
+import PwmDosMatch from '../../../src/asignaturas/seda/figuras/PwmDosMatch.astro';
+import Servo from '../../../src/asignaturas/seda/figuras/Servo.astro';
+import Pulso from '../../../src/asignaturas/seda/figuras/Pulso.astro';
+import CapturaFrecuencia from '../../../src/asignaturas/seda/figuras/CapturaFrecuencia.astro';
+import UartTrama from '../../../src/asignaturas/seda/figuras/UartTrama.astro';
+import AdcDisparo from '../../../src/asignaturas/seda/figuras/AdcDisparo.astro';
+import AdcRafaga from '../../../src/asignaturas/seda/figuras/AdcRafaga.astro';
+import DacSeno from '../../../src/asignaturas/seda/figuras/DacSeno.astro';
+import SonyTrama from '../../../src/asignaturas/seda/figuras/SonyTrama.astro';
+import CronogramaCaptura from '../../../src/asignaturas/seda/widgets/CronogramaCaptura.astro';
+
+**Cómo usar esta hoja.** Es la versión de una sola página de todo lo que se calcula y se programa en la PEI1. No explica el porqué (para eso están los temas): da, para cada **tipo de apartado**, el dibujo, la fórmula, el código mínimo y la trampa. Está dividida en tareas independientes; en el examen casi siempre se combinan dos o tres (por ejemplo, ADC disparado por Timer más DMA para el audio).
+
+**Tareas:** [0 Reloj](#t0) · [1 El Timer](#t1) · [2 Interrupción periódica](#t2) · [3 Varias señales sin reset](#t3) · [4 Cuadrada por hardware](#t4) · [5 PWM](#t5) · [6 Servo](#t6) · [7 Pulso de duración T](#t7) · [8 Captura](#t8) · [9 UART](#t9) · [10 ADC](#t10) · [11 Grabar audio](#t11) · [12 DAC](#t12) · [13 Mando Sony](#t13) · [14 Máquinas de estados](#t14) · [15 Qué combinar](#t15)
+
+<span id="t0"></span>
+
+## Tarea 0 · Reloj y tic
+
+<RelojArbol />
+
+$$
+CCLK = \frac{PLLCLK}{CCLKSEL + 1}, \qquad PLLCLK = 2\cdot\frac{M}{N}\cdot F_{osc}, \qquad F_{tick} = \frac{F_{PCLK}}{PR + 1}
+$$
+
+<Donde>
+
+- $CCLK$: reloj de la CPU (100 MHz en la Mini-DK2). $PLLCLK$: salida del PLL, entre 275 y 550 MHz. $F_{osc}$: oscilador de entrada (12 MHz).
+- $F_{PCLK}$: reloj de los periféricos (25 MHz tras el reset, porque PCLKSEL = ÷4). $PR$: prescaler de cada Timer, sin unidades. $F_{tick}$: tics por segundo del contador TC, en Hz.
+
+</Donde>
+
+**Tarea 0 en una línea:** con PR = 0, $F_{tick} = 25$ MHz y un tic dura 40 ns. Si $F_{tick}\cdot T$ no cabe en 32 bits (más de 171 s a 25 MHz), se sube PR.
+
+<span id="t1"></span>
+
+## Tarea 1 · El Timer y sus registros
+
+<TimerBloque />
+
+Hay cuatro Timers (0 a 3). Cada uno tiene: **PR** (prescaler), **TC** (contador de 32 bits; tras $2^{32}-1$ vuelve a 0), **MR0 a MR3** (cuatro Match), **CR0 y CR1** (dos capturas) y pines **MATn.0 a MATn.3** (salidas) y **CAPn.0 y CAPn.1** (entradas). El MAT2.1 es el Match 1 del Timer 2.
+
+<Registro nombre="TCR" descripcion="control del contador" campos={[
+  { bits: '0', nombre: 'Counter Enable', que: '1 = TC y PC cuentan; 0 = parado' },
+  { bits: '1', nombre: 'Counter Reset', que: '1 = pone TC y PC a 0 (y los mantiene mientras valga 1)' },
+]} />
+
+<Registro nombre="MCR" descripcion="qué hace TC al coincidir con cada MRx (3 bits por Match)" campos={[
+  { bits: '0, 1, 2', nombre: 'MR0I, MR0R, MR0S', que: 'Interrumpir, reiniciar TC, parar TC cuando TC = MR0' },
+  { bits: '3, 4, 5', nombre: 'MR1I, MR1R, MR1S', que: 'Lo mismo para MR1' },
+  { bits: '6–8 y 9–11', nombre: 'MR2 y MR3', que: 'Lo mismo para MR2 y MR3 (12 bits en total)' },
+]} />
+
+<Registro nombre="EMR" descripcion="qué hace el pin MATn.x al coincidir" campos={[
+  { bits: '0–3', nombre: 'EM0 a EM3', que: 'Nivel actual de cada pin MAT. Se puede leer (y escribir para forzar el pin) sin tocar el GPIO' },
+  { bits: '4–5, 6–7, 8–9, 10–11', nombre: 'EMC0 a EMC3', que: '00 = nada; 01 = pone el pin a 0; 10 = lo pone a 1; <b>11 = lo conmuta</b>' },
+]} />
+
+<Registro nombre="IR y CCR" descripcion="interrupciones y capturas" campos={[
+  { bits: 'IR 0–3', nombre: 'MR0 a MR3', que: 'Flag de cada Match. Se borra <b>escribiendo un 1</b>: <code>LPC_TIMn->IR = (1 &lt;&lt; x)</code>' },
+  { bits: 'IR 4–5', nombre: 'CR0, CR1', que: 'Flag de cada captura (se borran igual)' },
+  { bits: 'CCR 0–2', nombre: 'CAP0RE, CAP0FE, CAP0I', que: 'CR0 captura en subida, en bajada, y avisa con interrupción. Los bits 3–5 son los mismos para CR1' },
+]} />
+
+<span id="t2"></span>
+
+## Tarea 2 · Interrupción periódica
+
+**Qué se pide:** «una interrupción cada $T_{int}$» o «a $f_{int}$». TC se reinicia en MR0.
+
+<Escalera modo="reset" />
+
+$$
+MR0 = F_{tick}\cdot T_{int} - 1 = \frac{F_{tick}}{f_{int}} - 1, \qquad T_{int} = \frac{MR0 + 1}{F_{tick}}
+$$
+
+<Donde>
+
+- $MR0$: valor del Match 0, sin unidades. $F_{tick}$: Hz. $T_{int}$: tiempo entre interrupciones, en s. $f_{int}$: su inversa, en Hz.
+- El «−1» sale de que TC cuenta de 0 a MR0, que son $MR0+1$ tics.
+
+</Donde>
+
+```c
+LPC_TIM0->PR  = 0;
+LPC_TIM0->MR0 = F_tick / f_int - 1;       // con F_tick y f_int ya definidos
+LPC_TIM0->MCR = (1 << 0) | (1 << 1);      // MR0I (interrumpe) y MR0R (reinicia TC)
+LPC_TIM0->TCR = 1;                        // arranca (con 2 se reinicia)
+NVIC_EnableIRQ(TIMER0_IRQn);
+
+void TIMER0_IRQHandler(void) {
+  LPC_TIM0->IR = (1 << 0);                // borrar el flag de MR0
+  // lo que toque en cada periodo
+}
+```
+
+**Ejemplo (números inventados).** $F_{tick} = 25$ MHz y $T_{int} = 2$ ms: $MR0 = 25\cdot 10^6\cdot 2\cdot 10^{-3} - 1 = 49\,999$. **Trampas:** olvidar el −1 (el periodo sale 40 ns largo) y no borrar el flag (la ISR se repite sin parar).
+
+<span id="t3"></span>
+
+## Tarea 3 · Varias señales con un solo Timer, sin reset
+
+**Qué se pide:** «genera tres señales de distinta frecuencia con un Timer» o «interrupciones con periodos distintos». TC **no** se reinicia: cada Match avanza su propio objetivo.
+
+<Escalera modo="libre" />
+
+```c
+void TIMER0_IRQHandler(void) {
+  if (LPC_TIM0->IR & (1 << 0)) {          // ¿ha sido MR0?
+    LPC_TIM0->IR  = (1 << 0);
+    LPC_TIM0->MR0 += N0;                  // siguiente Match de la señal 0
+  }
+  if (LPC_TIM0->IR & (1 << 1)) {          // ¿o MR1?
+    LPC_TIM0->IR  = (1 << 1);
+    LPC_TIM0->MR1 += N1;
+  }
+}
+```
+
+$$
+N = F_{tick}\cdot T \quad \text{(interrupción cada } T\text{)}, \qquad N = \frac{F_{tick}}{2\,f_{out}} \quad \text{(conmutar el pin en cada ISR)}
+$$
+
+<Donde>
+
+- $N$: tics entre dos Match consecutivos del mismo MRx, sin unidades. $T$: periodo deseado, en s. $f_{out}$: frecuencia de la señal de salida, en Hz.
+- Al conmutar en cada ISR hay que esperar medio periodo, de ahí el $2\,f_{out}$.
+
+</Donde>
+
+**Ejemplo (números inventados).** Tres señales de 1, 2 y 5 kHz con $F_{tick} = 25$ MHz: $N_0 = 12\,500$, $N_1 = 6250$, $N_2 = 2500$. **Límite:** cada medio periodo hay una ISR, así que tiene que cumplirse $t_{latencia} + t_{\text{ejecución}} < T_{out}/2$ (y sumando las ISR de las otras señales). Si no, se pierde un Match y la señal se estropea. Con $\le 4$ Match por Timer salen hasta 4 señales.
+
+<span id="t4"></span>
+
+## Tarea 4 · Cuadrada por hardware (toggle, sin ISR)
+
+**Qué se pide:** «genera una cuadrada de $f_{out}$ sin interrumpir». El pin conmuta solo; TC se reinicia en MR0.
+
+<Toggle />
+
+$$
+MR0 = \frac{F_{tick}}{2\,f_{out}} - 1
+$$
+
+<Donde>
+
+- $MR0$: medio periodo en tics, menos 1. $F_{tick}$: Hz. $f_{out}$: frecuencia de la salida, en Hz. El «2» es porque un periodo de salida son dos Match.
+
+</Donde>
+
+```c
+LPC_TIM0->MR0 = F_tick / (2 * f_out) - 1;
+LPC_TIM0->MCR = (1 << 1);                 // solo reinicia TC (MR0R), sin interrupción
+LPC_TIM0->EMR = (3 << 4);                 // EMC0 = 11: conmuta MAT0.0
+LPC_TIM0->TCR = 1;
+```
+
+**Ejemplo (números inventados).** 1 kHz con 25 MHz: $MR0 = 25\cdot 10^6/2000 - 1 = 12\,499$. **Límite:** como TC se reinicia en MR0, todos los Match comparten ese reinicio, así que **solo sale una frecuencia por Timer**. Para varias frecuencias se usa la tarea 3.
+
+<span id="t5"></span>
+
+## Tarea 5 · PWM
+
+Una PWM tiene periodo fijo y solo cambia cuánto está en alto. $D = T_H/T_{PWM}$, con $0\le D\le 1$.
+
+$$
+N_T = F_{tick}\cdot T_{PWM}, \qquad N_H = D\cdot N_T, \qquad N_L = N_T - N_H
+$$
+
+<Donde>
+
+- $N_T$: tics de un periodo entero. $N_H$ y $N_L$: tics en alto y en bajo. $D$: ciclo de trabajo (0 a 1, o en %). $T_{PWM}$: periodo, en s.
+
+</Donde>
+
+**Método A · un Timer, toggle y ISR.** Es la tarea 3 con dos valores de $N$ según el nivel: el bit EM0 de EMR dice si el pin está ahora en alto, así que no hace falta leer el GPIO. EMC0 = 11 y sin reset.
+
+```c
+void TIMER0_IRQHandler(void) {
+  LPC_TIM0->IR = (1 << 0);
+  if (LPC_TIM0->EMR & (1 << 0))           // ahora está en alto
+    LPC_TIM0->MR0 += N_H;                 // seguirá N_H tics en alto
+  else
+    LPC_TIM0->MR0 += N_L;
+}
+```
+
+Si $T_H$ o $T_L$ es menor que latencia + ejecución de la ISR, se pierde un flanco. A frecuencias altas no sale.
+
+**Método B · un Timer y dos Match (una sola ISR por periodo).**
+
+<PwmDosMatch />
+
+- **MR0** marca el periodo: reinicia TC (MR0R) y su EMC0 = 10 **sube** el pin en cada reinicio.
+- **MR1** marca el ancho: interrumpe (MR1I) y la ISR **baja** el pin.
+
+$$
+MR0 = \frac{F_{tick}}{F_{PWM}} - 1, \qquad 0 \le MR1 \le MR0, \qquad D \approx \frac{MR1}{MR0}
+$$
+
+```c
+void TIMER0_IRQHandler(void) {
+  LPC_TIM0->IR = (1 << 1);                // flag de MR1
+  LPC_TIM0->EMR &= ~(1 << 0);             // baja MAT0.0 (EM0 = 0)
+}
+```
+
+**Método C · periférico PWM1** (gasta cero CPU). Es un Timer con 7 Match (MR0 a MR6) y 6 salidas PWM1.1 a PWM1.6 **con el mismo periodo**. MR0 marca el periodo de todas y cada MR1 a MR6 el ancho de su salida.
+
+<Registro nombre="Detalles del PWM1" descripcion="lo que más se olvida" campos={[
+  { bits: 'PWM1MR0', nombre: 'Periodo', que: 'MR0 = F_tick/F_PWM − 1 y 0 ≤ PWM1MRx ≤ PWM1MR0' },
+  { bits: 'LER', nombre: 'Latch Enable', que: 'Tras escribir MRx hay que poner su bit: <code>LPC_PWM1->LER = (1 &lt;&lt; x)</code>. <b>Sin LER el valor nuevo no se aplica</b>' },
+  { bits: 'Flanco único', nombre: 'Sube al empezar el periodo', que: 'Baja cuando TC = MRx. T_H = MRx/F_tick y D = MRx/(MR0+1)' },
+  { bits: 'Doble flanco', nombre: 'Dos Match por salida', que: 'Sube y baja en sitios elegidos, pero quedan solo 3 salidas (cada una gasta 2 Match)' },
+]} />
+
+```c
+void set_ciclo(float ciclo) {             // ciclo en %, de 0 a 100
+  LPC_PWM1->MR5  = ciclo * LPC_PWM1->MR0 / 100;
+  LPC_PWM1->LER  = (1 << 5);              // importante: carga MR5 en el siguiente periodo
+}
+```
+
+**Ejemplo (números inventados).** 500 Hz y $D = 40\,\%$ con 25 MHz: $MR0 = 49\,999$ y $MR1 \approx 0{,}4\cdot 50\,000 = 20\,000$ (método B o C).
+
+<span id="t6"></span>
+
+## Tarea 6 · Servo
+
+Un servo se controla en lazo cerrado (0° a 180°) con el **tiempo en alto** de una PWM de ciclo de trabajo pequeño. Tres cables: alimentación, tierra y control. En clase $T_{PWM} = 15$ ms (el valor nominal de muchos servos es 20 ms) y la relación es lineal.
+
+<Servo />
+
+$$
+T_H = 0{,}4 + 2\cdot\frac{grados}{180}\ \text{ms}, \qquad MR_x = F_{tick}\cdot T_H
+$$
+
+<Donde>
+
+- $T_H$: tiempo en alto, en ms (0,4 ms a 0° y 2,4 ms a 180°). $grados$: ángulo deseado, de 0 a 180.
+- $MR_x$: valor del Match del PWM1 para esa salida (en tics). Si el servo es otro, se sustituyen su $T_H$ mínimo y máximo.
+
+</Donde>
+
+```c
+void set_servo(float grados) {
+  LPC_PWM1->MR5 = F_tick * 0.4e-3f + F_tick * 2e-3f * grados / 180.0f;  // en tics
+  LPC_PWM1->LER = (1 << 5);
+}
+```
+
+**Ejemplo (números inventados).** 90° con 25 MHz: $T_H = 1{,}4$ ms y $MR5 = 25\cdot 10^6\cdot 1{,}4\cdot 10^{-3} = 35\,000$. **Trampas:** poner 2 en lugar de 2e-3 (unidades), dividir los grados en entero (`grados/180` con enteros da 0) y olvidar LER. Si el movimiento tiene que ser lento, se sube 1° por tick de una ISR periódica (por ejemplo, 20 ms).
+
+<span id="t7"></span>
+
+## Tarea 7 · Pulso de duración T
+
+**Qué se pide:** «genera un pulso de $T$ segundos» (un solo pulso, sin ISR al acabar).
+
+<Pulso />
+
+$$
+MR1 = F_{tick}\cdot T - 1
+$$
+
+<Donde>
+
+- $MR1$: Match que acaba el pulso, en tics. $T$: duración del pulso, en s. $F_{tick}$: en Hz.
+
+</Donde>
+
+```c
+void set_pulso_alto(float duracion) {
+  LPC_TIM0->MR1 = (uint32_t)(F_tick * duracion) - 1;
+  LPC_TIM0->EMR = (1 << 1) | (1 << 6);    // EM1 = 1 (sube ya) y EMC1 = 01 (baja en el Match)
+  LPC_TIM0->MCR = (1 << 4) | (1 << 5);    // MR1R + MR1S: reinicia TC y lo para
+  LPC_TIM0->TCR = 1;                      // arranca el Timer
+}
+```
+
+La subida la hace el software al escribir EM1; la bajada, el hardware cuando TC = MR1, y además TC se reinicia y se para, listo para otro pulso.
+
+<span id="t8"></span>
+
+## Tarea 8 · Captura (medir señales)
+
+Una señal externa entra por CAPn.0 o CAPn.1. En el flanco elegido (CCR) el hardware **copia TC en CRx** y, si se pide, interrumpe. Sirve para medir una frecuencia, un ciclo de trabajo o el ancho de un pulso.
+
+**a) Frecuencia de una señal periódica.** El Timer corre libre y se captura en cada subida.
+
+<CapturaFrecuencia />
+
+$$
+N = CR0 - CR0_{anterior}, \qquad f = \frac{F_{tick}}{N}
+$$
+
+<Donde>
+
+- $N$: tics entre dos subidas consecutivas. $CR0$: valor de TC copiado en la subida actual. $F_{tick}$: en Hz y $f$: frecuencia de la señal, en Hz.
+
+</Donde>
+
+```c
+void TIMER0_IRQHandler(void) {
+  static uint32_t temp;                   // CR0 de la captura anterior
+  LPC_TIM0->IR = (1 << 4);                // borrar el flag de CR0
+  uint32_t N = LPC_TIM0->CR0 - temp;      // la resta sin signo vale aunque TC haya dado la vuelta
+  frecuencia = F_tick / (float)N;
+  temp = LPC_TIM0->CR0;
+}
+```
+
+**Ejemplo (números inventados).** $F_{tick} = 1$ MHz y $N = 2500$: $f = 400$ Hz. Si TC se reinicia en MR0, hay que sumar $MR0+1$ cuando CR0 sea menor que el anterior (o contar las vueltas).
+
+**b) Ciclo de trabajo.** Con dos entradas (CR0 en subida, CR1 en bajada) o con una entrada que captura en los dos flancos y una variable que dice cuál ha sido.
+
+<CronogramaCaptura />
+
+$$
+T_H = CR1 - CR0, \qquad T = CR0' - CR0, \qquad D = \frac{T_H}{T}
+$$
+
+Con una sola captura en ambos flancos: la ISR distingue por el estado del pin o con una variable (`if (semaforo) { ... } else { ... }`). Mismo esquema para el **ancho de un pulso**: ancho = CR0 de la bajada − CR0 de la subida.
+
+<span id="t9"></span>
+
+## Tarea 9 · UART
+
+Hay UART 0, 1, 2 y 3. Se configura en este orden: pines (PINSEL), alimentación (PCONP), formato y velocidad (LCR, DLL, DLM, FDR), FIFO si se usa, interrupciones (IER).
+
+<UartTrama />
+
+$$
+DL = \frac{F_{PCLK}}{16\cdot V}, \qquad V_{real} = \frac{F_{PCLK}}{16\cdot DL}, \qquad t_{bit} = \frac{1}{V}
+$$
+
+<Donde>
+
+- $DL$: divisor de 16 bits, que se **redondea al entero más próximo**. $V$: velocidad pedida, en baudios (bit/s). $V_{real}$: la que sale de verdad.
+- $DLL = DL\ \%\ 256$ (byte bajo) y $DLM = DL / 256$ (byte alto).
+
+</Donde>
+
+**Ejemplo (números inventados).** 19 200 bit/s con 25 MHz: $DL = 81{,}38 \to 81$ y $V_{real} = 19\,290$ (0,47 % de error, vale).
+
+**Con divisor fraccionario (FDR).** Para ajustar mejor se multiplica por $1 + DivAddVal/MulVal$, con $0 \le DivAddVal < MulVal \le 15$. Se mira la fracción que falta, $FR = F_{PCLK}/(16\cdot DL\cdot V)$, y debe quedar **entre 1,1 y 1,9**; se busca en la tabla del FDR el valor más cercano y se baja DL si hace falta.
+
+$$
+V_{real} = \frac{F_{PCLK}}{16\cdot DL\cdot\left(1 + \frac{DivAddVal}{MulVal}\right)}
+$$
+
+**Ejemplo (números inventados).** 115 200 bit/s con 25 MHz. Sin fracción: $DL = 14$ da 111 607 (−3 %). Con $DL = 13$ la fracción sale 1,043, que no está en la tabla y no mejora. Con $DL = 10$: $FR = 1{,}356 \approx 1 + 5/14$, y $V_{real} = 25\cdot 10^6/(16\cdot 10\cdot (1+5/14)) \approx 115\,131$ (0,06 %).
+
+```c
+LPC_UART1->LCR = (1 << 7) | 0x03;         // DLAB = 1 + 8 bits de datos (el formato 8N1 son 0x03)
+LPC_UART1->DLL = DL % 256;
+LPC_UART1->DLM = DL / 256;
+LPC_UART1->FDR = (MulVal << 4) | DivAddVal;   // si se usa el fraccionario
+LPC_UART1->LCR = 0x03;                    // DLAB = 0 otra vez: si no, no se puede enviar ni recibir
+LPC_UART1->IER = (1 << 0) | (1 << 1);     // RBR (llega dato) y THRE (THR vacío)
+```
+
+**Interrupción.** Se lee el motivo en IIR: `(IIR >> 1) & 7`. Los valores que hay que saber son **2 = dato recibido (RDA)**, **1 = THR vacío (listo para enviar)**, 3 = error de línea y 6 = *timeout* de la FIFO.
+
+**Transmitir una cadena.** Escribir en THR el primer byte (arranca la transmisión y, al acabar, se produce THRE) y en la ISR enviar el siguiente hasta encontrar el `'\0'`. Para recibir, la ISR lee RBR (0 a 7 bits) y lo guarda en un buffer con un puntero.
+
+**Trampas:** DLAB sin volver a 0, redondear mal DL y no comprobar $V_{real}$, y olvidar PCONP (sin alimentar la UART no funciona nada).
+
+<span id="t10"></span>
+
+## Tarea 10 · ADC
+
+12 bits, 8 canales (AD0.0 a AD0.7, el 0 en P0.23). La Mini-DK2 tiene $V_{refP} = 3{,}3$ V y $V_{refN} = 0$.
+
+$$
+V_{in} = \frac{RESULT_{12}}{2^{12}}\cdot 3{,}3, \qquad F_{ADC} = \frac{F_{PCLK}}{CLKDIV + 1} \le 13\ \text{MHz}, \qquad t_{conv} = \frac{65}{F_{ADC}}
+$$
+
+<Donde>
+
+- $RESULT_{12}$: código del ADC, de 0 a 4095. $V_{in}$: tensión de entrada, en V. $CLKDIV$: divisor de 8 bits en ADCR.
+- $t_{conv}$: tiempo de una conversión, en s (65 ciclos de $F_{ADC}$). $F_{ADC}$ debe ser **≤ 13 MHz**.
+
+</Donde>
+
+**Ejemplo (números inventados).** $F_{PCLK} = 25$ MHz con $CLKDIV = 1$: $F_{ADC} = 12{,}5$ MHz (válido) y $t_{conv} = 65/12{,}5\ \text{MHz} = 5{,}2\ \mu$s. Con $CLKDIV = 0$ saldrían 25 MHz, que no vale.
+
+<Registro nombre="ADCR" descripcion="control del ADC" campos={[
+  { bits: '7:0', nombre: 'SEL', que: 'Canal(es) seleccionados. Con un solo canal, un solo bit' },
+  { bits: '15:8', nombre: 'CLKDIV', que: 'Divisor del reloj, de 0 a 255' },
+  { bits: '16', nombre: 'BURST', que: '1 = conversión continua de los canales de SEL (ráfaga)' },
+  { bits: '21', nombre: 'PDN', que: '<b>1 = ADC encendido</b> (con 0 está en reposo)' },
+  { bits: '26:24', nombre: 'START', que: '000 = nada; 001 = ya (por software); 010 = EINT0; 011 = CAP0.1; <b>100 = MAT0.1</b>; 101 = MAT0.3; 110 = MAT1.0; 111 = MAT1.1' },
+  { bits: '27', nombre: 'EDGE', que: 'Con START por flanco: 0 = en subida, 1 = en bajada' },
+]} />
+
+<Registro nombre="ADDRx y ADGDR" descripcion="resultados" campos={[
+  { bits: '15:4', nombre: 'RESULT', que: 'El código de 12 bits. Para sacarlo: <code>(ADDRx &gt;&gt; 4) &amp; 0xFFF</code>. Con 8 bits se cogen los de más peso: <code>(ADDRx &gt;&gt; 8) &amp; 0xFF</code>' },
+  { bits: '31', nombre: 'DONE', que: '1 = conversión terminada. <b>Se borra al leer el registro de resultado</b>' },
+  { bits: 'ADGDR 26:24', nombre: 'CHN', que: 'Canal de la última conversión (solo en el registro global ADGDR)' },
+  { bits: 'ADINTEN 7:0 y 8', nombre: 'Máscara', que: 'Bit n = el canal n interrumpe al acabar. Bit 8 (ADGINTEN) = interrupción global. <b>Tras el reset vale 1</b>, así que hay que borrarlo' },
+]} />
+
+```c
+LPC_ADC->ADINTEN = (1 << canal);          // con "=" (no "|="): así se borra también ADGINTEN (bit 8)
+NVIC_EnableIRQ(ADC_IRQn);
+
+void ADC_IRQHandler(void) {
+  float voltios = ((LPC_ADC->ADGDR >> 4) & 0xFFF) * 3.3f / 4096;   // leer el registro borra DONE
+}
+```
+
+**Trampas:** poner `|=` en ADINTEN (deja el bit global a 1 tras el reset y la ISR salta con cualquier canal), olvidar PDN, y escribir `4096` sin el cast a float (la división entera da 0). Si se quieren menos bits (12 → 8), **se cogen los de más peso**.
+
+**Disparo con un Timer (muestreo exacto).** Un Timer con un Match en modo conmutar y reset: la subida del pin arranca la conversión sin código.
+
+<AdcDisparo />
+
+$$
+MR1 = \frac{F_{tick}}{2\,f_s} - 1
+$$
+
+<Donde>
+
+- $MR1$: Match que conmuta MAT0.1, en tics. $F_{tick}$: Hz. $f_s$: frecuencia de muestreo deseada, en Hz. El «2» es porque solo cuentan las **subidas**, una de cada dos Match.
+
+</Donde>
+
+```c
+LPC_TIM0->MR1 = F_tick / (2 * fs) - 1;
+LPC_TIM0->MCR = (1 << 4);                 // MR1R: reinicia TC en MR1
+LPC_TIM0->EMR = (3 << 6);                 // EMC1 = 11: conmuta MAT0.1
+LPC_ADC->ADCR = (1 << canal) | (1 << 8) | (1 << 21) | (4 << 24);   // SEL, CLKDIV = 1, PDN y START = 100
+LPC_TIM0->TCR = 1;                        // arranca el Timer; el muestreo es automático
+```
+
+**Ejemplo (números inventados).** $f_s = 8$ kHz y 25 MHz: $MR1 = 25\cdot 10^6/16\,000 - 1 = 1561$. Con $N$ canales hay que muestrear $N\cdot f_s$ para que cada canal conserve su $f_s$.
+
+**Ráfaga (varios canales seguidos).** Con BURST = 1 y START = 000 el ADC convierte el canal más bajo, luego el siguiente, y así sin parar.
+
+<AdcRafaga />
+
+$$
+T_s = N\cdot t_{conv} = N\cdot\frac{65\,(CLKDIV+1)}{F_{PCLK}}, \qquad f_s = \frac{F_{PCLK}}{65\,(CLKDIV+1)\,N}
+$$
+
+<Donde>
+
+- $N$: canales activos en SEL. $T_s$: tiempo entre dos muestras del mismo canal, en s. $f_s$: su inversa, en Hz.
+
+</Donde>
+
+**Ejemplo (números inventados).** Con 25 MHz, $N = 3$ y $CLKDIV = 1$: $f_s = 25\cdot 10^6/(65\cdot 2\cdot 3) \approx 64\,103$ Hz. Con $CLKDIV = 255$ sale la **mínima**: $f_{s,min} = 25\cdot 10^6/(65\cdot 256\cdot 3) \approx 500$ Hz. **Si se necesita una $f_s$ más baja**, se usa un Timer que active BURST en su ISR y se desactiva después del último canal (el ADC convierte los $N$ canales y para).
+
+<span id="t11"></span>
+
+## Tarea 11 · Grabar audio con el ADC
+
+**Qué se pide:** guardar $T$ segundos de una señal a $f_s$ y calcular memoria y bloques.
+
+$$
+n_{muestras} = f_s\cdot T, \qquad memoria = n_{muestras}\cdot bytes_{por\ muestra}
+$$
+
+**Ejemplo (números inventados).** 8 kHz durante 2 s: 16 000 muestras. Con 8 bits, `uint8_t muestras[16000]` son 16 000 bytes; con 12 bits hace falta `uint16_t muestras[16000]`, o sea 32 000 bytes. Hay que comprobar que cabe en la RAM (el LPC1768 tiene 64 KiB en total).
+
+```c
+void EINT1_IRQHandler(void) {             // pulsador de grabar
+  LPC_SC->EXTINT = (1 << 1);
+  fin_grabacion = 0;  LED1 = ON;
+  LPC_TIM0->TCR = 1;                      // el Timer dispara el ADC (tarea 10)
+}
+
+void ADC_IRQHandler(void) {
+  muestras[indice_muestra++] = (LPC_ADC->ADGDR >> 8) & 0xFF;   // 8 bits de más peso
+  if (indice_muestra == 16000) {
+    indice_muestra = 0;
+    LPC_TIM0->TCR = 0;                    // para el Timer
+    fin_grabacion = 1;  LED1 = OFF;
+  }
+}
+```
+
+**Trampas:** en silencio, la señal de un micrófono sale **a mitad de escala** (≈ 1,65 V, código ≈ 2048 de 12 bits) porque el circuito de entrada la desplaza; no es cero. Y la lectura debe hacerse en bytes, no en muestras, cuando se mueve con DMA (ver el tema [DMA](../dma/), donde 16 000 muestras de 8 bits se parten en bloques de menos de 4095).
+
+<span id="t12"></span>
+
+## Tarea 12 · DAC
+
+Salida analógica de 10 bits en P0.26 (AOUT), con $V_{refP} = 3{,}3$ V y $V_{refN} = 0$.
+
+$$
+V_{out} = \frac{VALUE_{10}}{1024}\cdot 3{,}3
+$$
+
+<Donde>
+
+- $VALUE_{10}$: código de 10 bits (0 a 1023), en los bits 15:6 de DACR (por eso <code>DACR = valor &lt;&lt; 6</code>). $V_{out}$: tensión de salida, en V.
+- El DAC tarda $t_{setup} = 1\ \mu$s en asentarse (2,5 µs con la otra opción de BIAS): no se puede cambiar más rápido de **1 MHz**.
+
+</Donde>
+
+**Generar una senoide.** Se calcula **una vez** una tabla de $M$ muestras (la senoide va de 0 a 1023, centrada en 511) y cada ISR de un Timer saca la siguiente.
+
+<DacSeno />
+
+$$
+f_{int} = f_{out}\cdot M, \qquad T_{int} = \frac{T_{out}}{M}, \qquad MR = \frac{F_{tick}}{f_{out}\cdot M} - 1
+$$
+
+<Donde>
+
+- $M$: número de muestras por periodo. $f_{out}$: frecuencia de la senoide, en Hz. $f_{int}$: frecuencia de interrupción del Timer, en Hz. $T_{out}$ y $T_{int}$: sus periodos, en s.
+- Límite: $f_{int} \le 1\ \text{MHz}$ (por $t_{setup}$), o sea $f_{out} \le 1\ \text{MHz}/M$; y $t_{latencia}+t_{\text{ejecución}} < T_{int}$.
+
+</Donde>
+
+```c
+#define M_MUESTRAS 64                     // potencia de 2
+uint32_t muestras_seno[M_MUESTRAS];
+
+void genera_muestras_seno(void) {         // una vez, antes de arrancar
+  for (int i = 0; i < M_MUESTRAS; i++)
+    muestras_seno[i] = ((uint32_t)(511 + 511 * sin(2 * 3.14159265 * i / M_MUESTRAS))) << 6;
+}
+
+void TIMER0_IRQHandler(void) {
+  LPC_TIM0->IR = (1 << 0);
+  LPC_DAC->DACR = muestras_seno[indice_muestra];
+  indice_muestra = (indice_muestra + 1) & (M_MUESTRAS - 1);   // contador circular, sin if
+}
+```
+
+**Ejemplo (números inventados).** $f_{out} = 500$ Hz con $M = 32$ y 25 MHz: $f_{int} = 16$ kHz y $MR = 25\cdot 10^6/16\,000 - 1 = 1561$ (con redondeo, 1562). **Por qué M potencia de 2:** `& (M-1)` sustituye al `if (indice == M) indice = 0` y gasta menos tiempo en la ISR. **Por qué la tabla:** el `sin` es lento y no debe calcularse dentro de la ISR (sube $t_{\text{ejecución}}$).
+
+<span id="t13"></span>
+
+## Tarea 13 · Mando Sony
+
+Código SIRC de 12 bits con un LED infrarrojo en MATn.x (Mini-DK2, vía transistor). $T = 600\ \mu$s.
+
+<SonyTrama />
+
+- **Start:** 4T de portadora y T de pausa. **Bit 1:** 2T de portadora y T de pausa. **Bit 0:** T de portadora y T de pausa. Salen primero los 7 bits de comando (de menos a más peso) y luego los 5 de dirección.
+- **Portadora de 38 kHz:** un Timer en toggle con $MR0 = F_{tick}/(2\cdot 38\,000) - 1$. Con 25 MHz son $\approx 328$ (37 994 Hz). Se enciende y se apaga con EMC0 (11 = conmuta, 00 = no hace nada y el pin queda en reposo).
+- **Tiempos:** otro Timer (por ejemplo, con PR = 24 para $F_{tick} = 1$ MHz, así que T = 600 tics y 4T = 2400) que en cada ISR pasa al siguiente tramo. Hace falta una ISR por tramo.
+- **Receptor:** el módulo IR da 0 mientras hay portadora. Se captura con CAPn.x en las bajadas y la distancia entre dos bajadas distingue: start $\approx 5T$ (3000 µs), un 1 $\approx 3T$ (1800 µs) y un 0 $\approx 2T$ (1200 µs); un umbral razonable entre 0 y 1 está a unos 1500 µs. El ejemplo resuelto entero está en [Problemas tipo examen](../problemas-examen/).
+
+<span id="t14"></span>
+
+## Tarea 14 · Máquinas de estados
+
+Notación (*statechart*, adaptada de UML): cada estado puede llevar **entry / do / exit** (qué se ejecuta al entrar, mientras está, al salir). Las transiciones se escriben `evento [condición] / acción`. Símbolos: **●** estado inicial (el de reset), **H** histórico (vuelve al último subestado activo), **◉** estado final. Hay jerarquía: un estado puede contener subestados.
+
+```c
+switch (estado) {                         // un case por estado
+  case ESPERO_DIR:
+    if (dato == MI_DIR) estado = ESPERO_COMANDO;
+    break;
+  case ESPERO_COMANDO:
+    if (dato <= 7) { enciende(dato); estado = ESPERO_COMANDO; }
+    else if (dato == TODO_ON) { todo_on(); }
+    break;
+}
+```
+
+Para cada trama o mensaje, un `switch` con un `case` por estado; si hay varias máquinas, un `switch` por máquina (el número de estados de cada una decide el tamaño). **No se espera con un `while` dentro de una interrupción:** la ISR solo avanza la máquina con el dato que ha llegado. Una máquina que se ejecuta en una ISR periódica (como un tick de 20 ms) evita los bloqueos.
+
+**Menús con pulsadores.** No se usa una interrupción por cada pulsación (rebotes). Lo mejor es **leer el pin periódicamente** y comparar con la lectura anterior (dos variables: `pin_ahora` y `pin_antes`). Un flanco es `pin_antes == 1 && pin_ahora == 0` y, con eso, se genera el evento de la máquina.
+
+<span id="t15"></span>
+
+## Tarea 15 · Qué combinar según lo que pida el apartado
+
+Los exámenes anteriores mezclan las tareas de arriba siempre de la misma forma. Cuando un apartado diga…
+
+| Si pide… | Tareas | La trampa |
+|---|---|---|
+| «Configura el ADC y calcula la $f_s$» | 10, 0 | $F_{ADC} \le 13$ MHz; $t_{conv}$ = 65 ciclos; el ÷2 si el pin conmuta |
+| «Muestrea con un Timer» o «sin interrupciones» | 10 (disparo), 4 | MR1 con el ÷2 y el −1; START = 100 en ADCR |
+| «Controla un servo» o «una PWM» | 5, 6 | Escala (2e-3), LER y división en coma flotante |
+| «Mide la frecuencia / el ancho» | 8 | $N$ en tics y $F_{tick}$ en Hz; la resta sin signo |
+| «Envía una trama por la UART» | 9, 14 | DL redondeado y $V_{real}$; DLAB; los 10 tiempos de bit |
+| «Reproduce o graba audio» | 11, 12 y [DMA](../dma/) | Bytes frente a muestras; bloques de 4095; 8 frente a 12 bits |
+| «Genera una señal de frecuencia $f$» | 4 (una) o 3 (varias) | Medio periodo (÷2) y límite por latencia de la ISR |
+| «Programa la máquina de estados» | 14 | Sin `while` en la ISR y un estado por `case` |
+| «¿Es ejecutable? / tiempo de respuesta» | [Ejecutabilidad](../ejecutabilidad/) | Orden de prioridades y las ISR cuentan |
+
+Antes de entregar cualquier cuenta de esta hoja, **comprueba los dos extremos** (el valor mínimo y el máximo), las unidades (s o ms, Hz o MHz) y que MR cabe en 32 bits. El resto de pasos por tipo de problema está en el [modo examen](../examen/).

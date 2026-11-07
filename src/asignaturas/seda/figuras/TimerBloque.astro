@@ -1,0 +1,32 @@
+---
+import Fig from './Fig.astro';
+---
+<Fig alt="Esquema de un Timer: el contador TC de 32 bits avanza con F_tick y un comparador lo iguala con MRx; al coincidir puede reiniciar TC, interrumpir o cambiar el pin MATn.x" ancho={580}>
+  <svg slot="dibujo" viewBox="0 0 620 230">
+    <rect class="caja" x="10" y="30" width="76" height="44" rx="8" />
+    <text class="tb c" x="48" y="50">F_PCLK</text><text class="t c" x="48" y="66">÷(PR+1)</text>
+    <path class="flecha" d="M86 52 H134" /><path class="punta" d="M140 52 l-7 -4 v8z" />
+    <text class="t" x="90" y="44">F_tick</text>
+    <rect class="caja fuerte" x="140" y="26" width="130" height="52" rx="8" />
+    <text class="tp c" x="205" y="48">TC</text><text class="t c" x="205" y="66">32 bits, cuenta</text>
+    <circle class="caja" cx="205" cy="128" r="22" /><text class="tb c" x="205" y="134">=</text>
+    <path class="flecha" d="M205 78 V106" /><path class="punta" d="M205 106 l-4 -7 h8z" />
+    <rect class="caja" x="140" y="172" width="130" height="40" rx="8" />
+    <text class="tb c" x="205" y="197">MRx (x = 0…3)</text>
+    <path class="flecha" d="M205 172 V156" /><path class="punta" d="M205 150 l-4 7 h8z" />
+    <path class="flecha" d="M183 128 H120 V52 H134" />
+    <text class="tr" x="14" y="124">reset</text><text class="t" x="14" y="140">MCR: MRxR</text>
+    <path class="flecha" d="M227 128 H330" />
+    <text class="t" x="236" y="118">coincide</text>
+    <path class="flecha" d="M330 128 V84 H400" /><path class="punta" d="M406 84 l-7 -4 v8z" />
+    <path class="flecha" d="M330 128 H400" /><path class="punta" d="M406 128 l-7 -4 v8z" />
+    <path class="flecha" d="M330 128 V172 H400" /><path class="punta" d="M406 172 l-7 -4 v8z" />
+    <rect class="caja" x="406" y="64" width="204" height="40" rx="8" />
+    <text class="tb" x="418" y="82">Interrupción</text><text class="t" x="418" y="97">MCR: MRxI → IR bit x</text>
+    <rect class="caja" x="406" y="108" width="204" height="40" rx="8" />
+    <text class="tb" x="418" y="126">Reiniciar / parar TC</text><text class="t" x="418" y="141">MCR: MRxR, MRxS</text>
+    <rect class="caja" x="406" y="152" width="204" height="40" rx="8" />
+    <text class="tb" x="418" y="170">Pin MATn.x</text><text class="t" x="418" y="185">EMR: EMCx = 00/01/10/11</text>
+  </svg>
+  Todo Timer es esto: un contador, un comparador por Match y tres cosas que puede hacer al coincidir. Los registros que se tocan son MCR, EMR e IR.
+</Fig>
