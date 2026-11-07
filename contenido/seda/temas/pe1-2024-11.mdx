@@ -1,0 +1,654 @@
+---
+titulo: "Noviembre de 2024 · Prueba de evaluación intermedia 1"
+orden: 32
+bloque: "Exámenes resueltos"
+resumen: "Control de temperatura con servo, potenciómetros, micrófono y alarma de audio, más un sensor de presencia por UART a 256 000 baudios: ADC en ráfaga, servo con dos Match, medida del ciclo de trabajo por captura, audio con ADC, Timer y DMA, y una máquina de estados que decodifica una trama de 30 bytes"
+saber:
+  - "El examen tiene dos cuestiones: la primera (apartados a a f) recorre ADC en ráfaga, servo con Timer y dos Match, captura del ciclo de trabajo, grabación y reproducción de audio de 12 bits con DMA; la segunda (a a d) es una UART a 256 000 baudios con una trama de 30 bytes y su máquina de estados"
+  - "Tres canales del ADC (1, 2 y 5) en ráfaga con CLKDIV=255 dan 0,666 ms por conversión y 500,8 Hz por canal; el mismo ADC a la máxima velocidad permitida (CLKDIV=1, 12,5 MHz) tarda 5,2 microsegundos"
+  - "Con PR=24 el Timer cuenta microsegundos: periodo de 12 ms es MR0=11999 y el ancho 0,5 a 2,5 ms es MR1 entre 500 y 2500; la solución oficial usa mal Fpclk en MR0 y escribe la fórmula de MR1 al revés"
+  - "Audio de 12 bits son 2 bytes por muestra: 1,3 s a 12 kHz son 15 600 muestras, 31 200 bytes, y para el DMA 4 bloques de 3900 muestras de 16 bits"
+  - "El divisor de la UART a 256 000 baudios sale 6,1 y se redondea a 6: velocidad real 260 416,67 baudios, 38,4 microsegundos por carácter y 1,152 ms por trama de 30 bytes"
+  - "La máquina de estados de la trama tiene siete estados (AA, FF, 03, 00, datos, 55, CC) y solo copia al resultado cuando ha comprobado la cola; cualquier byte inesperado reinicia, y un AA vuelve a medio camino"
+fuentes:
+  - "PE1_SEDA_Noviembre_2024_solución_completa (Prueba de evaluación intermedia 1 de SEDA, 4-11-2024, enunciado y solución; material privado de la asignatura)"
+  - "UM10360 (manual del LPC17xx)"
+---
+import Donde from '../../../src/asignaturas/seda/Donde.astro';
+import Figura from '../../../src/asignaturas/seda/Figura.astro';
+import fig1 from './img/pe1-2024-11-1.png';
+import fig2 from './img/pe1-2024-11-2.png';
+import fig3 from './img/pe1-2024-11-3.png';
+import fig4 from './img/pe1-2024-11-4.png';
+
+## Resumen del examen
+
+| Dato | Valor |
+|---|---|
+| Fecha | 4 de noviembre de 2024 |
+| Prueba | Primera intermedia (PE1) de SEDA, con solución completa |
+| Estructura | Cuestión 1 con apartados a.1 a f (sistema de control de temperatura); cuestión 2 con apartados a a d (UART y máquina de estados) |
+| Puntuación | No consta en el documento |
+| Datos | LPC1768 a 100 MHz, $F_{pclk}=25$ MHz |
+| Qué toca | ADC, Timer con Match, captura, DAC, DMA, UART, máquinas de estados |
+
+**El sistema.** Un LPC1768 controla una temperatura con un **marcador analógico** hecho con un servo (de 0° a 180°, que representan 0 a 50 °C). Mide con un LM35, tiene un umbral configurable desde un PC por terminal serie, y una **alarma sonora** con un mensaje de voz grabado antes. Un potenciómetro regula el brillo del LCD (PWM de 1 kHz) y otro la amplitud de la alarma. En la segunda cuestión se añade un sensor de presencia (HLK-LD2450) por la UART2.
+
+<Figura src={fig1} alt="Diagrama de bloques del LPC1768 en la Mini-DK2: pulsadores P2.10 y P2.11, altavoz en AOUT P0.26, micrófono en AD0.0 P0.23, potenciómetro de brillo en AD0.1 P0.24, potenciómetro de amplitud en AD0.2 P0.25, LM35 en AD0.5 P1.31, servo en MAT1.0 P1.22 unido también a CAP2.1, LCD con PWM1.6, Vrefp a VDD y Vrefn a masa" pie="Figura 1 del enunciado (con los trazos en rojo de la solución): canales del ADC, referencias, potenciómetros y el servo en P1.22, con un cable también a CAP2.1." />
+
+**Lee el diagrama como un mapa.** De la figura sale casi todo lo que te pide el examen:
+
+| Función | Pin | Función del pin |
+|---|---|---|
+| Micrófono | P0.23 | AD0.0 |
+| Potenciómetro de brillo | P0.24 | AD0.1 |
+| Potenciómetro de amplitud | P0.25 | AD0.2 |
+| LM35 (temperatura) | P1.31 | AD0.5 |
+| Altavoz | P0.26 | AOUT (DAC) |
+| Servo | P1.22 | MAT1.0, y con un cable a CAP2.1 (P0.5) |
+| Referencias del ADC | Vrefp = VDD (3,3 V), Vrefn = masa | |
+
+## Apartados a.1, a.2 y a.3 · ADC de los potenciómetros y del sensor
+
+### Qué pide
+
+- **a.1.** Completar la configuración del ADC para las entradas de **potenciómetros y sensores**, con la frecuencia de muestreo de cada canal **la mínima posible**.
+- **a.2.** Completar sobre la figura los canales, las tensiones de referencia y las conexiones de los potenciómetros.
+- **a.3.** El valor exacto de la frecuencia de muestreo y el tiempo de conversión.
+
+### Qué hay que saber antes
+
+El registro `ADCR`, el modo ráfaga y que cada conversión son 65 ciclos del reloj del ADC: [ADC y DAC](../adc-dac/).
+
+### Proceso
+
+1. **Qué canales.** Los potenciómetros están en AD0.1 y AD0.2, y el LM35 en AD0.5. El micrófono (AD0.0) queda fuera: tiene su apartado d.
+2. **Máscara de canales.** Bits 1, 2 y 5: $0b00100110=0x26$. Es la forma de contar «un bit por canal», no el número del canal.
+3. **Frecuencia mínima.** Reloj del ADC lo más lento posible: `CLKDIV=255`, es decir $F_{ADC}=25\ \text{MHz}/256$.
+4. **Ráfaga y encendido.** `BURST` (bit 16) y `PDN` (bit 21).
+5. **Sin interrupción.** Los datos se leen cuando hacen falta en `ADDRx`; el ADC no interrumpe, así que se deshabilita su IRQ.
+6. **a.2, la figura.** Las referencias: `Vrefp` a VDD (3,3 V) y `Vrefn` a masa. Cada potenciómetro lleva un extremo a VDD y otro a masa y el **cursor** al pin del ADC (así ve de 0 a VDD, el rango completo del ADC).
+
+### Solución
+
+```c
+void init_ADC_sensores(void)
+{
+  LPC_SC->PCONP |= (1<<12);                           // alimenta el ADC
+  LPC_PINCON->PINSEL1  |= (1<<16)|(1<<18);            // P0.24 = AD0.1, P0.25 = AD0.2
+  LPC_PINCON->PINSEL3  |= (3<<30);                    // P1.31 = AD0.5
+  LPC_PINCON->PINMODE1 |= (2<<16)|(2<<18);            // sin pull-up ni pull-down
+  LPC_PINCON->PINMODE3 |= (2<<30);
+  LPC_ADC->ADCR = (0b00100110<<0) |                   // canales 1, 2 y 5 (3 canales)
+                  (255<<8)        |                   // CLKDIV=255: F_ADC = F_pclk/(CLKDIV+1)
+                  (1<<21)         |                   // PDN=1: ADC encendido
+                  (1<<16);                            // BURST=1: modo ráfaga
+  NVIC_DisableIRQ(ADC_IRQn);                          // el ADC no interrumpe
+}
+```
+
+Con $F_{ADC}=25\cdot10^6/256=97\,656{,}25$ Hz:
+
+$$
+t_{conv}=\frac{65}{F_{ADC}}=\frac{65}{97\,656{,}25}=665{,}6\ \mu\text{s}
+\qquad
+F_s=\frac{F_{ADC}}{65\cdot N}=\frac{97\,656{,}25}{65\cdot3}=500{,}8\ \text{Hz}
+$$
+
+<Donde>
+
+- $t_{conv}$: tiempo de una conversión (s). 65 es el número de ciclos del reloj del ADC por conversión.
+- $F_{ADC}$: reloj del ADC (Hz), igual a $F_{pclk}/(CLKDIV+1)$.
+- $F_s$: frecuencia de muestreo de cada canal (Hz).
+- $N$: número de canales de la ráfaga (3).
+
+</Donde>
+
+> **Ojo: redondeo en la solución oficial.** El PDF escribe $F_{ADC}=97{,}65$ kHz y de ahí $F_s=500{,}7$ Hz y $t_{conv}=0{,}665$ ms. El enunciado pide el valor **exacto**: con $97\,656{,}25$ Hz salen 500,80 Hz y 0,6656 ms (0,666 ms redondeando). La diferencia es de un 0,01 %, pero si piden «exacto», no recortes decimales del reloj.
+
+### La trampa
+
+Que **la mínima frecuencia de muestreo** sea la del reloj lento (`CLKDIV=255`), y que se reparta entre los canales de la ráfaga ($\div3$). Y que la máscara son los **números de canal** convertidos en bits (1, 2, 5), no `0b111`.
+
+## Apartado b · Servo con un Timer y dos Match
+
+### Qué pide
+
+Explicar qué recurso se usa y cómo se configura, **con dos Match**, para generar la PWM del servo con resolución de 1 µs, y escribir la ISR que mueve el servo según la temperatura (variable global). El periodo es de **12 ms** y el tiempo en alto varía de 0,5 a 2,5 ms para un movimiento de 0° a 180°.
+
+### Qué hay que saber antes
+
+El Timer con Match que saca un valor por un pin, el prescaler y el hecho de que **un pin MATn.x solo lo gobierna su `MRx`**. Mira [Timers y Match](../timers-match/) y [PWM y servos](../pwm-servos/). La misma estructura aparece en el [examen de 2023](../pe1-2023-11/).
+
+### Proceso
+
+1. **Qué Timer.** El servo está en P1.22, que es MAT1.0, del Timer 1.
+2. **Resolución de 1 µs.** El Timer tiene que contar a 1 MHz. El prescaler `PR` divide entre $PR+1$: $PR=24$ da $25\ \text{MHz}/25=1$ MHz.
+3. **Periodo.** 12 ms a 1 MHz son 12 000 ciclos: `MR0 = 12000 - 1 = 11999`, con reset en el Match 0.
+4. **Flanco de subida automático.** `EMC0` = «poner a 1» en el Match 0: el pulso empieza solo.
+5. **Flanco de bajada con `MR1`.** Como MAT1.0 solo obedece a `MR0`, el final del pulso se hace por software: Match 1 con interrupción y, en la ISR, se pone a 0 el bit EM0 de `EMR`.
+6. **Valor de `MR1`.** En µs es directamente el ancho: 500 para 0° (0 °C) y 2500 para 180° (50 °C). Una recta entre ambos: $MR1=500+2000\cdot T/50$.
+
+### Solución
+
+```c
+void config_servo(void)
+{
+  LPC_SC->PCONP |= (1<<2);                    // alimenta el Timer 1
+  LPC_PINCON->PINSEL3 |= (3<<12);             // P1.22 = MAT1.0
+  LPC_TIM1->PR  = 24;                         // F_tick = 25 MHz / 25 = 1 MHz: 1 µs por ciclo
+  LPC_TIM1->MR0 = 12000 - 1;                  // periodo de 12 ms
+  LPC_TIM1->MR1 = 1500;                       // TH inicial de 1,5 ms
+  LPC_TIM1->MCR = (1<<1)|(1<<3);              // MR0: reset sin interrupción. MR1: interrupción
+  LPC_TIM1->EMR = (2<<4);                     // EMC0=10: P1.22 a 1 en cada Match 0
+  NVIC_EnableIRQ(TIMER1_IRQn);
+  LPC_TIM1->TCR = 1;                          // arranca
+}
+
+void TIMER1_IRQHandler(void)
+{
+  float t;
+  LPC_TIM1->IR = (1<<1);                      // borra el flag de MR1
+  LPC_TIM1->EMR &= ~(1<<0);                   // EM0=0: P1.22 a 0, acaba el pulso
+
+  t = temperatura;                            // variable global: 0 a 50 ºC
+  if (t < 0)  t = 0;                          // proteger el servo
+  if (t > 50) t = 50;
+  LPC_TIM1->MR1 = 500 + 2000*t/50;            // 0,5 ms + 2 ms * t/50, en ciclos de 1 µs
+}
+```
+
+$$
+MR1=F_{tick}\left(0{,}5\cdot10^{-3}+2\cdot10^{-3}\cdot\frac{T}{50}\right)=500+40\cdot T
+\qquad
+MR0=F_{tick}\cdot12\cdot10^{-3}-1=11\,999
+$$
+
+<Donde>
+
+- $MR1$: Match 1 en ciclos de $F_{tick}$; coincide con el tiempo en alto $T_H$ porque el pulso empieza al reiniciar el contador.
+- $F_{tick}$: reloj del contador del Timer, $F_{pclk}/(PR+1)=1$ MHz.
+- $T$: temperatura en grados Celsius, de 0 a 50.
+- $MR0$: periodo de la señal, en ciclos de $F_{tick}$; el «−1» porque el contador cuenta desde 0.
+
+</Donde>
+
+Comprobación en los dos extremos: $T=0$ da $MR1=500$ (0,5 ms, 0°); $T=50$ da $MR1=2500$ (2,5 ms, 180°).
+
+> **Ojo: errata en la solución oficial.** Hay dos fallos, y el segundo ya aparecía en 2023. **(1)** Dice `MR0 = Fpclk*12e-3 - 1` pero con `PR=24` el Timer no cuenta a $F_{pclk}$ sino a $F_{tick}=1$ MHz: eso daría $299\,999$ ciclos de 1 µs, un periodo de **300 ms**. Lo correcto es `Ftick*12e-3 - 1 = 11999`. **(2)** La ISR pone `MR1 = Ftick*2.5e-3 - Ftick*2.0e-3*temperatura/50`, que da 2,5 ms para 0 °C y 0,5 ms para 50 °C: **al revés** de lo que pide el enunciado (0,5 ms es 0°). La fórmula correcta es creciente, la de arriba. Además la fórmula oficial acaba en una barra suelta («/»).
+
+### La trampa
+
+Las unidades de cada registro: **`MR0` y `MR1` se cuentan en ticks del Timer**, y con prescaler los ticks no son los del reloj de periférico. Y el sentido de la fórmula, que se comprueba en los dos extremos.
+
+## Apartado c · Medir el ciclo de trabajo con el Timer 2
+
+### Qué pide
+
+El pseudocódigo de la ISR del Timer 2 que mide el **ciclo de trabajo** de la señal del servo (la figura 1 une P1.22 a CAP2.1) y lo guarda en una variable global en tanto por ciento. Explicar la configuración.
+
+### Qué hay que saber antes
+
+La captura: copia el contador en `CR1` cuando llega el flanco elegido. Con un solo canal de captura (CAP2.1) hay que medir **dos** cosas, el periodo y el tiempo en alto, y para eso necesitas capturar las dos clases de flanco. Mira [Captura](../captura/).
+
+### Proceso
+
+1. **Qué se mide.** El ciclo de trabajo es $T_H/T$: tiempo en alto entre periodo. Necesitamos tres instantes: dos subidas consecutivas (periodo) y la bajada entre ellas (ancho).
+2. **Un solo canal, dos flancos.** La solución oficial arma **un flanco cada vez** (subida o bajada) y cambia `CCR` dentro de la ISR. Así la ISR **sabe** qué flanco la ha despertado: el que esté armado. Si armas los dos a la vez, la ISR tendría que mirar el nivel del pin para distinguirlos.
+3. **Arrancar por la subida.** `CCR` empieza con la captura de subida e interrupción.
+4. **En la subida:** `periodo = CR1 − temp` (la subida anterior se guardó en `temp`), `temp = CR1`, y se arma la bajada.
+5. **En la bajada:** `ciclo = (CR1 − temp)·100/periodo` y se arma la subida.
+6. **Timer.** Modo *running* (sin reset), $F_{tick}=25$ MHz (`PR=0`). Con sumas de 32 bits sin signo, la resta de capturas vale aunque el contador dé la vuelta.
+
+### Solución
+
+```c
+volatile uint32_t periodo_cuentas = 0;
+volatile uint32_t ciclo_trabajo = 0;            // en tanto por ciento
+static uint32_t temp = 0;                       // instante de la última subida
+
+void config_captura(void)
+{
+  LPC_SC->PCONP |= (1<<22);                     // alimenta el Timer 2
+  LPC_PINCON->PINSEL0 |= (3<<10);               // P0.5 = CAP2.1 (cable desde P1.22)
+  LPC_TIM2->PR  = 0;                            // F_tick = 25 MHz
+  LPC_TIM2->CCR = (1<<3)|(1<<5);                // CAP2.1: primero subida, con interrupción
+  NVIC_EnableIRQ(TIMER2_IRQn);
+  LPC_TIM2->TCR = 1;                            // contador en marcha, sin reset
+}
+
+void TIMER2_IRQHandler(void)
+{
+  LPC_TIM2->IR = (1<<5);                        // borra el flag de CR1 (CAP2.1)
+  if (LPC_TIM2->CCR & (1<<3)) {                 // estaba armada la subida: ha llegado una subida
+    periodo_cuentas = LPC_TIM2->CR1 - temp;     // de subida a subida
+    temp = LPC_TIM2->CR1;                       // guarda esta subida
+    LPC_TIM2->CCR = (1<<4)|(1<<5);              // ahora, la bajada
+  } else {                                      // ha llegado la bajada
+    if (periodo_cuentas != 0)                   // evita dividir por 0 en la primera vuelta
+      ciclo_trabajo = (LPC_TIM2->CR1 - temp) * 100 / periodo_cuentas;
+    LPC_TIM2->CCR = (1<<3)|(1<<5);              // ahora, la subida
+  }
+}
+```
+
+$$
+ciclo=\frac{T_H}{T}\cdot100=\frac{CR1_{baj}-CR1_{sub}}{CR1_{sub,n}-CR1_{sub,n-1}}\cdot100
+$$
+
+<Donde>
+
+- $ciclo$: ciclo de trabajo en tanto por ciento.
+- $T_H$ y $T$: tiempo en alto y periodo, medidos en ciclos de $F_{tick}$ (el cociente no depende de la unidad).
+- $CR1_{sub}$, $CR1_{baj}$: contenido de `CR1` tras una subida y tras una bajada.
+
+</Donde>
+
+Comprobación: con $T=12$ ms ($300\,000$ ciclos) y $T_H=1{,}5$ ms ($37\,500$ ciclos): $37\,500\cdot100/300\,000=12$ %. Entre 0,5 y 2,5 ms, el ciclo va de 4,2 % a 20,8 %. El resultado se queda en entero (se trunca) porque todo son enteros.
+
+### La trampa
+
+Dos. Que en C la división `a*100/b` con `uint32_t` es entera: va **primero la multiplicación** (para no perder resolución) y luego la división. Y que la primera vuelta no tiene un periodo válido (`temp` y `periodo_cuentas` aún no se han medido): por eso el `if` evita dividir por cero. Hasta la segunda subida, el valor no es fiable.
+
+## Apartado d · Grabar con el micrófono: ADC por interrupción y Timer 0
+
+### Qué pide
+
+Completar el ADC para el micrófono (AD0.0), el tiempo de conversión y la configuración del Timer (sin código) que da el muestreo ($F_s=12$ kHz). El ADC funciona **por interrupción** y el tiempo de conversión debe ser **lo más rápido posible**.
+
+### Qué hay que saber antes
+
+[ADC y DAC](../adc-dac/): el límite de 13 MHz del reloj del ADC, `START` y `ADINTEN`. Y [Timers y Match](../timers-match/) para el modo conmutar.
+
+### Proceso
+
+1. **Canal.** AD0.0 (P0.23): bit 0.
+2. **Más rápido posible.** Reloj del ADC lo más alto sin pasar de 13 MHz. Con `CLKDIV=0` sería 25 MHz (demasiado). Con `CLKDIV=1`, $25/2=12{,}5$ MHz: válido.
+3. **Tiempo de conversión.** $t_{conv}=65/12{,}5\ \text{MHz}=5{,}2\ \mu\text{s}$, mucho menor que $T_s=83{,}3\ \mu\text{s}$.
+4. **Disparo.** `START=100`: conversión con el flanco de subida de MAT0.1.
+5. **Timer 0.** Match 1 en modo **conmutar** y reset en ese Match: la señal sube una vez cada dos Match. `MR1 = 25e6/12000/2 - 1`.
+6. **Interrupción.** `ADINTEN` bit 0 y `NVIC_EnableIRQ(ADC_IRQn)`: en la ISR del ADC se lee `ADDR0`.
+
+### Solución
+
+```c
+void init_ADC_microfono(void)
+{
+  LPC_ADC->ADCR = (1<<0)  |    // canal AD0.0 (P0.23)
+                  (1<<8)  |    // CLKDIV=1: F_ADC = 25 MHz / 2 = 12,5 MHz (el máximo que admite el ADC)
+                  (1<<21) |    // PDN=1: ADC encendido
+                  (4<<24);     // START=100: conversión en el flanco de subida de MAT0.1
+  LPC_ADC->ADINTEN = (1<<0);   // habilita el flag del canal 0
+  NVIC_EnableIRQ(ADC_IRQn);    // el ADC interrumpe a la CPU al acabar cada conversión
+}
+```
+
+Configuración del Timer 0 (sin código):
+
+- Alimentar el Timer 0, sin prescaler ($F_{tick}=25$ MHz).
+- `MR1 = 25e6/12000/2 - 1` $\approx1040{,}7$: no es entero, se redondea a **1041** (la frecuencia real queda en $25\cdot10^6/(2\cdot1042)=11\,996$ Hz, un 0,03 % por debajo).
+- Reset del contador en el Match 1, salida MAT0.1 en modo conmutar, sin interrupción del Timer.
+- El Timer queda **parado** hasta que se pulsa P1 (inicio de grabación).
+
+$$
+t_{conv}=65\cdot\frac{CLKDIV+1}{F_{pclk}}=65\cdot\frac{2}{25\cdot10^6}=5{,}2\ \mu\text{s}
+\qquad
+MR1=\frac{F_{tick}}{2F_s}-1
+$$
+
+<Donde>
+
+- $t_{conv}$: tiempo de una conversión del ADC. 65 ciclos del reloj del ADC, que tiene un periodo de $(CLKDIV+1)/F_{pclk}$.
+- $MR1$: Match 1 del Timer 0, en ciclos de $F_{tick}$.
+- $F_s$: frecuencia de muestreo (12 kHz). El 2 es porque cada periodo de muestreo son dos Match (la salida conmuta y el ADC solo arranca con el flanco de subida).
+
+</Donde>
+
+> **Ojo: erratas menores en la solución oficial.** El comentario dice «Fclk = 25e6/(CLKDIV+1) = 12,5 us»: son **12,5 MHz**, no microsegundos. Y no avisa de que `MR1` sale con decimales. Además el enunciado de este apartado dice que el ADC funciona **por interrupción**, y el apartado e dice que la grabación se hizo con el ADC **por DMA**: son dos formas distintas (con DMA, el flag no interrumpe a la CPU y se deshabilita el NVIC). Aquí se contesta lo que pide cada apartado.
+
+> **Ojo conceptual (no se pregunta).** El ADC es uno solo. Al escribir en `ADCR` para el micrófono (sin ráfaga, con `START` por Match) se deja de hacer la ráfaga de los sensores del apartado a. En un sistema real hay que alternar la configuración o disparar todos los canales por Timer. Aquí, cada apartado se resuelve por separado.
+
+### La trampa
+
+El **2** del denominador de `MR1` y los **decimales**: 25 000 000 / 12 000 = 2083,3, así que el reloj del Timer no divide exactamente. Hay que redondear y decir cuánto se desvía. Y el límite de 13 MHz del reloj del ADC: `CLKDIV=0` sería un error.
+
+## Apartado e · Reproducir con el Timer 3 y el DAC, con amplitud variable
+
+### Qué pide
+
+La ISR del Timer 3 que saca las muestras al DAC y modifica la amplitud según una variable `float amplitud` (0 a 1,0). Las muestras están en `buffer_alarm_temp[]`, grabadas por DMA durante **1,3 s** a **12 bits**. Hay que completar la declaración del array y justificarla.
+
+### Qué hay que saber antes
+
+El registro `DACR` tiene el valor en los bits 15:6. Una muestra del ADC de 12 bits, leída como mitad de palabra del registro `ADDRx`, queda con el resultado en los bits 15:4, o sea «ya desplazada». Mira [ADC y DAC](../adc-dac/).
+
+### Proceso
+
+1. **Cuántas muestras.** $12\,000\ \text{muestras/s}\cdot1{,}3\ \text{s}=15\,600$.
+2. **Tipo del array.** Un valor de 12 bits no cabe en 8 bits; el tipo mínimo es `uint16_t`, **2 bytes** por muestra.
+3. **Memoria.** $15\,600\cdot2=31\,200$ bytes.
+4. **ISR.** Escribe `buffer[indice++] * amplitud` en `DACR`. La amplitud (0 a 1) multiplica el valor completo.
+5. **Fin.** Al llegar a 15 600, índice a 0, parar el Timer 3 y marcar el fin.
+
+### Solución
+
+```c
+uint16_t buffer_alarm_temp[15600];            // 15600 muestras de 12 bits, 2 bytes cada una = 31 200 bytes
+
+void TIMER3_IRQHandler(void)
+{
+  LPC_TIM3->IR = (1<<0);                      // borra el flag de MR0
+  // Muestras de 12 bits ya situadas en los bits 15:4 (grabadas por DMA desde ADDRx)
+  LPC_DAC->DACR = (uint32_t)(buffer_alarm_temp[indice++] * amplitud);
+  if (indice >= 15600) {                      // 12 kHz * 1,3 s = 15 600 muestras
+    indice = 0;
+    LPC_TIM3->TCR = 0x02;                     // parar y resetear el Timer 3
+    fin_mensaje = 1;
+  }
+}
+```
+
+$$
+N=F_s\cdot t=12\,000\cdot1{,}3=15\,600\ \text{muestras}
+\qquad
+bytes=N\cdot2=31\,200
+$$
+
+<Donde>
+
+- $N$: número de muestras. $F_s$: frecuencia de muestreo (Hz). $t$: duración de la grabación (s).
+- 2: bytes por muestra, porque 12 bits no caben en un `uint8_t` y se usa un `uint16_t`.
+
+</Donde>
+
+Para que el Timer 3 interrumpa a 12 kHz haría falta `MR0 = 25e6/12000 - 1 = 2082` (el valor exacto sería 2082,3), con reset en el Match 0 e interrupción: es lo que hace el resto de la configuración.
+
+**Memoria (lo razonamos nosotros).** 31 200 bytes ocupan casi toda la SRAM local de 32 kB (32 768 bytes), así que quedan unos 1500 bytes para todo lo demás. Conviene colocar el buffer en la SRAM AHB (dos bancos de 16 kB contiguos), que además es la que usa el DMA.
+
+> **Ojo: errata en la solución oficial.** Para parar el Timer 3, el PDF escribe `LPC_TIM3->TC = 0x02`. Eso solo cambia el contador y **no detiene** el Timer; hay que escribir `LPC_TIM3->TCR = 0x02`. Es el mismo fallo que en el examen de 2023. También cambia el nombre del array de «alarm» a «alarma» entre el enunciado y la ISR.
+
+### La trampa
+
+Los **bytes por muestra**: 12 bits son 2 bytes, no 1,5. Es la pregunta de «justifique la respuesta»: no basta con decir `uint16_t`, hay que decir por qué y cuántos bytes salen. Y no confundas la cuenta de muestras (15 600) con la de bytes (31 200).
+
+## Apartado f · Reproducir con DMA para liberar la CPU
+
+### Qué pide
+
+Qué recurso se usa y cómo se configura para reducir la carga de la CPU al reproducir la alarma. La amplitud **no** se modifica en este caso.
+
+### Qué hay que saber antes
+
+El GPDMA y los ajustes de un canal, el límite de 4095 por bloque y las listas encadenadas: [DMA](../dma/). El DAC tiene su propio contador, `DACCNTVAL`.
+
+### Proceso
+
+1. **Quitar el Timer 3.** El contador del DAC marca el ritmo: `DACCNTVAL = 25e6/12000 - 1 = 2082`.
+2. **Bloques.** $\lceil15\,600/4095\rceil=4$, y 4 bloques iguales son **4 de 3900**.
+3. **Ancho 16 bits.** Las muestras son `uint16_t`, ya situadas para `DACR`: el destino es `DACR` **sin sumar 1**, con ancho de 16 bits.
+4. **Incrementos.** Origen sí, destino no.
+5. **Origen de cada bloque.** Como la muestra es de 2 bytes, cada bloque avanza $3900\cdot2=7800$ bytes.
+6. **Interrupción.** Solo al acabar el último bloque.
+
+### Solución
+
+La solución oficial da la lista de ajustes:
+
+- Modo memoria a periférico.
+- Origen: `buffer_alarma_temp[0]`; destino: `&(LPC_DAC->DACR)` (16 bits).
+- `TransferSize` = 3900; ancho de 16 bits; incrementa origen, no destino.
+- Cuatro bloques encadenados con interrupción solo al final.
+- `LPC_DAC->DACCNTVAL = (F_pclk/12000) - 1;`
+
+Y los ajustes en forma de código (nuestro, de apoyo):
+
+```c
+typedef struct { uint32_t src, dst, lli, ctrl; } LLI_t;
+static LLI_t lista[3];                                // bloques 1 a 3 (el 0 va en los registros)
+
+void init_DMA_alarma(void)
+{
+  uint32_t dst  = (uint32_t)&(LPC_DAC->DACR);         // sin +1: se escribe la mitad de palabra completa
+  uint32_t ctrl = 3900 | (1<<18)|(1<<21) | (1u<<26);  // 3900 transferencias, ancho 16 bits, SI=1, DI=0
+  int k;
+
+  LPC_SC->PCONP |= (1<<29);  LPC_GPDMA->DMACConfig = 1;
+  LPC_GPDMA->DMACIntTCClear = 0xFF;  LPC_GPDMA->DMACIntErrClr = 0xFF;
+
+  for (k = 1; k <= 3; k++) {
+    lista[k-1].src  = (uint32_t)&buffer_alarm_temp[3900*k];   // +3900 muestras = +7800 bytes
+    lista[k-1].dst  = dst;
+    lista[k-1].lli  = (k < 3) ? (uint32_t)&lista[k] : 0;
+    lista[k-1].ctrl = (k < 3) ? ctrl : (ctrl | (1u<<31));    // interrupción solo en el último
+  }
+  LPC_GPDMACH0->DMACCSrcAddr  = (uint32_t)&buffer_alarm_temp[0];
+  LPC_GPDMACH0->DMACCDestAddr = dst;
+  LPC_GPDMACH0->DMACCLLI      = (uint32_t)&lista[0];
+  LPC_GPDMACH0->DMACCControl  = ctrl;
+  LPC_GPDMACH0->DMACCConfig   = (1<<0)|(7<<6)|(1<<11)|(1<<15); // canal on, petición DAC, mem a periférico, ITC
+  LPC_DAC->DACCNTVAL = 25000000/12000 - 1;            // 2082: una muestra cada 2083 ciclos
+  LPC_DAC->DACCTRL   = (1<<2)|(1<<3);                 // CNT_ENA y DMA_ENA
+  NVIC_EnableIRQ(DMA_IRQn);
+}
+```
+
+$$
+DACCNTVAL=\frac{F_{pclk}}{F_s}-1=\frac{25\cdot10^6}{12\,000}-1\approx2082
+\qquad
+n_{bloques}=\left\lceil\frac{15\,600}{4095}\right\rceil=4
+$$
+
+<Donde>
+
+- $DACCNTVAL$: valor de recarga del contador del DAC: una muestra cada $DACCNTVAL+1$ ciclos.
+- $F_{pclk}$: reloj del DAC (25 MHz). $F_s$: frecuencia de reproducción (12 kHz).
+- $n_{bloques}$: bloques de DMA necesarios con 4095 transferencias como máximo.
+
+</Donde>
+
+El valor exacto, 2082,33, se redondea a 2082 y sale una frecuencia de $25\cdot10^6/2083=12\,001{,}9$ Hz, un 0,016 % de error.
+
+> **Nota de terminología.** La solución oficial habla de «canal 0 con el 1, el 1 con el 2… hasta el canal 3». En el LPC1768 lo habitual es un solo canal que recorre una lista de descriptores (`DMACCLLI`); el efecto es el mismo (cuatro bloques seguidos y una sola interrupción). Explicado igual que en el [examen de 2023](../pe1-2023-11/).
+
+### La trampa
+
+Los **bytes del origen**: con muestras de 16 bits cada bloque de 3900 muestras ocupa 7800 bytes, y el siguiente bloque empieza ahí. Y el **destino**: aquí es `DACR` sin `+1` porque se escribe una palabra de 16 bits; en el examen de 2023 (8 bits) era `DACR + 1`.
+
+## Cuestión 2 · Sensor de presencia por la UART2
+
+El sensor HLK-LD2450 detecta hasta tres objetivos. Manda por la UART2 una **trama de 30 bytes**: 4 bytes de cabecera fijos (`AA FF 03 00`), 24 bytes de datos (8 por objetivo: coordenada X, coordenada Y, velocidad y resolución de distancia, 2 bytes cada una) y 2 bytes de cola fijos (`55 CC`).
+
+<Figura src={fig2} alt="Formato de la trama de 30 bytes: cabecera AA FF 03 00, datos de los tres objetivos y cola 55 CC; debajo, la tabla con coordenada X, coordenada Y, velocidad y resolución de distancia de cada objetivo" pie="Figura del enunciado: formato de la trama del sensor. Cada objetivo ocupa 8 bytes: X (2), Y (2), velocidad (2) y resolución de distancia (2). Los bits más altos de X, Y y velocidad indican el signo." />
+
+### Apartado a · Velocidad de la UART2 a 256 000 baudios
+
+**Qué pide.** Configurar la UART2 a 256 000 baudios con $FR=1$ (divisor fraccionario desactivado), 8 bits, sin paridad, 1 bit de stop, y calcular la velocidad real.
+
+**Qué hay que saber antes.** El divisor $DL=256\cdot DLM+DLL$ y la velocidad real: [UART](../uart/).
+
+**Proceso.**
+
+1. $DL=F_{pclk}/(16\cdot baud)$, con $F_{pclk}=25$ MHz: $25\cdot10^6/(16\cdot256\,000)=6{,}10$.
+2. Los registros solo guardan enteros: se redondea al más próximo, **6** (con 7 se iría un 13 % por debajo, con 6 solo un 1,7 % por encima).
+3. $DLL=6$ y $DLM=0$. Se accede a ellos con el bit `DLAB` a 1 en `LCR`.
+4. La velocidad real es $F_{pclk}/(16\cdot DL)$.
+
+**Solución.**
+
+```c
+void config_UART2(void)
+{
+  LPC_SC->PCONP |= (1<<24);                   // alimenta la UART2
+  LPC_PINCON->PINSEL0 |= (1<<20)|(1<<22);     // P0.10 = TXD2, P0.11 = RXD2
+  LPC_UART2->LCR = 0x83;                      // 8 bits, 1 stop, sin paridad, DLAB=1
+  LPC_UART2->DLL = 6;                         // divisor 6
+  LPC_UART2->DLM = 0;
+  LPC_UART2->LCR = 0x03;                      // DLAB=0
+  LPC_UART2->FCR = 0x07;                      // FIFO habilitada y vaciada
+  LPC_UART2->IER = 1;                         // interrupción de recepción
+  NVIC_EnableIRQ(UART2_IRQn);
+}
+```
+
+$$
+DL=\frac{F_{pclk}}{16\cdot baud\cdot FR}=\frac{25\cdot10^6}{16\cdot256\,000}\approx6{,}10\to6
+\qquad
+baud_{real}=\frac{25\cdot10^6}{16\cdot6}=260\,416{,}67\ \text{baudios}
+$$
+
+<Donde>
+
+- $DL$: divisor de la UART (entero), $256\cdot DLM+DLL$.
+- $F_{pclk}$: reloj del periférico (25 MHz). $baud$: velocidad pedida (baudios).
+- $FR$: factor fraccionario; $FR=1$ significa que no se usa.
+- $baud_{real}$: velocidad que sale con el divisor entero elegido.
+
+</Donde>
+
+El error es $(260\,416{,}67-256\,000)/256\,000=+1{,}7$ %, tolerable en una UART.
+
+**La trampa.** Escribir 6 en `DLL` y olvidar el `DLAB`: sin él se escribe en el registro de transmisión. Y dar la **velocidad real**, no la pedida.
+
+### Apartado b · Cabecera y duración de la trama
+
+**Qué pide.** Dibujar la señal en la entrada de la UART durante la cabecera e indicar la duración de la trama completa.
+
+**Qué hay que saber antes.** Un carácter en una UART con 8 bits, sin paridad y 1 stop son **10 bits**: 1 de arranque (nivel bajo), los 8 de datos **empezando por el menos significativo** y 1 de parada (nivel alto). En reposo la línea está en alto.
+
+**Proceso.**
+
+1. **Tiempo de bit** a la velocidad real: $1/260\,416{,}67=3{,}84\ \mu\text{s}$.
+2. **Un carácter:** $10\cdot3{,}84=38{,}4\ \mu\text{s}$.
+3. **La trama:** $30\cdot38{,}4=1{,}152$ ms. La cabecera son los 4 primeros caracteres, $4\cdot38{,}4=153{,}6\ \mu\text{s}$.
+4. **Bits de cada byte, el menos significativo primero:**
+
+| Byte | Binario | Bits en la línea, de izquierda a derecha |
+|---|---|---|
+| 0xAA | 10101010 | arranque 0, luego 0 1 0 1 0 1 0 1, parada 1 |
+| 0xFF | 11111111 | arranque 0, luego 1 1 1 1 1 1 1 1, parada 1 |
+| 0x03 | 00000011 | arranque 0, luego 1 1 0 0 0 0 0 0, parada 1 |
+| 0x00 | 00000000 | arranque 0, luego 0 0 0 0 0 0 0 0, parada 1 |
+
+Instantes de inicio de cada carácter: 0 µs (0xAA), 38,4 µs (0xFF), 76,8 µs (0x03) y 115,2 µs (0x00).
+
+<Figura src={fig3} alt="Señal RxD2 de la cabecera: 0xAA (0 1 0 1 0 1 0 1), 0xFF (ocho unos) con su bit de arranque y de parada, y debajo 0x03 y 0x00" pie="Figura de la solución: señal en RxD2 durante los cuatro bytes de la cabecera. Cada byte lleva el bit de arranque en bajo, los ocho bits desde el menos significativo y el bit de parada en alto." />
+
+**Solución.** $T_{car}=10/260\,416{,}67=38{,}4\ \mu\text{s}$ y $T_{trama}=30\cdot T_{car}=1{,}152$ ms.
+
+**La trampa.** El **orden de los bits**: el menos significativo primero, así que 0xAA (10101010) se ve en la línea como 0 1 0 1 0 1 0 1; y 0x03 como 1 1 0 0 0 0 0 0. Y que son **10** bits por carácter, no 8. Con la velocidad nominal (256 000) la trama sería 1,172 ms; el enunciado pide la real.
+
+### Apartados c y d · Máquina de estados que decodifica la trama
+
+**Qué pide.** (c) El diagrama de estados de una máquina que va en la interrupción de recepción, decodifica los datos y extrae X e Y del **primer objetivo** cuando una trama es válida. (d) La función `void StateMachine(uint8_t dato)` y la estructura `objetivo`.
+
+```c
+struct s_objetivo { uint16_t x; uint16_t y; uint16_t speed; } objetivo;
+
+void UART2_IRQHandler(void) {
+  char dato;
+  switch (LPC_UART2->IIR & 0x0E) {
+    case 0x04:  dato = LPC_UART2->RBR;  StateMachine(dato);  break;   // llegó un byte
+    case 0x02:  break;                                                // THRE: no se usa
+  }
+}
+```
+
+**Qué hay que saber antes.** Una máquina de estados que se alimenta **un byte por llamada**: el estado se guarda en una variable `static` y cada llamada decide el siguiente estado. Mira [Máquinas de estados](../maquinas-estados/).
+
+**Proceso.**
+
+1. **Reconocer la cabecera.** Cuatro estados esperan, en orden, `AA`, `FF`, `03`, `00`. Si el byte no es el esperado, se vuelve a esperar `AA`. Con una excepción: un `AA` en medio puede ser el **comienzo de una cabecera nueva**, así que desde `FF`, `03` y `00` un `AA` lleva a «esperar `FF`» (no se pierde un inicio de trama solapado).
+2. **Guardar los datos.** Tras la cabecera, un estado `Espera_Datos` guarda los siguientes 24 bytes en un `buffer` con un `indice`.
+3. **Comprobar la cola.** Después de los datos se espera `55` y `CC`.
+4. **Solo si la cola es correcta**, se copia el `buffer` a `objetivo`. Así el programa principal **nunca** ve una trama a medias o corrupta.
+5. **Primer objetivo.** Son los 8 primeros bytes de datos: X (bytes 0 y 1), Y (2 y 3), velocidad (4 y 5), resolución (6 y 7).
+
+<Figura src={fig4} alt="Diagrama de estados (StateChart): Espera_0xAA, Espera_0xFF, Espera_0x03, Espera_0x00, Espera_Datos, Espera_0x55 y Espera_0xCC, con las transiciones por el byte esperado y las de reinicio" pie="Figura de la solución: StateChart de la decodificación. Flechas fuertes: byte esperado. Las flechas hacia arriba vuelven a Espera_0xAA o, con otro AA, a Espera_0xFF. Solo con la cola 55 CC correcta se copia el buffer al objetivo." />
+
+| Estado | Si llega... | Siguiente estado |
+|---|---|---|
+| Espera_0xAA (inicial) | 0xAA | Espera_0xFF |
+| Espera_0xFF | 0xFF / 0xAA / otro | Espera_0x03 / Espera_0xFF / Espera_0xAA |
+| Espera_0x03 | 0x03 / 0xAA / otro | Espera_0x00 / Espera_0xFF / Espera_0xAA |
+| Espera_0x00 | 0x00 / 0xAA / otro | Espera_Datos (con índice a 0) / Espera_0xFF / Espera_0xAA |
+| Espera_Datos | cualquier byte | se guarda; con 24 guardados, Espera_0x55 |
+| Espera_0x55 | 0x55 / 0xAA / otro | Espera_0xCC / Espera_0xFF / Espera_0xAA |
+| Espera_0xCC | 0xCC / 0xAA / otro | Espera_0xAA y se copia el buffer / Espera_0xFF / Espera_0xAA |
+
+**Solución.**
+
+```c
+#define N_DATOS 24                                   // 3 objetivos * 8 bytes
+enum { Espera_0xAA, Espera_0xFF, Espera_0x03, Espera_0x00,
+       Espera_Datos, Espera_0x55, Espera_0xCC };
+static uint8_t buffer[N_DATOS];
+
+// Copia del primer objetivo (bytes 0 a 5): el sensor manda el byte bajo primero
+static void Copia_buffer_a_objetivo(void)
+{
+  objetivo.x     = buffer[0] | (buffer[1] << 8);
+  objetivo.y     = buffer[2] | (buffer[3] << 8);
+  objetivo.speed = buffer[4] | (buffer[5] << 8);
+}
+
+void StateMachine(uint8_t Rx)
+{
+  static uint8_t estado = Espera_0xAA;               // el estado se conserva entre llamadas
+  static uint8_t indice = 0;
+
+  switch (estado) {
+    case Espera_0xAA:
+      if (Rx == 0xAA) estado = Espera_0xFF;
+      break;
+    case Espera_0xFF:
+      if      (Rx == 0xFF) estado = Espera_0x03;
+      else if (Rx == 0xAA) estado = Espera_0xFF;     // otro inicio posible
+      else                 estado = Espera_0xAA;
+      break;
+    case Espera_0x03:
+      if      (Rx == 0x03) estado = Espera_0x00;
+      else if (Rx == 0xAA) estado = Espera_0xFF;
+      else                 estado = Espera_0xAA;
+      break;
+    case Espera_0x00:
+      if (Rx == 0x00)      { estado = Espera_Datos; indice = 0; }
+      else if (Rx == 0xAA) estado = Espera_0xFF;
+      else                 estado = Espera_0xAA;
+      break;
+    case Espera_Datos:                               // aquí cualquier byte es un dato
+      buffer[indice++] = Rx;
+      if (indice >= N_DATOS) estado = Espera_0x55;
+      break;
+    case Espera_0x55:
+      if      (Rx == 0x55) estado = Espera_0xCC;
+      else if (Rx == 0xAA) estado = Espera_0xFF;
+      else                 estado = Espera_0xAA;
+      break;
+    case Espera_0xCC:
+      if (Rx == 0xCC) { estado = Espera_0xAA; Copia_buffer_a_objetivo(); }   // trama válida
+      else if (Rx == 0xAA) estado = Espera_0xFF;
+      else                 estado = Espera_0xAA;
+      break;
+  }
+}
+```
+
+> **Nota sobre los datos (no consta en el enunciado).** El enunciado no dice el orden de los dos bytes de cada valor. Según el protocolo del sensor LD2450, el **byte bajo va primero**; lo hemos escrito así. Si en el examen no lo dan, di explícitamente qué orden supones. Además, el bit más alto de X, Y y velocidad es el **signo** (1 = positivo, 0 = negativo, con los otros 15 bits como magnitud). La estructura del examen usa `uint16_t`, así que aquí se guardan los 16 bits tal cual; para distancias reales habría que separar signo y magnitud.
+
+> **Ojo: erratas en la solución oficial.** El código del PDF escribe `case Epera_0xAA` (falta una «s») y declara `static char estado = 0` sin definir los nombres de los estados. Son fallos de escritura, no de concepto. La máquina del PDF es correcta.
+
+**La trampa.**
+
+- **El estado `static`.** Sin `static` (o con una global), el estado se pierde en cada llamada y la máquina nunca avanza.
+- **El reinicio con `AA`.** Si desde un estado de cabecera llegara un `AA` y se volviera a «esperar `AA`», se perdería ese `AA` y la trama que empieza ahí. Lo correcto es saltar a «esperar `FF`».
+- **Copiar solo al final.** Si copias a `objetivo` al llegar los datos, antes de comprobar `55 CC`, entregas datos que pueden ser basura.
+- **La ISR es corta.** Cada byte llega cada 38,4 µs; la máquina solo compara y guarda, así que cabe de sobra. Si hubiera que calcular distancias, se hace fuera de la ISR.
+- Si habilitas la FIFO con un nivel de disparo mayor de 1 byte, en el `switch` de la ISR hay que atender también el tiempo de espera de carácter (`IIR` = 0x0C). Con nivel de 1 byte, como aquí, basta con el caso 0x04.
+
+## Qué llevarte de este examen
+
+1. **Cada registro cuenta en sus unidades.** Con `PR=24` el Timer cuenta en microsegundos: `MR0 = 11999`, no `Fpclk*12e-3 - 1`. Revisa siempre qué reloj cuenta cada registro.
+2. **Comprueba el servo en los dos extremos.** 0 °C debe dar 0,5 ms (`MR1 = 500`) y 50 °C, 2,5 ms (`MR1 = 2500`). La solución oficial lo escribe al revés.
+3. **Una captura, dos flancos.** Para el ciclo de trabajo con un solo canal, la ISR alterna el flanco armado en `CCR` y guarda la última subida: periodo en la subida, ancho en la bajada.
+4. **12 bits son 2 bytes.** 15 600 muestras de 12 bits son 31 200 bytes, 4 bloques de DMA de 3900 muestras, y cada bloque avanza 7800 bytes en el origen.
+5. **UART y máquinas de estados son cuentas pequeñas y mucho orden.** Divisor 6,1 a 6, 260 416,67 baudios, 38,4 µs por carácter, 1,152 ms por trama; un `static` para el estado, reinicio con `AA` y copiar solo con la cola válida.

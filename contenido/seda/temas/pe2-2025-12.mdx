@@ -1,0 +1,524 @@
+---
+titulo: "Diciembre de 2025 · Prueba de evaluación intermedia 2"
+orden: 37
+bloque: "Exámenes resueltos"
+resumen: "Un módulo de sensor de color con protocolo serie y I2C (statechart, divisor de la UART, trama y lectura por I2C), una página web con CGI, memorias dual-port con arbitraje por interrupción, y dos cuestiones de teoría (DSP y RTOS)"
+saber:
+  - "El protocolo serie se atiende con una máquina de estados dentro de la ISR de la UART: un byte recibido es un evento, y para cada comando se va acumulando el CRC (OR exclusiva) hasta compararlo con el byte recibido"
+  - "El divisor de la UART es DL = PCLK/(16·baudios): su byte alto va a DLM y el bajo a DLL, y conviene redondear. La solución oficial los escribe intercambiados"
+  - "Una trama 8N1 son 10 bits con el bit de menos peso primero. La respuesta OK, SETGAIN y su CRC (0x01, 0xAA y 0xAB) son tres tramas seguidas"
+  - "Para leer los 8 bytes de color en una sola transacción I2C hace falta el modo de auto-incremento del registro COMMAND (0xB4); con 0x94 se leería el mismo registro ocho veces"
+  - "En el CGI, cada línea que empieza por c llama a cgi_func con un código; el tipo de código lleva a un sprintf con los valores actuales. Fallos de la solución: un case duplicado, un hiden y un porcentaje dentro de un formato"
+  - "Arbitraje por interrupción de una dual-port: las dos últimas posiciones del chip de la línea de datos baja se usan como buzón, y /INT_L e /INT_R van a las líneas EINT1 de cada CPU. Las cuestiones 4 y 5 no traen solución oficial"
+fuentes:
+  - "Prueba de evaluación intermedia 2 de SEDA, 15 de diciembre de 2025, con solución (material de clase de la asignatura)"
+  - "UM10360 (manual del LPC17xx) y hojas del propio examen sobre el sensor TCS34725, la UART y las funciones I2C"
+---
+import Donde from '../../../src/asignaturas/seda/Donde.astro';
+import Figura from '../../../src/asignaturas/seda/Figura.astro';
+import fig1 from './img/pe2-2025-12-1.png';
+import fig2 from './img/pe2-2025-12-2.png';
+import fig3 from './img/pe2-2025-12-3.png';
+import fig4 from './img/pe2-2025-12-4.png';
+import fig5 from './img/pe2-2025-12-5.png';
+import fig6 from './img/pe2-2025-12-6.png';
+import fig7 from './img/pe2-2025-12-7.png';
+import fig8 from './img/pe2-2025-12-8.png';
+import fig9 from './img/pe2-2025-12-9.png';
+
+## Resumen del examen
+
+| | |
+|---|---|
+| Prueba | Evaluación intermedia 2 (PEI2), 15 de diciembre de 2025. Con solución oficial |
+| Estructura | Cinco cuestiones: (1) módulo de sensor de color con protocolo serie e I2C; (2) servidor web con CGI; (3) memoria dual-port; (4) DSP; (5) RTOS |
+| Puntuación | No consta en la solución |
+| Temas que toca | [UART](../uart/), [Máquinas de estados](../maquinas-estados/), [Reloj, GPIO e interrupciones](../reloj-gpio-interrupciones/). El resto (I2C, servidor HTTP, memorias dual-port, DSP, RTOS) no tiene página propia en la web y se explica aquí |
+| Anexo del examen | Funciones de la UART0 (ISR y envío de cadenas), fórmula del baud rate y tabla del `LCR`; funciones de bus I2C por GPIO; hoja del módulo GY-33 y del sensor TCS34725 (registros, `COMMAND`, `CONTROL`, protocolo I2C) |
+| Soluciones que faltan | Las cuestiones 4 y 5 solo dicen «ver teoría». Las resuelvo yo a partir de lo que se cuenta en clase de la asignatura y lo marco |
+
+**El sistema.** Un módulo parecido al GY-33: un LPC1768 que habla con un sensor de color TCS34725 por I2C y atiende por la UART3 a un PC o a otro equipo con tres comandos (`SetBaud`, `SetGain` y `GetRaw`). Luego el mismo sensor se muestra en una página web, y el resto son preguntas de teoría.
+
+### Fallos de la solución oficial, de un vistazo
+
+| Dónde | Qué dice la solución | Qué es correcto |
+|---|---|---|
+| Cuestión 1 b1 | `DLL = DL/256; DLM = DL%256` | Al revés: `DLL = DL%256` (byte bajo) y `DLM = DL/256` (byte alto). Además `DL` se trunca; mejor redondear |
+| Cuestión 1 c | Comando `0x94` y 8 lecturas seguidas | `0x94` tiene `TYPE = 00`: repite el mismo registro. Para auto-incrementar hace falta `TYPE = 01`, es decir, `0xB4` |
+| Cuestión 2 b | Dos `case '9'` seguidos (el segundo debería ser `'A'`) | Compila mal: etiquetas duplicadas. El segundo es `case 'A'` |
+| Cuestión 2 b | `geen` en el `case '3'` | `green` |
+| Cuestión 2 b | `modo ? "" : "hiden"` | `"hidden"`. Con `hiden` el navegador no oculta el formulario en modo normal |
+| Cuestión 2 a | La línea 5 lleva `width: 50%;` dentro de un formato de `sprintf`, y la línea `A` lleva `$s` en lugar de `%s` | El `%` literal debería ser `%%` (o ir en una línea `t`), y `$s` es `%s` |
+
+## Cuestión 1 · Módulo de sensor de color con protocolo serie e I2C
+
+**Qué pide.** El módulo se comunica con el exterior por una comunicación serie asíncrona (UART3) que gestiona el LPC1768, y el LPC1768 habla por I2C con el sensor TCS34725. Hay tres comandos, todos con campos de 8 bits y un CRC que es la **OR exclusiva** de los bytes anteriores del mensaje:
+
+| Comando | Mensaje al módulo | Respuesta del módulo |
+|---|---|---|
+| `SetBaud` | `INI`, `SETBAUD`, `BaudRate` (`BAUD9600` o `BAUD115200`), `CRC` (de 3 bytes) | `OK`, `SETBAUD`, `CRC` (de 2 bytes) |
+| `SetGain` | `INI`, `SETGAIN`, `Gain` (`X1`, `X4`, `X16` o `X60`), `CRC` (de 3 bytes) | `OK`, `SETGAIN`, `CRC` (de 2 bytes) |
+| `GetRaw` | `INI`, `GETRAW`, `CRC` (de 2 bytes) | `OK`, `GETRAW`, `CDATL`, `CDATH`, `RDATL`, `RDATH`, `GDATL`, `GDATH`, `BDATL`, `BDATH`, `CRC` (de 10 bytes) |
+
+<Figura src={fig1} alt="Formato de los mensajes de los tres comandos: SetBaud, SetGain y GetRaw, con sus respuestas" pie="Formato de los mensajes del enunciado. Cada campo es un byte. Los 16 bits de cada color van primero el byte bajo. El CRC es la OR exclusiva de todos los bytes anteriores del mensaje." />
+
+Ya están escritas `setSerialBaud(char baud)`, `setGain(unsigned char gain)` y `getRaw(char* rawdata)`.
+
+### a) El statechart de la ISR del puerto serie
+
+**Qué pide.** El diagrama de estados que iría **dentro de la interrupción de la UART** y que recibe los comandos y se comunica con el sensor usando las tres funciones de arriba.
+
+**Qué hay que saber antes.** [Máquinas de estados](../maquinas-estados/): cada vez que entra la ISR avanza un paso, y el estado se guarda entre llamadas. [UART](../uart/): la ISR de recepción entra con cada byte recibido y la de transmisión cuando el registro de envío se vacía.
+
+**Proceso, paso a paso.**
+
+1. **Qué eventos hay.** Dos: llega un byte (`RX`) o se acaba de enviar un byte (`FinTX`). Lo recibido se procesa de uno en uno: no se espera a tener el mensaje entero.
+2. **Hay que ir calculando el CRC mientras se recibe.** En cuanto empieza el mensaje, se pone `XOR = INI` y a cada byte siguiente se hace `XOR = XOR ^ byte`. Cuando llega el último byte, el CRC se compara con `XOR`: si coincide, el mensaje es bueno.
+3. **El primer estado es esperar `INI`.** Mientras no llegue, se ignora todo (así se resincroniza después de un fallo).
+4. **Después de `INI` se espera el comando** y se decide el camino: `SETBAUD` y `SETGAIN` necesitan un byte de dato más antes del CRC; `GETRAW` va directamente al CRC.
+5. **Fallo de CRC.** Si el byte final no coincide con el CRC calculado, se tira el mensaje. Si ese byte resulta ser un `INI`, lo más prudente es tomarlo como el comienzo de un mensaje nuevo; si no, se vuelve a esperar `INI`.
+6. **Si el CRC es bueno se responde.** Se envía byte a byte: `OK`, el comando, y el CRC de la respuesta, que se calcula con la misma técnica (ahí está el `XOR = OK` de la solución). En `GetRaw` se lee primero el sensor (`getRaw`), y se envían los 8 bytes uno por cada `FinTX`, con un contador `n`.
+7. **Cuándo se aplica el comando.** En `SetBaud` y `SetGain` se aplica **después** de enviar la respuesta entera (el último estado de TX llama a `SetBaud(Speed)` o `SetGain(Gain)`). Para `SetBaud` es importante: si cambiaras la velocidad antes, la respuesta saldría a la velocidad nueva y el que la espera a la antigua no entendería nada.
+
+<Figura src={fig2} alt="Statechart de la solución: estados EsperaIni, EsperaComando, EsperaSpeed, EsperaXOR_SetBaud, EsperaGain, EsperaXOR_SetGain, EsperaXORRaw, y el estado TX con subestados de respuesta para SetBaud, SetGain y GetRaw" pie="Statechart de la solución oficial (en dos trozos). El PDF lo trae cortado por la derecha en el trozo de arriba; el estado TX se ve entero en el de abajo, y las transiciones que salen del estado TX hacia EsperaIni y EsperaComando se deducen de las etiquetas que quedan visibles." />
+
+**Solución.** Los estados y transiciones del dibujo oficial, en una tabla (`RX` es el byte recibido, `XOR` el CRC acumulado):
+
+| Estado | Transición | Acción |
+|---|---|---|
+| `EsperaIni` (inicial) | `RX == INI` → `EsperaComando` | `XOR = INI` |
+| `EsperaComando` | `RX == SetBaud` → `EsperaSpeed` | `XOR = XOR ^ SetBaud` |
+| | `RX == SetGain` → `EsperaGain` | `XOR = XOR ^ SetGain` |
+| | `RX == GetRaw` → `EsperaXORRaw` | `XOR = XOR ^ GetRaw` |
+| `EsperaSpeed` | siguiente byte → `EsperaXOR_SetBaud` | `Speed = RX; XOR = XOR ^ RX` |
+| `EsperaGain` | siguiente byte → `EsperaXOR_SetGain` | `Gain = RX; XOR = XOR ^ RX` |
+| `EsperaXOR_SetBaud` y `EsperaXOR_SetGain` | `RX == XOR` → estado `TX` (`EsperaTXSetBaud_OK`, `EsperaTXSetGain_OK`) | `TX = OK` (se escribe en el registro de envío) |
+| | `RX distinto de XOR` y `RX == INI` → `EsperaComando` | se tira el mensaje y se reinicia |
+| | `RX distinto de XOR` y `RX distinto de INI` → `EsperaIni` | se tira el mensaje |
+| `EsperaXORRaw` | `RX == XORRaw` → estado `TX` (`EsperaTXGetRaw`) | `GetRow(*Row); n = 0; XOR = 0; TX = OK; XOR = OK` |
+| | mismas salidas de error que arriba | |
+| Estado `TX`, `SetBaud` | `FinTX` → `TX = SetBaud` → `FinTX` → `TX = XORSetBaud` → `FinTX` | al final: `SetBaud(Speed)` |
+| Estado `TX`, `SetGain` | igual con `SetGain` y `XORSetGain` | al final: `SetGain(Gain)` |
+| Estado `TX`, `GetRaw` | `FinTX` → `TX = GetRaw; XOR = XOR ^ GetRaw` → `TxRaw` (bucle de 8 bytes: `TX = Row[n]; XOR ^= Row[n]; n++` con `FinTX` y `n` menor que 8) → `TX = XOR` → `TXRawXOR` | al acabar, `FinTX` y vuelta a espera |
+
+(`XORSetBaud` es la constante `OK ^ SETBAUD`, es decir, el CRC de la respuesta, que se conoce de antemano porque los bytes son constantes; igual `XORSetGain`.)
+
+El mismo comportamiento en C, dentro de la ISR (**resuelto por nosotros**: el examen pide el dibujo, no el código, pero ayuda a comprobar que el diagrama funciona). Aquí la fase de envío usa una pequeña tabla en lugar de los subestados del dibujo:
+
+```c
+// Constantes del protocolo: valores supuestos, el enunciado solo dice que son de 8 bits
+#define INI 0x55
+#define OK_ 0x01
+// SETBAUD, SETGAIN y GETRAW son los códigos de comando; BAUD9600, BAUD115200, X1, X4, X16, X60 los valores de dato
+
+typedef enum { ESPERA_INI, ESPERA_CMD, ESPERA_DATO, ESPERA_CRC, TRANSMITIENDO } estado_t;
+
+static estado_t estado = ESPERA_INI;
+static uint8_t xor_rx, cmd, dato;                 // CRC acumulado, comando y dato recibidos
+static uint8_t resp[10], nresp, enviados;         // respuesta lista para enviar
+
+static void reiniciar(uint8_t rx) {               // un fallo: si el byte es un INI, empieza un mensaje nuevo
+    if (rx == INI) { xor_rx = INI; estado = ESPERA_CMD; }
+    else estado = ESPERA_INI;
+}
+
+void UART3_IRQHandler(void) {
+    uint32_t causa = LPC_UART3->IIR & 0x0E;
+    if (causa == 0x04) {                          // RDA: llegó un byte
+        uint8_t rx = LPC_UART3->RBR;
+        switch (estado) {
+        case ESPERA_INI:  if (rx == INI) { xor_rx = INI; estado = ESPERA_CMD; } break;
+        case ESPERA_CMD:  xor_rx ^= rx;
+                          if (rx == SETBAUD || rx == SETGAIN) { cmd = rx; estado = ESPERA_DATO; }
+                          else if (rx == GETRAW)              { cmd = rx; estado = ESPERA_CRC;  }
+                          else reiniciar(rx);     // comando desconocido
+                          break;
+        case ESPERA_DATO: dato = rx; xor_rx ^= rx; estado = ESPERA_CRC; break;
+        case ESPERA_CRC:
+            if (rx != xor_rx) { reiniciar(rx); break; }       // CRC malo: se tira el mensaje
+            resp[0] = OK_; resp[1] = cmd; nresp = 2;
+            if (cmd == GETRAW) {
+                getRaw((char *)raw_crgb);                     // lectura por I2C: 8 bytes
+                for (int i = 0; i < 8; i++) resp[nresp++] = raw_crgb[i];
+            }
+            uint8_t crc = 0;
+            for (int i = 0; i < nresp; i++) crc ^= resp[i];   // CRC de la respuesta
+            resp[nresp++] = crc;
+            enviados = 1; estado = TRANSMITIENDO;
+            LPC_UART3->THR = resp[0];                         // el primer byte arranca el envío
+            break;
+        default: break;
+        }
+    } else if (causa == 0x02 && estado == TRANSMITIENDO) {    // THRE: THR vacío
+        if (enviados < nresp) LPC_UART3->THR = resp[enviados++];
+        else {                                                // respuesta enviada entera
+            while (!(LPC_UART3->LSR & (1 << 6))) ;            // TEMT: espera a que salga el último bit
+            if (cmd == SETBAUD) setSerialBaud(dato);          // ahora sí se aplica
+            else if (cmd == SETGAIN) setGain(dato);
+            estado = ESPERA_INI;
+        }
+    }
+}
+```
+
+**La trampa.**
+
+- **Se aplica `SetBaud` después de responder**, y no basta con que el registro de envío esté vacío (`THRE`): el último byte puede seguir saliendo por el pin. Si cambias el divisor en ese instante, lo estropeas. Por eso el código espera al bit `TEMT` (bit 6 de `LSR`).
+- **El CRC cubre todo lo anterior, incluido `INI`.** En el mensaje `SetBaud` son 3 bytes; en la respuesta, 2.
+- **Todo error vuelve a `EsperaIni`**, y si el byte que llega es un `INI`, se aprovecha: no hay que perderlo.
+- **No se escribe `while (hay datos)` dentro de la ISR**: cada entrada procesa un byte y vuelve.
+
+### b) Velocidad de la UART3, diagrama de bloques y señal de respuesta
+
+**b1) Qué pide.** Completar `setBaud(unsigned int baudrate)` para dejar la UART3 a 8 bits de datos, sin paridad y 1 bit de stop, a la velocidad pedida. Se dan los terminales (puerto 4) ya configurados, la UART alimentada y `FR = 1` (el divisor fraccionario no actúa).
+
+**Qué hay que saber antes.** [UART](../uart/): fórmula del divisor, `LCR`, y que `DLL` y `DLM` solo se ven con `DLAB = 1`. El anexo del examen trae la fórmula y la tabla de `LCR`.
+
+**Proceso.**
+
+1. Con `FR = 1`, $DivAddVal = 0$ y el factor fraccionario vale 1, así que $V = F_{PCLK}/(16\cdot DL)$. De ahí se despeja el divisor.
+2. El PCLK de la UART3 es el de por defecto: $F_{CCLK}/4 = 25$ MHz (por eso la solución usa `25e6`).
+3. `LCR = 0x83`: 8 bits (bits 1:0 = 11), 1 stop (bit 2 = 0), sin paridad (bit 3 = 0) y `DLAB` (bit 7) a 1. Se escriben `DLL` y `DLM` y se vuelve a `LCR = 0x03` (mismo formato con `DLAB = 0`) para poder usar `THR`, `RBR` e `IER` otra vez.
+
+$$
+DL = \frac{F_{PCLK}}{16\cdot V}\qquad DLL = DL \bmod 256\qquad DLM = \left\lfloor \frac{DL}{256} \right\rfloor
+$$
+
+<Donde>
+
+- $DL$: divisor de 16 bits (sin unidades).
+- $F_{PCLK}$: reloj de la UART3, 25 MHz (Hz).
+- $V$: velocidad deseada, en baudios.
+- $DLL$, $DLM$: byte bajo y byte alto de $DL$.
+
+</Donde>
+
+**Solución** (lo rojo de la solución es el cuerpo de la función):
+
+```c
+void setBaud(unsigned int baudrate) {
+    uint16_t DL = (uint16_t)(25e6 / 16.0 / baudrate + 0.5);   // divisor, redondeado al entero más cercano
+    LPC_UART3->LCR = 0x83;          // 8 bits, 1 stop, sin paridad y DLAB = 1
+    LPC_UART3->DLL = DL % 256;      // byte bajo
+    LPC_UART3->DLM = DL / 256;      // byte alto
+    LPC_UART3->LCR = 0x03;          // DLAB = 0
+}
+```
+
+Valores para los dos baudios del protocolo:
+
+| Baudios pedidos | $DL$ exacto | Con truncar | Con redondear |
+|---|---|---|---|
+| 9600 | 162,76 | 162 → 9645 baudios (+0,5 %) | 163 → 9585 baudios (−0,2 %) |
+| 115 200 | 13,56 | 13 → 120 192 baudios (+4,3 %) | 14 → 111 607 baudios (−3,1 %) |
+
+> **Ojo: errata en la solución oficial.** Escribe `LPC_UART3->DLL = DL/256; LPC_UART3->DLM = DL%256;`. Está **al revés**: `DLL` es el byte **bajo** (`DL%256`) y `DLM` el **alto** (`DL/256`). Con 9600 baudios, $DL = 162$: la solución deja `DLL = 0` y `DLM = 162`, es decir, divisor $162\cdot256 = 41\,472$ y una velocidad de unos 38 baudios. Además trunca el divisor: con 115 200 sale 13 y 4,3 % de error en vez de 3,1 % con el 14.
+
+**La trampa.** Qué registro es cuál (bajo o alto), el `DLAB` (poner a 1 antes y a 0 después) y el redondeo. A 115 200 baudios ni 13 ni 14 son perfectos: el error de ±3 a 4 % es el límite de lo que tolera una UART con 8N1, así que en la práctica se usa el divisor fraccionario (`FDR`) para afinar, pero el examen dice `FR = 1`.
+
+**b2) Qué pide.** Completar el diagrama de bloques del módulo con la comunicación serie.
+
+**Solución.**
+
+<Figura src={fig3} alt="Diagrama de bloques del módulo GY-33-UAH: el LPC1768 con TxD3 en P4.28 y RxD3 en P4.29 hacia el exterior, y SDA en P0.0 y SCL en P0.1 hacia el sensor TCS34725" pie="Solución de b2. Hacia el exterior: TxD3 sale por P4.28 y RxD3 entra por P4.29 (función 11 de PINSEL9). Hacia el sensor: P0.0 es SDA y P0.1 es SCL, con flechas en los dos sentidos porque el bus es bidireccional." />
+
+Los pines salen de la tabla `PINSEL9` del manual (P4.28 es TXD3 y P4.29 es RXD3, función 11). La librería I2C del anexo es **por software** (maneja los pines por GPIO: `SDA = 0` y `SCL = 1` son P0.0 y P0.1), así que no se les da la función I2C en `PINSEL`: son pines GPIO normales. En un montaje real el bus I2C necesita además **resistencias de pull-up** en SDA y SCL (el módulo del sensor ya las suele llevar); la solución no las dibuja.
+
+**b3) Qué pide.** Dibujar la señal que sale por el terminal de la UART como respuesta al comando que fija la ganancia en X1. Se toma `OK = 0x01` y `SETGAIN = 0xAA`.
+
+**Proceso.**
+
+1. La respuesta son tres bytes: `OK`, `SETGAIN` y el CRC, que es la OR exclusiva de los dos anteriores: $0x01 \oplus 0xAA = 0xAB$.
+2. Cada byte en 8N1 son 10 bits: un **start** a 0, los 8 de datos **empezando por el de menos peso**, y un **stop** a 1. La línea en reposo está a 1.
+3. Se escribe cada byte al revés (bit 0 primero):
+
+| Byte | Binario | Bits en el orden de envío (b0 a b7) |
+|---|---|---|
+| `0x01` | 0000 0001 | 1, 0, 0, 0, 0, 0, 0, 0 |
+| `0xAA` | 1010 1010 | 0, 1, 0, 1, 0, 1, 0, 1 |
+| `0xAB` | 1010 1011 | 1, 1, 0, 1, 0, 1, 0, 1 |
+
+Cada trama es: start (0), esos 8 bits, stop (1). El total son 30 bits seguidos, que a 9600 baudios duran 3,125 ms y a 115 200 duran unos 260 µs.
+
+<Figura src={fig4} alt="Señal en TxD3: tres tramas seguidas de 10 bits con start a nivel bajo y stop a nivel alto, de los bytes 0x01, 0xAA y 0xAB" pie="Solución de b3 (dibujo oficial). Primera trama: start, un 1 y siete 0, stop. Segunda: 0, 1, 0, 1, 0, 1, 0, 1 con su stop (los dos últimos 1 forman un pulso más ancho). Tercera: 1, 1, 0, 1, 0, 1, 0, 1 y stop." />
+
+El dibujo oficial coincide con esta decodificación: el pulso más ancho del final de cada trama es el último bit de datos y el stop pegados, y los dos primeros unos de la tercera trama también forman un pulso ancho.
+
+**La trampa.** El **orden de los bits** (el de menos peso va primero: `0xAA` se ve como 0, 1, 0, 1…, y `0x01` como un solo 1 al comienzo) y que el CRC se calcula **sin** el byte de CRC. Y que el stop y el start siguiente son un 1 y un 0 seguidos: la línea siempre baja al empezar cada byte.
+
+### c) Leer el color del sensor con el mínimo tráfico I2C
+
+**Qué pide.** Escribir `getRaw`, que lee del sensor `clear`, `red`, `green` y `blue` en el array `uint8_t raw_crgb[8]` con la comunicación I2C **lo más reducida posible**. Se pueden usar las funciones base de la librería I2C (en el anexo).
+
+**Qué hay que saber antes.** El anexo del examen explica el sensor. Los datos están en ocho registros seguidos a partir de `CDATA` = `0x14`: `CDATAL`, `CDATAH`, `RDATAL`, `RDATAH`, `GDATAL`, `GDATAH`, `BDATAL`, `BDATAH`. Para leer un registro hay que mandar primero un byte **COMMAND** con el bit 7 a 1 y la dirección del registro, y luego hacer un *restart* en modo lectura. La dirección I2C del sensor es `0x29`.
+
+<Figura src={fig8} alt="Registro COMMAND del TCS34725 con los campos CMD, TYPE y ADDR, y la tabla del campo TYPE: 00 byte repetido, 01 auto-incremento, 11 función especial" pie="Anexo del examen: registro COMMAND. El campo TYPE (bits 6:5) decide si cada lectura repite el mismo registro (00) o avanza al siguiente (01). La nota de la tabla lo dice: el protocolo de bytes lee repetidamente el mismo registro y el protocolo de bloque incrementa para leer bytes sucesivos." />
+
+<Figura src={fig9} alt="Tramas I2C de escritura, lectura y el acceso combinado al TCS34725: escritura de la dirección del comando, restart y lectura de varios bytes" pie="Anexo del examen: la figura de abajo es la que hay que seguir. Escritura de la dirección y del comando, restart con la dirección en modo lectura y, a partir de ahí, los bytes de datos con ACK, hasta el último." />
+
+**Proceso, paso a paso.**
+
+1. **Una sola transacción.** Si leyeras cada color por separado (cuatro lecturas de 16 bits) enviarías cuatro veces la dirección y el comando. Mejor una única lectura de **8 bytes seguidos**: dirección con escritura, comando, restart, dirección con lectura y los 8 datos. Son $1 + 1 + 1 + 8 = 11$ bytes en el bus, frente a $4\cdot 5 = 20$ con cuatro lecturas.
+2. **Escritura del comando.** `I2CSendAddr(0x29, 0)` genera START y manda la dirección con el bit de escritura. `I2CSendByte(comando)` manda el COMMAND.
+3. **Qué comando.** El bit 7 es 1 (`CMD`); `TYPE` es `01` (auto-incremento, para que cada lectura avance al registro siguiente) y `ADDR` es `0x14`: $1\,01\,10100_2 = \texttt{0xB4}$.
+4. **Restart y lectura.** `I2CSendAddr(0x29, 1)` vuelve a generar START (restart) con la dirección en modo lectura.
+5. **Ocho bytes.** `I2CGetByte(0)` lee un byte y manda **ACK** (quiero más); el **último** se lee con `I2CGetByte(1)`, que manda **NACK** («ya está») y por eso se hace aparte.
+6. `I2CSendStop()` cierra el bus.
+
+**Solución.**
+
+```c
+void getRaw(char* rawdata) {
+    char *ptr_buffer = rawdata;
+    char i;
+
+    I2CSendAddr(0x29, 0);              // START + dirección del sensor en modo escritura
+    I2CSendByte(0xB4);                 // COMMAND: CMD = 1, TYPE = 01 (auto-incremento), ADDR = 0x14 (CDATAL)
+    I2CSendAddr(0x29, 1);              // restart + dirección del sensor en modo lectura
+    for (i = 0; i < 7; i++)
+        *ptr_buffer++ = I2CGetByte(0); // 7 bytes con ACK (el sensor sigue enviando)
+    *ptr_buffer = I2CGetByte(1);       // el octavo con NACK (último dato)
+    I2CSendStop();                     // STOP
+}
+```
+
+Se queda en `raw_crgb`, en orden: `CDATAL`, `CDATAH`, `RDATAL`, `RDATAH`, `GDATAL`, `GDATAH`, `BDATAL`, `BDATAH`, que es exactamente lo que hay que mandar en la respuesta de `GetRaw` (el orden coincide con el del enunciado: C, R, G, B, primero el byte bajo).
+
+> **Ojo: errata en la solución oficial (según el anexo del propio examen).** La solución envía `0x94` y comenta «comando (bit 7 = 1), dirección de lectura del registro 0x14». Pero `0x94` es $1\,00\,10100_2$: el campo `TYPE` vale `00`, el modo de **byte repetido**, y la tabla del anexo dice que con ese modo se lee el mismo registro cada vez. Con `0x94` obtendrías ocho veces `CDATAL`. Para auto-incrementar hace falta `TYPE = 01`, es decir, `0xB4`. (Algunas bibliotecas del sensor usan solo `0x80` con lecturas de dos bytes y les va bien en la práctica, pero lo que dice la tabla es lo que hay que poner en un examen que te la da.) El resto de la función, con los siete `ACK` y el último `NACK`, es correcto.
+
+**La trampa.** El **ACK del último byte** (si mandas ACK, el sensor seguirá enviando y bloqueará el bus), el **restart** entre la escritura del comando y la lectura (no es un STOP), y el valor de `TYPE`.
+
+## Cuestión 2 · Página web con servidor HTTP y CGI
+
+**Qué pide.** El sensor se enseña en una página web de un servidor HTTP integrado en el microcontrolador: las componentes RGB del color y el modo de funcionamiento del sistema. En modo configuración, además, aparece la posibilidad de cambiar la ganancia. Variables ya declaradas: `uint8_t modo` (0 = normal, 1 = configuración), `uint8_t gain` (`X1`, `X4`, `X16` o `X60`), `uint8_t red, green, blue`, y la función `void setGain(uint8_t gain)`. Se da el HTML de las dos páginas (modo normal y modo configuración).
+
+- **a)** Escribir el contenido del fichero `color.cgi`: el HTML con las líneas que se añaden o modifican, **dejando claro cuáles**.
+- **b)** Escribir las funciones `cgi_func(...)`, `cgi_process_var(...)` o `cgi_process_data(...)` que hagan falta.
+
+**Qué hay que saber antes.** No hay un tema con este contenido en la web, así que va aquí. El servidor HTTP de la librería de red de Keil (RL-TCPnet) sirve ficheros `.cgi` que son **scripts línea a línea**. La primera letra de cada línea es una orden:
+
+| Primera letra | Qué hace el servidor |
+|---|---|
+| `t` | **Texto**: manda la línea tal cual al navegador |
+| `c` | **Llamada**: llama a `cgi_func()`, que rellena con valores de las variables la línea que recibe |
+| `.` | Fin del script |
+
+En una línea `c`, el carácter que sigue a la `c` es un **código** que tú eliges (`1`, `2`, ..., `A`). El servidor llama a `cgi_func(env, buf, buflen, pcgi)` con `env[0]` igual a ese código y `&env[2]` apuntando al resto de la línea, que se trata como **cadena de formato de `sprintf`**. La función rellena `buf` con ese `sprintf` y devuelve la longitud. Así se pone en el HTML el valor de una variable. Cuando el navegador envía un formulario con `GET` (por ejemplo `color.cgi?Gain=X4`), el servidor llama a `cgi_process_var()` con el texto de la consulta.
+
+<Figura src={fig5} alt="Página en modo normal: título, la palabra Modo Normal, una tabla con Rojo 23, Verde 134 y Azul 230 y un recuadro con el color" pie="Enunciado: la página en modo normal. Muestra el modo, los tres valores y un recuadro del color. No hay formulario visible." />
+
+<Figura src={fig6} alt="Página en modo configuración: como la anterior pero con la palabra Configuración y un formulario Selección de ganancia con los botones X1, X4, X16 y X60" pie="Enunciado: la página en modo configuración. Lo único que cambia es el texto del modo y que aparece el formulario con el botón de radio de la ganancia actual marcado." />
+
+**Proceso, paso a paso.**
+
+1. **Compara las dos páginas línea a línea.** Cambian solo cinco cosas: el texto del modo (Normal o Configuración), los tres números, el color de fondo del recuadro, la visibilidad de la zona del formulario y el botón de radio marcado. Todo lo demás es texto fijo.
+2. **Cada cosa que cambia es una línea `c`.** Las demás líneas se quedan como `t`. Se numeran las líneas `c` con un código distinto: `1` para el modo, `2`, `3`, `4` para rojo, verde y azul, `5` para el color de fondo (que usa los tres a la vez), `6` para la visibilidad, y `7`, `8`, `9` y `A` para los cuatro radios.
+3. **Dentro de la línea `c`, el `%d` y el `%s`** marcan dónde entra cada valor. Los números se imprimen con `%d` y las palabras (`"Normal"`, `"checked"`) con `%s`.
+4. **Visibilidad.** La página de modo normal lleva `<div hidden>` y la de modo configuración, `<div>`. Se resuelve con `<div %s>` y el valor `""` si `modo` vale 1 o `"hidden"` si vale 0.
+5. **Botón marcado.** El que coincide con `gain` lleva `checked`. Cada línea `c` de un radio recibe `"checked"` o `""` según `gain == X1`, etc.
+6. **La página se recarga sola cada 10 segundos** (`http-equiv="refresh"`), pidiendo `color.cgi` **sin** consulta. Por eso los botones tienen que reflejar siempre la variable `gain` (o parecerían volver a X1 a los 10 s). El formulario se envía al cambiar un radio (`onchange="submit();"`).
+
+**Solución a).** El fichero `color.cgi`: lo que empieza por `t` es tal cual el HTML del enunciado; lo que empieza por `c` es lo que se **modifica** (sus códigos son los de la tabla de arriba). Aquí lo escribo con las dos precauciones que la oficial deja sin tomar (el `%` literal y el `%s` del último radio):
+
+```text
+t <!DOCTYPE html>
+t <meta http-equiv="refresh" content="10">
+t <html>
+t <body>
+t <h1 style="color: #5e9ca0; text-align: center;">Medida del sensor de color TCS34725</h1>
+c 1 <h2 style="text-align: center;"><strong>Modo %s</strong></h2>
+t <table style="border-collapse: collapse; width: 100%;" border="0">
+t <tbody>
+t <tr>
+t <td style="width: 50%;">
+t <table style="border-collapse: collapse; width: 54.306156%;" border="1">
+t <tbody>
+t <tr>
+t <td style="width: 27.155172%;">Rojo</td>
+c 2 <td style="width: 31.465518%;">%d</td>
+t </tr>
+t <tr>
+t <td style="width: 27.155172%;">Verde</td>
+c 3 <td style="width: 31.465518%;">%d</td>
+t </tr>
+t <tr>
+t <td style="width: 27.155172%;">Azul</td>
+c 4 <td style="width: 31.465518%;">%d</td>
+t </tr>
+t </tbody>
+t </table>
+t </td>
+t <td style="width: 50%; border-style: solid; border-color: black;
+c 5 background-color: rgb(%d,%d,%d);">&nbsp;</td>
+t </tr>
+t </tbody>
+t </table>
+c 6 <div %s>
+t <p>Selecci&oacute;n de ganancia:&nbsp;</p>
+t <form action=color.cgi method=get name=form1>
+t <p>
+c 7 <input id="x1" %s name="Gain" type="radio" value="X1" onchange="submit();">
+t <label for="x1">X1</label><br />
+c 8 <input id="x4" %s name="Gain" type="radio" value="X4" onchange="submit();">
+t <label for="x4">X4</label><br />
+c 9 <input id="x16" %s name="Gain" type="radio" value="X16" onchange="submit();">
+t <label for="x16">X16</label><br />
+c A <input id="x60" %s name="Gain" type="radio" value="X60" onchange="submit();">
+t <label for="x60">X60</label></p>
+t </form>
+t </div>
+t </body>
+t </html>
+.
+```
+
+> **Ojo: erratas en la solución oficial.** (1) La línea `c 5` va con `width: 50%;` dentro de la cadena de formato. En un formato de `sprintf` el `%` empieza una conversión: `%;` no existe y el resultado no está definido. Hay que escribir `50%%` o, más sencillo, sacar la parte con `%` a una línea `t` como he hecho arriba. (2) En la línea `c A` la solución escribe `$s` en lugar de `%s`. (3) En la página oficial también se ve la línea `c 5` cortada por el margen del PDF (le falta el final `&nbsp;</td>`); aquí la he completado.
+
+**Solución b).** Hay que escribir `cgi_func` (rellena las líneas `c`) y `cgi_process_var` (procesa el formulario). `cgi_process_data` solo haría falta con `POST`, y el formulario usa `GET`:
+
+```c
+#include <Net_Config.h>
+#include <stdio.h>
+#include <string.h>
+
+U16 cgi_func(U8 *env, U8 *buf, U16 buflen, U32 *pcgi) {
+    U32 len = 0;
+
+    switch (env[0]) {                  // env[0] es el código de la línea c; el formato empieza en env[2]
+    case '1':                          // texto del modo
+        len = sprintf((char *)buf, (const char *)&env[2], modo ? "Configuraci&oacute;n" : "Normal");
+        break;
+    case '2':                          // los tres números
+        len = sprintf((char *)buf, (const char *)&env[2], red);
+        break;
+    case '3':
+        len = sprintf((char *)buf, (const char *)&env[2], green);
+        break;
+    case '4':
+        len = sprintf((char *)buf, (const char *)&env[2], blue);
+        break;
+    case '5':                          // color de fondo: los tres a la vez
+        len = sprintf((char *)buf, (const char *)&env[2], red, green, blue);
+        break;
+    case '6':                          // en configuración, el bloque del formulario visible; en normal, oculto
+        len = sprintf((char *)buf, (const char *)&env[2], modo ? "" : "hidden");
+        break;
+    case '7':                          // un radio por ganancia, marcado el que coincide con gain
+        len = sprintf((char *)buf, (const char *)&env[2], (gain == X1)  ? "checked" : "");
+        break;
+    case '8':
+        len = sprintf((char *)buf, (const char *)&env[2], (gain == X4)  ? "checked" : "");
+        break;
+    case '9':
+        len = sprintf((char *)buf, (const char *)&env[2], (gain == X16) ? "checked" : "");
+        break;
+    case 'A':                          // la solución oficial repite aquí el '9' por error
+        len = sprintf((char *)buf, (const char *)&env[2], (gain == X60) ? "checked" : "");
+        break;
+    default:
+        break;
+    }
+    return ((U16)len);
+}
+
+void cgi_process_var(U8 *qs) {         // qs: consulta del GET, por ejemplo "Gain=X4"
+    U8 *var;
+
+    var = (U8 *)alloc_mem(40);         // memoria temporal para un par nombre=valor
+    do {
+        qs = http_get_var(qs, var, 40);    // extrae el siguiente par de la consulta
+        if (var[0] != 0) {
+            if (str_scomp(var, "Gain=X1") == __TRUE)       { setGain(X1);  gain = X1;  }
+            else if (str_scomp(var, "Gain=X4") == __TRUE)  { setGain(X4);  gain = X4;  }
+            else if (str_scomp(var, "Gain=X16") == __TRUE) { setGain(X16); gain = X16; }
+            else if (str_scomp(var, "Gain=X60") == __TRUE) { setGain(X60); gain = X60; }
+        }
+    } while (qs);
+    free_mem((OS_FRAME *)var);
+}
+```
+
+> **Ojo: errata en la solución oficial.** En `cgi_func` hay: (1) `case '9'` repetido: el segundo es el del radio de X60 y debe ser `case 'A'` (el compilador da error por etiqueta duplicada); (2) `geen` en el `case '3'`: es `green`; (3) `modo ? "" : "hiden"`: la palabra del atributo HTML es `hidden`. Con `hiden` el navegador la ignora y el formulario de la ganancia **se vería también en modo normal**. Y en `cgi_process_var` hay dos variables sin usar (`_iluminacion`, `tofosOFF`), restos de otro código. Además la solución llama a `setGain(...)` y no actualiza `gain`: añado `gain = X4;`, etc., por si `setGain` no lo guarda (con la recarga de 10 s, la página mostraría la ganancia vieja).
+
+**La trampa.** (1) El **código de cada línea `c` tiene que ser único** y coincidir con el `case`. (2) Una línea `c` es una cadena de formato: un `%` normal rompe el `sprintf`, hay que duplicarlo. (3) Los atributos booleanos HTML (`hidden`, `checked`) se escriben **con su nombre exacto** y, si no se activan, se imprime la cadena vacía. (4) El bucle de `cgi_process_var` va hasta que `http_get_var` devuelve `NULL` y hay que liberar la memoria reservada con `alloc_mem`.
+
+## Cuestión 3 · Arbitraje por interrupción en una memoria dual-port
+
+**Qué pide.** Explicar **en detalle** el método de arbitraje por interrupción de las memorias *dual-port* y justificarlo sobre el esquema incompleto de la figura, de modo que las **dos últimas posiciones pares múltiplos de 4 más altas** del bloque se usen para ese arbitraje. El bloque está mapeado en `0x9000.0000` y cada chip tiene 8 KB. Hay que conectar la línea de interrupción de cada CPU al chip correspondiente.
+
+**Qué hay que saber antes.** Una memoria **dual-port** tiene dos juegos de buses (izquierdo, L, y derecho, R) y puede ser leída y escrita por dos procesadores a la vez, cada uno por su puerta. El problema es que las dos CPU **se tienen que coordinar**: si una escribe un dato y la otra lo lee a medias, o dos escriben la misma posición a la vez, se estropea. Hay varios métodos de arbitraje (señal *busy*, semáforos, **interrupción**). En el de interrupción los chips tienen **dos posiciones especiales**, las dos más altas de la memoria, que hacen de **buzón** entre las CPU: la CPU que escribe en la del buzón de la otra la interrumpe, y esa la lee para borrar el aviso.
+
+<Figura src={fig7} alt="Cuatro chips de memoria dual-port 4N+3, 4N+2, 4N+1 y 4N con las señales CE_L y CE_R conectadas a los EMC_CS1 de las CPU izquierda y derecha, y las líneas INT_L e INT_R del chip 4N conectadas en rojo a los EINT1 de cada CPU" pie="Esquema de la cuestión 3 con la solución dibujada en rojo: la /INT_L del chip 4N va al /EINT1 de la CPU izquierda y la /INT_R del chip 4N al /EINT1 de la CPU derecha." />
+
+**Proceso, paso a paso.**
+
+1. **Cuánta memoria.** Cuatro chips de 8 KB son $4\cdot 8 = 32$ KB, el rango `0x9000.0000` a `0x9000.7FFF` para las dos CPU. (El bus es de 32 bits, `MW = 02`, y cada chip aporta un byte de cada palabra: por eso hay cuatro, nombrados $4N$, $4N+1$, $4N+2$ y $4N+3$: cada uno es una de las cuatro líneas de bytes.)
+2. **Dónde están las dos últimas posiciones de cada chip.** Cada chip tiene 8 K posiciones de byte, y sus dos últimas son las direcciones internas `0x1FFE` y `0x1FFF`. En el mapa de 32 KB, cada posición de un chip aparece cada 4 bytes. El chip $4N$ (el de la línea de datos más baja) lleva las direcciones **múltiplo de 4**: sus dos posiciones más altas son `0x9000.7FF8` y `0x9000.7FFC`. Eso es lo que pide el enunciado: «pares múltiplos de 4».
+3. **Qué línea de interrupción lleva cada chip.** Las señales `/INT_L` e `/INT_R` solo se usan en **un** chip (el $4N$). Cada una avisa a una CPU, y se conecta a su entrada de interrupción externa `/EINT1`.
+4. **El protocolo del buzón.**
+   - La **CPU izquierda** escribe en `0x9000.7FFC`: el chip activa `/INT_R` y la **CPU derecha** recibe la interrupción en `/EINT1`. Esa CPU **lee** la posición `0x9000.7FFC` y con la lectura el chip pone `/INT_R` otra vez a nivel alto (en reposo).
+   - La **CPU derecha** escribe en `0x9000.7FF8`: se activa `/INT_L` y la CPU izquierda recibe la interrupción. Esa lee `0x9000.7FF8` y el aviso se borra.
+5. **Para qué sirve el aviso.** Es el «tengo un mensaje para ti»: antes de avisar, la CPU escribe en la zona de datos compartida el mensaje y, cuando ha terminado, escribe en el buzón de la otra. La otra no mira la zona de datos hasta que la interrumpen. Así nunca se lee un dato a medias.
+
+**Solución.** Conexiones: `/INT_L` del chip $4N$ a `/EINT1` de la CPU izquierda; `/INT_R` del chip $4N$ a `/EINT1` de la CPU derecha (ya dibujado en rojo en la figura). Las señales `/CE_L` de los cuatro chips van a `/EMC_CS1` de la CPU izquierda y las `/CE_R` a `/EMC_CS1` de la derecha. Espacio de direcciones: `0x9000.0000` a `0x9000.7FFF` (32 KB). Buzones:
+
+| Quién escribe | Dirección | Efecto | Quién lee para borrar |
+|---|---|---|---|
+| CPU izquierda | `0x9000.7FFC` | activa `/INT_R` (interrumpe a la derecha) | CPU derecha, leyendo `0x9000.7FFC` |
+| CPU derecha | `0x9000.7FF8` | activa `/INT_L` (interrumpe a la izquierda) | CPU izquierda, leyendo `0x9000.7FF8` |
+
+**La trampa.** (1) Se pide **la dirección vista por la CPU** (`0x9000.7FF8` y `0x9000.7FFC`), no la del chip (`0x1FFE` y `0x1FFF`): hay que multiplicar por 4 por las cuatro líneas de bytes, y de ahí lo de «múltiplo de 4». (2) Las señales cruzan: la escritura de la izquierda interrumpe a la **derecha**, y la que borra el aviso es la lectura de la derecha. (3) La interrupción se borra **leyendo** la posición, no escribiendo.
+
+## Cuestión 4 · Qué es un DSP
+
+**Qué pide.** Explicar qué es un DSP y describir los elementos hardware que suelen incorporar, explicando su función y justificando su utilidad en estos procesadores.
+
+> **Resuelto por nosotros, no consta en la solución oficial.** La solución dice solo «ver teoría». Esta respuesta es mi resumen de lo que suele pedir la asignatura; compárala con tus apuntes de clase.
+
+**Solución.** Un **DSP** (*Digital Signal Processor*, procesador digital de señal) es un procesador diseñado para ejecutar **muy rápido y con tiempo predecible** las operaciones de procesado de señal (filtros FIR e IIR, FFT, correlaciones), que se reducen casi siempre a **sumas de productos** repetidas sobre flujos de muestras. Lo que lo distingue de una CPU general son estos elementos:
+
+| Elemento | Qué hace | Por qué sirve |
+|---|---|---|
+| Multiplicador-acumulador (MAC) en hardware | Multiplica y suma en un ciclo: $acc = acc + a\cdot b$ | El núcleo de un filtro es una suma de productos; la CPU normal tardaría varios ciclos por producto |
+| Acumulador con bits de guarda | Registros más anchos que los datos (por ejemplo, 40 bits para datos de 32) | Se pueden sumar muchos productos sin desbordar |
+| Arquitectura Harvard con varios buses | Memorias y buses separados para instrucciones y datos (a veces dos de datos) | En un mismo ciclo se leen la instrucción, el coeficiente y la muestra |
+| Generadores de direcciones propios | Calculan las direcciones de los datos en paralelo con la ALU | La CPU no pierde ciclos en cuentas de punteros |
+| Direccionamiento circular | Un puntero que vuelve solo al principio de un buffer | Los filtros usan una ventana de las últimas $N$ muestras |
+| Direccionamiento con inversión de bits | Recorre el array en orden de bits invertido | Lo pide la FFT |
+| Bucles sin sobrecarga (*zero-overhead loops*) | El hardware repite un bloque sin gastar instrucciones de salto | Los bucles de filtro son cortos y muy repetidos |
+| Aritmética de saturación | Si hay desbordamiento, deja el máximo en vez de dar la vuelta | Evita saltos de señal grandes |
+| Segmentación (*pipeline*) y paralelismo | Varias instrucciones a la vez, a veces con varias unidades (VLIW o SIMD) | Más operaciones por ciclo |
+| DMA y periféricos de datos (puertos serie síncronos, ADC) | Mueven muestras sin intervención de la CPU | Entra una muestra cada $T_s$ y la CPU solo procesa |
+
+(El Cortex-M3 del LPC1768 no es un DSP: tiene multiplicador de un ciclo y alguna instrucción de saturación, pero no MAC con acumulador ancho ni direccionamiento circular. Los Cortex-M4 con extensión DSP sí añaden MAC y SIMD.)
+
+**La trampa.** No basta con listar bloques: hay que **justificar cada uno con la operación que acelera** (MAC con el filtro, bit-reverse con la FFT, circular con el buffer de muestras).
+
+## Cuestión 5 · Sistemas operativos de tiempo real (RTOS)
+
+**Qué pide.** (a) Ventajas e inconvenientes de usar un RTOS en un sistema empotrado. (b) Si se usara un RTOS en el proyecto de laboratorio de la asignatura, qué tareas se configurarían y qué funcionalidad se dejaría fuera del sistema operativo.
+
+> **Resuelto por nosotros, no consta en la solución oficial.** La solución dice solo «ver teoría». Para el apartado (b) no tengo el enunciado del proyecto de laboratorio, así que doy un esquema genérico; ajústalo al tuyo.
+
+**Solución (a).**
+
+| Ventajas | Inconvenientes |
+|---|---|
+| El programa se divide en **tareas** independientes, cada una con su prioridad: más fácil de escribir, probar y ampliar | **Consume recursos**: memoria de programa y RAM (una pila por tarea), y tiempo de CPU en cada cambio de contexto |
+| El **planificador** garantiza que la tarea más prioritaria lista para ejecutar es la que corre: comportamiento **determinista** y análisis de plazos (como en ejecutabilidad) | Hay que **diseñar bien las prioridades**; puede aparecer inversión de prioridad o interbloqueo |
+| Herramientas ya hechas para **sincronizar** y comunicar tareas: semáforos, colas, eventos, temporizadores | Es más difícil de **depurar** (errores que dependen del orden de ejecución) |
+| El código se reutiliza y se porta mejor entre micros | Curva de aprendizaje y, a veces, licencia o coste de certificación |
+| Las tareas esperan sin consumir CPU (se bloquean en un semáforo en vez de preguntar en bucle) | En micros muy pequeños, con pocos recursos o con un solo evento, no compensa |
+
+**Solución (b).** Un esquema razonable para un sistema como el de las cuestiones anteriores (sensor, comunicaciones, pantalla, actuador):
+
+- **Tareas del RTOS:** adquisición y filtrado de medidas (periódica), comunicaciones (UART, servidor web) con su cola de mensajes, interfaz con el usuario (pantalla y pulsadores), y una tarea de supervisión o de registro. Se les da más prioridad a las que tienen plazos más cortos.
+- **Fuera del sistema operativo:** lo que depende de **tiempos muy estrictos y lo hace el hardware**: las señales que genera un Timer o el módulo PWM, el muestreo con ADC y DMA, y las ISR muy cortas que solo copian un dato y avisan a una tarea con un semáforo. Así el RTOS no añade latencia a lo crítico.
+
+## Qué llevarte de este examen
+
+1. **El protocolo serie es una máquina de estados dentro de la ISR**, con un byte por entrada, el CRC acumulado mientras se recibe y una salida de error que resincroniza. La respuesta se envía byte a byte con la interrupción de transmisión, y un cambio de velocidad solo se aplica **después** de terminar de enviar.
+2. **Los registros de la UART:** $DL = F_{PCLK}/(16\cdot V)$, `DLM` es el byte **alto** y `DLL` el **bajo**, `DLAB` a 1 antes y a 0 después, y el error de velocidad al redondear (3 a 4 % a 115 200). La trama 8N1 son 10 bits con el de menos peso primero.
+3. **I2C del sensor:** escritura de la dirección del registro con el bit de comando a 1, **restart**, lectura de los 8 bytes en una transacción con ACK y el último con NACK. Para que cada lectura avance de registro, `TYPE = 01` (`0xB4`).
+4. **CGI:** las líneas `c` son formatos de `sprintf` con un código único que se atiende en `cgi_func`; el formulario se procesa en `cgi_process_var`; y `hidden`, `checked` y el `%` literal se escriben con cuidado.
+5. **Dual-port con interrupción:** las dos últimas posiciones (vistas por la CPU: `0x…7FF8` y `0x…7FFC`) son un buzón; escribir en una interrumpe a la otra CPU, que borra el aviso **leyendo**. Y las cuestiones 4 y 5 son de teoría: aprende la tabla de elementos del DSP y las ventajas e inconvenientes del RTOS.

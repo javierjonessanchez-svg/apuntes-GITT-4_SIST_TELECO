@@ -1,0 +1,773 @@
+---
+titulo: "Enero de 2023 · Prueba final"
+orden: 41
+bloque: "Exámenes resueltos"
+resumen: "Prueba final con siete cuestiones: sistema de temperatura con servo, ADC, captura, audio con DMA, UART y I²C; Dual-Port; statechart de una cafetera; servidor HTTP con CGI; ejecutabilidad; DSP y RTOS"
+saber:
+  - "La cuestión 1 es un PE1 en miniatura: ADC en ráfaga y tiempo de conversión, servo con un Match del Timer, medida del pulso con captura, grabación de audio con el ADC disparado por Timer y DMA, y una UART"
+  - "En ráfaga con N canales, la frecuencia de muestreo de cada canal es F_ADC dividido entre 65·N, y CLKDIV+1 se redondea al entero más próximo"
+  - "El pulso del servo se genera con un Match que pone el pin a 1 y otro Match, tratado en la ISR, que lo baja; la fórmula del Match debe dar 0,5 ms para 0 grados y 2,5 ms para 180"
+  - "Un statechart se pasa a código con una variable de estado, contadores que cuentan hacia atrás en cada tick de la función periódica y salidas escritas al entrar en cada estado"
+  - "En el servidor HTTP del LPC1768, cada línea dinámica del .cgi llama a cgi_func con su letra y su número, y cgi_process_var lee las variables de la URL con http_get_var"
+  - "En ejecutabilidad, la región crítica máxima la fija la tarea con menos margen, y hay que volver a comprobar las demás después"
+fuentes:
+  - "Prueba de evaluación final de SEDA, enero de 2023: enunciado y solución (material de clase de la asignatura)"
+  - "UM10360 (manual del LPC17xx)"
+  - "Hoja de características del DS1621 (anexo del enunciado)"
+---
+import Donde from '../../../src/asignaturas/seda/Donde.astro';
+import Figura from '../../../src/asignaturas/seda/Figura.astro';
+import fig1 from './img/pef-2023-01-1.png';
+import fig2 from './img/pef-2023-01-2.png';
+import fig3 from './img/pef-2023-01-3.png';
+import fig4 from './img/pef-2023-01-4.png';
+import fig5 from './img/pef-2023-01-5.png';
+import fig6 from './img/pef-2023-01-6.png';
+import fig7 from './img/pef-2023-01-7.png';
+import fig8 from './img/pef-2023-01-8.png';
+
+## Resumen del examen
+
+Es una prueba final: reúne lo de las dos intermedias. La cuestión 1 es enorme (apartados a a g) y las demás son más cortas. El enunciado no indica la puntuación de cada cuestión.
+
+| Cuestión | Qué pide | Temas |
+|---|---|---|
+| 1 a | ADC en ráfaga para cuatro canales a unos 1 kHz y frecuencia real | [ADC y DAC](../adc-dac/) |
+| 1 b | Servo con un Timer en modo Match y función que lo mueve | [Timers](../timers-match/), [PWM y servos](../pwm-servos/) |
+| 1 c | Medir con captura el pulso del servo | [Captura](../captura/) |
+| 1 d, e | Micrófono a 8 kHz y 8 bits: ADC disparado por Timer, ISR de grabación, array y DMA | [ADC y DAC](../adc-dac/), [DMA](../dma/) |
+| 1 f | Bluetooth por la UART3 a 19 200 baudios y dibujo de la señal | [UART](../uart/) |
+| 1 g | Termostatos DS1621 por I²C | ver [diciembre de 2022](../pei2-2022-12/) |
+| 2 | Arbitración por interrupción de una Dual-Port | ver [diciembre de 2022](../pei2-2022-12/) |
+| 3 | Statechart de una cafetera y su función periódica | [Máquinas de estados](../maquinas-estados/) |
+| 4 | Servidor HTTP: fichero .cgi y funciones CGI | esta página |
+| 5 | Ejecutabilidad con regiones críticas | [Ejecutabilidad](../ejecutabilidad/) |
+| 6, 7 | DSP y sistemas operativos de tiempo real | teoría |
+
+**Errores de la solución oficial que se señalan abajo:** la fórmula del servo da la posición invertida (1 b), `LPC_TIM0->TC` en lugar de `TCR` (1 e), los colores de agua y apertura al revés y la temperatura sin limitar en el CGI (4), el parpadeo de la cafetera a 0,5 Hz en vez de 1 Hz (3), y el `R2 = 15` que debería ser 13 (5).
+
+## Cuestión 1: sistema de control de temperatura
+
+Un LPC1768 a 100 MHz (con `PCLK = 25 MHz` por defecto para los periféricos) mueve un servo como marcador de temperatura. Elementos de la figura 1: un LM35 (temperatura), potenciómetros de brillo del LCD, de umbral de alarma y de frecuencia del tono, un micrófono, un servo, un LCD con brillo por PWM de 1 kHz, el PC por USB-serie y dos pulsadores (P1 inicia la grabación, P2 reproduce o para). El servo (0 a 180 grados) representa de 0 a 50 grados de temperatura.
+
+<Figura src={fig1} alt="Diagrama de bloques del LPC1768 con los pulsadores P1 y P2, el altavoz, el micrófono, los potenciómetros, el LM35, el servo y el LCD, con los pines sin canal del ADC asignado" pie="Figura 1 del enunciado: el sistema, con los canales del ADC y las tensiones de referencia por completar." />
+
+### a) ADC para los sensores y potenciómetros
+
+**Qué pide.** Completar `init_ADC_sensores()` para las entradas analógicas necesarias con **unos 1 kHz por canal**, completar el esquema (canales, Vref, potenciómetros) y calcular la frecuencia de muestreo exacta.
+
+```c
+void init_ADC_sensores(void)
+{
+    LPC_ADC->ADCR = ( << )|     // canales
+                    ( <<8 )|    //
+                    (1<<21)|    // PDN=1
+                    (1<<16);    //
+    NVIC_DisableIRQ(ADC_IRQn);  //
+}
+```
+
+**Qué hay que saber antes.** [ADC y DAC](../adc-dac/): el registro `ADCR` (bits `SEL` 7:0, `CLKDIV` 15:8, `BURST` 16, `PDN` 21), que cada conversión son 65 ciclos del reloj del ADC y que en **ráfaga** el ADC recorre solo los canales seleccionados.
+
+**Proceso.**
+
+1. **Qué canales.** Mira la figura 1 y busca qué necesita el ADC: el **brillo** del LCD (P0.24 = AD0.1), el **umbral** de temperatura (P0.25 = AD0.2), la **frecuencia del tono** (P1.30 = AD0.4) y el **LM35** (P0.2 = AD0.7). El micrófono (AD0.0) se trata aparte en el apartado d. Son **cuatro canales**: 1, 2, 4 y 7.
+2. **Máscara `SEL`.** Un bit por canal: bits 1, 2, 4 y 7 → `0b10010110 = 0x96`.
+3. **Ráfaga.** `BURST = 1` (bit 16): el ADC convierte los cuatro canales una y otra vez sin necesitar disparo. Con `BURST` hay que dejar `START = 000`.
+4. **Reloj.** Cada canal se convierte una vez por vuelta, y una vuelta son $N$ conversiones de 65 ciclos:
+
+$$
+F_{muestreo} = \frac{F_{ADC}}{65 \cdot N} \quad\Rightarrow\quad F_{ADC} = 1000 \cdot 65 \cdot 4 = 260\ \text{kHz}
+$$
+
+<Donde>
+
+- $F_{muestreo}$: frecuencia de muestreo de **cada canal** (Hz).
+- $F_{ADC}$: reloj del ADC (Hz).
+- $65$: ciclos de reloj por conversión.
+- $N$: número de canales en la ráfaga (4).
+
+</Donde>
+
+El reloj del ADC es $F_{ADC} = PCLK/(CLKDIV+1)$, así que
+
+$$
+CLKDIV + 1 = \frac{25\,000\,000}{260\,000} = 96{,}15 \;\rightarrow\; CLKDIV = 95
+$$
+
+5. **Frecuencia real** con el divisor entero cargado:
+
+$$
+F_{real} = \frac{25\,000\,000}{65 \cdot 4 \cdot (95+1)} = 1001{,}6\ \text{Hz}
+$$
+
+6. **Interrupción.** Nadie quiere interrupciones por conversión aquí (los datos se leen cuando hacen falta), así que `NVIC_DisableIRQ(ADC_IRQn)`. Tras un reset ya está deshabilitada; la línea lo deja explícito.
+
+**Solución.**
+
+```c
+void init_ADC_sensores(void)
+{
+    LPC_ADC->ADCR = (0b10010110 << 0)|  // canales 1, 2, 4 y 7
+                    (95 << 8)|          // CLKDIV = 95: F_ADC = 25 MHz / 96
+                    (1 << 21)|          // PDN = 1: ADC encendido
+                    (1 << 16);          // BURST = 1: ráfaga por los 4 canales
+    NVIC_DisableIRQ(ADC_IRQn);          // el ADC no interrumpe
+}
+```
+
+**Esquema (a.2).** Vref+ a 3 V, Vref- a masa, y cada potenciómetro con un extremo a 3 V, el otro a masa y el cursor al pin de su canal:
+
+<Figura src={fig2} alt="Diagrama de bloques ya completo: Vrefp a 3 V, Vrefn a masa, los potenciómetros con sus extremos a 3 V y a masa y el cursor a los pines P0.24 (AD0.1), P0.25 (AD0.2) y P1.30 (AD0.4), el LM35 en P0.2 (AD0.7) y el micrófono en P0.23 (AD0.0)" pie="Figura de la solución oficial: canales AD0.0, 1, 2, 4 y 7, Vrefp a 3 V y Vrefn a masa." />
+
+**La trampa.** Olvidar el factor $N$ de los canales: con $F_{ADC} = 65$ kHz saldría 1 kHz para **un** solo canal, y con cuatro cada uno iría a 250 Hz. Y redondear `CLKDIV + 1` al entero más próximo, no hacia arriba: el resultado (1001,6 Hz) es «aproximadamente 1 kHz», justo lo que se pide.
+
+### b) Servo con un Timer en modo Match
+
+**Qué pide.** Explicar el recurso y su configuración para el servo (**periodo de 12 ms**, tiempo en alto de **0,5 a 2,5 ms** para 0 a 180 grados) y completar `set_servo(uint8_t temperatura)`. El servo va al pin **P1.22**.
+
+**Qué hay que saber antes.** [Timers y Match](../timers-match/) y [PWM y servos](../pwm-servos/). P1.22 tiene como función alternativa **MAT1.0** (salida del Match 0 del Timer 1, `PINSEL3` bits 13:12 = `11`). Es decir, el módulo PWM no es una opción aquí: el pin que cablea el servo es el del Timer 1.
+
+**Proceso.**
+
+1. **Periodo.** `MR0` marca los 12 ms y el Timer se pone a cero en ese Match: $MR0 = 12\ \text{ms} \cdot 25\ \text{MHz} = 300\,000$ cuentas. En ese mismo Match, la salida MAT1.0 se pone a **1** (acción *set* en `EMR`): empieza el pulso.
+2. **Fin del pulso.** Otro Match, `MR1`, ocurre `MR1` cuentas después del inicio: es el instante en que el pulso debe acabar. Pero un Match solo controla **su** pin (`EMC0` el de MR0, `EMC1` el de MAT1.1), así que MR1 no puede bajar MAT1.0 por hardware. Se habilita la **interrupción** de MR1 y en la ISR se pone el pin a 0 **a mano**, escribiendo un 0 en el bit `EM0` de `EMR`.
+3. **Fórmula.** El tiempo en alto es lo que tarda MR1 en llegar, es decir, $MR1/PCLK$. Debe ir de 0,5 ms (0 grados, 0 °C) a 2,5 ms (180 grados, 50 °C) de forma lineal:
+
+$$
+MR1 = F_{PCLK}\cdot\left(0{,}5\ \text{ms} + 2\ \text{ms}\cdot\frac{T}{50}\right) = 12\,500 + 1000\cdot T
+$$
+
+<Donde>
+
+- $MR1$: valor del registro `MR1` (cuentas de $PCLK$).
+- $F_{PCLK}$: frecuencia del reloj del Timer, 25 MHz.
+- $T$: temperatura en grados (0 a 50).
+- $12\,500$ cuentas = 0,5 ms a 25 MHz; $1000 \cdot 50 = 50\,000$ cuentas = 2 ms.
+
+</Donde>
+
+Comprobación en los extremos: $T = 0$ → 12 500 cuentas = 0,5 ms; $T = 50$ → 62 500 cuentas = 2,5 ms. ✓
+
+**Solución.**
+
+```c
+void init_servo(void)
+{
+    LPC_SC->PCONP |= (1 << 2);             // enciende el Timer 1
+    LPC_PINCON->PINSEL3 |= (3 << 12);      // P1.22 = MAT1.0
+    LPC_TIM1->PR  = 0;                     // el contador va a 25 MHz
+    LPC_TIM1->MR0 = 300000 - 1;            // periodo de 12 ms
+    LPC_TIM1->MR1 = 12500;                 // 0,5 ms (0 grados)
+    LPC_TIM1->MCR = (1 << 1) | (1 << 3);   // MR0: reset; MR1: interrupción
+    LPC_TIM1->EMR = (2 << 4);              // EMC0 = 10: pone MAT1.0 a 1 en el Match de MR0
+    NVIC_EnableIRQ(TIMER1_IRQn);
+    LPC_TIM1->TCR = 1;                     // arranca
+}
+
+void TIMER1_IRQHandler(void)               // Match de MR1: fin del pulso
+{
+    LPC_TIM1->IR = (1 << 1);               // borra el flag de MR1
+    LPC_TIM1->EMR &= ~1;                   // EM0 = 0: baja el pin MAT1.0
+}
+
+void set_servo(uint8_t temperatura)
+{
+    if (temperatura > 50) temperatura = 50;
+    LPC_TIM1->MR1 = 12500 + 1000 * temperatura;   // 0,5 ms + 2 ms * T/50
+}
+```
+
+> **Ojo: errata en la solución oficial.** La solución escribe `MR1 = F_pclk*2.5e-3 - F_pclk*2e-3*temperatura/50`. Con el pulso en alto de duración `MR1` eso da 2,5 ms para 0 °C y 0,5 ms para 50 °C: el sentido **contrario** al que pide el enunciado (0,5 ms para 0 grados). El signo correcto es `+` con 0,5 ms: `F_pclk*0.5e-3 + F_pclk*2e-3*temperatura/50`.
+
+**La trampa.** Dos. Dar la fórmula con el signo cambiado (se comprueba mirando los dos extremos). Y no ver que MR1 no puede cambiar su propio pin: de ahí la ISR.
+
+### c) Captura del pulso del servo con el Timer 2
+
+**Qué pide.** Pseudocódigo de la función del Timer 2 que mide la **anchura del pulso en alto** de la señal del servo y la guarda en una variable global en **segundos**. En la figura 1 el pin P1.22 (la salida) está unido al pin P0.5, que es **CAP2.1** (entrada de captura 1 del Timer 2).
+
+**Qué hay que saber antes.** [Captura](../captura/): el Timer guarda el valor del contador (`CR1`) en el flanco que se elige en `CCR`. Para medir un pulso en alto se capturan **dos** instantes, el flanco de subida y el de bajada, y se restan. Por eso se **cambia** el flanco que se espera en cada interrupción.
+
+**Proceso.**
+
+1. Se configura `CCR` para interrumpir en el flanco de **subida** de CAP2.1 (bit 3 = `CAP1RE`, bit 5 = `CAP1I`).
+2. Interrupción 1 (subida): se guarda `CR1` y se cambia `CCR` a flanco de **bajada** (bit 4 = `CAP1FE`).
+3. Interrupción 2 (bajada): ancho = `CR1` menos el valor guardado, por el periodo del contador $1/PCLK$; se vuelve a esperar la subida.
+4. En todas se borra el flag (`IR`, bit 5 = `CR1INT`).
+
+**Solución.**
+
+```c
+volatile float anchura_pulso;                  // en segundos
+
+void TIMER2_IRQHandler(void)
+{
+    static uint32_t t_subida;
+
+    LPC_TIM2->IR = (1 << 5);                   // borra el flag de CAP2.1
+    if (LPC_TIM2->CCR & (1 << 3)) {            // se esperaba el flanco de subida
+        t_subida = LPC_TIM2->CR1;
+        LPC_TIM2->CCR = (1 << 4) | (1 << 5);   // ahora, flanco de bajada + interrupción
+    } else {                                   // era el flanco de bajada
+        anchura_pulso = (LPC_TIM2->CR1 - t_subida) / 25.0e6f;   // cuentas por Tpclk
+        LPC_TIM2->CCR = (1 << 3) | (1 << 5);   // otra vez, flanco de subida
+    }
+}
+```
+
+La resta de enteros sin signo de 32 bits sale bien aunque el contador haya dado la vuelta entre los dos flancos.
+
+**La trampa.** Dejar la anchura en cuentas, no en segundos, y olvidar borrar el flag.
+
+### d) Micrófono: ADC disparado por un Timer
+
+**Qué pide.** Completar `init_ADC_microfono()` (ADC por interrupción, a la máxima velocidad), dar el **tiempo de conversión** y describir la configuración del **Timer** que da el muestreo ($F_s = 8$ kHz, 8 bits).
+
+```c
+void init_ADC_microfono(void)
+{
+    LPC_ADC->ADCR = ( 1<< )|     //
+                    ( <<8)|      //
+                    (1<<21)|     // PDN=1
+                    (4<<24);     //
+}
+```
+
+**Proceso.**
+
+1. **Canal.** El micrófono entra por P0.23 = AD0.0, canal 0: `SEL = 1<<0`.
+2. **Máxima velocidad.** El reloj del ADC no puede pasar de 13 MHz. Con $PCLK = 25$ MHz, `CLKDIV = 0` daría 25 MHz (demasiado) y `CLKDIV = 1` da 12,5 MHz: `1<<8`.
+3. **Disparo.** El campo `START` (bits 26:24) vale `100` = 4: **inicio de conversión con el MAT0.1** (Timer 0). Así el muestreo lo marca el Timer y no la CPU.
+4. **Interrupción.** Se habilita la del canal 0 (`ADINTEN`) y la del ADC en el NVIC, para leer cada muestra.
+
+**Tiempo de conversión:**
+
+$$
+t_{conv} = \frac{65}{F_{ADC}} = \frac{65}{12{,}5\ \text{MHz}} = 5{,}2\ \mu s \qquad T_s = \frac{1}{8000} = 125\ \mu s
+$$
+
+<Donde>
+
+- $t_{conv}$: lo que tarda una conversión (s).
+- $F_{ADC}$: reloj del ADC (12,5 MHz).
+- $T_s$: periodo de muestreo (s); $t_{conv}$ cabe de sobra en él.
+
+</Donde>
+
+**Timer 0 (sin escribir el código).** Se enciende; el pin MAT0.1 se configura en modo **conmutar** (*toggle*) en el Match de `MR1`, con **reset del contador** en ese Match y sin interrupción. El ADC arranca con el flanco de subida, que solo se da **cada dos** Match (uno sube y otro baja), de modo que `MR1` es **medio periodo**:
+
+$$
+MR1 = \frac{25\,000\,000}{8000}\cdot\frac{1}{2} - 1 \approx 1561
+$$
+
+<Donde>
+
+- $MR1$: valor del Match 1 (cuentas de $PCLK$).
+- $25\,000\,000/8000 = 3125$ cuentas es el periodo de muestreo y la división entre 2 sale de que el pin conmuta en cada Match.
+
+</Donde>
+
+(El valor es 1561,5, que no cabe en un entero: con 1561 o 1562 la frecuencia real es de unos 8003 u 7997 Hz.) El Timer 0 empieza **parado** y se arranca al pulsar P1.
+
+**Solución.**
+
+```c
+void init_ADC_microfono(void)
+{
+    LPC_ADC->ADCR = (1 << 0)|     // canal AD0.0 (P0.23)
+                    (1 << 8)|     // CLKDIV = 1: F_ADC = 25 MHz / 2 = 12,5 MHz
+                    (1 << 21)|    // PDN = 1
+                    (4 << 24);    // START = 100: conversión con MAT0.1
+    LPC_ADC->ADINTEN = (1 << 0);  // interrupción del canal 0
+    NVIC_EnableIRQ(ADC_IRQn);     // el ADC interrumpe
+}
+```
+
+**La trampa.** Dejar `CLKDIV = 0`: el ADC pasaría de su límite de 13 MHz. Y poner `MR1` igual a todo el periodo: como el pin **conmuta**, el flanco de subida llega cada dos Match.
+
+### e) Grabación: ISR, array y DMA
+
+**Qué pide.** La ISR del ADC que guarda las muestras en `buffer_alarm_temp[]` durante **3 s** a 8 kHz y 8 bits, la declaración del array (justificada) y el recurso que reduciría la carga de la CPU.
+
+**Proceso.**
+
+1. **Número de muestras:** $8000 \cdot 3 = 24\,000$.
+2. **Tamaño de cada una:** el ADC da 12 bits (en los bits 15:4 de `ADDR0`), pero se piden muestras de **8 bits**: se toman los 8 bits de arriba (bits 15:8), con `ADDR0 >> 8`. Cada muestra es un `uint8_t`: 1 byte.
+3. **Array:** 24 000 bytes (unos 23,4 kB).
+4. **ISR:** leer `ADDR0` (esa lectura **borra** la interrupción), guardar la muestra, y al llegar a 24 000 parar el Timer 0 y avisar con una bandera.
+
+**Solución.**
+
+```c
+uint8_t buffer_alarm_temp[24000];       // 8000 muestras/s * 3 s, 1 byte por muestra
+volatile uint32_t indice_muestra = 0;
+volatile uint8_t  fin_grabacion = 0;
+
+void ADC_IRQHandler(void)
+{
+    buffer_alarm_temp[indice_muestra++] = LPC_ADC->ADDR0 >> 8;   // 8 bits altos del resultado
+    if (indice_muestra == 24000) {
+        indice_muestra = 0;
+        LPC_TIM0->TCR = 0x02;           // para y pone a cero el Timer 0
+        fin_grabacion = 1;
+    }
+}
+```
+
+> **Ojo: errata en la solución oficial.** La solución para el Timer con `LPC_TIM0->TC = 0x02;`. `TC` es el contador, no el control: lo que para y reinicia el Timer es `LPC_TIM0->TCR = 0x02;` (bit 1 = reset, bit 0 = enable a 0).
+
+**Reducir la carga de CPU: DMA.** La CPU despierta 8000 veces por segundo solo para copiar un byte. Con el **GPDMA** (canal de periférico a memoria, [DMA](../dma/)) la copia la hace el controlador. Configuración (la de la solución):
+
+- Se enciende el GPDMA (`PCONP`) y se usa un canal en modo **periférico a memoria** con petición del **ADC**.
+- **Origen:** la dirección del **byte 1** de `ADDR0` (`(uint32_t)&LPC_ADC->ADDR0 + 1`), que es el que tiene los bits 15:8; ancho de transferencia de 8 bits y **sin** incrementar el origen.
+- **Destino:** `buffer_alarm_temp`, ancho de 8 bits y **con** incremento.
+- **Tamaño:** `TransferSize` es de 12 bits (máximo 4095), así que 24 000 muestras no caben: **6 transferencias de 4000**. En la interrupción de fin de bloque del DMA se suma 4000 a la dirección de destino y se relanza el canal.
+- Interrupción de fin de transferencia habilitada; la del ADC en el NVIC ya no hace falta.
+
+**La trampa.** Declarar el array como `uint16_t` o con 8000 elementos (en 3 s hay 24 000). Y olvidar que un bloque de DMA no pasa de 4095.
+
+### f) Bluetooth por la UART3 a 19 200 baudios
+
+**Qué pide.** Conectar el módulo, configurar la UART3 (FR = 1, 8 bits, **sin paridad**), la velocidad real y **dibujar la señal** de salida durante 1 ms desde que se ejecuta `tx_cadena_uart3("sistema de control de temperatura\n\r")`.
+
+**Qué hay que saber antes.** [UART](../uart/): `LCR`, `DLL`/`DLM`, y que la línea va en reposo a 1, con un bit de start (0), 8 datos con el **bit de menos peso primero** y un stop (1). La conexión y la cuenta del divisor son las de la [prueba de diciembre de 2022](../pei2-2022-12/).
+
+**Proceso.**
+
+1. **Conexión.** TXD3 (P4.28) al RXD del módulo y RXD3 (P4.29) al TXD, cruzadas; VCC a 3,3 V y GND común.
+2. **Pines:** `PINSEL9 |= (3<<26)|(3<<24)`.
+3. **LCR.** 8 bits: `11` en los bits 1:0 = `0x03`; sin paridad (bit 3 = 0), 1 stop (bit 2 = 0). Con `DLAB = 1`, `0x83`; después, `0x03`.
+4. **Divisor:**
+
+$$
+DL = \frac{25\,000\,000}{16\cdot 19\,200} = 81{,}38 \rightarrow 81 \qquad V_{real} = \frac{25\,000\,000}{16\cdot 81} = 19\,290{,}1\ \text{baudios}
+$$
+
+<Donde>
+
+- $DL$: divisor de 16 bits (`DLM:DLL`), ya redondeado a entero.
+- $V_{real}$: velocidad con el divisor cargado (baudios).
+
+</Donde>
+
+<Figura src={fig3} alt="Módulo HC-06 con sus cuatro pines RXD, TXD, GND y VCC: RXD al TxD3 del LPC1768, TXD al RxD3, GND a masa y VCC a 3,3 V" pie="Figura de la solución oficial: el módulo Bluetooth HC-06 con sus líneas cruzadas." />
+
+```c
+void uart3_init(void)
+{
+    LPC_SC->PCONP |= (1 << 25);
+    LPC_PINCON->PINSEL9 |= (3 << 26) | (3 << 24);   // RXD3 (P4.29), TXD3 (P4.28)
+    LPC_UART3->LCR = 0x83;       // 8 bits, sin paridad, 1 stop, DLAB = 1
+    LPC_UART3->DLL = 81;
+    LPC_UART3->DLM = 0;
+    LPC_UART3->LCR = 0x03;       // DLAB = 0
+}
+```
+
+**La señal (f.2).**
+
+1. Un bit dura $1/19\,290 = 51{,}8\ \mu s$ y un byte 8N1 son 10 bits: $518{,}4\ \mu s$. En 1 ms caben $1000/51{,}8 = 19{,}3$ bits: **dos caracteres** (el 2.º casi entero).
+2. Los dos primeros caracteres son `s` y `i`. ASCII: `s` = `0x73` = `0111 0011`, `i` = `0x69` = `0110 1001`.
+3. Se envía el bit de menos peso primero, así que se leen los bits **al revés**:
+
+| Carácter | Start | Datos (D0 a D7) | Stop |
+|---|---|---|---|
+| `s` (`0x73`) | 0 | 1 1 0 0 1 1 1 0 | 1 |
+| `i` (`0x69`) | 0 | 1 0 0 1 0 1 1 0 | 1 |
+
+<Figura src={fig4} alt="Señal TxD3 en el tiempo: nivel bajo de start, bits 1 1 0 0 1 1 1 0 de la letra s, stop a 1, start y bits 1 0 0 1 0 1 1 0 de la letra i, y stop final" pie="Figura de la solución oficial: la señal de TxD3 para los caracteres s (0x73) e i (0x69). Los dos caracteres completos duran 1,036 ms: a 1 ms solo se ve el comienzo del último bit de stop." />
+
+**La trampa.** Dibujar los bits de más peso primero (la letra `s` saldría `0 1 1 1 0 0 1 1`) o llevarse el stop de la `i` más allá de 1 ms.
+
+### g) Termostatos DS1621 por I²C
+
+Es el mismo ejercicio que la **cuestión 2 de la [prueba de diciembre de 2022](../pei2-2022-12/)**, con la misma figura: los tres sensores con direcciones `0x4F` (A2A1A0 = 111), `0x48` (000) y `0x4B` (011), un bus común P0.0 y P0.1 con pull-ups de 4,7 kΩ. Los comandos son `0xA1` (TH) y `0xA2` (TL). Función (versión compacta, con el byte bajo a 0 y un STOP entre las dos escrituras, ver el recuadro de esa página):
+
+```c
+void i2c_set_termostato(char sensor, char TH, char TL)
+{
+    unsigned char dir;
+    switch (sensor) {
+        case 1:  dir = 0x4F; break;
+        case 2:  dir = 0x48; break;
+        case 3:  dir = 0x4B; break;
+        default: return;
+    }
+    I2CSendAddr(dir, 0);  I2CSendByte(0xA1);  I2CSendByte(TH);  I2CSendByte(0x00);  I2CSendStop();
+    I2CSendAddr(dir, 0);  I2CSendByte(0xA2);  I2CSendByte(TL);  I2CSendByte(0x00);  I2CSendStop();
+}
+```
+
+## Cuestión 2: arbitración por interrupción en una Dual-Port
+
+Es el mismo enunciado y la misma solución que la **cuestión 3 de la [prueba de diciembre de 2022](../pei2-2022-12/)**, con su explicación paso a paso. En resumen: cuatro chips de 256 kB en paralelo dan 1 MB de 32 bits (`0x9000.0000` a `0x900F.FFFF`); las interrupciones salen del chip 4N+3 y usan sus dos últimas posiciones, `0x900F.FFFF` y `0x900F.FFFB`. La CPU izquierda **escribe** en `0x900F.FFFF` y activa `/INT_R`, que interrumpe a la derecha; la derecha **lee** esa posición y `/INT_R` vuelve a reposo. En sentido contrario, la derecha escribe en `0x900F.FFFB` y la izquierda lo lee para limpiar `/INT_L`.
+
+> **Ojo: errata en la solución oficial.** La solución dice 512 kB para `0x9000.0000` a `0x900F.FFFF`; son **1 MB**.
+
+## Cuestión 3: la cafetera
+
+**Qué pide.** El **statechart** del control de una cafetera y el código de una función periódica (cada **10 ms**) que genere las temporizaciones. Entradas: `LARGO`, `CORTO`, `AGUA`, `TEMP` (con umbral $T_F$) y `OPEN`. Salidas: `BOMBA`, `RESIST`, `LED_LARGO`, `LED_CORTO`.
+
+Reglas, resumidas:
+
+- Al pulsar cualquier botón en reposo: se enciende la resistencia y **los dos LED parpadean a 1 Hz** hasta alcanzar la temperatura de funcionamiento.
+- Con los dos LED fijos (caliente), al pulsar un botón la **bomba** funciona $t_{CORTO}$ o $t_{LARGO}$ segundos, con **solo el LED del botón pulsado** encendido; luego se vuelve a los dos LED fijos.
+- Si la bomba funciona y **falta agua o se abre** la cámara, se para.
+- Si durante el calentamiento se pulsa un botón, **solo ese LED sigue parpadeando** y el otro se apaga; al llegar a temperatura sirve ese café.
+- A los **20 s** sin tocar un botón (con el sistema caliente en espera), se apaga todo.
+
+### Qué hay que saber antes
+
+[Máquinas de estados](../maquinas-estados/): un estado con acciones de entrada, transiciones con condiciones, y estados con subestados. Los **tiempos** se hacen con contadores que la función periódica decrementa en cada llamada: cada tick son 10 ms, así que 1 s son 100 ticks.
+
+### Proceso
+
+1. **Estados principales:** `Inactivo` (todo apagado), `Calentando` (resistencia encendida y LED parpadeando), `CalentandoCorto` y `CalentandoLargo` (calentando y con un solo LED), y `Activo` (caliente: `EsperaActivo`, `SirviendoCorto`, `SirviendoLargo`).
+2. **Parpadeo** como subestados *on* y *off* con un contador que, al llegar a 0, cambia de subestado.
+3. **Salidas** en las acciones de entrada de cada estado.
+4. **Condiciones de salida:** `TEMP > TF` lleva de calentar a servir (o a esperar); la bomba para por tiempo agotado, falta de agua o apertura; `T_Activo == 0` vuelve a `Inactivo`.
+
+<Figura src={fig5} alt="Statechart de la cafetera con los estados Inactivo, Calentando con Calentando_on y Calentando_off, CalentandoCorto, CalentandoLargo y Activo con EsperaActivo, SirviendoCorto y SirviendoLargo" pie="Statechart de la solución oficial («una de las posibles soluciones»; supone que los dos botones no se pulsan a la vez)." />
+
+> **Ojo: la solución oficial parpadea a 0,5 Hz.** En los estados de parpadeo pone `T_parp = 1 seg` tanto en *on* como en *off*: eso es un periodo de 2 s (0,5 Hz). Un parpadeo a **1 Hz** es medio segundo encendido y medio apagado: `T_parp = 0,5 s`. Aquí se usa 0,5 s.
+
+### Solución (código de la función periódica)
+
+*Resuelto por nosotros: la solución oficial solo trae el statechart.* El enunciado nombra la función `funcionPeriodica100ms` y dice «cada 10 ms»; aquí se toma **10 ms**. Se supone que las entradas son 0 o 1 y que las salidas se escriben igual (por ejemplo, con variables o macros que accedan al pin).
+
+```c
+#define TICK_MS     10
+#define MS(x)       ((x) / TICK_MS)               // milisegundos a ticks
+#define T_PARP      MS(500)                       // medio periodo de parpadeo a 1 Hz
+#define T_ACTIVO_S  MS(20000)                     // 20 s sin actuación
+#define T_CORTO     MS(T_CORTO_S * 1000)          // T_CORTO_S y T_LARGO_S: datos del problema
+#define T_LARGO     MS(T_LARGO_S * 1000)
+
+enum { INACTIVO, CALENTANDO, CAL_CORTO, CAL_LARGO,
+       ESPERA_ACTIVO, SIRVE_CORTO, SIRVE_LARGO } estado = INACTIVO;
+
+static uint16_t t_parp, t_activo, tiempo;         // cuentan hacia atrás en ticks
+
+static void parpadeo(uint8_t mascara)             // mascara: bit0 LED_CORTO, bit1 LED_LARGO
+{
+    if (t_parp == 0) {                            // ha pasado medio periodo: conmuta
+        if (mascara & 1) LED_CORTO = !LED_CORTO;
+        if (mascara & 2) LED_LARGO = !LED_LARGO;
+        t_parp = T_PARP;
+    }
+}
+
+static void sirve(uint16_t ticks, uint8_t corto)  // entrada en SIRVE_CORTO / SIRVE_LARGO
+{
+    tiempo = ticks;  BOMBA = 1;
+    LED_CORTO = corto;  LED_LARGO = !corto;
+    estado = corto ? SIRVE_CORTO : SIRVE_LARGO;
+}
+
+void funcionPeriodica100ms(void)                  // se llama cada 10 ms
+{
+    if (t_parp > 0)  t_parp--;
+    if (tiempo > 0)  tiempo--;
+    if (t_activo > 0 && estado == ESPERA_ACTIVO) t_activo--;   // solo cuenta en espera
+
+    switch (estado) {
+    case INACTIVO:
+        BOMBA = RESIST = LED_LARGO = LED_CORTO = 0;
+        if (CORTO || LARGO) {
+            RESIST = 1;  LED_CORTO = LED_LARGO = 1;  t_parp = T_PARP;
+            estado = CALENTANDO;
+        }
+        break;
+
+    case CALENTANDO:                              // los dos LED parpadean
+        parpadeo(3);
+        if (TEMP > TF)  { LED_CORTO = LED_LARGO = 1; t_activo = T_ACTIVO_S; estado = ESPERA_ACTIVO; }
+        else if (CORTO) { LED_LARGO = 0; LED_CORTO = 1; t_parp = T_PARP; estado = CAL_CORTO; }
+        else if (LARGO) { LED_CORTO = 0; LED_LARGO = 1; t_parp = T_PARP; estado = CAL_LARGO; }
+        break;
+
+    case CAL_CORTO:                               // solo parpadea el del botón CORTO
+        parpadeo(1);
+        if (TEMP > TF) sirve(T_CORTO, 1);
+        break;
+
+    case CAL_LARGO:
+        parpadeo(2);
+        if (TEMP > TF) sirve(T_LARGO, 0);
+        break;
+
+    case ESPERA_ACTIVO:                           // caliente, LED fijos, bomba parada
+        if (CORTO)      sirve(T_CORTO, 1);
+        else if (LARGO) sirve(T_LARGO, 0);
+        else if (t_activo == 0) estado = INACTIVO;   // 20 s sin actuación: apaga todo
+        break;
+
+    case SIRVE_CORTO:
+    case SIRVE_LARGO:
+        if (tiempo == 0 || !AGUA || OPEN) {       // fin de tiempo, sin agua o abierta
+            BOMBA = 0;
+            LED_CORTO = LED_LARGO = 1;
+            t_activo = T_ACTIVO_S;
+            estado = ESPERA_ACTIVO;
+        }
+        break;
+    }
+}
+```
+
+**Detalles del diseño.**
+
+- Al pasar de `ESPERA_ACTIVO` a `INACTIVO`, `INACTIVO` apaga las salidas en el tick siguiente (incluida `RESIST`).
+- El contador `t_activo` **solo** decrementa en `ESPERA_ACTIVO`; si contase también al servir, el sistema se apagaría a mitad de un café.
+- Mientras se sirve, los botones se ignoran. Si se mantiene pulsado uno al terminar, se serviría otro café: en un sistema real se usaría un flanco de pulsación.
+- Se supone, como la solución, que no se pulsan los dos botones a la vez (prevalece CORTO).
+- La regla de los 20 s se aplica solo con el sistema caliente en espera (como en la solución oficial); no se aplica durante el calentamiento.
+
+**La trampa.** Parpadear a 0,5 Hz (medio periodo de 1 s), contar el tiempo de bomba en un `while` en lugar de en la función periódica (bloquea todo el programa), y no parar la bomba cuando falta agua o se abre.
+
+## Cuestión 4: servidor HTTP embebido
+
+**Qué pide.** La cafetera del apartado anterior se monitoriza desde una página web. Hay que escribir el fichero **`cafetera.cgi`** y las funciones `cgi_func`, `cgi_process_var` y/o `cgi_process_data`:
+
+- **Temperatura** (`temp`): el color de la celda va de `#300000` (20 °C o menos) a `#FF0000` (100 °C o más); los dos primeros dígitos hexadecimales son la componente roja.
+- **Agua:** celda **roja** si `agua = 0` y **azul** si `agua = 1`.
+- **Apertura:** celda **roja** si `open = 1` y **azul** si `open = 0`.
+- **Seleccionado:** el botón de radio de «corto» marcado si `seleccion = 1` y el de «largo» si `seleccion = 2`.
+- Una URL `cafetera.cgi?seleccion=corto` debe llamar a `SetCafeCorto()` (o `SetCafeLargo()` con `largo`).
+
+<Figura src={fig6} alt="Página web titulada Control remoto de la cafetera con una foto de la cafetera, una tabla con Sensor de temperatura en rojo oscuro con 90 grados, Detector de agua en rojo y Detector de apertura en azul, dos botones de radio Café corto y Café largo y, debajo, el formulario de selección con un botón Seleccionar" pie="Figura del enunciado: la página que hay que generar y el formulario que envía la selección." />
+
+### Qué hay que saber antes
+
+El servidor HTTP de la práctica (tipo RL-TCPnet de Keil) lee ficheros con extensión `.cgi`. Cada línea del fichero empieza por una letra:
+
+- **`t`** : texto fijo, que se envía tal cual.
+- **`c`** : línea **dinámica**: `c a 1 texto con %d o %s`. El servidor llama a `cgi_func(env, buf, buflen, pcgi)`, donde `env` contiene la línea sin el `c`: `env[0]` es la letra (`'a'`), `env[2]` el número de línea (`'1'`) y `&env[4]` el **formato** (el texto con `%d`, `%s`…). La función rellena `buf` con `sprintf` y devuelve el número de bytes escritos.
+- **`.`** : última línea, fin del fichero.
+
+Cuando un formulario envía datos con el método GET (`?seleccion=corto`), el servidor llama a **`cgi_process_var(qs)`** con la cadena de consulta. Ahí se extraen las variables una a una con `http_get_var` (devuelve cadenas del tipo `nombre=valor`).
+
+### Proceso
+
+1. **Hay que marcar cuatro huecos** en el HTML: el color y el valor de la temperatura, el color del agua, el de la apertura y los dos botones de radio. Son cinco líneas `c a 1` a `c a 5`; el resto va con `t`.
+2. **Color de la temperatura.** La componente roja es una recta que pasa por (20 °C, `0x30`) y (100 °C, `0xFF`):
+
+<Figura src={fig8} alt="Fórmula de la recta: temp menos 20 entre 100 menos 20 igual a codigo menos 0x30 entre 0xFF menos 0x30, y la gráfica con 0x30 a 20 grados y 0xFF a 100 grados" pie="Figura de la solución oficial: relación lineal entre la temperatura y el nivel de rojo." />
+
+$$
+rojo = 0x30 + \frac{T - 20}{100 - 20}\,(0xFF - 0x30)
+$$
+
+<Donde>
+
+- $rojo$: componente roja del color (de `0x30` a `0xFF`).
+- $T$: temperatura (°C), ya limitada a la zona entre 20 y 100.
+- $0xFF - 0x30 = 207$: recorrido de la componente roja.
+
+</Donde>
+
+   En C entero hay que **multiplicar antes de dividir**: `(T-20)*207/80 + 0x30`. En el HTML se imprime con `#%X0000`: `%X` da el valor en hexadecimal mayúscula (dos dígitos, porque siempre es mayor que `0x2F`) y los cuatro ceros finales son verde y azul a 0.
+3. **Agua y apertura:** `%s` con la palabra `red` o `blue`.
+4. **Radios:** `%s` con `checked` o con la cadena vacía.
+5. **Recibir la selección:** en `cgi_process_var` se compara cada variable con `"seleccion=corto"` y `"seleccion=largo"`.
+
+### Solución
+
+**Fichero `cafetera.cgi`.** El HTML del enunciado con prefijo `t` en cada línea y las cinco líneas dinámicas (`c a`) en lugar de las estáticas correspondientes. Esas cinco son lo que se añade o modifica; en el fichero de ejemplo del PDF una parte de cada línea estaba tapada, y aquí se ha reconstruido:
+
+<Figura src={fig7} alt="El HTML de la página con un prefijo t en cada línea y las líneas c a 1, c a 2, c a 3, c a 4 y c a 5 en las filas de la temperatura, el agua, la apertura y los dos botones de radio, con campos %X, %d y %s marcados" pie="Figura de la solución oficial: el fichero cafetera.cgi con las cinco líneas dinámicas." />
+
+```
+t <html>
+t <body>
+t <h2 style="color: #2e6c80;">Control remoto de la cafetera</h2>
+t <table><tbody><tr><td>
+t <p><img style="height: 300px; width: 300px;" src="foto.jpg" /></p>
+t </td><td>
+t <table><tbody>
+t <tr><td>Sensor de temperatura</td>
+c a 1 <td style="color: #ffffff; background-color: #%X0000;">%d&ordm;C</td>
+t </tr>
+t <tr><td>Detector de agua</td>
+c a 2 <td style="background-color:%s;">&nbsp;</td>
+t </tr>
+t <tr><td>Detector de apertura</td>
+c a 3 <td style="background-color:%s;">&nbsp;</td>
+t </tr>
+t <tr><td>Seleccionado:<br />
+c a 4 <input type="radio" %s /> Caf&eacute; corto<br />
+c a 5 <input type="radio" %s /> Caf&eacute; largo
+t </td></tr>
+t </tbody></table>
+t </td></tr></tbody></table>
+t <p>Selecci&oacute;n: </p>
+t <form action="cafetera.cgi" method="get">
+t <input name="seleccion" type="radio" value="corto" /> Caf&eacute; corto<br />
+t <input name="seleccion" type="radio" value="largo" /> Caf&eacute; largo<br />
+t <input type="submit" value="Seleccionar">
+t </form>
+t </body>
+t </html>
+.
+```
+
+**Funciones C.**
+
+```c
+extern int  temp, agua, open, seleccion;           // variables del sistema
+
+U16 cgi_func(U8 *env, U8 *buf, U16 buflen, U32 *pcgi)
+{
+    U32 len = 0;
+    int t, rojo;
+
+    switch (env[0]) {
+    case 'a':                                      // líneas "c a n"
+        switch (env[2]) {
+        case '1':                                  // color y valor de la temperatura
+            t = temp;
+            if (t < 20)  t = 20;                   // limita a la zona de la recta
+            if (t > 100) t = 100;
+            rojo = 0x30 + (t - 20) * (0xFF - 0x30) / 80;
+            len = sprintf((char *)buf, (const char *)&env[4], rojo, temp);
+            break;
+        case '2':                                  // agua: rojo si 0, azul si 1
+            len = sprintf((char *)buf, (const char *)&env[4], agua ? "blue" : "red");
+            break;
+        case '3':                                  // apertura: rojo si 1, azul si 0
+            len = sprintf((char *)buf, (const char *)&env[4], open ? "red" : "blue");
+            break;
+        case '4':                                  // radio "corto"
+            len = sprintf((char *)buf, (const char *)&env[4], (seleccion == 1) ? "checked" : "");
+            break;
+        case '5':                                  // radio "largo"
+            len = sprintf((char *)buf, (const char *)&env[4], (seleccion == 2) ? "checked" : "");
+            break;
+        }
+        break;
+    }
+    return (U16)len;
+}
+
+void cgi_process_var(U8 *qs)                       // llega "seleccion=corto" o "seleccion=largo"
+{
+    U8 *var = (U8 *)alloc_mem(40);
+    do {
+        qs = http_get_var(qs, var, 40);
+        if (var[0] != 0) {
+            if (str_scomp(var, "seleccion=corto") == __TRUE)
+                SetCafeCorto();
+            else if (str_scomp(var, "seleccion=largo") == __TRUE)
+                SetCafeLargo();
+        }
+    } while (qs);
+    free_mem((OS_FRAME *)var);
+}
+```
+
+> **Ojo: errata en la solución oficial.** El código oficial pone los colores **al revés**: `agua ? "red" : "blue"` da rojo con `agua = 1`, y el enunciado pide rojo con `agua = 0`; y `open ? "blue" : "red"` da azul con `open = 1`, cuando el enunciado pide rojo. Arriba están corregidos. Además, la solución no limita la temperatura: con menos de 20 °C, `temp - 20` es negativo y el color se desborda (`%X` imprimiría un número enorme); por eso se limita a 20 y a 100.
+
+**La trampa.** Dividir antes de multiplicar en C entero (`(t-20)/80` da 0 casi siempre), no distinguir los dos sentidos del color (agua y apertura son opuestos), y olvidar que el formato lo pone el `.cgi` y no la función: la función solo rellena los `%`.
+
+## Cuestión 5: ejecutabilidad con regiones críticas
+
+Cuatro tareas (el enunciado dice «tres»), en ms, con una región crítica de 7 ms en la tarea 4 y otra de 5 ms en el programa principal:
+
+| Tarea | Prioridad | Subprioridad | C | T | D |
+|---|---|---|---|---|---|
+| 1 | 0 | 0 | 3 | 10 | 10 |
+| 2 | 0 | 2 | 3 | 15 | 15 |
+| 3 | 1 | 0 | 10 | 30 | 30 |
+| 4 | 3 | 0 | 10 | 100 | 100 |
+
+a) ¿Es ejecutable? b) Si **no** lo es, la mayor región crítica de la tarea 4 que lo haría ejecutable (si lo fuese, la que lo dejaría de ser).
+
+### Qué hay que saber antes
+
+[Ejecutabilidad](../ejecutabilidad/): $R = C + B + I$; $B$ es el **máximo** de los bloqueos; $I = \sum \lceil R/T_j \rceil C_j$ para tareas de mayor nivel; para las del **mismo nivel** que no interrumpen, $\lceil (R-C)/T_j \rceil C_j$.
+
+### a) ¿Es ejecutable?
+
+**Proceso.** Niveles: tareas 1 y 2, nivel 0 (mismo nivel: no se interrumpen); tarea 3, nivel 1; tarea 4, nivel 3. Las tareas 1 y 2 interrumpen a la 3 y a la 4; la 3 interrumpe a la 4.
+
+**Tarea 1.** $B_1 = \max\{C_2 = 3,\ RC_{pp} = 5,\ RC_4 = 7\} = 7$ (la tarea 2 es del mismo nivel y no se la puede interrumpir). $I_1 = 0$. $R_1 = 3 + 7 = 10 \le 10$. Cumple, justo.
+
+**Tarea 2.** $B_2 = \max\{5, 7\} = 7$. Interfiere la tarea 1 (mismo nivel): $\lceil (R_2 - 3)/10 \rceil \cdot 3$. $R^{(0)} = 3 + 7 = 10$ → $10 + 3\lceil 7/10 \rceil = 13$ → con 13: $\lceil 10/10 \rceil = 1$ → 13. $R_2 = 13 \le 15$. Cumple.
+
+**Tarea 3.** $B_3 = \max\{5, 7\} = 7$. Interfieren la 1 y la 2.
+
+$$
+R_3 = 10 + 7 + \left\lceil \tfrac{R_3}{10} \right\rceil \cdot 3 + \left\lceil \tfrac{R_3}{15} \right\rceil \cdot 3
+$$
+
+$R^{(0)} = 17$ → con 17: $2 \cdot 3 + 2 \cdot 3 = 12$ → 29 → con 29: $3 \cdot 3 + 2 \cdot 3 = 15$ → 32 → con 32: $4 \cdot 3 + 3 \cdot 3 = 21$ → 38 → con 38: $4 \cdot 3 + 3 \cdot 3 = 21$ → 38 (igual). $R_3 = 38 > D_3 = 30$. **No cumple.**
+
+**El sistema no es ejecutable.**
+
+### b) Región crítica máxima de la tarea 4 para que lo sea
+
+**Proceso.**
+
+1. La tarea que falla es la 3, por el bloqueo de 7 ms. Su bloqueo es $B_3 = \max\{RC_{pp}, RC_4\}$ y la región crítica del programa principal vale 5, así que si $RC_4 \le 5$, el bloqueo es **5** y ya no depende de $RC_4$.
+2. Con $B_3 = 5$: $R^{(0)} = 15$ → con 15: $2\cdot 3 + 1\cdot 3 = 9$ → 24 → con 24: $3 \cdot 3 + 2 \cdot 3 = 15$ → 30 → con 30: $3 \cdot 3 + 2 \cdot 3 = 15$ → 30. $R_3 = 30 \le 30$. Cumple, justo.
+3. Con $RC_4 = 6$ ya no: $B_3 = 6$ → $R^{(0)} = 16$ → 28 → 31 > 30 (y sigue subiendo).
+
+   Tarea 1 con $RC_4 = 5$: $B_1 = 5$, $R_1 = 8 \le 10$. Tarea 2: $B_2 = 5$, $R_2 = 3 + 5 + 3 = 11 \le 15$. Tarea 4: $B_4 = RC_{pp} = 5$; interfieren las tres:
+
+$$
+R_4 = 10 + 5 + \left\lceil \tfrac{R_4}{10} \right\rceil 3 + \left\lceil \tfrac{R_4}{15} \right\rceil 3 + \left\lceil \tfrac{R_4}{30} \right\rceil 10
+$$
+
+   $R^{(0)} = 31$ → 56 → 65 → 81 → 90 → 90. $R_4 = 90 \le 100$. Cumple.
+
+**Solución.** La región crítica de la tarea 4 debe ser de **5 ms o menos**: con 5 ms el sistema es ejecutable con $R_1 = 8$, $R_2 = 11$, $R_3 = 30$ y $R_4 = 90$ ms. La que manda es la **tarea 3** (con 0 de margen).
+
+> **Ojo: erratas menores en la solución oficial.** Al final de la tarea 2 escribe «$R_2 = 15\ \text{ms}$», pero su propia iteración da 13 ms (cumple igualmente).
+
+**La trampa.** Dos. Hacer el bloqueo de cada tarea con la región crítica de la tarea 4 aunque sea menor que otra (solo cuenta la mayor), y no comprobar las demás tareas al cambiar el valor.
+
+## Cuestión 6: ¿qué es un DSP y qué hardware lo caracteriza?
+
+*Resuelto por nosotros, no consta en la solución oficial (solo dice «ver teoría»).*
+
+Un **DSP** (*Digital Signal Processor*) es un procesador especializado en el procesado digital de señales en tiempo real (filtros, transformadas, correlaciones…), que se reducen a **sumas de productos** sobre flujos de muestras. Recursos hardware típicos de su arquitectura:
+
+- **Unidad MAC** (multiplicar y acumular) en un ciclo, con un acumulador ancho para no desbordar.
+- **Arquitectura Harvard** con memorias y buses separados de programa y de datos, para leer instrucción y operandos a la vez.
+- **Varias unidades de generación de direcciones**, con direccionamiento **circular** (buffers de muestras) y de **bit invertido** (FFT).
+- **Bucles sin sobrecarga** (*zero-overhead loops*) por hardware, y *pipeline* profundo.
+- **Aritmética de saturación**, y según el modelo, coma fija o coma flotante.
+- **DMA** y memoria interna rápida para mover muestras sin la CPU; ejecución **determinista**.
+
+Se diferencia de un microcontrolador, como el LPC1768, en que da más rendimiento aritmético y menos periféricos integrados.
+
+## Cuestión 7: ventajas e inconvenientes de un RTOS
+
+*Resuelto por nosotros, no consta en la solución oficial (solo dice «ver teoría»).* El enunciado pide **justificar cada una con detalle**.
+
+Un **RTOS** reparte la CPU entre **tareas** según su prioridad, con tiempos de respuesta acotados. En un proyecto como el de la asignatura (temperatura, servo, audio, pantalla y comunicaciones):
+
+**Ventajas**
+
+- **Concurrencia ordenada.** Leer el sensor, refrescar el LCD y atender la UART son tareas independientes, en lugar de una maraña de interrupciones y banderas en el `main`.
+- **Tiempos de respuesta analizables.** El planificador por prioridades permite calcular $R_i$ como en la cuestión 5 y comprobar que las tareas críticas cumplen su plazo.
+- **Servicios hechos:** retardos, temporizadores, semáforos, colas y exclusión mutua. Evitan reinventar la sincronización y los errores de compartir datos.
+- **Modularidad y reutilización.** Cada función es una tarea con una interfaz clara: se amplía el sistema añadiendo tareas y se reparte el trabajo en equipo.
+
+**Inconvenientes**
+
+- **Consumo de recursos.** El núcleo ocupa Flash y RAM, y **cada tarea necesita su propia pila**; además, los cambios de contexto gastan ciclos.
+- **Menos control temporal fino.** A escala de microsegundos (como el pulso de un servo o una captura) una ISR directa es más precisa que pasar por el planificador.
+- **Nuevos problemas:** inversión de prioridades, bloqueos mutuos (*deadlock*) y condiciones de carrera si se comparten recursos sin cuidado.
+- **Depuración y aprendizaje** más difíciles.
+
+Conclusión: con pocos eventos y tiempos muy exigentes basta un esquema de ISR más máquinas de estados; con muchas actividades independientes de distinta urgencia, el RTOS compensa.
+
+## Qué llevarte de este examen
+
+1. **ADC en ráfaga:** $F_{muestreo} = F_{ADC}/(65 N)$, con $CLKDIV + 1$ redondeado y la frecuencia real calculada con el divisor entero. Para el micrófono, ADC disparado por `MAT0.1` con el pin en *toggle*: el flanco llega cada dos Match.
+2. **Servo con Timer:** `MR0` el periodo, un Match que sube el pin y otro, con ISR, que lo baja. **Comprueba siempre los dos extremos** de la fórmula (0,5 y 2,5 ms): la oficial sale al revés.
+3. **Muestras de 8 bits de un ADC de 12:** `ADDR0 >> 8`, 1 byte por muestra, 24 000 muestras en 3 s, y DMA en bloques de 4000 (el máximo es 4095).
+4. **Statechart a código:** variable de estado, contadores hacia atrás en la función periódica, salidas al entrar en cada estado. Un parpadeo a 1 Hz es 0,5 s encendido y 0,5 s apagado.
+5. **CGI del servidor HTTP:** `c a n` en el `.cgi` para cada hueco, `cgi_func` con `sprintf`, `cgi_process_var` con `http_get_var`; vigila el sentido de los colores y limita la temperatura antes de escalar.
+6. **Ejecutabilidad:** la tarea con menos margen manda; el bloqueo es el **máximo**, no la suma, y la región crítica de una tarea no cuenta si es menor que otra fuente de bloqueo.

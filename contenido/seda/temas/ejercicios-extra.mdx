@@ -1,0 +1,1128 @@
+---
+titulo: "Ejercicios extra: máquinas de estados, DMA y entregable"
+orden: 44
+bloque: "Exámenes resueltos"
+resumen: "Cuatro materiales de práctica que no son exámenes oficiales: problemas de StateChart (servos, tren de aterrizaje, refrigerador), los enunciados de las diapositivas de StateCharts, la pizarra de DMA y el entregable voluntario de GIEC 15/16, todo resuelto"
+saber:
+  - "Una máquina de estados sobre una UART se programa como un switch que consume un byte por llamada. Los bytes marcadores (0xDA, el bit 7 a 1) sirven para recuperar el sincronismo si llega una trama cortada o ajena"
+  - "De un enunciado largo a un StateChart: primero las entradas y salidas, luego los estados, después qué es común a varios estados (jerarquía), qué hay que recordar (histórico) y qué ocurre a la vez (regiones)"
+  - "Los tiempos del enunciado (5 s, 30 s, 1 min, 2 min) se convierten en contadores de ticks de la interrupción periódica y se reinician en la acción entry del estado"
+  - "La pizarra de DMA resume todo en una lista de ajustes: modo, tamaño de bloque (máximo 4095), origen, destino, incremento de cada dirección, linked y qué interrupciones se habilitan"
+  - "Con el ADC por DMA se lee un solo byte del registro de resultado (dirección de ADDR0 más 1, ancho de 8 bits) y se habilita la interrupción del canal en ADINTEN pero no en el NVIC. Con el DAC, las muestras van desplazadas 6 bits y DACCNTVAL fija el ritmo"
+  - "Cuidado con la aritmética de punteros: la dirección de ADDR0 más 1 byte se calcula con un cast a entero antes de sumar, o se usa el registro de byte FIOPIN3"
+fuentes:
+  - "Prob_MaqEstados_StateMachines (problemas de StateChart de exámenes anteriores, material privado de la asignatura)"
+  - "SEDA_FSM_StateChart_III_v1_enunciados (diapositivas de clase, material privado de la asignatura)"
+  - "DMA_pizarra (apuntes de pizarra del 19/11/20, material privado de la asignatura) y LPC17xx_DMA (diapositivas de clase)"
+  - "Entregable voluntario SEDA GIEC 15/16 (material de clase de la asignatura)"
+  - "UM10360 (manual del LPC17xx)"
+---
+import Donde from '../../../src/asignaturas/seda/Donde.astro';
+import Figura from '../../../src/asignaturas/seda/Figura.astro';
+import fig1 from './img/ejercicios-extra-1.png';
+import fig2 from './img/ejercicios-extra-2.png';
+import fig3 from './img/ejercicios-extra-3.png';
+import fig4 from './img/ejercicios-extra-4.png';
+import fig5 from './img/ejercicios-extra-5.png';
+import fig6 from './img/ejercicios-extra-6.png';
+import fig7 from './img/ejercicios-extra-7.png';
+import fig8 from './img/ejercicios-extra-8.png';
+import fig9 from './img/ejercicios-extra-9.png';
+import fig10 from './img/ejercicios-extra-10.png';
+import fig11 from './img/ejercicios-extra-11.png';
+import fig12 from './img/ejercicios-extra-12.png';
+import fig13 from './img/ejercicios-extra-13.png';
+import fig14 from './img/ejercicios-extra-14.png';
+
+**Idea clave.** Estos cuatro materiales **no son exámenes oficiales**: son colecciones de problemas y apuntes que el profesorado ha dado en clase. Valen para practicar justo lo que más pesa en la prueba: pasar de un enunciado largo a un **StateChart** y a su código, y saber contar con la lista de ajustes del **DMA**. Los temas de teoría están en [máquinas de estados](../maquinas-estados/) y [DMA](../dma/); aquí se aplican.
+
+## Resumen del material
+
+| Material | Qué contiene | Temas |
+|---|---|---|
+| Problemas de máquinas de estados (5 páginas escaneadas) | Tres enunciados de examen: controlador de servos por UART, tren de aterrizaje (mayo de 2017) y refrigerador (septiembre de 2020) | [Máquinas de estados](../maquinas-estados/), [UART](../uart/) |
+| Diapositivas «StateCharts» (23 diapositivas) | Notación de StateChart, el horno microondas y tres ejemplos: control de nivel de agua (con solución), servos y tren de aterrizaje | [Máquinas de estados](../maquinas-estados/) |
+| Pizarra de DMA (4 páginas, 19/11/20) | El esquema general del DMA y tres ejemplos: memoria a GPIO, ADC a memoria y memoria a DAC | [DMA](../dma/), [ADC y DAC](../adc-dac/), [Timers](../timers-match/) |
+| Entregable voluntario SEDA GIEC 15/16 (2 páginas) | Tarjetas con indicadores luminosos que reciben tramas por la UART0: StateChart y programa | [UART](../uart/), [Máquinas de estados](../maquinas-estados/) |
+
+En todos los casos las soluciones son **nuestras** (rehechas y comprobadas), salvo el control de nivel de agua, cuya solución viene en las diapositivas. Los códigos de las máquinas de estados se han compilado y probado en el PC con entradas simuladas. Cuando un enunciado deja un dato sin fijar (un código de comando, qué mitad de un byte es cuál), lo digo y explico qué he supuesto.
+
+## 1. Problemas de máquinas de estados
+
+El PDF son cinco páginas escaneadas con **tres problemas**. En los tres se pide un StateChart y, en dos, el código. Antes de resolverlos, el método que sirve para todos:
+
+1. **Entradas y salidas.** Haz una lista de qué lee el sistema y qué escribe, con los valores posibles. Es una caja negra con flechas, como la de las diapositivas.
+2. **Estados.** Cada situación en la que el sistema se comporta distinto es un estado. Pista: busca en el enunciado los verbos de espera («esperará 5 s», «hasta que se active el final de carrera»): cada espera suele ser un estado.
+3. **Eventos y condiciones.** Qué hace salir de cada estado: una entrada que cambia, un byte que llega, un tiempo que vence.
+4. **Qué comparten varios estados.** Una transición que sale de todos ellos (tierra, parada, error) se dibuja **una vez** desde un superestado.
+5. **Memoria y paralelismo.** Si hay que volver donde se estaba, histórico (H). Si hay dos cosas independientes a la vez, regiones concurrentes.
+6. **Código.** Un `switch` por estado, una función que cambie de estado haciendo exit, acción y entry, y los tiempos como contadores de una interrupción periódica.
+
+### Cuestión 4 · Controlador de servos por UART
+
+**Qué pide.** Un LPC1768 controla 8 servos de radiocontrol y habla con un ordenador por la UART con tramas binarias (no ASCII). El ordenador manda `0xDA`, la dirección del controlador, el comando, de 0 a 16 bytes de datos y `0xDB`. El controlador responde con `0xFA`, su dirección, el comando, datos y `0xFB`. La dirección se lee de unos microinterruptores y se guarda en `uint8_t DirCom`; las posiciones objetivo están en `uint8_t servos[8]`.
+
+<Figura src={fig1} alt="Tabla con el formato de la trama del ordenador: 0xDA, DirControlador, Comando, Datos de 0 a 16 bytes y 0xDB, cada campo de un byte salvo los datos" pie="Figura del enunciado: formato de las tramas que manda el ordenador. La respuesta del controlador es igual, con 0xFA al principio y 0xFB al final." />
+
+Hay que implementar dos comandos:
+
+- **ReadServos (0x03)**: `0xDA, Dir, 0x03, #Servos, NServo, ..., NServo, 0xDB`. `#Servos` va de 1 a 8 y cada `NServo` de 0 a 7. La respuesta es `0xFA, Dir, 0x03, #Servos, (NServo, PosServo) repetido, 0xFB`, con `PosServo` de 0 a 180 (`0x00` a `0xB4`).
+- **Reset (0x02)**: `0xDA, Dir, 0x02, 0xDB`. Pone todos los servos a 0 grados y responde `0xFA, Dir, 0x02, 0xFB`.
+
+<Figura src={fig2} alt="Tablas de la trama de petición y de la respuesta del comando ReadServos" pie="Figura del enunciado: trama de petición y de respuesta de ReadServos. En la respuesta, cada servo aparece como pareja NServo seguido de PosServo." />
+
+<Figura src={fig3} alt="Ejemplo de petición para leer los servos 4 y 7 del controlador 5 y de su respuesta con 20 y 170 grados" pie="Figura del enunciado: leer los servos 4 y 7 del controlador de dirección 5. La respuesta lleva 0x14 (20) y 0xAA (170)." />
+
+Se pide el diagrama de estados o StateChart de la gestión de las comunicaciones, que irá **dentro de la rutina de atención a la interrupción de la UART**. Aquí damos también el código.
+
+**Qué hay que saber antes.** Cómo llegan los bytes por la UART y cómo se lee RBR en la ISR (tema de la [UART](../uart/)), y que una máquina de estados en una ISR **da un paso por byte y vuelve** ([máquinas de estados](../maquinas-estados/)). La idea central: la máquina no «lee la trama», recibe **un byte cada vez** y recuerda por dónde va.
+
+**Proceso.**
+
+1. Escribe la trama como lista de campos en orden: inicio, dirección, comando, número de servos, lista de servos, fin. Cada campo que hay que esperar es un estado: `SOF`, `DIR`, `CMD`, `NUM`, `LISTA`, y un estado de fin por comando (`FIN_READ`, `FIN_RESET`).
+2. Decide qué se hace con cada byte. En `SOF` se espera el `0xDA`. En `DIR` se compara con `DirCom`: si es otro controlador, se vuelve a `SOF` y se ignora el resto de la trama.
+3. El comando decide el camino: `0x03` sigue por `NUM` y `LISTA`; `0x02` va directo a esperar el fin, porque no lleva datos.
+4. En `LISTA` hay un contador: se guardan los `NServo` hasta tener `#Servos`. Cada byte se valida (de 0 a 7), porque `servos[]` solo tiene 8 posiciones.
+5. Solo cuando llega `0xDB` la trama es correcta y **entonces** se ejecuta y se responde. Si faltan o sobran bytes, no se hace nada.
+6. Recuperar el sincronismo. Los datos de este protocolo valen como mucho 180 y los comandos son pequeños, así que `0xDA` **nunca** es un dato válido. Por eso, si llega un `0xDA` en cualquier estado, se empieza una trama nueva. Es una sola transición desde un superestado «dentro de una trama», no una flecha por estado.
+
+**Solución.** Tabla de transiciones (el evento es siempre «llega el byte b»):
+
+| Estado | Condición sobre b | Acción | Estado siguiente |
+|---|---|---|---|
+| Cualquiera | b = 0xDA | (nada) | DIR |
+| SOF | cualquier otro | ignorar | SOF |
+| DIR | b = DirCom | (nada) | CMD |
+| DIR | otro valor | (nada) | SOF |
+| CMD | b = 0x03 | (nada) | NUM |
+| CMD | b = 0x02 | (nada) | FIN_RESET |
+| CMD | otro | (nada) | SOF |
+| NUM | 1 a 8 | n = b; i = 0 | LISTA |
+| NUM | otro | (nada) | SOF |
+| LISTA | 0 a 7 | guardar b; i = i + 1 | LISTA, o FIN_READ si i = n |
+| LISTA | otro | (nada) | SOF |
+| FIN_READ | b = 0xDB | responder con las posiciones | SOF |
+| FIN_READ | otro | (nada) | SOF |
+| FIN_RESET | b = 0xDB | servos[0..7] = 0; responder | SOF |
+| FIN_RESET | otro | (nada) | SOF |
+
+La respuesta se prepara en un buffer y se **envía por interrupciones**: el primer byte se escribe en THR y cada interrupción THRE manda el siguiente (patrón del tema de la UART). Así la ISR de recepción no se queda esperando. El código completo:
+
+```c
+#define SOF_ORD   0xDA   // inicio de trama del ordenador
+#define EOF_ORD   0xDB   // fin de trama del ordenador
+#define SOF_RESP  0xFA   // inicio de la respuesta
+#define EOF_RESP  0xFB   // fin de la respuesta
+#define CMD_RESET 0x02
+#define CMD_READ  0x03
+
+typedef enum { E_SOF, E_DIR, E_CMD, E_NUM, E_LISTA, E_FIN_READ, E_FIN_RESET } estado_t;
+
+uint8_t DirCom;                 // dirección de este controlador (microinterruptores)
+uint8_t servos[8];              // posiciones objetivo de los 8 servos, 0 a 180
+
+static estado_t estado = E_SOF;
+static uint8_t pedidos[8];      // servos pedidos en ReadServos
+static uint8_t n_pedidos, i_pedido;
+
+static uint8_t tx_buf[21];      // la respuesta más larga: 5 + 2*8 = 21 bytes
+static volatile uint8_t tx_n, tx_i;
+
+static void enviar(uint8_t n)   // tx_buf ya tiene los n bytes de la respuesta
+{
+  tx_n = n;
+  tx_i = 1;                     // el byte 0 sale ya; el resto, en la interrupción THRE
+  LPC_UART0->THR = tx_buf[0];
+}
+
+static void responde_read(void)
+{
+  uint8_t k, n = 0;
+  tx_buf[n++] = SOF_RESP;
+  tx_buf[n++] = DirCom;
+  tx_buf[n++] = CMD_READ;
+  tx_buf[n++] = n_pedidos;
+  for (k = 0; k < n_pedidos; k++) {
+    tx_buf[n++] = pedidos[k];           // NServo
+    tx_buf[n++] = servos[pedidos[k]];   // PosServo
+  }
+  tx_buf[n++] = EOF_RESP;
+  enviar(n);
+}
+
+static void responde_reset(void)
+{
+  tx_buf[0] = SOF_RESP;  tx_buf[1] = DirCom;
+  tx_buf[2] = CMD_RESET; tx_buf[3] = EOF_RESP;
+  enviar(4);
+}
+
+// Un paso de la máquina: se llama una vez por cada byte recibido
+void procesa_byte(uint8_t b)
+{
+  uint8_t k;
+
+  if (b == SOF_ORD) {           // 0xDA no puede ser dato (los datos son 0 a 180):
+    estado = E_DIR;             // en cualquier estado, empieza una trama nueva
+    return;
+  }
+  switch (estado) {
+    case E_SOF:                 // basura entre tramas: se ignora
+      break;
+    case E_DIR:
+      estado = (b == DirCom) ? E_CMD : E_SOF;     // ¿es para mí?
+      break;
+    case E_CMD:
+      if      (b == CMD_READ)  estado = E_NUM;
+      else if (b == CMD_RESET) estado = E_FIN_RESET;
+      else                     estado = E_SOF;    // comando que no implemento
+      break;
+    case E_NUM:
+      if (b >= 1 && b <= 8) { n_pedidos = b; i_pedido = 0; estado = E_LISTA; }
+      else estado = E_SOF;
+      break;
+    case E_LISTA:
+      if (b <= 7) {
+        pedidos[i_pedido++] = b;
+        if (i_pedido == n_pedidos) estado = E_FIN_READ;
+      } else estado = E_SOF;
+      break;
+    case E_FIN_READ:
+      if (b == EOF_ORD) responde_read();          // trama correcta: se responde
+      estado = E_SOF;
+      break;
+    case E_FIN_RESET:
+      if (b == EOF_ORD) {
+        for (k = 0; k < 8; k++) servos[k] = 0;
+        responde_reset();
+      }
+      estado = E_SOF;
+      break;
+  }
+}
+
+void UART0_IRQHandler(void)
+{
+  switch ((LPC_UART0->IIR >> 1) & 0x07) {
+    case 2:                                       // RDA: ha llegado algo
+    case 6:                                       // CTI: tiempo muerto con datos en la FIFO
+      while (LPC_UART0->LSR & 0x01)               // RDR: aún hay bytes en la FIFO
+        procesa_byte(LPC_UART0->RBR);             // leer RBR borra la petición
+      break;
+    case 1:                                       // THRE: THR vacío, toca el siguiente byte
+      if (tx_i < tx_n) LPC_UART0->THR = tx_buf[tx_i++];
+      break;
+  }
+}
+```
+
+Comprobación con el ejemplo del enunciado: los bytes `DA 05 03 02 04 07 DB` con `DirCom = 5`, `servos[4] = 20` y `servos[7] = 170` producen `FA 05 03 02 04 14 07 AA FB`, que es la respuesta de la figura. Con `DA 05 02 DB` los servos quedan a 0 y sale `FA 05 02 FB`.
+
+**La trampa.**
+
+- La respuesta de ReadServos **intercala** el número de servo y su posición (`NServo, PosServo, NServo, PosServo`), no los pone todos los números y luego todas las posiciones. Su longitud es $5 + 2\cdot\#Servos$, hasta 21 bytes.
+- `servos[]` guarda posiciones **objetivo**, no medidas: es lo que responde el controlador.
+- No se ejecuta nada hasta ver `0xDB`. Si actúas al recibir el comando, una trama cortada o con basura movería los servos.
+- El `while (!(LSR & THRE))` dentro de la ISR para mandar la respuesta funciona, pero bloquea la ISR durante hasta 21 bytes de UART. En el examen se acepta pseudocódigo claro, pero la versión por THRE es la que se espera al ver «dentro de la ISR».
+- Se ha supuesto que `DirCom` es menor que `0xDA`. Si una dirección pudiera valer `0xDA`, el truco de resincronizar fallaría.
+
+### Cuestión 5 (mayo de 2017) · Tren de aterrizaje
+
+**Qué pide.** El control del tren de aterrizaje de un avión. Elementos:
+
+- Un sensor en el amortiguador delantero: `NOSE`, con valores `Ground` o `Air` (hay peso o no).
+- Una palanca: `LEVER`, `Up` o `Down`.
+- Tres luces, `LED_1`, `LED_2`, `LED_3`, una por conjunto de ruedas, con los valores `Green`, `Red`, `Black` y `Flash`. Verde = extendido (abajo), rojo = en tránsito, apagado (`Black`) = replegado (arriba) y parpadeando = fallo.
+- Dos finales de carrera por tren: `FC_UP_1..3` (replegado del todo) y `FC_DOWN_1..3` (extendido del todo), con valores `On` y `Off`.
+- La bomba hidráulica `PUMP` (`On` u `Off`) y su sentido `DIR` (`Up` o `Down`).
+
+Funcionamiento:
+
+1. En tierra lo normal es palanca `Down` y las tres luces en verde. Si en tierra (`NOSE = Ground`) se pone la palanca `Up` por error, el tren no debe moverse.
+2. En vuelo, al accionar la palanca el sistema **espera 5 s** (por si fue involuntario) y después pone las tres luces en rojo y da las órdenes a la hidráulica.
+3. Al replegar, cada luz sigue en rojo hasta que su final de carrera se activa; entonces pasa a `Black`. Cuando las tres están en `Black`, el tren está replegado. Si pasan **más de 30 s** desde la orden y algún tren no ha llegado, su luz pasa a parpadear (fallo). Al extender es igual, terminando con las luces en verde.
+4. Si el tren sube y el piloto pide bajar, hay que **reaccionar inmediatamente**, cambiando de sentido.
+5. Tras un error, el piloto debe poder volver a intentarlo con la palanca.
+
+Se pide: (a) las señales de entrada y salida; (b) el StateChart.
+
+**Qué hay que saber antes.** Superestados, entry y do ([máquinas de estados](../maquinas-estados/)) y cómo se miden tiempos con una interrupción periódica. Una espera de 5 s o de 30 s no es una instrucción de retardo: es un **estado** (o un contador) que sale cuando la cuenta llega.
+
+**Proceso.**
+
+1. **Señales (apartado a).** Entradas: `NOSE`, `LEVER`, `FC_UP_1..3`, `FC_DOWN_1..3` (nueve) y el tiempo. Salidas: `LED_1..3`, `PUMP` y `DIR`.
+2. **Estados.** Del enunciado salen casi solos: en tierra; extendido (`ABAJO`); esperando para subir; subiendo; replegado (`ARRIBA`); esperando para bajar; bajando; fallo. Los seis últimos son «en vuelo».
+3. **Jerarquía.** «Si el avión toca tierra» vale desde cualquier estado de vuelo, así que es **una flecha desde el superestado EN VUELO** hacia `TIERRA`. Mientras estás en `TIERRA`, la palanca se ignora, y eso resuelve el punto 1.
+4. **Esperas de 5 s.** Un estado por dirección: `ESPERA_SUBIR` y `ESPERA_BAJAR`. Si la palanca vuelve atrás antes de los 5 s, se regresa al estado de partida sin haber movido nada. Si pasan 5 s, empieza el movimiento.
+5. **Movimiento.** `SUBIENDO` y `BAJANDO`. En el entry: luces en rojo, sentido y bomba. En la acción do: cada luz cambia cuando su final de carrera se activa. Salidas: todos los finales de carrera activos, hacia `ARRIBA` o `ABAJO`; 30 s, a `FALLO`; palanca al otro lado, directo al movimiento contrario, **sin** pasar por la espera de 5 s (punto 4).
+6. **Fallo.** En el paso de `SUBIENDO` a `FALLO` (la acción de la transición) se pone en `Flash` la luz de cada tren cuyo final de carrera sigue en `Off`. En `FALLO` la bomba se para. Para reintentar, el piloto **mueve** la palanca: es un flanco (un cambio), no un nivel, porque tras un fallo de repliegue la palanca sigue en `Up` y, como nivel, volvería a disparar sin que el piloto hiciera nada.
+
+**Solución.** Resumen del StateChart:
+
+| Estado | Entry | Do | Transiciones |
+|---|---|---|---|
+| TIERRA | PUMP = Off | (la palanca se ignora) | NOSE = Air → ABAJO |
+| EN VUELO (superestado) | | | NOSE = Ground → TIERRA, desde todos los subestados |
+| ABAJO | PUMP = Off; LED_i = Green | | LEVER = Up → ESPERA_SUBIR |
+| ESPERA_SUBIR | temporizador a 0 | | LEVER = Down → ABAJO; 5 s → SUBIENDO |
+| SUBIENDO | LED_i = Red; DIR = Up; PUMP = On; temporizador a 0 | si FC_UP_i = On, LED_i = Black | todos FC_UP = On → ARRIBA; LEVER = Down → BAJANDO; 30 s / LED_i = Flash en los que faltan → FALLO |
+| ARRIBA | PUMP = Off; LED_i = Black | | LEVER = Down → ESPERA_BAJAR |
+| ESPERA_BAJAR | temporizador a 0 | | LEVER = Up → ARRIBA; 5 s → BAJANDO |
+| BAJANDO | LED_i = Red; DIR = Down; PUMP = On; temporizador a 0 | si FC_DOWN_i = On, LED_i = Green | todos FC_DOWN = On → ABAJO; LEVER = Up → SUBIENDO; 30 s / LED_i = Flash en los que faltan → FALLO |
+| FALLO | PUMP = Off | | cambio de LEVER: a Up → SUBIENDO; a Down → BAJANDO |
+
+La interrupción periódica es de 100 ms, así que 5 s son 50 ticks y 30 s son 300:
+
+```c
+// Valores de las variables del enunciado
+enum { GROUND, AIR };                // NOSE
+enum { UP, DOWN };                   // LEVER y DIR
+enum { OFF, ON };                    // FC_UP_i, FC_DOWN_i y PUMP
+enum { GREEN, RED, BLACK, FLASH };   // LED_i
+
+extern int NOSE, LEVER, DIR, PUMP;
+extern int FC_UP[3], FC_DOWN[3];     // finales de carrera de los 3 trenes
+extern int LED[3];                   // luces de los 3 trenes
+
+typedef enum { T_TIERRA, T_ABAJO, T_ESP_SUBIR, T_SUBIENDO,
+               T_ARRIBA, T_ESP_BAJAR, T_BAJANDO, T_FALLO } estado_t;
+
+#define T5S   50      // 5 s  = 50 ticks de 100 ms
+#define T30S  300     // 30 s = 300 ticks
+
+static estado_t estado = T_TIERRA;
+static unsigned cuenta;              // ticks desde que se entró en el estado
+static int lever_ant = DOWN;
+
+static void leds(int color) { int i; for (i = 0; i < 3; i++) LED[i] = color; }
+
+// Cambio de estado: aquí van las acciones entry (y se reinicia el temporizador)
+static void ir_a(estado_t e)
+{
+  estado = e;
+  cuenta = 0;
+  switch (e) {
+    case T_TIERRA:   PUMP = OFF;                         break;
+    case T_ABAJO:    PUMP = OFF; leds(GREEN);            break;
+    case T_ARRIBA:   PUMP = OFF; leds(BLACK);            break;
+    case T_SUBIENDO: leds(RED); DIR = UP;   PUMP = ON;   break;
+    case T_BAJANDO:  leds(RED); DIR = DOWN; PUMP = ON;   break;
+    case T_FALLO:    PUMP = OFF;                         break;
+    default: break;                                      // los estados de espera no hacen nada
+  }
+}
+
+// Se llama cada 100 ms desde una interrupción periódica
+void tick_100ms(void)
+{
+  int i, todos;
+  int lever_cambia = (LEVER != lever_ant);   // flanco de la palanca
+  lever_ant = LEVER;
+  cuenta++;
+
+  // Transición del superestado EN_VUELO: vale desde cualquiera de sus subestados
+  if (estado != T_TIERRA && NOSE == GROUND) { ir_a(T_TIERRA); return; }
+
+  switch (estado) {
+    case T_TIERRA:                              // la palanca se ignora
+      if (NOSE == AIR) ir_a(T_ABAJO);
+      break;
+    case T_ABAJO:
+      if (LEVER == UP) ir_a(T_ESP_SUBIR);
+      break;
+    case T_ESP_SUBIR:
+      if (LEVER == DOWN)       ir_a(T_ABAJO);   // el piloto rectifica: no pasa nada
+      else if (cuenta >= T5S)  ir_a(T_SUBIENDO);
+      break;
+    case T_SUBIENDO:
+      todos = 1;
+      for (i = 0; i < 3; i++) {                 // acción do: apagar según llegan
+        if (FC_UP[i] == ON) LED[i] = BLACK; else todos = 0;
+      }
+      if (LEVER == DOWN) ir_a(T_BAJANDO);       // cambio de sentido inmediato
+      else if (todos)    ir_a(T_ARRIBA);
+      else if (cuenta >= T30S) {                // acción de la transición
+        for (i = 0; i < 3; i++) if (FC_UP[i] == OFF) LED[i] = FLASH;
+        ir_a(T_FALLO);
+      }
+      break;
+    case T_ARRIBA:
+      if (LEVER == DOWN) ir_a(T_ESP_BAJAR);
+      break;
+    case T_ESP_BAJAR:
+      if (LEVER == UP)         ir_a(T_ARRIBA);
+      else if (cuenta >= T5S)  ir_a(T_BAJANDO);
+      break;
+    case T_BAJANDO:
+      todos = 1;
+      for (i = 0; i < 3; i++) {
+        if (FC_DOWN[i] == ON) LED[i] = GREEN; else todos = 0;
+      }
+      if (LEVER == UP)   ir_a(T_SUBIENDO);
+      else if (todos)    ir_a(T_ABAJO);
+      else if (cuenta >= T30S) {
+        for (i = 0; i < 3; i++) if (FC_DOWN[i] == OFF) LED[i] = FLASH;
+        ir_a(T_FALLO);
+      }
+      break;
+    case T_FALLO:                               // el piloto reintenta moviendo la palanca
+      if (lever_cambia) ir_a(LEVER == UP ? T_SUBIENDO : T_BAJANDO);
+      break;
+  }
+}
+```
+
+Probado con una secuencia simulada: despegue, palanca arriba, 5 s de espera, subida con los finales de carrera llegando uno a uno, vuelta a bajar, fallo de un tren (parpadean los dos que no llegaron), reintento, cambio de sentido inmediato y aterrizaje.
+
+**La trampa.**
+
+- **Dónde se reinicia el contador.** En el entry de cada estado (`cuenta = 0` en `ir_a`). Si se te olvida, el estado hereda el tiempo del anterior y el de 30 s vence antes de tiempo.
+- **Los 5 s solo valen para la orden desde `ABAJO` o `ARRIBA`**. Un cambio de sentido a mitad del movimiento es inmediato, y para eso hace falta que `SUBIENDO` y `BAJANDO` se comuniquen **directamente**.
+- Hay una ambigüedad de redacción: «parpadeando entre rojo y verde» (valor `Flash`) frente a «parpadear en rojo» (fallo). Se ha usado `Flash`, que es el único valor de parpadeo que define el enunciado.
+- No se dice qué pasa si el avión toca tierra a mitad de una maniobra. La flecha del superestado lo manda a `TIERRA` con la bomba parada; es una decisión de diseño nuestra y conviene decirla en el examen.
+
+### Cuestión (septiembre de 2020) · Refrigerador
+
+**Qué pide.** Control de un refrigerador con display (temperatura de consigna y temperatura en tiempo real), tres botones (`Botón +`, `Botón -`, `Botón OK`), un final de carrera de la puerta (`apertura`), una luz interior (`luz`), un zumbador (`alarma`), un sensor de temperatura (`temperatura`) y la señal del compresor (`motor`). Funcionamiento:
+
+- Al enchufar, la consigna es `Temperatura_Inicial` (en memoria no volátil) y el display muestra la temperatura interior.
+- Al abrir la puerta se enciende la luz; si sigue abierta **más de 1 minuto**, suena el zumbador.
+- Para cambiar la consigna se pulsa `OK`: el display muestra la consigna **parpadeando**. Con `+` y `-` se elige entre `OFF`, 1 ºC, 2 ºC, ..., 7 ºC. Al pulsar `OK` otra vez se selecciona y se vuelve a ver la temperatura. También se vuelve solo si no se pulsa nada en **2 minutos**.
+- El compresor se activa cuando la temperatura está medio grado por debajo de la consigna y se detiene cuando está medio grado por encima (ver el aviso más abajo).
+- La temperatura del display se **refresca cada 20 s**.
+
+Se pide el StateChart, suponiendo una interrupción periódica de 100 ms, y el código de esa interrupción y de las funciones que se usen. Existen `Display(valor)` y `DisplayOff()` (útil para el parpadeo). Los botones y `apertura` valen 1 si están activos.
+
+**Qué hay que saber antes.** **Concurrencia** (regiones ortogonales, [máquinas de estados](../maquinas-estados/)): aquí hay tres cosas independientes (panel, puerta y compresor) y mezclarlas en una sola FSM multiplicaría los estados. También cómo se detecta una pulsación: comparando con la lectura anterior, un solo evento por pulsación.
+
+**Proceso.**
+
+1. **Separa las partes independientes.** Panel (qué enseña el display), puerta (luz y alarma) y compresor (motor). Cada una es una región con su propio estado y su propio contador.
+2. **Panel.** Dos estados: `TEMP` (muestra la temperatura y la refresca cada 20 s = 200 ticks) y `EDIT` (consigna parpadeando). `OK` va de uno a otro; en `EDIT`, `+` y `-` cambian el valor y reinician los 2 min (1200 ticks) de espera. El parpadeo es una acción do: cada 5 ticks (0,5 s) alterna `Display(valor)` y `DisplayOff()`.
+3. **Puerta.** `CERRADA`, `ABIERTA` (luz encendida, contando) y `ALARMA` (zumbador). A 600 ticks (1 min) abierta se pasa a `ALARMA`; al cerrar, desde cualquiera, se apagan luz y alarma.
+4. **Compresor.** Dos estados con **histéresis**: la banda de ±0,5 ºC evita que el motor arranque y pare a cada décima de variación.
+5. **Botones.** Cada 100 ms se compara el botón con su lectura anterior: pulsación = 1 ahora y 0 antes. Los 100 ms de la interrupción sirven además de antirrebote.
+
+**Solución.** Las tres regiones:
+
+| Región | Estado | Entry | Do | Salidas del estado |
+|---|---|---|---|---|
+| Panel | TEMP | Display(temperatura) | cada 20 s, Display(temperatura) | OK → EDIT |
+| Panel | EDIT | candidata = consigna; Display(candidata) | parpadeo cada 0,5 s | OK, o 2 min sin pulsar → consigna = candidata, TEMP; + o - cambian candidata (entre 0 y 7) |
+| Puerta | CERRADA | luz = 0; alarma = 0 | | apertura → ABIERTA |
+| Puerta | ABIERTA | luz = 1; contador a 0 | cuenta | 1 min → ALARMA; no apertura → CERRADA |
+| Puerta | ALARMA | alarma = 1 | | no apertura → CERRADA |
+| Compresor | PARADO | motor = 0 | | consigna distinta de OFF y temperatura mayor o igual que consigna + 0,5 → MARCHA |
+| Compresor | MARCHA | motor = 1 | | consigna OFF, o temperatura menor o igual que consigna − 0,5 → PARADO |
+
+Se codifica `consigna = 0` como `OFF` (no se puede elegir 0 ºC, así que no hay conflicto):
+
+```c
+// Variables del enunciado
+extern float temperatura, temperatura_Inicial;           // en ºC
+extern int boton_mas, boton_menos, boton_ok, apertura;   // 1 = activo
+extern int luz, alarma, motor;                           // 1 = activo
+extern void Display(float valor);   // el enunciado la escribe "Dispay"
+extern void DisplayOff(void);
+
+float consigna;                      // ºC; 0 significa OFF (no se puede elegir 0 ºC)
+
+typedef enum { P_TEMP, P_EDIT }                  panel_t;
+typedef enum { D_CERRADA, D_ABIERTA, D_ALARMA }  puerta_t;
+typedef enum { C_PARADO, C_MARCHA }              comp_t;
+
+static panel_t  panel  = P_TEMP;
+static puerta_t puerta = D_CERRADA;
+static comp_t   comp   = C_PARADO;
+
+static unsigned t_panel, t_puerta, t_parp;   // contadores en ticks de 100 ms
+static float    candidata;                   // consigna que se está editando
+static int      visible;                     // fase del parpadeo
+static int ok_ant, mas_ant, menos_ant;       // lectura anterior de cada botón
+static int p_ok, p_mas, p_menos;             // 1 durante UN tick tras pulsar
+
+void nevera_init(void)                       // al enchufar
+{
+  consigna = temperatura_Inicial;            // viene de la memoria no volátil
+  luz = alarma = motor = 0;
+  Display(temperatura);
+}
+
+static void panel_ir(panel_t p)
+{
+  panel = p;
+  t_panel = 0;
+  if (p == P_TEMP) {
+    Display(temperatura);                    // entry: se enseña la temperatura interior
+  } else {
+    candidata = consigna;                    // entry: se enseña la consigna, parpadeando
+    t_parp = 0; visible = 1;
+    Display(candidata);
+  }
+}
+
+static void region_panel(void)
+{
+  t_panel++;
+  switch (panel) {
+    case P_TEMP:
+      if (p_ok) panel_ir(P_EDIT);
+      else if (t_panel >= 200) {             // 20 s
+        t_panel = 0;
+        Display(temperatura);                // refresco
+      }
+      break;
+    case P_EDIT:
+      if (p_ok || t_panel >= 1200) {         // OK, o 2 min sin tocar nada
+        consigna = candidata;                // se aplica
+        panel_ir(P_TEMP);
+        break;
+      }
+      if (p_mas   && candidata < 7) { candidata++; t_panel = 0; visible = 1; Display(candidata); }
+      if (p_menos && candidata > 0) { candidata--; t_panel = 0; visible = 1; Display(candidata); }
+      if (++t_parp >= 5) {                   // parpadeo: cambia cada 0,5 s
+        t_parp = 0;
+        visible = !visible;
+        if (visible) Display(candidata); else DisplayOff();
+      }
+      break;
+  }
+}
+
+static void region_puerta(void)
+{
+  switch (puerta) {
+    case D_CERRADA:
+      if (apertura) { luz = 1; t_puerta = 0; puerta = D_ABIERTA; }
+      break;
+    case D_ABIERTA:
+      if (!apertura) { luz = 0; puerta = D_CERRADA; }
+      else if (++t_puerta >= 600) { alarma = 1; puerta = D_ALARMA; }   // 1 min
+      break;
+    case D_ALARMA:
+      if (!apertura) { luz = 0; alarma = 0; puerta = D_CERRADA; }
+      break;
+  }
+}
+
+static void region_compresor(void)
+{
+  switch (comp) {
+    case C_PARADO:
+      if (consigna != 0 && temperatura >= consigna + 0.5f) { motor = 1; comp = C_MARCHA; }
+      break;
+    case C_MARCHA:
+      if (consigna == 0 || temperatura <= consigna - 0.5f) { motor = 0; comp = C_PARADO; }
+      break;
+  }
+}
+
+// Interrupción periódica de 100 ms
+void tick_100ms(void)
+{
+  p_ok    = boton_ok    && !ok_ant;     ok_ant    = boton_ok;
+  p_mas   = boton_mas   && !mas_ant;    mas_ant   = boton_mas;
+  p_menos = boton_menos && !menos_ant;  menos_ant = boton_menos;
+
+  region_panel();
+  region_puerta();
+  region_compresor();
+}
+```
+
+Probado con entradas simuladas: arranque, compresor, puerta abierta durante 1 min (la alarma salta en el tick 600), edición de la consigna y vuelta a la temperatura por `OK` y por el tiempo.
+
+> **Ojo: el enunciado se contradice con la física.** Dice que el compresor se activa con la temperatura medio grado **por debajo** de la consigna y se detiene medio grado **por encima**. Un compresor enfría, así que lo lógico es lo contrario: arrancar cuando la temperatura sube a consigna + 0,5 ºC y parar cuando baja a consigna − 0,5 ºC. Eso es lo que he implementado. Si el profesor quisiera la redacción al pie de la letra, basta con intercambiar las dos comparaciones. Conviene dejar escrito en el examen cuál has elegido.
+
+**La trampa.**
+
+- **Parpadeo con `Display` y `DisplayOff`.** Si en `EDIT` solo llamas a `Display(consigna)`, no parpadea. El truco es una variable `visible` que alterna y un contador de 5 ticks, **separado** del contador de los 2 min (porque `+` y `-` reinician los 2 min, pero no deben cortar el parpadeo).
+- **Cuándo se aplica la consigna.** El enunciado dice que se vuelve «también» automáticamente a los 2 minutos; se ha interpretado como que equivale a pulsar `OK` y se aplica el valor elegido. Es una ambigüedad: si prefirieras descartar lo editado, basta con no copiar `candidata`.
+- **La consigna se aplica al confirmar**, no mientras se edita: si el compresor mirase `candidata`, cambiaría de comportamiento a cada pulsación de `+`.
+- Los tiempos son **ticks**, no segundos: 1 min = 600, 2 min = 1200 y 20 s = 200 ticks de 100 ms. Con $T = 100$ ms, $n = t/T$.
+- El enunciado escribe `Dispay`; en el código se ha usado `Display`. Usa en el examen el nombre que ponga tu enunciado.
+
+## 2. Enunciados de StateCharts (diapositivas «StateCharts»)
+
+Las 23 diapositivas enseñan la notación y, al final, tres ejemplos. Los de **servos** (diapositivas 17 a 20) y **tren de aterrizaje** (21 a 23) son **los mismos enunciados** que la cuestión 4 y la cuestión 5 de arriba, así que su solución está en la sección anterior. Falta lo que solo hay aquí: la notación con el **horno microondas** y el **control de nivel de agua**, el único con solución en las diapositivas.
+
+### Del enunciado al diagrama y al código
+
+Las diapositivas parten de la limitación de las FSM: con muchos estados, con una condición que sale de casi todos (un error) o con dos partes independientes, el diagrama se vuelve ilegible. El StateChart lo arregla con cuatro herramientas. Con el horno microondas:
+
+<Figura src={fig13} alt="StateChart del horno microondas: superestado esperando con subestados idle e ingresando tiempo, y estado calentando" pie="Diapositiva 6: jerarquía. «esperando» agrupa «idle» e «ingresando tiempo». «empezar» sale de «ingresando tiempo» y «llegó el timer» vuelve al superestado." />
+
+<Figura src={fig14} alt="StateChart del horno microondas con entry y exit en los estados y una región concurrente para el nivel de cocción" pie="Diapositiva 9: lo mismo con acciones entry y exit (mostrar la hora, mostrar el tiempo, emitir sonido) y una segunda región, separada por la línea discontinua, que lleva el nivel de cocción alto o bajo." />
+
+El paso del texto al diagrama y al código se resume en esta tabla (con frases típicas de los enunciados):
+
+| El enunciado dice | En el diagrama | En el código |
+|---|---|---|
+| «Mientras ...», «hasta que ...» | Un estado, que se sale con el evento que acaba la espera | Un `case` del `switch` |
+| «Esperará 5 s», «más de 30 s», «cada 20 s» | Una transición con evento de tiempo | Un contador que cuenta ticks de la interrupción periódica, a cero en el entry |
+| «En cualquier momento ...», «si se pulsa PARADA» | Una flecha que sale del **superestado** | Una comprobación al principio, antes del `switch` interior |
+| «Vuelve a donde estaba» | Pseudoestado H | Una variable que guarda el último subestado |
+| «A la vez», «independientemente» | Regiones ortogonales | Una función por región, llamadas una tras otra |
+| «Se enciende al entrar», «se apaga siempre que salga» | entry / exit | Una función `ir_a(estado)` donde se hacen |
+| «Inmediatamente» | Flecha sin estado de espera | Transición directa, sin contador |
+
+El orden al cruzar una transición es exit del origen, acción, entry del destino, como se explica en el [tema](../maquinas-estados/). La diapositiva 10 distingue transiciones **locales** (no repiten el entry ni el exit del superestado) y **externas** (sí los repiten); las diapositivas 11 y 12 las ilustran con el ejemplo de Harel (el artículo original de los StateCharts). Para el examen: lo que importa es saber cuándo se ejecutan las acciones entry y exit.
+
+### Control de nivel de agua
+
+**Qué pide.** Un sistema de bombeo. Un motor sube agua desde un pozo a un depósito elevado. Hay cuatro sensores de nivel, que valen 1 cuando están cubiertos por el agua: en el pozo, `S1A` (arriba) y `S1B` (abajo); en el depósito, `S2A` (arriba) y `S2B` (abajo). Hay dos pulsadores, `P_ROJO` y `P_VERDE`, y tres indicadores luminosos, `ROJO`, `VERDE` y `AMBAR`. **Seis entradas y cuatro salidas** (`MOTOR`, `ROJO`, `VERDE`, `AMBAR`), como dice la diapositiva 14.
+
+<Figura src={fig4} alt="Esquema de la instalación: pozo con sensores S1A y S1B, motor, tubería, depósito elevado con sensores S2A y S2B, panel de indicadores luminosos rojo, verde y ámbar y pulsadores P_ROJO y P_VERDE" pie="Diapositiva 13: la instalación. El motor sube agua del pozo (S1A, S1B) al depósito (S2A, S2B). Panel con tres indicadores y dos pulsadores." />
+
+Las diapositivas no traen el texto del enunciado, solo el dibujo y la solución. De la solución se deduce el comportamiento, que es el que describo: el sistema se activa con `P_VERDE` y se desactiva con `P_ROJO`; activo, bombea mientras el pozo tenga agua y llena el depósito entre sus dos sensores.
+
+**Qué hay que saber antes.** Jerarquía e histórico ([máquinas de estados](../maquinas-estados/)), y que en un StateChart las **acciones «Do»** son las salidas mientras se está en el estado (modelo Moore).
+
+**Proceso.**
+
+1. **Primer nivel.** Dos estados: `NO ACTIVO` (rojo encendido, motor parado) y `ACTIVO`. `P_VERDE` entra en `ACTIVO` y `P_ROJO` sale. Esa flecha sale del **superestado**, así que vale desde todos los subestados de `ACTIVO`.
+2. **Dentro de `ACTIVO`.** El verde está encendido y el rojo apagado (la acción do del superestado, común a todo). Dentro hay dos casos: hay agua en el pozo (`AGUA`) o no (`NO AGUA`, con el ámbar encendido y el motor parado).
+3. **Histéresis del pozo.** Se pasa a `NO AGUA` cuando `S1B == 0` (el agua baja del sensor inferior) y se vuelve a `AGUA` solo cuando `S1A == 1` (supera el sensor superior). Con un solo sensor, el motor vibraría en el límite.
+4. **Dentro de `AGUA`.** El depósito también tiene histéresis: `LLENANDOSE` (motor encendido) pasa a `NO LLENANDOSE` con `S2A == 1` (lleno) y vuelve cuando `S2B == 0` (por debajo del sensor inferior).
+5. **Dónde se empieza.** Al entrar en `ACTIVO` se arranca por `NO AGUA` (punto negro): hasta ver `S1A == 1` no se supone que hay agua, que es lo prudente. Dentro de `AGUA`, el inicio es `LLENANDOSE`.
+6. **La versión con histórico.** La diapositiva 16 repite el diagrama, pero la flecha de `NO AGUA` a `AGUA` va a una **H**: al volver el agua, se retoma el subestado en el que se estaba (llenando o parado) en vez de empezar siempre por `LLENANDOSE`.
+
+**Solución.** La de las diapositivas:
+
+<Figura src={fig5} alt="StateChart del control de nivel de agua: NO ACTIVO, y dentro de ACTIVO el superestado AGUA con LLENANDOSE y NO LLENANDOSE, y el estado NO AGUA" pie="Diapositiva 15: solución oficial («una posible solución, no la solución»). Sin histórico, al volver el agua se entra por LLENANDOSE." />
+
+<Figura src={fig6} alt="El mismo StateChart con un pseudoestado H en el borde del superestado AGUA" pie="Diapositiva 16: con el pseudoestado H, al volver el agua se retoma el último subestado de AGUA." />
+
+Código (con la versión de histórico), probado con entradas simuladas. Las salidas se calculan **a partir del estado** en cada paso, que es lo que significan las líneas «Do»:
+
+```c
+extern int S1A, S1B, S2A, S2B, P_ROJO, P_VERDE;        // entradas (1 = activa)
+extern int MOTOR, ROJO, VERDE, AMBAR;                  // salidas
+
+typedef enum { NO_ACTIVO, A_NO_AGUA, A_LLENANDO, A_NO_LLENANDO } estado_t;
+
+static estado_t estado = NO_ACTIVO;
+static estado_t hist_agua = A_LLENANDO;     // historia (H) del superestado AGUA
+
+static void ir_a(estado_t e)
+{
+  estado = e;
+  if (e == A_LLENANDO || e == A_NO_LLENANDO) hist_agua = e;   // recordar dónde estaba
+}
+
+static void salidas(void)                   // las acciones "Do": salida = f(estado)
+{
+  ROJO  = (estado == NO_ACTIVO);
+  VERDE = (estado != NO_ACTIVO);            // la fija el superestado ACTIVO
+  AMBAR = (estado == A_NO_AGUA);
+  MOTOR = (estado == A_LLENANDO);
+}
+
+void paso_agua(void)                        // se llama periódicamente
+{
+  if (estado != NO_ACTIVO && P_ROJO) {      // una flecha para los tres subestados
+    ir_a(NO_ACTIVO);
+  } else {
+    switch (estado) {
+      case NO_ACTIVO:
+        if (P_VERDE) ir_a(A_NO_AGUA);       // se entra por NO AGUA (punto negro)
+        break;
+      case A_NO_AGUA:
+        if (S1A) ir_a(hist_agua);           // sale por la H
+        break;
+      case A_LLENANDO:
+        if (S1B == 0)      ir_a(A_NO_AGUA); // sin agua en el pozo (vale para AGUA entero)
+        else if (S2A)      ir_a(A_NO_LLENANDO);
+        break;
+      case A_NO_LLENANDO:
+        if (S1B == 0)      ir_a(A_NO_AGUA);
+        else if (S2B == 0) ir_a(A_LLENANDO);
+        break;
+    }
+  }
+  salidas();
+}
+```
+
+**La trampa.**
+
+- **Un detalle del dibujo.** En `NO AGUA` se enciende el ámbar (`Do: Luz_Ambar = 1`), pero ni `AGUA` ni `ACTIVO` dicen apagarlo. El diagrama solo funciona si «Do» significa «el valor de la salida **mientras se está** en el estado» y lo que no se menciona vale 0. Si lo codificas como asignaciones (`AMBAR = 1`), hay que **apagar el ámbar al salir** de `NO AGUA`. En el código de arriba no hace falta, porque `salidas()` recalcula todo cada vez.
+- La transición por `S1B == 0` es **una sola flecha** que sale de `AGUA`; en el código, hay que repetirla en los dos `case` porque no hay `switch` anidado. En el diagrama es una sola, y esa es la ventaja de la jerarquía.
+- Con histórico, si al volver el agua el depósito ya está lleno, la condición `S2A == 1` es de **nivel** y dispara en el siguiente paso, así que no hace falta recordar nada más. Si fuera un evento de flanco, habría que volver a comprobarlo.
+
+## 3. Pizarra de DMA (19/11/20)
+
+Cuatro páginas manuscritas que resumen todo el DMA del LPC1768. Nunca las habíamos leído: aquí van una por una, y se conectan con el [tema de DMA](../dma/). La idea es que **cualquier ejercicio de DMA se resuelve rellenando la misma lista de ajustes**.
+
+### Página 1 · El esquema general
+
+<Figura src={fig7} alt="Pizarra: esquema de bloques con origen (memoria o periférico), DMA de 8 canales y destino, con el tamaño del bloque, el ancho de transferencia 8, 16 o 32, la petición de DMA y el fin de transferencia; lista de modos y de parámetros" pie="Pizarra, página 1: el DMA copia de una fuente a un destino, byte a byte (o de 16 o 32 bits), cuando recibe una petición, y avisa al terminar. Abajo, los cuatro modos y la lista de parámetros." />
+
+Qué dice, paso a paso:
+
+1. **Fuente y destino.** Cada uno puede ser memoria (un array) o un periférico (un registro). Para cada lado hay que dar la dirección y si **se incrementa** tras cada dato (`INC DIR?`): sí en un array que se recorre, no en un registro fijo.
+2. **Ancho de la transferencia**: 8, 16 o 32 bits. El tamaño del bloque (**máximo 4095**) cuenta transferencias de ese ancho, no bytes.
+3. **Petición de DMA** (`REQUEST`): la señal que dice «mueve un dato». La pizarra apunta dos fuentes: el **Match de un Timer** (para mover datos a un ritmo fijo) y el **fin de conversión del ADC**. En el [tema](../dma/) están las 16 líneas.
+4. **Fin de transferencia**: al terminar el bloque, el DMA puede avisar.
+5. **Los cuatro modos**, con un ejemplo cada uno: memoria a memoria (y a GPIO), memoria a periférico (**DAC**), periférico a memoria (**ADC**) y periférico a periférico (ADC a UART).
+6. **Parámetros** (la lista que se pregunta en el examen): modo, tamaño de bloque (máximo 4095), dirección de origen, dirección de destino, incremento de origen (sí o no), incremento de destino (sí o no), **linked** y habilitación de interrupción (de error y de fin de bloque, el *Terminal Count Interrupt*).
+
+La correspondencia con los registros del canal es directa:
+
+| En la pizarra | En el registro |
+|---|---|
+| Origen, destino | `DMACCSrcAddr`, `DMACCDestAddr` |
+| Tamaño del bloque | `DMACCControl` bits 11:0 (`TransferSize`) |
+| Ancho de la transferencia | `DMACCControl` `SWidth` y `DWidth`: 000 = 8 bits, 001 = 16, 010 = 32 |
+| Inc. dir. fuente, destino | `DMACCControl` `SI` (bit 26) y `DI` (bit 27) |
+| Modo | `DMACCConfig` `FlowCntrl` (bits 13:11) |
+| Petición | `DMACCConfig` `SrcPeripheral` o `DestPeripheral` (4 = ADC, 7 = DAC, 10 = MAT1.0...) |
+| Linked | `DMACCLLI` (0 = no hay más bloques) |
+| Hab. interrupción | `I` en `DMACCControl` (bit 31) e `ITC` en `DMACCConfig` (bit 15) |
+
+**La distinción importante: linked.** «Linked» en la pizarra es el registro `DMACCLLI`: un puntero a un **descriptor en memoria** (origen, destino, siguiente y control del bloque siguiente). Es **una lista de descriptores que recorre un único canal**, sin la CPU. Cuando el canal acaba el bloque, carga el siguiente descriptor. En clase se le llama a veces «canales enlazados» y, para el examen, se contesta igual. Pero no es lo mismo que **usar varios de los 8 canales**: aquí siempre hay un solo canal que sigue una lista. La interrupción de fin se habilita solo en el último descriptor. Y es una alternativa a **volver a apuntar el canal en la ISR** (`DMACCLLI = 0`, una interrupción por bloque): la ISR es más simple, pero la CPU se despierta una vez por bloque y hay un hueco entre bloques; con la lista no.
+
+**Sobre el modo.** La pizarra lista «MEM-MEM → MEM-GPIO», porque el GPIO se ve como memoria. Pero en cuanto una **petición** (un Timer) marca el ritmo, el modo del canal es **memoria a periférico** (`FlowCntrl = 001`) con la petición del Timer en `DestPeripheral`. Una transferencia memoria a memoria pura va sin petición, a toda velocidad. La diapositiva de clase del mismo ejemplo hace exactamente esto.
+
+### Página 2 · Ejemplo 1: memoria a GPIO
+
+<Figura src={fig8} alt="Pizarra: transferencia de 100 bytes cada 0,5 s desde un array de memoria a los pines P3.25 y P3.26 mediante el registro de byte FIOPIN3, con el Timer 1 generando la petición" pie="Pizarra, página 2: 100 bytes, uno cada 0,5 s, desde data[] hacia los LED de P3.25 y P3.26. Tamaño del bloque = 100, origen y destino de 8 bits, incremento solo en el origen." />
+
+**Qué pide.** Mover 100 bytes de un array a los pines **P3.25 y P3.26** (LED2 y LED3 de la placa), uno cada **0,5 s**, con el Timer 1 marcando el ritmo.
+
+**Qué hay que saber antes.** Que el DMA puede escribir en un registro de GPIO ([DMA](../dma/)), que un Match de Timer puede ser la petición ([Timers y Match](../timers-match/)) y cómo se numeran los pines de un puerto: P3.24 es el bit 0 del **byte 3** de `FIOPIN`, o sea, P3.25 es su bit 1 y P3.26 su bit 2.
+
+**Proceso.**
+
+1. **Los datos.** Cada byte da el estado de los dos LED en sus bits 1 y 2 (P3.25 y P3.26). La pizarra pone `data[i] = ~(i & 0x03) << 1`: `i & 0x03` cuenta 0, 1, 2, 3, el `<< 1` lo coloca en los bits 1 y 2, y la `~` invierte porque los LED están conectados al positivo (se encienden con un 0). Resultado: los LED forman un contador binario de dos bits.
+2. **Origen:** `&data[0]`, con incremento (`SI = 1`).
+3. **Destino:** el **byte 3** de `FIOPIN` del puerto 3, `&LPC_GPIO3->FIOPIN3`, **sin** incremento (`DI = 0`). Así se escriben solo P3.24 a P3.31 y con transferencias de 8 bits.
+4. **Ancho y tamaño:** 8 bits y bloque de 100.
+5. **Petición:** el Match 0 del Timer 1 (MAT1.0), que es la línea 10; hay que elegirla con `DMAREQSEL` bit 2 a 1, porque si no esa línea es la de la UART1 Tx.
+6. **Timer:** $MR0$ para 0,5 s con reset en el match. Con $F_{PCLK} = 25$ MHz y prescaler 0:
+
+$$
+MR0 = F_{PCLK}\cdot T - 1 = 25\cdot 10^{6}\cdot 0{,}5 - 1 = 12\,499\,999
+$$
+
+<Donde>
+
+- $MR0$: valor del registro Match 0 (ciclos de PCLK menos 1: el contador cuenta de 0 a $MR0$).
+- $F_{PCLK}$: reloj del Timer (Hz). $T$: periodo de la petición (s).
+
+</Donde>
+
+7. **Interrupción:** opcional (en la pizarra queda con interrogante). Sirve para saber cuándo han salido los 100 bytes: el último sale en $t = N\cdot T = 100\cdot 0{,}5 = 50$ s. El primer byte sale en el **primer** match, a los 0,5 s.
+
+**Solución.**
+
+```c
+#include <LPC17xx.h>
+#include <math.h>
+
+#define F_PCLK 25000000UL
+
+uint8_t data[100];                       // patrón para los LED
+volatile int fin_dma = 0;
+
+void ejemplo1(void)
+{
+  int i;
+  for (i = 0; i < 100; i++)
+    data[i] = (~i & 0x03) << 1;          // bits 1 y 2 = contador invertido (LED activos a 0)
+
+  LPC_GPIO3->FIODIR |= (1 << 25) | (1 << 26);   // P3.25 y P3.26 como salidas
+
+  // Timer 1: Match 0 cada 0,5 s, reinicia el contador
+  LPC_TIM1->PR  = 0;
+  LPC_TIM1->MR0 = F_PCLK / 2 - 1;        // 12 499 999
+  LPC_TIM1->MCR = (1 << 1);              // reset en MR0
+
+  // DMA
+  LPC_SC->PCONP |= (1 << 29);            // enciende el GPDMA
+  LPC_GPDMA->DMACConfig = 1;             // habilita el controlador
+  LPC_SC->DMAREQSEL |= (1 << 2);         // línea 10 = MAT1.0 (no UART1 Tx)
+  LPC_GPDMA->DMACIntTCClear = 0xFF;      // borra avisos pendientes
+  LPC_GPDMA->DMACIntErrClr  = 0xFF;
+
+  LPC_GPDMACH0->DMACCSrcAddr  = (uint32_t)&data[0];
+  LPC_GPDMACH0->DMACCDestAddr = (uint32_t)&LPC_GPIO3->FIOPIN3;   // byte 3 de FIOPIN
+  LPC_GPDMACH0->DMACCLLI      = 0;       // sin lista encadenada
+  LPC_GPDMACH0->DMACCControl  = 100      // TransferSize = 100
+                              | (1 << 26)            // SI = 1: el origen avanza
+                              | (1u << 31);          // I: aviso al terminar (anchos 8 bits = 0)
+  LPC_GPDMACH0->DMACCConfig   = (1 << 0)             // E: canal habilitado (lo último)
+                              | (10 << 6)            // DestPeripheral = 10 (MAT1.0)
+                              | (1 << 11)            // FlowCntrl = 001: memoria a periférico
+                              | (1 << 15);           // ITC: interrupción de fin de bloque
+  NVIC_EnableIRQ(DMA_IRQn);
+
+  LPC_TIM1->TCR = 1;                     // el Timer arranca al final, con el DMA listo
+}
+
+void DMA_IRQHandler(void)
+{
+  if (LPC_GPDMA->DMACIntTCStat & (1 << 0)) {     // canal 0 ha terminado el bloque
+    LPC_GPDMA->DMACIntTCClear = (1 << 0);
+    fin_dma = 1;
+  }
+  if (LPC_GPDMA->DMACIntErrStat & (1 << 0))      // error de bus
+    LPC_GPDMA->DMACIntErrClr = (1 << 0);
+}
+```
+
+**La trampa.**
+
+- **`&LPC_GPIO3->FIOPIN + 3` no es el byte 3.** La pizarra lo escribe así (y subraya la forma buena, `FIOPIN3`). En C, sumar 3 a un puntero a `uint32_t` avanza **12 bytes**, a otro registro. Hay que usar el campo de byte `FIOPIN3`, o hacer el cast a entero antes de sumar: `(uint32_t)&LPC_GPIO3->FIOPIN + 3`.
+- **`~(i & 0x03) << 1` desplaza un valor negativo** (la `~` de un `int` da negativo), que en C es comportamiento no definido. El `(~i & 0x03) << 1` da los mismos bits 1 y 2 sin ese problema. Los demás bits del byte salen a 0 en vez de a 1, y no importa si esos pines no son salidas.
+- **El DMA copia al ritmo del Timer, no «a toda prisa».** Sin `DMAREQSEL` (bit 2) la línea 10 es la de la UART1 y el Timer no pide nada: el canal se queda parado sin error alguno.
+- **El arranque.** Tras configurar el canal, el último en escribirse es el bit E; y el Timer, al final de todo.
+
+### Página 3 · Ejemplo 2: ADC por DMA
+
+<Figura src={fig9} alt="Pizarra: muestreo del canal 0 del ADC por DMA con 1000 datos de 8 bits; el origen es la dirección de ADDR0 más 1, el destino el array buffer, la petición es el fin de conversión (DONE) y se habilita la interrupción del canal 0 pero no en el NVIC" pie="Pizarra, página 3: 1000 muestras de 8 bits. El resultado de 12 bits está en los bits 15:4 de ADDR0, así que se leen los bits 15:8 (la dirección de ADDR0 más 1 byte)." />
+
+**Qué pide.** Muestrear una señal con el canal AD0.0 del ADC por DMA: **1000 datos de 8 bits**.
+
+**Qué hay que saber antes.** Cómo trabaja el ADC ([ADC y DAC](../adc-dac/)): el resultado de 12 bits está en los bits 15:4 de `ADDR0`, y el ADC arranca con una señal externa (un Match de Timer) si `BURST = 0`.
+
+**Proceso.**
+
+1. **Petición.** El flag `DONE` del canal, que avisa del **fin de conversión**, es la petición de DMA (línea 4). Para que el ADC lo lance, hay que **habilitar la interrupción del canal 0** en `AD0INTEN`, y **no en el NVIC** (la pizarra lo subraya): así la señal llega al DMA y la CPU no ejecuta una ISR por muestra.
+2. **Origen.** Registro de resultado, **sin incremento**. Con muestras de 8 bits se lee solo el **byte alto**, los bits 15:8 (los 8 bits más significativos del resultado de 12 bits): la dirección es `(uint32_t)&LPC_ADC->ADDR0 + 1`, con ancho de 8 bits.
+3. **Destino.** El array `buffer`, **con incremento** (`DI = 1`).
+4. **Tamaño del bloque.** 1000 transferencias de 8 bits = 1000 bytes (cabe en 4095).
+5. **Alternativa de 16 bits** (la nota de la derecha): origen `&LPC_ADC->ADDR0` y ancho de 16 bits. Entonces cada dato es el medio registro entero, con el resultado en los bits 15:4, o sea, **multiplicado por 16**, y habría que desplazar 4 bits a la derecha.
+6. **Más de 4095 muestras** (la nota azul): si hacen falta 16 000 muestras de 8 bits, se hacen **4 bloques de 4000** y `init_DMA(&buffer[0] + contador*4000)` se llama con la dirección de destino como argumento; en la ISR de fin de bloque se incrementa `contador` y se vuelve a llamar. Es la opción de «volver a apuntar el canal» del [tema](../dma/). La alternativa sin CPU es la **lista de descriptores** de más abajo.
+7. **Ritmo.** El Timer cuenta con el Match en modo conmutar, que empieza la conversión. Como la salida del Match cambia en cada match, el periodo de la señal son **dos** matches. Para un ejemplo con $f_s = 10$ kHz y $F_{PCLK} = 25$ MHz:
+
+$$
+MR0 = \frac{F_{PCLK}}{2\, f_s} - 1 = \frac{25\cdot 10^{6}}{2\cdot 10\,000} - 1 = 1249
+$$
+
+<Donde>
+
+- $MR0$: valor del Match 0 del Timer 1 (ciclos de PCLK menos 1).
+- $F_{PCLK}$: reloj del Timer, en Hz. $f_s$: frecuencia de muestreo, en Hz (el factor 2 es porque la salida conmuta en cada match y la señal tiene dos matches por periodo).
+
+</Donde>
+
+El ADC trabaja a $F_{ADC} = 25/(1+1) = 12{,}5$ MHz y una conversión dura $65/F_{ADC} = 5{,}2\ \mu s$, que es mucho menos que los 100 $\mu s$ entre muestras. La grabación completa dura $N/f_s = 1000/10\,000 = 0{,}1$ s.
+
+**Solución.**
+
+```c
+#define F_PCLK 25000000UL
+#define FS     10000UL                   // frecuencia de muestreo (ejemplo)
+#define N      1000
+
+uint8_t buffer[N];
+volatile int fin_dma = 0;
+
+void ejemplo2(void)
+{
+  // Pin y ADC: canal 0, arranca con el MAT1.0 (START = 110), sin ráfaga
+  LPC_SC->PCONP |= (1 << 12);                    // enciende el ADC
+  LPC_PINCON->PINSEL1 |= (1 << 14);              // P0.23 = AD0.0 (bits 15:14 = 01)
+  LPC_ADC->ADCR = (1 << 0)                       // SEL: canal 0
+                | (1 << 8)                       // CLKDIV = 1: F_ADC = 25 MHz / 2 = 12,5 MHz
+                | (1 << 21)                      // PDN: ADC encendido
+                | (6 << 24);                     // START = 110: MAT1.0 (EDGE = 0, flanco de subida)
+  LPC_ADC->ADINTEN = (1 << 0);                   // solo el canal 0; "=" y no "|=" para apagar ADGINTEN (bit 8)
+  // NO se hace NVIC_EnableIRQ(ADC_IRQn): el flag solo lo atiende el DMA
+
+  // Timer 1: MAT1.0 conmuta cada match
+  LPC_TIM1->PR  = 0;
+  LPC_TIM1->MR0 = F_PCLK / (2 * FS) - 1;         // 1249
+  LPC_TIM1->MCR = (1 << 1);                      // reset en MR0
+  LPC_TIM1->EMR = (3 << 4);                      // EMC0 = 11: conmutar
+
+  // DMA: periférico a memoria
+  LPC_SC->PCONP |= (1 << 29);
+  LPC_GPDMA->DMACConfig = 1;
+  LPC_GPDMA->DMACIntTCClear = 0xFF;
+  LPC_GPDMA->DMACIntErrClr  = 0xFF;
+  LPC_GPDMACH0->DMACCSrcAddr  = (uint32_t)&LPC_ADC->ADDR0 + 1;   // byte 1: bits 15:8
+  LPC_GPDMACH0->DMACCDestAddr = (uint32_t)&buffer[0];
+  LPC_GPDMACH0->DMACCLLI      = 0;
+  LPC_GPDMACH0->DMACCControl  = N                // 1000 transferencias de 8 bits
+                              | (1 << 27)        // DI = 1: el destino avanza
+                              | (1u << 31);      // I: aviso al terminar
+  LPC_GPDMACH0->DMACCConfig   = (1 << 0)         // E
+                              | (4 << 1)         // SrcPeripheral = 4 (ADC)
+                              | (2 << 11)        // FlowCntrl = 010: periférico a memoria
+                              | (1 << 15);       // ITC
+  NVIC_EnableIRQ(DMA_IRQn);                      // la ISR de ejemplo1 sirve (pone fin_dma = 1)
+
+  LPC_TIM1->TCR = 1;                             // arranca el muestreo
+}
+```
+
+Si los 16 000 datos fueran sin hueco entre bloques, con una **lista de descriptores** (cada uno son cuatro palabras: origen, destino, siguiente y control):
+
+```c
+typedef struct { uint32_t src, dest, lli, control; } lli_t;   // orden fijo que espera el DMA
+
+static uint8_t buffer16k[16000];
+static lli_t lista[4];
+
+void prepara_lista(void)
+{
+  int k;
+  for (k = 0; k < 4; k++) {
+    lista[k].src     = (uint32_t)&LPC_ADC->ADDR0 + 1;
+    lista[k].dest    = (uint32_t)&buffer16k[k * 4000];
+    lista[k].lli     = (k < 3) ? (uint32_t)&lista[k + 1] : 0;       // el último termina la lista
+    lista[k].control = 4000 | (1 << 27)
+                     | ((k == 3) ? (1u << 31) : 0);                 // solo el último avisa
+  }
+  // El canal se carga con el bloque 0 y su LLI apunta al descriptor 1
+  LPC_GPDMACH0->DMACCSrcAddr  = lista[0].src;
+  LPC_GPDMACH0->DMACCDestAddr = lista[0].dest;
+  LPC_GPDMACH0->DMACCLLI      = lista[0].lli;
+  LPC_GPDMACH0->DMACCControl  = lista[0].control;
+}
+```
+
+**La trampa.**
+
+- **La dirección de ADDR0 más 1.** `&LPC_ADC->ADDR0 + 1` en C avanza 4 bytes (el tamaño de un `uint32_t`). Por eso se escribe `(uint32_t)&LPC_ADC->ADDR0 + 1`, con el cast **primero**: es una suma de enteros, 1 byte. Es la errata más repetida de este ejercicio.
+- **`ADINTEN`, con «=» y no con «|=».** Su valor tras el reset es 0x100 (`ADGINTEN` = 1: avisa solo cuando todos han terminado). Para que el aviso sea el del canal 0, hay que poner ese bit a 0.
+- **8 bits o 16.** Con 8 bits (byte alto), 1000 muestras ocupan 1000 bytes; con 16, 2000 bytes y el array es de `uint16_t`.
+- **Cuántos bloques.** $\lceil 16\,000/4095\rceil = 4$, y 4 bloques de 4000 caben (el máximo es 4095). No hacen falta más ni son 3,9.
+- **Si usas la lista, solo el último descriptor lleva `I`.** Con `I` en todos, la CPU se despierta en cada bloque, que es justo lo que querías evitar.
+
+### Página 4 · Ejemplo 3: DAC por DMA
+
+<Figura src={fig10} alt="Pizarra: reproducción por DMA de una tabla de 32 muestras senoidales al DAC; las muestras llevan un desplazamiento de 6 bits, el ancho es de 16 bits, la petición la genera el contador DACCNTVAL y la salida es P0.26 AOUT" pie="Pizarra, página 4: 32 muestras de 16 bits desde memoria (con incremento) al registro DACR (sin incremento). El contador del DAC genera la petición y fija la frecuencia de muestreo." />
+
+**Qué pide.** Reproducir una senoide por el DAC (pin **P0.26, AOUT**) con una tabla de **32 muestras** recorrida por DMA.
+
+**Qué hay que saber antes.** El registro `DACR`: el valor de 10 bits está en los bits **15:6** y el bit 16 es BIAS ([ADC y DAC](../adc-dac/)). El DAC tiene un contador propio, `DACCNTVAL`, que pide una muestra al DMA (línea 7) cada vez que llega a 0, así que **no hace falta un Timer**.
+
+**Proceso.**
+
+1. **La tabla.** `muestras[i] = (511 + 511*sin(2*pi*i/M)) << 6`, con $M = 32$. El 511 más 511 por el seno recorre 0 a 1022, el máximo que cabe en 10 bits, y el `<< 6` lo pone en los bits 15:6. Es un `uint16_t`.
+2. **Ancho de 16 bits** (círculos de la pizarra): cada muestra ocupa un entero de 16 bits ya colocado. Una transferencia de 16 bits solo escribe los bits 15:0 de `DACR`, así que BIAS (bit 16) queda a 0.
+3. **Origen:** `&muestras[0]`, con incremento. **Destino:** `&LPC_DAC->DACR`, **sin** incremento.
+4. **Tamaño del bloque:** 32 transferencias (una vuelta completa de la senoide).
+5. **Ritmo.** El contador del DAC va hacia abajo y, al llegar a 0, hace una petición y se recarga (el diente de sierra del dibujo). Como cada petición es una muestra:
+
+$$
+DACCNTVAL = \frac{F_{PCLK}}{f_s} - 1 = \frac{F_{PCLK}}{f_{out}\cdot M} - 1
+$$
+
+<Donde>
+
+- $DACCNTVAL$: valor de recarga del contador del DAC (16 bits, hasta 65 535).
+- $F_{PCLK}$: reloj del DAC (Hz). $f_s$: muestras por segundo. $f_{out}$: frecuencia de la senoide de salida (Hz). $M$: muestras por periodo (aquí 32).
+
+</Donde>
+
+Para una salida de $f_{out} = 1$ kHz con $F_{PCLK} = 25$ MHz: $DACCNTVAL = 25\cdot 10^{6}/(1000\cdot 32) - 1 = 780{,}25$, que se redondea a 780. La frecuencia real es $25\cdot 10^{6}/(781\cdot 32) \approx 1000{,}3$ Hz.
+
+6. **Registro de control.** `DACCTRL`: `CNT_ENA` (bit 2) y `DMA_ENA` (bit 3).
+
+**Solución.**
+
+```c
+#define F_PCLK 25000000UL
+#define M      32
+#define F_OUT  1000UL
+
+uint16_t muestras[M];
+
+void ejemplo3(void)
+{
+  int i;
+  for (i = 0; i < M; i++)
+    muestras[i] = ((uint16_t)(511 + 511 * sin(2 * 3.14159265 * i / M))) << 6;   // 10 bits en 15:6
+
+  LPC_PINCON->PINSEL1 |= (2 << 20);              // P0.26 = AOUT (bits 21:20 = 10)
+  LPC_DAC->DACCNTVAL = F_PCLK / F_OUT / M - 1;   // 780
+  LPC_DAC->DACCTRL   = (1 << 2) | (1 << 3);      // CNT_ENA y DMA_ENA
+
+  LPC_SC->PCONP |= (1 << 29);
+  LPC_GPDMA->DMACConfig = 1;
+  LPC_GPDMA->DMACIntTCClear = 0xFF;
+  LPC_GPDMA->DMACIntErrClr  = 0xFF;
+  LPC_GPDMACH0->DMACCSrcAddr  = (uint32_t)&muestras[0];
+  LPC_GPDMACH0->DMACCDestAddr = (uint32_t)&LPC_DAC->DACR;
+  LPC_GPDMACH0->DMACCLLI      = 0;
+  LPC_GPDMACH0->DMACCControl  = M                // 32 transferencias
+                              | (1 << 18)        // SWidth = 001: 16 bits
+                              | (1 << 21)        // DWidth = 001: 16 bits
+                              | (1 << 26)        // SI = 1: el origen avanza
+                              | (1u << 31);      // I: aviso al terminar la vuelta
+  LPC_GPDMACH0->DMACCConfig   = (1 << 0)         // E
+                              | (7 << 6)         // DestPeripheral = 7 (DAC)
+                              | (1 << 11)        // FlowCntrl = 001: memoria a periférico
+                              | (1 << 15);       // ITC
+}
+```
+
+Con `DMACCLLI = 0`, el canal acaba tras **una vuelta** de 32 muestras. Para una señal continua, la ISR de fin de bloque vuelve a lanzar el canal (con un hueco corto) o, mejor, se usa un descriptor que **se apunta a sí mismo** (una «lista» de un solo bloque), y el DMA da vueltas sin parar y sin la CPU. Esto último es un añadido nuestro, no consta en la pizarra:
+
+```c
+static lli_t circular;                               // el tipo lli_t es el de la página 3
+
+void salida_continua(void)
+{
+  circular.src     = (uint32_t)&muestras[0];
+  circular.dest    = (uint32_t)&LPC_DAC->DACR;
+  circular.lli     = (uint32_t)&circular;            // el siguiente bloque es él mismo
+  circular.control = M | (1 << 18) | (1 << 21) | (1 << 26);   // sin I: no interrumpe nunca
+  LPC_GPDMACH0->DMACCLLI = (uint32_t)&circular;      // y lo demás se carga como en ejemplo3
+}
+```
+
+**La trampa.**
+
+- **El `<< 6`.** Sin él, los 10 bits caen en la parte baja de `DACR` y la salida sale casi a cero (mira el dibujo de los registros: VALUE empieza en el bit 6).
+- **El 1 en el `- 1`.** `DACCNTVAL` cuenta $DACCNTVAL + 1$ ciclos. Sin el `- 1`, la frecuencia sale un poco baja (0,13 % aquí; en una frecuencia alta el error crece).
+- **La frecuencia de la senoide no es la de muestreo.** $f_{out} = f_s/M$: con 32 muestras, un periodo cada 32 peticiones. Es el error típico de entender «DACCNTVAL = Fpclk/Fout − 1».
+- **Ancho 16.** Con ancho de 8 bits solo se escribiría un byte de `DACR` y la senoide saldría deformada. Y el array debe ser `uint16_t`.
+
+## 4. Entregable voluntario SEDA GIEC 15/16
+
+**Qué pide.** Un sistema de varias tarjetas, cada una con un **LPC1768**, ocho drivers que encienden ocho indicadores luminosos con el nivel de un puerto, una entrada serie asíncrona conectada al **RX de la UART0** y cuatro microinterruptores para la dirección. Un ordenador manda tramas a **todas** las tarjetas por la misma línea (en la realidad, RS-422) con órdenes de encendido y apagado.
+
+<Figura src={fig11} alt="Esquema del sistema: un ordenador conectado por RS422 a varias tarjetas, cada una con un LPC1768, cuatro microinterruptores y ocho indicadores luminosos" pie="Figura del enunciado: un ordenador y varias tarjetas en la misma línea. Cada tarjeta tiene su LPC1768, cuatro microinterruptores y ocho indicadores." />
+
+Las tramas son de bytes de 8 bits, con este formato:
+
+<Figura src={fig12} alt="Formato de la trama: byte de dirección con bit 7 a 1, byte de comando con bit 7 a 0, y hasta dos bytes de datos con bit 7 a 0" pie="Figura del enunciado: el byte de dirección empieza por 1 y todos los demás por 0. Los bytes de datos dependen del comando." />
+
+- **Dirección:** bit 7 a 1 y los 4 bits bajos con la dirección del destinatario (0 a 15), que debe coincidir con los microinterruptores de la tarjeta. La dirección **0 es de difusión**: la atienden todas.
+- **Comando:** bit 7 a 0. Los datos que siguen, también con el bit 7 a 0. Así los microcontroladores identifican sus tramas e ignoran las ajenas, distinguiendo los bytes de dirección del resto.
+- **Cinco comandos:** `TODOS_ON` y `TODOS_OFF` (sin datos), `UNO_ON` y `UNO_OFF` (un dato: el número de indicador) y `SET_VALOR` (dos datos: los 4 bits bajos del primero son el estado de 4 indicadores, y los 4 bits bajos del segundo, el de los otros 4).
+- Si el microcontrolador detecta un valor incoherente, **ignora la trama** y suma 1 a la variable `error`.
+
+Funciones ya escritas: `TodosOn()`, `TodosOff()`, `UnoOn(n)`, `UnoOff(n)`, `SetValor(v)` (usa los 8 bits bajos de `v`), `leeDireccion()` (la dirección en los 4 bits bajos) y `configPS()` (configura el puerto serie).
+
+Se pide el diagrama de estados (o StateChart) y el programa, con un `while(1);` en el principal y **toda la decodificación dentro de la interrupción del puerto serie**.
+
+**Qué hay que saber antes.** La ISR de la UART con `IIR` y `RBR` ([UART](../uart/)) y cómo se programa una máquina de estados que se mueve **un byte por llamada** ([máquinas de estados](../maquinas-estados/)). El truco del formato: el **bit 7 distingue direcciones de todo lo demás**, y eso es lo que permite no perderse nunca.
+
+**Proceso.**
+
+1. **Lo que no dice el enunciado.** Los códigos de los comandos no se dan. Se eligen `TODOS_ON = 1`, `TODOS_OFF = 2`, `UNO_ON = 3`, `UNO_OFF = 4` y `SET_VALOR = 5`. Tampoco se dice **qué mitad** de `SET_VALOR` es cuál: se supone que el primer byte es el nibble alto (indicadores 7 a 4) y el segundo, el bajo (3 a 0), es decir, `valor = (d1 << 4) | d2`. Hay que escribirlo en el examen, porque con la otra convención sale al revés.
+2. **Estados.** Esperar dirección (`ESPERA`); esperar comando (`CMD`); esperar el número de indicador (`NUM`); esperar el primer dato (`DATO1`) y el segundo (`DATO2`).
+3. **Qué hace cada estado.** En `ESPERA` solo importa un byte con el bit 7 a 1: se compara su nibble bajo con `leeDireccion()` o con 0 (difusión). Si coincide, se pasa a `CMD`; si no, se **ignora, sin error**, y todos los bytes de la trama ajena (que tienen el bit 7 a 0) se descartan en `ESPERA` sin contarlos.
+4. **Comandos sin datos.** `TODOS_ON` y `TODOS_OFF` se ejecutan en cuanto llega el comando y se vuelve a `ESPERA`.
+5. **Comandos con datos.** `UNO_ON` y `UNO_OFF` pasan a `NUM`, donde el dato (de 0 a 7) se valida. `SET_VALOR` pasa por `DATO1` y `DATO2`, y se ejecuta al segundo.
+6. **Valores incoherentes** (`error++` y se descarta la trama): un comando que no existe, un indicador mayor que 7, y **una trama cortada**.
+7. **La trama cortada.** Es lo más interesante: si llega un byte con el bit 7 a 1 en mitad de **nuestra** trama (en `CMD`, `NUM`, `DATO1` o `DATO2`), la trama estaba incompleta. Como el bit 7 a 1 solo puede ser una dirección, se cuenta un error y **ese mismo byte se vuelve a tratar como dirección**. Es una sola transición desde un superestado «dentro de nuestra trama», no una flecha por estado.
+
+**Solución.** Tabla de transiciones:
+
+| Estado | Condición sobre el byte b | Acción | Estado siguiente |
+|---|---|---|---|
+| ESPERA | bit 7 = 1 y (nibble bajo = 0 o = leeDireccion()) | (nada) | CMD |
+| ESPERA | cualquier otro byte | ignorar, sin error | ESPERA |
+| CMD, NUM, DATO1, DATO2 | bit 7 = 1 (llega una dirección) | error = error + 1; tratar b como dirección | ESPERA (y se vuelve a evaluar b) |
+| CMD | b = TODOS_ON | TodosOn() | ESPERA |
+| CMD | b = TODOS_OFF | TodosOff() | ESPERA |
+| CMD | b = UNO_ON o UNO_OFF | guardar el comando | NUM |
+| CMD | b = SET_VALOR | (nada) | DATO1 |
+| CMD | otro valor | error = error + 1 | ESPERA |
+| NUM | b menor o igual que 7 | UnoOn(b) o UnoOff(b) según el comando | ESPERA |
+| NUM | b mayor que 7 | error = error + 1 | ESPERA |
+| DATO1 | cualquiera (bit 7 = 0) | guardar los 4 bits bajos | DATO2 |
+| DATO2 | cualquiera (bit 7 = 0) | SetValor(dato1 · 16 + (b y 0x0F)), es decir, dato1 como nibble alto | ESPERA |
+
+Código:
+
+```c
+#define TODOS_ON   0x01     // el enunciado no da los códigos: los elegimos nosotros
+#define TODOS_OFF  0x02
+#define UNO_ON     0x03
+#define UNO_OFF    0x04
+#define SET_VALOR  0x05
+
+typedef enum { E_ESPERA, E_CMD, E_NUM, E_DATO1, E_DATO2 } estado_t;
+
+volatile uint32_t error = 0;          // tramas incoherentes descartadas
+static estado_t estado = E_ESPERA;
+static uint8_t  cmd;                  // UNO_ON o UNO_OFF mientras llega su dato
+static uint8_t  nibble_alto;          // primer dato de SET_VALOR
+
+static void maquina(uint8_t b)
+{
+  // Un byte con el bit 7 a 1 es SIEMPRE una dirección. Si llega a mitad de una
+  // trama nuestra, esa trama estaba incompleta: error y se empieza de nuevo.
+  if ((b & 0x80) && estado != E_ESPERA) {
+    error++;
+    estado = E_ESPERA;
+  }
+
+  switch (estado) {
+    case E_ESPERA:
+      if (b & 0x80) {                                  // byte de dirección
+        uint8_t dir = b & 0x0F;
+        if (dir == 0 || dir == (leeDireccion() & 0x0F))
+          estado = E_CMD;                              // es para mí (o difusión)
+      }                                                // si no: se ignora, sin error
+      break;                                           // (datos sueltos: también)
+    case E_CMD:
+      switch (b) {
+        case TODOS_ON:  TodosOn();  estado = E_ESPERA; break;
+        case TODOS_OFF: TodosOff(); estado = E_ESPERA; break;
+        case UNO_ON:
+        case UNO_OFF:   cmd = b; estado = E_NUM;   break;
+        case SET_VALOR: estado = E_DATO1;          break;
+        default:        error++; estado = E_ESPERA; // comando que no existe
+      }
+      break;
+    case E_NUM:
+      if (b <= 7) {
+        if (cmd == UNO_ON) UnoOn(b); else UnoOff(b);
+      } else error++;                                  // indicador 8 a 127: no existe
+      estado = E_ESPERA;
+      break;
+    case E_DATO1:
+      nibble_alto = b & 0x0F;
+      estado = E_DATO2;
+      break;
+    case E_DATO2:
+      SetValor((nibble_alto << 4) | (b & 0x0F));
+      estado = E_ESPERA;
+      break;
+  }
+}
+
+void UART0_IRQHandler(void)
+{
+  switch ((LPC_UART0->IIR >> 1) & 0x07) {   // leer IIR dice quién interrumpe
+    case 2:                                 // RDA: ha llegado algo
+    case 6:                                 // CTI: tiempo muerto con datos en la FIFO
+      while (LPC_UART0->LSR & 0x01)         // RDR: quedan bytes por leer
+        maquina(LPC_UART0->RBR);            // leer RBR borra la petición
+      break;
+  }
+}
+
+int main(void)
+{
+  configPS();            // UART0, interrupción RDA habilitada y NVIC
+  while (1);
+}
+```
+
+Probado en el PC con una función `maquina` y una dirección simulada de 5: `85 03 02` enciende el indicador 2; `83 01` (otra tarjeta) no hace nada ni cuenta error; `80 01` (difusión) enciende todos; `85 05 0A 05` deja el valor `0xA5`; `85 03 09` cuenta un error (indicador 9); y `85 05 0A 85 02` cuenta un error por la trama cortada y después apaga todos.
+
+**La trampa.**
+
+- **Trama ajena no es error.** Los bytes de otra tarjeta (que no son para ti) se descartan en `ESPERA`. Si contases error en cada byte ajeno, `error` subiría sin parar. Solo es error lo que va **dirigido a ti** y es incoherente.
+- **La difusión.** `dir == 0` lo atiende todo el mundo, y no hay que mirar los microinterruptores. Pero una tarjeta no debe tener la dirección 0 (el enunciado exige direcciones distintas; el 0 queda libre para la difusión).
+- **El bit 7 es la sincronía.** Sin el truco del byte con el bit 7 a 1 (el enunciado lo explica: «de esta forma ... ignorar el resto»), una trama cortada dejaría la máquina esperando un dato que nunca llega y descolocaría todas las siguientes.
+- **FIFO de la UART.** Con la FIFO activada, puede haber varios bytes esperando cuando entra la ISR: hay que leer **mientras `LSR` bit 0 esté a 1**, no un único `RBR`. Leer uno solo pierde bytes y desincroniza la máquina. Y, para el examen, con pseudocódigo claro basta.
+- La ISR no puede quedarse esperando: la máquina da un paso por byte y vuelve. Nada de `while` dentro de un `case`.
+
+## Qué llevarte de estos ejercicios
+
+1. **Entradas y salidas primero, estados después.** Escribe la lista de señales (y sus valores) antes de dibujar nada: casi todos los errores vienen de un estado que no sabe qué leer.
+2. **Una transición común va en el superestado.** Aterrizar, apagar el sistema, perder el agua, recibir un nuevo inicio de trama: una flecha desde el superestado, no una por estado. En el código, es un `if` antes del `switch`.
+3. **Los tiempos son contadores de la interrupción periódica**, puestos a 0 en el entry del estado, en ticks (5 s con 100 ms son 50). Y los eventos de botón son **flancos**: se compara con la lectura anterior.
+4. **El DMA siempre se contesta con la misma lista:** modo, tamaño del bloque (máximo 4095), origen, destino, incremento de cada lado, linked, interrupciones. Con el ADC, byte alto de `ADDR0` (dirección más 1, con el cast primero) e `ADINTEN` sin NVIC; con el DAC, muestras desplazadas 6 bits y `DACCNTVAL = Fpclk/(Fout·M) - 1`.
+5. **Dilo cuando el enunciado no fija algo** (códigos de comando, qué mitad es cuál, sentido de la histéresis): escribir la suposición cuesta una línea y evita que te la discutan.
