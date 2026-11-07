@@ -1,0 +1,63 @@
+---
+titulo: "Exámenes resueltos de SEDA"
+orden: 30
+bloque: "Exámenes resueltos"
+resumen: "Todos los exámenes de SEDA que hay en el material de clase (enero de 2022 a junio de 2026), cada uno en su página con enunciado, figuras, solución y explicación paso a paso"
+saber:
+  - "Cada examen tiene su página: qué pide cada apartado, qué hay que saber antes, el proceso, la solución y la trampa"
+  - "Los PE1 (primera intermedia) repiten el esqueleto sensor, servo, captura y audio; los PE2 y finales suman UART, memorias, SPI/I²C, HTTP, DSP y tiempo real"
+  - "Empieza por noviembre de 2025 y 2024, que son los más cercanos a lo que preguntará el profesor este curso"
+  - "Cuando la solución oficial tiene una errata, la página la marca en un recuadro «Ojo»"
+fuentes:
+  - "Exámenes de SEDA con solución, enero de 2022 a junio de 2026 (material de clase de la asignatura)"
+---
+
+**Idea clave.** Aquí tienes cada examen del material de clase, uno por página, explicado como te lo explicaría alguien en una tutoría: **qué pide**, **qué tienes que saber antes**, **cómo se razona paso a paso**, **la solución** y **dónde se falla**. Para la teoría de cada cosa, las páginas enlazan a los temas de la web en lugar de repetirla.
+
+## Cómo usar estas páginas
+
+1. **Hazlo tú primero.** Abre el examen, tapa la solución y resuelve cada apartado con el material de clase.
+2. **Compara.** Mira la sección «Proceso» de tu apartado: si tu razonamiento difiere, ahí está la diferencia.
+3. **Repite con otros números.** Cambia frecuencias y tamaños y vuelve a hacer las cuentas: es lo que cambia de un año a otro.
+4. Si una cuenta no te sale, mira «La trampa» antes de buscar el fallo a ojo.
+
+## Los exámenes por fecha
+
+### Primera intermedia (PE1) · noviembre
+
+**Empieza por aquí:** es la prueba del 9 de noviembre de 2026. Estos cuatro exámenes, hechos a fondo, cubren casi todo lo que puede caer.
+
+- [Noviembre de 2025](../pe1-2025-11/): el más completo, con ejecutabilidad.
+- [Noviembre de 2024](../pe1-2024-11/): UART a 256 000 baudios y máquina de estados.
+- [Noviembre de 2023](../pe1-2023-11/): PWM, servo con Timer y captura.
+- [Noviembre de 2022](../pe1-2022-11/): incluye servidor HTTP con CGI.
+
+### Segunda intermedia (PE2) · diciembre
+
+- [Diciembre de 2025](../pe2-2025-12/)
+- [Diciembre de 2024](../pe2-2024-12/)
+- [Diciembre de 2022](../pei2-2022-12/)
+
+### Final y extraordinaria · enero y junio
+
+- [Enero de 2026](../pef-2026-01/) · [Junio de 2026 (extraordinaria)](../pextra-2026-06/)
+- [Junio de 2025 (extraordinaria)](../pextra-2025-06/) · [Enero de 2025](../pef-2025-01/)
+- [Enero de 2023](../pef-2023-01/) · [Enero de 2022](../pef-2022-01/)
+
+### Material de práctica
+
+- [Ejercicios extra](../ejercicios-extra/): problemas de máquinas de estados, apuntes de pizarra de DMA y el entregable voluntario.
+
+## Qué se repite entre años
+
+| Tema | Dónde aparece casi siempre | Teoría |
+|---|---|---|
+| ADC: configuración, tiempo de conversión y frecuencia de muestreo | Todos los PE1 | [ADC y DAC](../adc-dac/) |
+| Servo o PWM con Timer y Match | Todos los PE1 | [Timers y Match](../timers-match/), [PWM y servos](../pwm-servos/) |
+| Captura de ancho de pulso o periodo | Todos los PE1 | [Captura](../captura/) |
+| Audio con DAC y DMA | PE1 y finales | [ADC y DAC](../adc-dac/), [DMA](../dma/) |
+| UART: divisor, velocidad real y trama | PE1 desde 2024, PE2 | [UART](../uart/) |
+| Máquinas de estados | PE1 2024 y siguientes | [Máquinas de estados](../maquinas-estados/) |
+| Ejecutabilidad (T, D, tiempo de respuesta) | Desde noviembre de 2025 | [Ejecutabilidad](../ejecutabilidad/) |
+
+Para saber qué temas rinden más, mira también [Qué cae en el examen](../que-cae/) y [Tres exámenes clave](../examenes-clave/) (esa versión usa números inventados y es pública).

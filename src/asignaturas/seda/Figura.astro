@@ -13,3 +13,11 @@ const { src, alt, pie } = Astro.props;
   .sd-fig img { display: block; max-width: 100%; height: auto; border-radius: 10px; background: #fff; box-shadow: 0 0 0 1px var(--linea); }
   .sd-fig figcaption { margin-top: 6px; font-size: .84rem; color: var(--suave); }
 </style>
+
+<style is:global>
+  /* En móvil, las fórmulas en línea largas de los exámenes pueden partirse en vez de ensanchar la página */
+  @media (max-width: 700px) {
+    .tema-articulo p .katex .base, .tema-articulo li .katex .base { display: inline; white-space: normal; width: auto; }
+    .tema-articulo code { overflow-wrap: anywhere; }
+  }
+</style>
