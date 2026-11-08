@@ -1,0 +1,25 @@
+---
+import Fig from './Fig.astro';
+import { cota } from './escalera';
+// Modo ráfaga con 3 canales (0, 2 y 4): el ADC convierte uno tras otro, empezando por el más bajo.
+const w = 70, x0 = 110;
+const seq = [0, 1, 2, 0, 1, 2]; // índice de fila
+const canales = ['canal 0', 'canal 2', 'canal 4'];
+const filas = [50, 100, 150];
+---
+<Fig alt="Modo ráfaga: el ADC convierte los canales 0, 2 y 4 uno detrás de otro y repite; el periodo de muestreo de cada canal es N veces t_conv" ancho={560}>
+  <svg slot="dibujo" viewBox="0 0 620 220">
+    {canales.map((c, i) => (
+      <g><text class="t" x="14" y={filas[i] + 6}>{c}</text><path class="eje" d={`M${x0} ${filas[i] + 14} H600`} /></g>
+    ))}
+    {seq.map((f, k) => (
+      <g>
+        <rect class="relleno" x={x0 + w * k} y={filas[f] - 12} width={w} height="26" stroke="var(--primario)" />
+        <text class="tp c" x={x0 + w * k + w / 2} y={filas[f] + 6}>t_conv</text>
+      </g>
+    ))}
+    <path class="guia" d={`M${x0} 30 V192 M${x0 + 3 * w} 30 V192`} />
+    <path class="cota" d={cota(x0, x0 + 3 * w, 192)} /><text class="tb c" x={x0 + 1.5 * w} y="212">T_s = N · t_conv (N = 3)</text>
+  </svg>
+  BURST = 1 y START = 000: la conversión es continua. Cada canal se muestrea una vez cada N·t_conv, con t_conv = 65/F_ADC.
+</Fig>

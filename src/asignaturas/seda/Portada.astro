@@ -34,6 +34,7 @@ const id = (b: string) => `bloque-${b.toLowerCase().normalize('NFD').replace(/[�
         <li><a href={ruta(a.slug, 'examen')}><b>Modo examen</b><span>Pasos por tipo de problema, fórmulas y registros</span></a></li>
         <li><a href={ruta(a.slug, 'problemas-examen')}><b>Problemas tipo examen</b><span>Seis problemas resueltos para practicar</span></a></li>
         <li><a href={ruta(a.slug, 'examenes-clave')}><b>Tres exámenes clave</b><span>Noviembre de 2023, 2024 y 2025, ejercicio a ejercicio</span></a></li>
+        <li><a href={ruta(a.slug, 'resumen-examen')}><b>Hoja de apuntes</b><span>Todo en una página: figuras, fórmulas y código por tarea</span></a></li>
         {temas.some((t) => t.slug === 'examenes-resueltos') && (
           <li><a href={ruta(a.slug, 'examenes-resueltos')}><b>Exámenes resueltos</b><span>Empieza por los cuatro PEI1 (2022 a 2025), con figuras, solución y explicación paso a paso</span></a></li>
         )}

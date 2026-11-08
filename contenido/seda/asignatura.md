@@ -9,28 +9,28 @@ descripcion: "El LPC1768 por dentro: timers, PWM, captura, UART, ADC/DAC, DMA, e
 pruebas:
   - fecha: "2026-11-09"
     nombre: "PEI1 · 19:00"
-    temas: [que-cae, reloj-gpio-interrupciones, timers-match, pwm-servos, captura, uart, adc-dac, dma, ejecutabilidad, maquinas-estados, problemas-examen, examenes-clave]
+    temas: [que-cae, reloj-gpio-interrupciones, timers-match, pwm-servos, captura, uart, adc-dac, dma, ejecutabilidad, maquinas-estados, problemas-examen, examenes-clave, resumen-examen]
   - fecha: "2026-12-14"
     nombre: "PEI2 · 19:00"
     temas: []
 # Resto del temario: se irá escribiendo para la PEI2
 proximos:
   - titulo: "SPI e I²C"
-    orden: 12
-    bloque: "Comunicación serie"
-  - titulo: "HTTP y CGI con el servidor web de Keil"
     orden: 13
     bloque: "Comunicación serie"
-  - titulo: "Memorias: dual port, FIFO, serie y SDRAM"
+  - titulo: "HTTP y CGI con el servidor web de Keil"
     orden: 14
+    bloque: "Comunicación serie"
+  - titulo: "Memorias: dual port, FIFO, serie y SDRAM"
+    orden: 15
     bloque: "Memorias"
   - titulo: "DSP y sistemas operativos de tiempo real (teoría)"
-    orden: 15
+    orden: 16
     bloque: "Diseño software"
   - titulo: "LCD y TFT"
-    orden: 16
+    orden: 17
     bloque: "Periféricos"
   - titulo: "Ethernet y TCP/IP"
-    orden: 17
+    orden: 18
     bloque: "Comunicación serie"
 ---

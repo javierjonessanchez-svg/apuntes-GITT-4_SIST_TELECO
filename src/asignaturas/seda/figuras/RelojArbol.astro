@@ -1,0 +1,39 @@
+---
+import Fig from './Fig.astro';
+// Cadena del reloj: oscilador → PLL → CCLK → PCLK → prescaler → F_tick (números de clase: 100, 25 MHz).
+const caja = (x: number, y: number, w: number, h: number, l1: string, l2 = '', fuerte = false) => ({ x, y, w, h, l1, l2, fuerte });
+const fila1 = [
+  caja(10, 20, 96, 44, 'Oscilador', '12 MHz'),
+  caja(130, 20, 96, 44, 'PLL0', '×M ÷N'),
+  caja(250, 20, 124, 44, 'PLLCLK', '275–550 MHz'),
+  caja(398, 20, 100, 44, '÷(CCLKSEL+1)', '', false),
+  caja(520, 20, 90, 44, 'CCLK', '100 MHz', true),
+];
+const fila2 = [
+  caja(10, 130, 120, 44, 'PCLKSEL', '÷1 ÷2 ÷4 ÷8'),
+  caja(156, 130, 100, 44, 'PCLK', '25 MHz', true),
+  caja(282, 130, 112, 44, 'PR', '÷(PR+1)'),
+  caja(420, 130, 190, 44, 'F_tick', '= PCLK/(PR+1)', true),
+];
+---
+<Fig alt="Cadena del reloj del LPC1768: oscilador de 12 MHz, PLL, CCLK de 100 MHz, divisor de periférico PCLK de 25 MHz y prescaler del Timer que da F_tick" ancho={580}>
+  <svg slot="dibujo" viewBox="0 0 620 200">
+    {[...fila1, ...fila2].map((b) => (
+      <g>
+        <rect class:list={['caja', b.fuerte && 'fuerte']} x={b.x} y={b.y} width={b.w} height={b.h} rx="8" />
+        <text class="tb c" x={b.x + b.w / 2} y={b.l2 ? b.y + 20 : b.y + 27}>{b.l1}</text>
+        {b.l2 && <text class="t c" x={b.x + b.w / 2} y={b.y + 36}>{b.l2}</text>}
+      </g>
+    ))}
+    {[[106, 130], [226, 250], [374, 398], [498, 520]].map(([a, b]) => (
+      <g><path class="flecha" d={`M${a} 42 H${b - 5}`} /><path class="punta" d={`M${b} 42 l-7 -4 v8z`} /></g>
+    ))}
+    <path class="flecha" d="M565 64 V97 H70 V130" /><path class="punta" d="M70 130 l-4 -7 h8z" />
+    {[[130, 156], [256, 282], [394, 420]].map(([a, b]) => (
+      <g><path class="flecha" d={`M${a} 152 H${b - 5}`} /><path class="punta" d={`M${b} 152 l-7 -4 v8z`} /></g>
+    ))}
+    <text class="t" x="10" y="92">tras el reset PCLKSEL = ÷4</text>
+    <text class="t" x="10" y="196">PR = 0 → F_tick = F_PCLK = 25 MHz</text>
+  </svg>
+  La cadena que hay que saber: 100 MHz de CPU, ÷4 para los periféricos (25 MHz) y el prescaler PR de cada Timer.
+</Fig>

@@ -1,0 +1,21 @@
+---
+import Fig from './Fig.astro';
+import { escalera, cota } from './escalera';
+const yb = 130, yt = 36;
+const x = [60, 190, 320, 450];
+---
+<Fig alt="Señal cuadrada por hardware: TC se reinicia en cada Match y el pin MATn.x conmuta solo en cada coincidencia, sin interrupción" ancho={560}>
+  <svg slot="dibujo" viewBox="0 0 620 248">
+    <path class="eje" d={`M60 20 V${yb} H600`} /><text class="t" x="66" y="16">TC</text>
+    <path class="nivel" d={`M60 ${yt} H590`} /><text class="tn" x="14" y={yt + 4}>MR0</text>
+    {[0, 1, 2].map((i) => (
+      <g><path class="tc" d={escalera(x[i], x[i + 1], yb, yt, 6)} /><path class="tc" d={`M${x[i + 1]} ${yt} V${yb}`} />
+      <path class="guia" d={`M${x[i + 1]} ${yt} V215`} /></g>
+    ))}
+    <text class="t" x="14" y="188">MATn.x</text>
+    <path class="sen" d="M60 205 H190 V170 H320 V205 H450 V170 H580" />
+    <path class="cota" d={cota(190, 320, 226)} /><text class="tb c" x="255" y="244">T_out/2 = (MR0+1)/F_tick</text>
+    <text class="t c" x="125" y="160">Match 1</text>
+  </svg>
+  EMCx = 11 (conmutar) y reset en MR0: el pin cambia en cada Match, así que un periodo de salida son dos Match.
+</Fig>

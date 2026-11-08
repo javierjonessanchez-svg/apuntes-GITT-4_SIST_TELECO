@@ -1,0 +1,25 @@
+---
+import Fig from './Fig.astro';
+import { escalera, cota } from './escalera';
+const yb = 140, yt = 30, pasos = 24;
+const yAt = (x: number) => yb - ((yb - yt) * (x - 60)) / 500;
+const xs = [60 + 500 / pasos * 4, 60 + 500 / pasos * 12, 60 + 500 / pasos * 20];
+---
+<Fig alt="TC corre libre; en cada flanco de subida de la señal de entrada su valor se copia en CR0 y hay interrupción; la diferencia entre dos copias es N y la frecuencia es F_tick dividido entre N" ancho={560}>
+  <svg slot="dibujo" viewBox="0 0 620 235">
+    <path class="eje" d={`M60 20 V${yb} H600`} /><text class="t" x="20" y="30">TC</text>
+    <path class="tc" d={escalera(60, 560, yb, yt, pasos)} />
+    {xs.map((x, i) => (
+      <g>
+        <path class="guia" d={`M${x} ${yAt(x)} V215`} /><circle class="isr" cx={x} cy={yAt(x)} r="6" />
+        <text class="tn" x={x + 8} y={yAt(x) + 18}>CR0{['', "'", "''"][i]}</text>
+      </g>
+    ))}
+    <path class="cota" d={`M${xs[1] + 40} ${yAt(xs[0])} V${yAt(xs[1])} M${xs[1] + 35} ${yAt(xs[0])} H${xs[1] + 45} M${xs[1] + 35} ${yAt(xs[1])} H${xs[1] + 45}`} />
+    <text class="tb" x={xs[1] + 50} y={(yAt(xs[0]) + yAt(xs[1])) / 2 + 4}>N</text>
+    <text class="t" x="14" y="205">CAPn.0</text>
+    <path class="sen" d={`M60 215 H${xs[0]} V190 H${xs[0] + 50} V215 H${xs[1]} V190 H${xs[1] + 50} V215 H${xs[2]} V190 H${xs[2] + 50} V215 H600`} />
+    <path class="cota" d={cota(xs[0], xs[1], 232)} /><text class="tb c" x={(xs[0] + xs[1]) / 2} y="232" dy="-6">T</text>
+  </svg>
+  Entre dos subidas, TC avanza N tics: f = F_tick/N. La ISR guarda CR0 en una variable (temp) y resta: N = CR0 − temp.
+</Fig>

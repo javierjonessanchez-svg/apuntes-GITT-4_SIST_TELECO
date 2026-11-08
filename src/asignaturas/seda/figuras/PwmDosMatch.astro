@@ -1,0 +1,23 @@
+---
+import Fig from './Fig.astro';
+import { escalera, cota } from './escalera';
+const yb = 135, y0 = 34, y1 = 84.5;
+---
+<Fig alt="PWM con un Timer y dos Match: MR0 fija el periodo y reinicia TC y pone el pin a 1; MR1 baja el pin al coincidir" ancho={560}>
+  <svg slot="dibujo" viewBox="0 0 620 250">
+    <path class="eje" d={`M60 20 V${yb} H600`} /><text class="t" x="66" y="16">TC</text>
+    <path class="nivel" d={`M60 ${y0} H590`} /><text class="tn" x="14" y={y0 + 4}>MR0</text>
+    <path class="nivel" d={`M60 ${y1} H590`} /><text class="tn" x="14" y={y1 + 4}>MR1</text>
+    {[60, 270].map((a) => (
+      <g><path class="tc" d={escalera(a, a + 210, yb, y0, 10)} /><path class="tc" d={`M${a + 210} ${y0} V${yb}`} />
+      <circle class="isr" cx={a + 105} cy={y1} r="6" /></g>
+    ))}
+    <path class="guia" d={`M165 ${y1} V225 M270 ${y0} V225 M375 ${y1} V225 M480 ${y0} V225`} />
+    <text class="t" x="14" y="205">MATn.0</text>
+    <path class="sen" d="M60 218 V190 H165 V218 H270 V190 H375 V218 H480 V190" />
+    <path class="cota" d={cota(60, 165, 240)} /><text class="tb c" x="112" y="248">T_H</text>
+    <path class="cota" d={cota(270, 480, 175)} /><text class="tb c" x="375" y="170">T_PWM</text>
+    <text class="tr" x="172" y="208">ISR: MR1 baja el pin</text>
+  </svg>
+  MR0 marca el periodo (reset de TC y pin a 1 por hardware); MR1 marca el ancho: su ISR baja el pin. Una sola interrupción por periodo.
+</Fig>
