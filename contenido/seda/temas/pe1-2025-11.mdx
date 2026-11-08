@@ -1,0 +1,684 @@
+---
+titulo: "Noviembre de 2025 · Prueba de evaluación intermedia 1"
+orden: 31
+bloque: "Exámenes resueltos"
+resumen: "El PEI1 más completo: ADC en ráfaga disparada por un Timer, servo con un solo Match, captura de dos canales, audio desde Flash con DAC y DMA, SysTick, lista de tareas con T y D y ejecutabilidad en cuatro escenarios"
+saber:
+  - "El ADC en ráfaga lo arranca un Timer (BURST = 1 en su ISR) y lo para la ISR del ADC (BURST = 0, bit 16 de ADCR). Con tres canales a 12,5 MHz cada conversión dura 5,2 µs y la ISR del ADC entra a 50 Hz"
+  - "El servo con un solo Match: el Timer no se resetea, el Match conmuta el pin e interrumpe en cada flanco, y la ISR suma TH o (periodo menos TH) al Match. Hay que guardar TH y limitar la temperatura a su rango"
+  - "La captura mide TH como CR1 menos CR0 con PCLK igual al reloj de la CPU (20 ns por cuenta), y la fórmula de la temperatura es la inversa de la del servo"
+  - "Audio de 5 s a 10 kHz con 8 bits: 50 000 bytes en Flash (const uint8_t). Con DMA se reparte en 20 bloques de 2500 y la dirección de origen avanza 2500 bytes por bloque, no 25 000"
+  - "Cinco errores de código en la solución oficial (borra el bit 0 de ADCR en vez del 16, la división entre 255 es entera, LPC_TIM1->PCONP, contador por 25000 y TC en lugar de TCR) y dos fallos de lógica en la ISR del SysTick"
+  - "Ejecutabilidad en cuatro escenarios: no ejecutable el 1 (R1 = 9 mayor que 5) y el 4 (R2 = 14 mayor que 10); ejecutable el 2 (R = 4, 8, 19) y el 3 (R = 4, 7, 19). Basta con que falle una tarea"
+fuentes:
+  - "Prueba de evaluación intermedia 1 de SEDA, noviembre de 2025, con solución (material de clase de la asignatura)"
+  - "UM10360 (manual del LPC17xx) y hojas de registros del propio examen"
+---
+import Donde from '../../../src/asignaturas/seda/Donde.astro';
+import Figura from '../../../src/asignaturas/seda/Figura.astro';
+import fig1 from './img/pe1-2025-11-1.png';
+import fig2 from './img/pe1-2025-11-2.png';
+import fig3 from './img/pe1-2025-11-3.png';
+import fig4 from './img/pe1-2025-11-4.png';
+import fig5 from './img/pe1-2025-11-5.png';
+
+## Resumen del examen
+
+| | |
+|---|---|
+| Prueba | Evaluación intermedia 1 (PEI1), noviembre de 2025. Con solución oficial |
+| Estructura | Tres cuestiones: (1) el sistema completo de control de temperatura, apartados a a g; (2) siete tareas para dar T y D con su subsistema; (3) ejecutabilidad en cuatro escenarios de prioridades |
+| Puntuación | No consta en la solución |
+| Datos de partida | Cuestión 1: $F_{CCLK} = 50$ MHz y $V_{REF} = 3$ V (lo marca el esquema, no 3,3 V). Cuestión 2: $F_{CCLK} = 100$ MHz. |
+| Temas que toca | [ADC y DAC](../adc-dac/), [Timers y Match](../timers-match/), [PWM y servos](../pwm-servos/), [Captura](../captura/), [DMA](../dma/), [Reloj, GPIO e interrupciones](../reloj-gpio-interrupciones/) (SysTick), [Ejecutabilidad](../ejecutabilidad/) |
+| Anexo del examen | Cinco páginas de tablas del manual: `AD0CR`, `AD0INTEN`, `DACR`, `PCLKSEL1`, `CCR`, `EMR`, `MCR`, `IR`, `PINSEL0/1/3/9` y registros del PWM (`PWM1TCR`, `PWM1PCR`, `PWM1LER`) |
+
+**El sistema.** Un marcador analógico de temperatura: un servo mueve una aguja de 0 a 50 °C (0 a 180°). Un sensor LM35 mide la temperatura, un potenciómetro fija el umbral de alarma, otro regula el brillo de la pantalla con una PWM de 1 kHz (`PWM1.6` en `BL_CTRL`) y, si la temperatura pasa del umbral, suena un mensaje de audio grabado desde Matlab y guardado en la Flash.
+
+<Figura src={fig1} alt="Diagrama de bloques: LPC1768 con pulsadores P1 y P2, altavoz por AOUT, micrófono en AD0.5, dos potenciómetros en AD0.2 y AD0.1, LM35 en AD0.0, pantalla GLCD con PWM1.6 en BL_CTRL, y el servo en MAT1.0 realimentado a CAP2.0 y CAP2.1" pie="Figura 1 del enunciado, con la conexión de a.2 ya dibujada en rojo en la solución: LM35 en AD0.0 (alimentado a 5 V), umbral en AD0.1 (potenciómetro entre 0,5 V y masa), brillo en AD0.2 (entre 3 V y masa). La salida del servo, P1.22 (MAT1.0), vuelve a los dos pines de captura CAP2.0 y CAP2.1." />
+
+### Fallos de la solución oficial, de un vistazo
+
+Rehice todas las cuentas y el código. Esto es lo que no coincide con la solución del profesor; cada uno está explicado con su recuadro donde aparece.
+
+| Dónde | Qué dice la solución | Qué es correcto |
+|---|---|---|
+| b) ISR del ADC | `ADCR &= ~(1<<0)` con el comentario «Burst = 0» | Hay que borrar el bit 16 (BURST): `ADCR &= ~(1<<16)`. El bit 0 es el canal 0 de SEL |
+| b) brillo | `(...&0xFF)/255` | División entera: da 0 salvo en el máximo. Hay que dividir entre `255.0f` |
+| a.1) | `LPC_TIM1->PCONP` | `PCONP` está en `LPC_SC`: `LPC_SC->PCONP` |
+| e2) | `LPC_TIM3->TC = 0x02` para parar el Timer | Es `LPC_TIM3->TCR = 0x02` |
+| f) | Origen `+ contador*25000` | Bloques de 2500 bytes: `contador*2500` |
+| g) SysTick | Usa `brillo` y `umbral` (los valores anteriores) en vez de los nuevos, y relanza el DMA en cada tic | Usar `ciclo_trabajo_brilloLCD` y `umbral_temperatura`, y lanzar la alarma solo una vez |
+| Cuestión 2 g) | $T = D = 2{,}49$ ms | 12 bits por 208,33 µs son 2,5 ms exactos (2,49 sale de redondear el bit a 208 µs) |
+| Cuestión 3, escenario 1 | Una línea suelta dice «R3 = 15 ms mayor que D33 = 10 ms» | No corresponde a nada (D3 es 20 ms). El escenario es no ejecutable porque R1 = 9 ms supera a D1 = 5 ms |
+| Cuestión 3, escenario 4 | «R2 = 12 ms» | 12 es solo la primera iteración. El valor final es 14 ms. La conclusión (no ejecutable) no cambia |
+
+## Cuestión 1 · El sistema completo de control de temperatura
+
+### a) ADC en ráfaga disparado por el Timer 1
+
+**Qué pide.** Tres sub-apartados sobre la figura de arriba:
+
+- **a.1** Completar la función `init_ADC_sensores_timer_muestreo()` con los canales necesarios para los potenciómetros y el sensor, con la **velocidad de conversión máxima**, en **modo ráfaga** y con el **Timer 1** dando una frecuencia de muestreo **precisa de 50 Hz**. El enunciado deja la función a medias: hay que rellenar la máscara de canales, el divisor del reloj y los comentarios.
+- **a.2** Dibujar en la figura a qué canal del ADC va cada cosa y conectar el resto de terminales a la alimentación.
+- **a.3** Calcular el tiempo de conversión de cada canal.
+
+**Qué hay que saber antes.** Cómo es el registro `AD0CR` (en C, `LPC_ADC->ADCR`), qué es el modo ráfaga y que cada conversión de 12 bits son 65 ciclos del reloj del ADC; está en [ADC y DAC](../adc-dac/). El examen te da la tabla de `AD0CR` (figura de abajo).
+
+<Figura src={fig3} alt="Tabla del manual con los campos de AD0CR: SEL, CLKDIV, BURST, PDN, START y EDGE" pie="Tabla de AD0CR del anexo del examen. Fíjate en el campo BURST: la nota dice que con BURST = 1 el bit ADGINTEN de AD0INTEN debe valer 0, y que si se borra BURST la conversión en curso se completa." />
+
+**Proceso, paso a paso.**
+
+1. **Cuántos canales.** Leemos tres cosas analógicas con el ADC: el LM35 (temperatura), el potenciómetro del umbral y el del brillo. El micrófono (AD0.5) es de otro apartado, no entra. Si los ponemos en AD0.0, AD0.1 y AD0.2 la máscara `SEL` es `0b111 = 7`. De ahí «canales 0, 1 y 2» en el código.
+2. **Qué pin es qué canal.** AD0.0 es P0.23, AD0.1 es P0.24 y AD0.2 es P0.25 (lo ves en la tabla `PINSEL1` del anexo, figura de abajo). El esquema de la solución usa justo esos: LM35 en AD0.0, umbral en AD0.1 y brillo en AD0.2.
+3. **Velocidad máxima.** El reloj del ADC no puede pasar de 13 MHz. Con $F_{CCLK} = 50$ MHz y el `PCLKSEL0` por defecto, el reloj del periférico es $50/4 = 12{,}5$ MHz, que ya está por debajo de 13. Así que el divisor mínimo, `CLKDIV = 0`, ya da la máxima velocidad: $F_{ADC} = 12{,}5$ MHz.
+4. **Ráfaga apagada al principio.** `BURST = 0` en la configuración: no es el ADC el que decide cuándo empieza, sino el Timer. Cuando le toque, la ISR del Timer pondrá `BURST = 1`. `START` se queda en `000` (el manual lo exige con ráfaga).
+5. **`PDN = 1`.** Es el bit 21: pone el convertidor en marcha. Se llama «power-down» pero funciona al revés (1 = encendido).
+6. **Interrupción de un solo canal.** Se habilita la del canal 1 con `ADINTEN = (1<<1)`. Se escribe con `=` y no con `|=`, porque el bit 8 (`ADGINTEN`) vale 1 tras el reset y el manual dice que con ráfaga tiene que valer 0. Y se elige **un** canal para que haya **una** interrupción por ráfaga, no tres.
+7. **El Timer 1.** `MCR |= (1<<3)` habilita la interrupción de MR1 y no borra el contador (no pone el bit 4). `TCR = 1` lo arranca. El Match y el valor de MR1 se tratan en el apartado c.
+
+<Figura src={fig5} alt="Tablas PINSEL0 y PINSEL1 del manual: P0.4 y P0.5 con CAP2.0 y CAP2.1 en la función 11, y P0.23, P0.24 y P0.25 con AD0.0, AD0.1 y AD0.2 en la función 01" pie="Anexo del examen: PINSEL0 y PINSEL1. Útil para a) (P0.23, P0.24 y P0.25 son AD0.0, AD0.1 y AD0.2, función 01) y para d) (P0.4 y P0.5 son CAP2.0 y CAP2.1, función 11)." />
+
+**Solución a.1.** La función completa (en rojo en la solución oficial lo que falta en el enunciado):
+
+```c
+void init_ADC_sensores_timer_muestreo(void) {
+    LPC_ADC->ADCR = (7 << 0)    // SEL: canales 0, 1 y 2 para el modo ráfaga (0b111)
+                  | (0 << 8)    // CLKDIV = 0: F_ADC = F_PCLK/(CLKDIV+1) = 12,5 MHz (el máximo permitido es 13)
+                  | (1 << 21)   // PDN = 1: ADC encendido
+                  | (0 << 16);  // BURST = 0 al principio: la ráfaga la arranca el Timer 1
+    LPC_ADC->ADINTEN = (1 << 1);   // interrupción solo del canal 1 (con =, para borrar ADGINTEN)
+    NVIC_EnableIRQ(ADC_IRQn);
+
+    LPC_SC->PCONP |= (1 << 2);     // alimenta el Timer 1 (ya lo está tras el reset)
+    LPC_TIM1->MCR |= (1 << 3);     // MR1I: interrumpe en MR1 y NO resetea (genera la interrupción a 50 Hz)
+    LPC_TIM1->TCR = 0x01;          // arranca el Timer 1
+}
+```
+
+> **Ojo: errata en la solución oficial.** La solución escribe `LPC_TIM1->PCONP`. `PCONP` no es un registro del Timer sino del bloque de control del sistema: es `LPC_SC->PCONP` (bit 2 = Timer 1). Es una errata menor y el comentario de la propia solución («ya habilitado tras el reset») indica que no afecta al resultado, pero con `LPC_TIM1->PCONP` el código no compila.
+
+> **Lo que el enunciado no te pide pero en una placa real harías.** Alimentar el ADC (`LPC_SC->PCONP |= (1<<12);`, está apagado tras el reset) y llevar los pines a su función: `PINSEL1` con la función 01 en P0.23, P0.24 y P0.25 (`LPC_PINCON->PINSEL1 |= (1<<14) | (1<<16) | (1<<18);`). En el examen la función venía ya a medias, así que basta con lo de arriba.
+
+**Solución a.2.** Conexiones (la figura de arriba ya las lleva dibujadas):
+
+| Elemento | A qué pin | Canal | Resto de terminales |
+|---|---|---|---|
+| Sensor LM35 | Salida en P0.23 | AD0.0 | Alimentación a 5 V y patilla a masa |
+| Potenciómetro del umbral | Cursor en P0.24 | AD0.1 | Un extremo a 0,5 V y el otro a masa |
+| Potenciómetro del brillo | Cursor en P0.25 | AD0.2 | Un extremo a 3 V y el otro a masa |
+
+El umbral va alimentado a **0,5 V** por una razón: el LM35 da 10 mV por grado, así que 50 °C son 0,5 V. Si el potenciómetro barre de 0 a 0,5 V, su posición se convierte con la **misma fórmula** que la temperatura. El brillo barre toda la escala (0 a 3 V) porque queremos un número de 0 a 1.
+
+**Solución a.3.** El tiempo de conversión:
+
+$$
+t_{conv} = \frac{65}{F_{ADC}} = \frac{65}{12{,}5\cdot10^{6}\ \text{Hz}} = 5{,}2\ \mu\text{s}
+$$
+
+<Donde>
+
+- $t_{conv}$: tiempo de una conversión de un canal (s).
+- $F_{ADC}$: reloj del convertidor, $F_{PCLK}/(CLKDIV+1) = 12{,}5$ MHz (Hz).
+- $65$: ciclos de reloj que tarda una conversión de 12 bits.
+
+</Donde>
+
+Cada canal tarda 5,2 µs, y una ráfaga de los tres, $3 \cdot 5{,}2 = 15{,}6$ µs. Es poquísimo comparado con los 20 ms entre ráfagas: el ADC pasa casi todo el tiempo parado.
+
+**La trampa.** Dos. (1) `ADINTEN` con `|=` deja `ADGINTEN` a 1 y la ISR entraría con cada canal. (2) Poner el divisor «a ojo»: si el PCLK del ADC fuera 50 MHz (porque alguien tocó `PCLKSEL0`), `CLKDIV = 0` daría 50 MHz, muy por encima de los 13 MHz permitidos; habría que poner 3 (12,5 MHz). Por eso hay que decir de dónde sale el PCLK.
+
+### b) ISR del ADC
+
+**Qué pide.** Una ISR que **solo** guarde tres variables globales: el ciclo de trabajo del brillo (de 0 a 1), el umbral de temperatura (en grados) y la temperatura medida por el LM35. Hay que deducir la frecuencia de interrupción. Las variables `float ciclo_trabajo_brilloLCD`, `umbral_temperatura` y `temperatura` ya están declaradas.
+
+**Qué hay que saber antes.** Dónde está el resultado en `ADDRx` (bits 15:4) y que leer ese registro borra el aviso de fin de conversión. Y la escala del sensor: el LM35 da 10 mV/°C.
+
+**Proceso, paso a paso.**
+
+1. **Frecuencia.** La ráfaga solo se arranca desde el Timer 1 cada 20 ms, y la ISR del ADC la para. Se interrumpe una vez por ráfaga: **50 Hz**.
+2. **Parar la ráfaga.** Lo primero que hace la ISR es poner `BURST = 0` (bit 16 de `ADCR`). Sin esto el ADC seguiría convirtiendo sin parar y la ISR entraría cada 10,4 µs. El manual dice que si se borra `BURST` la conversión que está en curso se completa.
+3. **Cuánto vale la temperatura.** El LM35 da $V = 10\ \text{mV/°C}\cdot T$. El ADC da $RESULT = V\cdot 4096 / V_{REF}$, con $V_{REF} = 3$ V (el esquema lo marca en `Vrefp`):
+
+$$
+T = \frac{V}{0{,}01} = \frac{RESULT \cdot V_{REF}/4096}{0{,}01\ \text{V/°C}} = RESULT\cdot\frac{300}{4096}\ \text{°C}
+$$
+
+<Donde>
+
+- $T$: temperatura en grados Celsius.
+- $RESULT$: resultado de 12 bits del ADC, de 0 a 4095 (sin unidades).
+- $V_{REF}$: tensión de referencia, 3 V.
+- $0{,}01$ V/°C: sensibilidad del LM35.
+- $300 = V_{REF}/0{,}01$: grados que corresponderían al fondo de escala (3 V / 0,01 V/°C).
+
+</Donde>
+
+Comprobación: con 0,5 V, $RESULT = 0{,}5/3\cdot4096 = 682{,}7$, y $682\cdot300/4096 = 49{,}95$ °C. Bien.
+
+4. **El umbral** usa la misma fórmula porque su potenciómetro va de 0 a 0,5 V.
+5. **El brillo** necesita un número de 0 a 1. Con 8 bits basta: `(ADDR2 >> 8) & 0xFF` coge los 8 bits altos del resultado de 12 (el resultado está en 15:4, así que los bits 15:8 son sus 8 más significativos) y da de 0 a 255. Se divide entre 255.
+
+**Solución.**
+
+```c
+void ADC_IRQHandler(void) {                     // frecuencia de interrupción: 50 Hz (una por ráfaga)
+    LPC_ADC->ADCR &= ~(1 << 16);                // BURST = 0: se para la ráfaga
+    temperatura = ((LPC_ADC->ADDR0 >> 4) & 0xFFF) * 300.0f / 4096.0f;            // LM35: 10 mV/ºC, Vref = 3 V
+    umbral_temperatura = ((LPC_ADC->ADDR1 >> 4) & 0xFFF) * 300.0f / 4096.0f;     // potenciómetro de 0 a 0,5 V
+    ciclo_trabajo_brilloLCD = ((LPC_ADC->ADDR2 >> 8) & 0xFF) / 255.0f;           // de 0 a 1.0
+}
+```
+
+> **Ojo: errata en la solución oficial.** Dos fallos de código en estas líneas.
+>
+> 1. La solución escribe `LPC_ADC->ADCR &= ~(1<<0);` con el comentario «Burst = 0». Pero el bit 0 es el canal 0 de `SEL`, **no** `BURST`. Con eso la ráfaga seguiría funcionando con los canales 1 y 2, y el ADC no pararía nunca. El bit correcto es el **16**.
+> 2. Para el brillo escribe `(float)((((ADDR2>>8)&0xFF)/255))`: el `(float)` se aplica **después** de la división, y `((x>>8)&0xFF)/255` es una división de enteros: da 0 para cualquier valor menor que 255 y 1 solo en el máximo. El brillo se quedaría siempre apagado o al máximo. Se arregla con `/255.0f`.
+>
+> Sobre la escala: la solución escribe `*300/4096` también con enteros y el `(float)` fuera, así que la temperatura tendría **pasos de 1 °C** (el LSB real son 0,073 °C). No lo llamo errata, pero con `300.0f` sale con decimales.
+
+> **Ojo: un punto débil que no es errata.** La interrupción es la del **canal 1**. En ese momento el canal 2 acaba de empezar su conversión (5,2 µs) y la ISR entra en menos de 1 µs. Así que `ADDR2` todavía tiene la lectura de la ráfaga anterior (la de hace 20 ms; y la primera vez, cero). Para un potenciómetro de brillo da igual; si quisieras la lectura de las tres en la misma ráfaga habría que interrumpir con el canal 2 (el último) y aceptar que la ráfaga arranca una conversión más del canal 0.
+
+**La trampa.** El bit de `BURST` (16 y no 0), la división entera en C y el `>> 4` frente a `>> 8`: el resultado de 12 bits está en 15:4, no en 11:0.
+
+### c) El servo con un solo Match y el disparo del ADC
+
+**Qué pide.**
+
+- **c1** Explicar qué recurso usarías y cómo lo configurarías, con **un solo Match**, para generar la señal PWM del servo **y además** iniciar la conversión del ADC ($F_s = 50$ Hz). Periodo de la PWM 12 ms; el nivel alto varía entre 0,5 y 2,5 ms para mover el servo de 0° a 180°.
+- **c2** Escribir en pseudocódigo la ISR del Timer 1 que mueve el servo según la temperatura y arranca la conversión. La variable `temperatura` ya está declarada.
+
+**Qué hay que saber antes.** Cómo se genera una señal con un Match en modo conmutar y un Timer que no se resetea ([Timers y Match](../timers-match/)), y cómo se pasa de grados a ancho de pulso de servo ([PWM y servos](../pwm-servos/)). Las tablas `EMR`, `MCR` e `IR` vienen en el anexo (figura de abajo).
+
+<Figura src={fig4} alt="Tablas CCR, EMR del manual con los bits de captura y de Match externo" pie="Anexo del examen: CCR (captura) y EMR (Match externo). El campo EMC de EMR, con el valor 11, hace que el pin conmute en cada Match." />
+
+**Proceso, paso a paso.**
+
+1. **El recurso.** El Timer 1 con salida hardware: MAT1.0 (el pin P1.22, `PINSEL3` bits 13:12 = 11). El pin lo mueve el hardware, así no depende de la latencia de la ISR.
+2. **Un solo Match, ¿cómo?** Lo normal para un PWM son dos Match (uno sube el pin y otro lo baja, y el contador se resetea). Con uno solo se hace así: el Match **conmuta** el pin en cada coincidencia (`EMC0 = 11`) y el Timer **no se resetea nunca** (modo *running*). Cada coincidencia es un flanco. En la ISR se programa cuándo será el siguiente.
+3. **Qué intervalo toca.** Después de un flanco de subida (pin en alto) toca el pulso: $T_H$. Después de uno de bajada (pin en bajo) toca el resto del periodo: $T - T_H$. ¿Cómo sabe la ISR en cuál está? Mira el nivel del pin: el bit `EM0` de `EMR` refleja el estado de MAT1.0 y el hardware ya ha conmutado cuando se entra en la ISR.
+4. **Se suma, no se escribe.** `MR0 = MR0 + cuentas`. Como el contador no se resetea, el siguiente Match es «el anterior más lo que toque».
+5. **Segunda función del mismo Timer: el ADC.** Otro Match, MR1, con interrupción (`MR1I`) y sin conmutar el pin: interrumpe cada $F_{PCLK}/F_s$ cuentas (20 ms) y su ISR pone `BURST = 1`. Por eso la ISR del Timer 1 atiende dos flags: el de MR1 (bit 1 de `IR`) y el de MR0 (bit 0).
+6. **De temperatura a ancho de pulso.** Hay que fijar qué extremo es cuál. La solución usa el sentido invertido: 0 °C ↔ 2,5 ms y 50 °C ↔ 0,5 ms (en la tabla de abajo). Lo dice la propia solución, y es coherente con la captura del apartado d.
+
+$$
+T_H = F_{PCLK}\cdot\left(2{,}5\ \text{ms} - 2\ \text{ms}\cdot\frac{T_{temp}}{50}\right)
+$$
+
+<Donde>
+
+- $T_H$: duración del nivel alto, en cuentas del Timer 1.
+- $F_{PCLK}$: frecuencia a la que cuenta el Timer 1 (Hz). Supongo 50 MHz, que es lo que usa el apartado d.
+- $T_{temp}$: temperatura en °C, de 0 a 50. Se divide entre 50 para obtener la fracción del recorrido.
+- $2{,}5$ ms y $2$ ms: ancho del pulso en un extremo y recorrido total (de 0,5 a 2,5 ms).
+
+</Donde>
+
+| Temperatura | Ángulo del servo (sentido de la solución) | $T_H$ | $T_H$ en cuentas a 50 MHz | $T - T_H$ en cuentas |
+|---|---|---|---|---|
+| 0 °C | 180° | 2,5 ms | 125 000 | 475 000 |
+| 25 °C | 90° | 1,5 ms | 75 000 | 525 000 |
+| 50 °C | 0° | 0,5 ms | 25 000 | 575 000 |
+
+El periodo de 12 ms son $12\cdot10^{-3}\cdot50\cdot10^{6} = 600\,000$ cuentas.
+
+> **Ojo: el sentido invertido.** El enunciado dice «0,5 a 2,5 ms para 0° a 180°» y que el servo representa 0 a 50 °C. Si 0° del servo es 0 °C, lo natural sería $T_H = 0{,}5 + 2\cdot T_{temp}/50$ ms (el ancho **crece** con la temperatura). La solución hace lo contrario ($2{,}5 - 2\cdot T_{temp}/50$). No es un fallo mientras la aguja esté montada así, y es lo que usa luego la captura. Si en un examen no te dicen qué sentido, **elige uno y mide con el otro apartado con la fórmula inversa**: si no sale la misma temperatura, algo está al revés.
+
+**Solución c1.** Configuración de la parte hardware (asumiendo $F_{PCLK} = 50$ MHz, es decir `PCLKSEL0` con 01 en los bits 5:4; el enunciado no lo fija para el Timer 1, y con 12,5 MHz solo cambian los números):
+
+```c
+void init_servo_timer1(void) {
+    LPC_SC->PCLKSEL0 |= (1 << 4);              // PCLK_TIMER1 = CCLK (bits 5:4 = 01): 50 MHz
+    LPC_PINCON->PINSEL3 |= (3 << 12);          // P1.22 = MAT1.0
+    LPC_TIM1->PR  = 0;                         // sin prescaler: cuenta a F_PCLK
+    LPC_TIM1->EMR = (3 << 4);                  // EMC0 = 11: MAT1.0 conmuta en cada coincidencia de MR0
+    LPC_TIM1->MR0 = 1000;                      // primer Match, cualquiera pequeño: arranca el ciclo
+    LPC_TIM1->MR1 = F_PCLK / FS;               // primer muestreo del ADC: F_PCLK/50 = 1 000 000 cuentas (20 ms)
+    LPC_TIM1->MCR = (1 << 0) | (1 << 3);       // MR0I y MR1I: interrupción en ambos y SIN reset (modo running)
+    NVIC_EnableIRQ(TIMER1_IRQn);
+    LPC_TIM1->TCR = 1;                         // arranca
+}
+```
+
+**Solución c2.** La ISR. La solución oficial es pseudocódigo; este es el código que sale de él, con las dos precauciones que tiene que llevar:
+
+```c
+void TIMER1_IRQHandler(void) {
+    static uint32_t th_cuentas = 0;            // static: la rama de bajada usa el TH calculado en la de subida
+
+    if (LPC_TIM1->IR & (1 << 1)) {             // ¿interrumpe MR1? Toca muestrear
+        LPC_TIM1->IR = (1 << 1);               // borra el flag de MR1
+        LPC_ADC->ADCR |= (1 << 16);            // BURST = 1: arranca la ráfaga
+        LPC_TIM1->MR1 += F_PCLK / FS;          // próxima muestra dentro de 20 ms (50 Hz)
+    }
+    if (LPC_TIM1->IR & (1 << 0)) {             // ¿interrumpe MR0? Hay un flanco
+        LPC_TIM1->IR = (1 << 0);               // borra el flag de MR0
+        if (LPC_TIM1->EMR & (1 << 0)) {        // EM0 = 1: el pin acaba de subir, toca el pulso
+            float t = temperatura;
+            if (t < 0.0f)  t = 0.0f;           // limitar a 0..50 °C: fuera de rango TH saldría negativo
+            if (t > 50.0f) t = 50.0f;
+            th_cuentas = (uint32_t)(F_PCLK * (2.5e-3f - 2e-3f * t / 50.0f));
+            LPC_TIM1->MR0 += th_cuentas;       // el próximo flanco, TH cuentas después
+        } else {                               // el pin acaba de bajar, toca el resto del periodo
+            LPC_TIM1->MR0 += (uint32_t)(F_PCLK * 12e-3f) - th_cuentas;   // T_PWM·F_PCLK − TH
+        }
+    }
+}
+```
+
+**La trampa.**
+
+- **`th_cuentas` tiene que sobrevivir entre llamadas** (`static` o global). En el pseudocódigo del examen se escribe como si fuera local; entonces la rama de bajada usaría un valor sin inicializar.
+- **Limitar la temperatura.** El LM35 llega hasta 300 °C en la escala del ADC y la fórmula solo vale de 0 a 50. Con 60 °C, $T_H$ sale negativo; al guardarlo en un `uint32_t` se convierte en un número enorme y el servo se desmanda. Una saturación de dos líneas lo evita.
+- **Suma, no escribas**, y el pin se lee **después** de la conmutación (la interrupción llega cuando el hardware ya ha movido el pin).
+- Con un solo Match para el pin, el MR1 es **otro** Match, no un segundo Match para la PWM. «Un solo Match» se refiere a la señal del servo.
+
+### d) Medir la duración del pulso con el Timer 2
+
+**Qué pide.** Una función (pseudocódigo) asociada al Timer 2 que mida la duración del pulso a nivel alto de la señal del servo y la convierta en **temperatura** (realimentación), guardándola en `float temperatura_TH`. Hay que explicar la configuración del Timer. Con la **máxima resolución posible**.
+
+**Qué hay que saber antes.** [Captura](../captura/): cada canal de captura tiene su pin y guarda el contador en `CRx` cuando se produce el flanco elegido. La tabla `CCR` está en la figura de c).
+
+**Proceso, paso a paso.**
+
+1. **Dos pines, dos capturas.** En el esquema, P1.22 se lleva a **CAP2.0 y CAP2.1** (los pines P0.4 y P0.5). CAP2.0 captura en el flanco de **subida** (`CAP0RE`) y CAP2.1 en el de **bajada** (`CAP1FE`). Interrumpe solo CAP2.1 (`CAP1I`): cuando llega el flanco de bajada ya están las dos capturas.
+2. **Máxima resolución.** Es la frecuencia de cuenta más alta, PCLK igual al reloj de la CPU: `PCLKSEL1` bits 13:12 = `01` (la tabla del anexo, `PCLK_TIMER2`). Con 50 MHz cada cuenta son 20 ns.
+3. **La resta.** $T_H = CR1 - CR0$ en cuentas. Con aritmética de enteros sin signo la resta es correcta aunque el contador se haya desbordado entre los dos flancos.
+4. **De cuentas a grados.** Se invierte la fórmula del apartado c: de $T_H = F_{PCLK}\,(2{,}5\ \text{ms} - 2\ \text{ms}\cdot T_{temp}/50)$ se despeja $T_{temp}$.
+
+$$
+T_{temp} = 62{,}5 - \frac{T_H}{2000}
+$$
+
+<Donde>
+
+- $T_{temp}$: temperatura medida, en °C.
+- $T_H$: cuentas entre los dos flancos, $CR1 - CR0$.
+- $2000$: cuentas que cambia $T_H$ por cada grado: $50\cdot10^{6}\cdot 2\cdot10^{-3}/50 = 2000$ cuentas/°C.
+- $62{,}5$: sale de $F_{PCLK}\cdot 2{,}5$ ms $/\,2000 = 125\,000/2000$.
+
+</Donde>
+
+Comprobación en los extremos, como en la gráfica de la solución: con 125 000 cuentas sale $62{,}5 - 62{,}5 = 0$ °C, y con 25 000 sale $62{,}5 - 12{,}5 = 50$ °C. 
+
+<Figura src={fig2} alt="Recta decreciente: cuentas TH desde 125000 a 0 grados hasta 25000 a 50 grados, con las fórmulas cuentas_TH igual a CR1 menos CR0 y temperatura_TH igual a 62,5 menos cuentas_TH entre 2000" pie="Relación entre las cuentas medidas y la temperatura, de la solución oficial: la recta baja de 125 000 cuentas (0 °C) a 25 000 (50 °C)." />
+
+**Solución.**
+
+```c
+// Configuración del Timer 2 (lo que pide "explicar la configuración")
+LPC_SC->PCLKSEL1 |= (1 << 12);                  // PCLK_TIMER2 = CCLK = 50 MHz: 20 ns por cuenta (la máxima resolución)
+LPC_PINCON->PINSEL0 |= (3 << 8) | (3 << 10);    // P0.4 = CAP2.0 y P0.5 = CAP2.1 (función 11)
+LPC_TIM2->CCR = (1 << 0)                        // CAP0RE: CR0 captura en el flanco de subida
+              | (1 << 4)                        // CAP1FE: CR1 captura en el flanco de bajada
+              | (1 << 5);                       // CAP1I: interrumpe al capturar CR1
+NVIC_EnableIRQ(TIMER2_IRQn);
+LPC_TIM2->TCR = 1;
+
+void TIMER2_IRQHandler(void) {
+    LPC_TIM2->IR = (1 << 5);                    // borra el flag de CR1 (bit 5 de IR)
+    uint32_t cuentas_TH = LPC_TIM2->CR1 - LPC_TIM2->CR0;     // cuentas con el pin en alto
+    temperatura_TH = 62.5f - cuentas_TH / 2000.0f;           // inversa de la fórmula del servo
+}
+```
+
+**La trampa.**
+
+- **División entera.** Si escribes `cuentas_TH / 2000` con `cuentas_TH` entero, el cociente se trunca (de 125 000 a 62 sin decimales) y la medida avanza de grado en grado. Pon `2000.0f`.
+- **Hay que llevar la señal a los dos pines.** Si solo conectas P1.22 a CAP2.0, nunca se capturará el flanco de bajada: el esquema importa.
+- **El sentido de la fórmula.** Es la del servo al revés. Si en c hubieras usado el sentido natural ($T_H = 0{,}5 + 2T/50$ ms), aquí tocaría $T_{temp} = T_H/2000 - 12{,}5$.
+- Bit de interrupción: en `IR` el de CR1 es el **5** (el 4 es el de CR0, el 0 al 3 son los Match).
+
+### e) El audio de la alarma: array en Flash y reproducción con el Timer 3
+
+**Qué pide.**
+
+- **e1** Completar la declaración del array `buffer_alarm_temp[]` que contiene las muestras de 8 bits de un mensaje de **5 s** grabado a **10 kHz**, justificando la respuesta.
+- **e2** Escribir la ISR del Timer 3 que saca las muestras al DAC durante la reproducción, y deducir la frecuencia de interrupción.
+
+**Qué hay que saber antes.** [ADC y DAC](../adc-dac/): el DAC es de 10 bits y su valor va en los bits 15:6 de `DACR`. Un array `const` se guarda en Flash y no gasta RAM.
+
+**Proceso.**
+
+1. **Cuántas muestras.** $N = f_s\cdot t = 10\,000\cdot 5 = 50\,000$ muestras.
+2. **Cuántos bytes.** 8 bits son 1 byte: 50 000 bytes. Por eso el tipo es `uint8_t`. Cabe holgadamente en la Flash del LPC1768 (512 kB), pero no en la RAM principal (32 kB). Esa es la razón de `const`: así el compilador lo deja en Flash.
+3. **La ISR.** El Timer 3 interrumpe a $f_s = 10$ kHz, es decir, cada 100 µs (Match con reset: $MR0 = F_{PCLK}/10\,000 - 1$). En cada interrupción: borra el flag, saca la muestra al DAC, avanza el índice y, al llegar a 50 000, para el Timer.
+4. **Por qué `<< 8`.** El DAC es de 10 bits con el valor en 15:6. Una muestra de 8 bits desplazada 8 posiciones ocupa los bits 15:8: son los 8 bits altos del campo, o sea, el audio sale a toda escala (con los 2 bits bajos a cero).
+
+**Solución.**
+
+```c
+const uint8_t buffer_alarm_temp[50000];   // Flash: 10 000 muestras/s · 5 s = 50 000 muestras de 8 bits (50 000 bytes)
+```
+
+```c
+void TIMER3_IRQHandler(void) {            // frecuencia de interrupción: 10 kHz (cada 100 µs)
+    LPC_TIM3->IR |= (1 << 0);             // borra el flag de MR0
+    LPC_DAC->DACR = buffer_alarm_temp[indice++] << 8;   // muestra de 8 bits a los bits 15:8 del campo VALUE
+    if (indice >= 50000) {                // fin del mensaje: 10 000 · 5 s = 50 000 muestras
+        indice = 0;
+        LPC_TIM3->TCR = 0x02;             // para el Timer 3 (reset del contador con TCR, no con TC)
+        fin_mensaje = 1;
+    }
+}
+```
+
+(Un array `const` sin inicializador solo sirve en el enunciado; en la realidad el `.h` generado por el script de Matlab trae las muestras.)
+
+> **Ojo: errata en la solución oficial.** Para parar el Timer escribe `LPC_TIM3->TC = 0x02`. Esa línea no para nada: `TC` es el contador y solo se le cargaría un 2. El registro que lo detiene es `TCR`: `LPC_TIM3->TCR = 0x02` (bit 1 = reset del contador, y el bit 0 de habilitación queda a cero). Además la solución escribe `buffer_alarma_temp` unas veces y `buffer_alarm_temp` otras: es el mismo array y el nombre del enunciado es `buffer_alarm_temp`.
+
+**La trampa.** El tamaño del array es en **muestras**, no en bytes ni en segundos, y con 8 bits coinciden (50 000). Y el desplazamiento: `<< 6` pondría la muestra de 8 bits en los bits 13:6, es decir, a una cuarta parte de la escala.
+
+### f) Reducir la carga de CPU con el DMA
+
+**Qué pide.** Explicar qué recurso usarías y su configuración para reducir la carga de la CPU durante la reproducción de la alarma.
+
+**Qué hay que saber antes.** [DMA](../dma/): un canal en modo memoria a periférico, `TransferSize` de hasta 4095, `DACCNTVAL` y `DACCTRL` para que el DAC pida cada muestra.
+
+**Proceso.**
+
+1. **Se quita la ISR del Timer 3.** Con el DMA, es el propio DAC el que pide cada muestra al ritmo de su contador interno: `DACCNTVAL` fija la frecuencia (10 kHz) y no hace falta Timer.
+2. **Cuántos bloques.** Un canal solo mueve 4095 transferencias como máximo. Se necesitan 50 000. Con 8 canales, $8 \cdot 4095 = 32\,760$, que tampoco llega a 50 000. Por eso se usa **un solo canal** y se reparte en bloques: 2500 muestras por bloque, $50\,000/2500 = 20$ bloques. (Podría ser cualquier tamaño de 4095 o menos que divida 50 000: 2500, 2000, 1250…)
+3. **Cada bloque.** Cuando acaba, interrumpe; la ISR avanza el origen al bloque siguiente y vuelve a habilitar el canal.
+4. **El destino.** Escribimos solo el byte alto: `DACR + 1` (dirección en bytes, no en registros). Con ancho de 8 bits el byte va a los bits 15:8, igual que el `<< 8` de la ISR.
+
+**Solución.** La lista de ajustes del canal 0 (lo que pide la solución oficial) y, debajo, el código completo:
+
+- Tipo: memoria → periférico (DAC, petición 7).
+- Origen: `&buffer_alarm_temp[0]`, con incremento.
+- Destino: `(uint32_t)&LPC_DAC->DACR + 1`, sin incremento.
+- Ancho: 8 bits en origen y en destino.
+- `TransferSize` = 2500 y interrupción de fin de bloque (TC) del canal 0.
+- `DACCNTVAL` $= F_{PCLK\,DAC}/10\,000 - 1$ y `DACCTRL` con `CNT_ENA` (bit 2) y `DMA_ENA` (bit 3).
+
+```c
+#define BLOQUE    2500                         // muestras (= bytes) por bloque
+#define NBLOQUES  20                           // 50 000 / 2500
+static volatile uint32_t bloque = 0;           // bloque que está sonando
+
+static void dma_lanza_bloque(uint32_t n) {
+    LPC_GPDMACH0->DMACCSrcAddr  = (uint32_t)&buffer_alarm_temp[n * BLOQUE];   // origen: bloque n. +2500 BYTES por bloque
+    LPC_GPDMACH0->DMACCDestAddr = ((uint32_t)&LPC_DAC->DACR) + 1;             // destino: byte alto de DACR
+    LPC_GPDMACH0->DMACCLLI      = 0;                                          // sin lista encadenada
+    LPC_GPDMACH0->DMACCControl  = BLOQUE        // TransferSize
+                                | (0 << 18)     // SWidth = 8 bits
+                                | (0 << 21)     // DWidth = 8 bits
+                                | (1 << 26)     // SI = 1: el origen avanza
+                                | (0 << 27)     // DI = 0: el destino (un registro) no avanza
+                                | (1u << 31);   // I = 1: interrumpe al acabar el bloque
+    LPC_GPDMACH0->DMACCConfig   = (1 << 0)      // E: canal habilitado (lo último)
+                                | (7 << 6)      // DestPeripheral = 7 (DAC)
+                                | (1 << 11)     // FlowCntrl = 001: memoria → periférico
+                                | (1 << 15);    // ITC: interrupción de fin de bloque
+}
+
+void init_DMA(const uint8_t *origen) {         // la función que el enunciado da por escrita (aquí, el esqueleto)
+    LPC_SC->PCONP |= (1 << 29);                // alimenta el GPDMA
+    LPC_GPDMA->DMACConfig = 1;                 // habilita el controlador
+    LPC_GPDMA->DMACIntTCClear = 0xFF;          // limpia avisos pendientes
+    LPC_GPDMA->DMACIntErrClr  = 0xFF;
+    NVIC_EnableIRQ(DMA_IRQn);
+    LPC_DAC->DACCNTVAL = F_PCLK_DAC / 10000 - 1;   // 10 kHz. Con PCLK_DAC = CCLK/4 = 12,5 MHz: 1249
+    LPC_DAC->DACCTRL   = (1 << 2) | (1 << 3);      // CNT_ENA y DMA_ENA
+    bloque = 0;
+    dma_lanza_bloque(0);
+}
+
+void DMA_IRQHandler(void) {
+    if (LPC_GPDMA->DMACIntTCStat & (1 << 0)) {     // fin de bloque en el canal 0
+        LPC_GPDMA->DMACIntTCClear = (1 << 0);
+        bloque++;
+        if (bloque < NBLOQUES) dma_lanza_bloque(bloque);   // el siguiente bloque
+        else { bloque = 0; fin_mensaje = 1; }              // se acabó el mensaje
+    }
+    if (LPC_GPDMA->DMACIntErrStat & (1 << 0)) LPC_GPDMA->DMACIntErrClr = (1 << 0);
+}
+```
+
+El ISR de DMA es lo que **hemos resuelto nosotros**: la solución oficial describe los ajustes pero no lo escribe. Se pone `DACCNTVAL` con el reloj del DAC por defecto (CCLK/4 = 12,5 MHz); si el `PCLKSEL0` lo pusiera a CCLK, saldría 4999.
+
+Carga de CPU: de 10 000 interrupciones por segundo (Timer 3) a **4** (20 bloques en 5 s). Cada bloque suena $2500/10\,000 = 0{,}25$ s.
+
+> **Ojo: errata en la solución oficial.** En la ISR avanza el origen con `&buffer_alarma_temp[0] + contador*25000`, pero cada bloque son **2500** muestras de 1 byte, y el propio texto de la solución dice «modificando la dirección origen en 2500 posiciones». Con 25 000 el segundo bloque empezaría 25 000 bytes más allá (¡la mitad del mensaje!). Es `contador*2500`; con el array `uint8_t` el desplazamiento de puntero es en bytes.
+
+**La trampa.** Bytes frente a muestras al avanzar la dirección (con muestras de 16 bits serían 5000 bytes por bloque); el destino en 8 bits es `DACR + 1` pero hay que sumar **1 byte** a la dirección ya convertida a entero, no `&(LPC_DAC->DACR) + 1` sobre un puntero a `uint32_t`, que sumaría 4 bytes y apuntaría a `DACCTRL`. (La solución lo escribe bien: el cast `(uint32_t)` va delante del `&`.)
+
+### g) La ISR del SysTick
+
+**Qué pide.** Con `SysTick_Config(2500000)`, escribir la ISR que (1) cambie el brillo del LCD al mover su potenciómetro (el módulo PWM ya está configurado), (2) actualice y muestre el umbral al mover el suyo y (3) muestre cada 30 s la temperatura. `init_DMA(uint32_t *direccion_origen)` ya está escrita.
+
+**Qué hay que saber antes.** `SysTick_Config(n)` interrumpe cada $n$ ciclos de CPU ([Reloj, GPIO e interrupciones](../reloj-gpio-interrupciones/)); el módulo PWM carga un `MRx` nuevo con `LER` ([PWM y servos](../pwm-servos/)).
+
+**Proceso.**
+
+1. **Periodo.** $2\,500\,000/50\cdot10^{6}\ \text{Hz} = 50$ ms ($\le 2^{24}$ ciclos, el máximo del SysTick: bien).
+2. **Cada 30 s.** $30/0{,}05 = 600$ interrupciones: `contador % 600 == 0`.
+3. **Cambios de potenciómetro.** Se compara el valor actual (`ciclo_trabajo_brilloLCD`, `umbral_temperatura`) con el **anterior**, guardado en variables `static`, y se actualiza el anterior al final.
+4. **Brillo.** El módulo PWM1 tiene `MR0` = periodo (1 kHz) y `MR6` = ancho: `MR6 = MR0 * ciclo_trabajo`; y `LER = (1<<6)` para que el cambio se aplique en el siguiente periodo.
+5. **Alarma.** Si la temperatura pasa del umbral, se reproduce el mensaje por DMA; si no, se para.
+
+**Solución** (la oficial, corregida; los cambios están comentados):
+
+```c
+void SysTick_Handler(void) {                       // cada 50 ms
+    static float brillo_ant = 0.0f, umbral_ant = -1.0f;   // valores de la pasada anterior
+    static uint32_t contador = 0;
+    static uint8_t alarma = 0;                      // 1 = el mensaje está sonando
+    char cadena[32];
+
+    contador++;
+
+    if (ciclo_trabajo_brilloLCD != brillo_ant) {    // se movió el potenciómetro del brillo
+        LPC_PWM1->MR6 = (uint32_t)(LPC_PWM1->MR0 * ciclo_trabajo_brilloLCD);   // OJO: el valor NUEVO
+        LPC_PWM1->LER = (1 << 6);                   // aplica el nuevo MR6 en el siguiente periodo
+    }
+    if (umbral_temperatura != umbral_ant) {         // se movió el del umbral
+        sprintf(cadena, "Umbral_Temp= %2.1f C", umbral_temperatura);   // OJO: el valor NUEVO
+        GUI_text(20, 20, cadena, black, White);
+    }
+
+    if (temperatura > umbral_temperatura) {         // alarma: solo se lanza al pasar el umbral
+        if (!alarma) { init_DMA(&buffer_alarm_temp[0]); alarma = 1; }
+    } else if (alarma) {                            // vuelve a estar por debajo: se para
+        LPC_DAC->DACCTRL &= ~(1 << 2);              // Stop_DACCNT: para el contador del DAC
+        LPC_GPDMACH0->DMACCConfig &= ~1;            // y deshabilita el canal
+        alarma = 0;
+    }
+
+    if (contador % 600 == 0) {                      // 30 s / 50 ms = 600
+        sprintf(cadena, "Temperatura= %2.1f C", temperatura);
+        GUI_text(10, 20, cadena, black, White);
+    }
+
+    brillo_ant = ciclo_trabajo_brilloLCD;           // se actualizan al final
+    umbral_ant = umbral_temperatura;
+}
+```
+
+> **Ojo: erratas de lógica en la solución oficial.** La solución usa `brillo` y `umbral` (los valores **anteriores**, guardados) donde debería usar los nuevos:
+>
+> 1. `MR6 = MR0*brillo`: el brillo va con un tic de retraso, y la primera vez con 0 (pantalla apagada). Es `MR0 * ciclo_trabajo_brilloLCD`.
+> 2. `sprintf(..., umbral)`: se escribe el **valor antiguo**. Como al final `umbral = umbral_temperatura`, en el tic siguiente ya no hay cambio y la pantalla se queda con el umbral antiguo hasta que vuelvas a moverlo. Hay que escribir `umbral_temperatura`.
+> 3. `if (temperatura > umbral_temperatura) init_DMA(...)` se ejecuta **en cada tic** (cada 50 ms) mientras la temperatura esté por encima: la reproducción empezaría de nuevo 20 veces por segundo y solo se oirían los primeros 50 ms del mensaje. Una bandera (`alarma`) soluciona que solo se lance una vez. Y para pararla no basta `Stop_DACCNT`: conviene deshabilitar también el canal.
+>
+> (`GUI_text` y los colores son de la librería de la práctica y no los he tocado. En la cadena pongo `C` en lugar de `ºC` porque la fuente del LCD puede no tener ese carácter.)
+
+**La trampa.** Comparar con el valor anterior y **actualizar el anterior al final**, no antes; no usar el valor anterior para actuar; y lanzar el DMA una sola vez, no en cada tic. Y una cuenta de unidades: 30 s entre tics de 50 ms son 600, no 30 ni 60.
+
+## Cuestión 2 · Parámetros D y T de siete tareas
+
+**Qué pide.** Un sistema con un LPC1768 a **CCLK = 100 MHz** (cuidado: no son los 50 MHz de la cuestión 1) y siete funciones. Para cada una hay que dar $D$ y $T$, y justificar el valor explicando **qué subsistema** usarías y **en qué modo**. Hay un solo microcontrolador con recursos limitados, y el error máximo admisible es del **30 %**.
+
+**Qué hay que saber antes.** [Ejecutabilidad](../ejecutabilidad/): $T$ es el tiempo mínimo entre dos eventos que lanzan la tarea y $D$ el plazo para atenderlo. Una señal que genera el hardware sin ISR **no** es una tarea. Las dos ideas útiles de este ejercicio:
+
+- El módulo PWM del LPC1768 tiene **un solo periodo** para todos sus canales (`MR0`). Por eso solo cabe **una** frecuencia de PWM en el módulo. En el examen hay una de 10 kHz y otra de 5 kHz con tres canales: solo una de ellas se puede hacer con el módulo.
+- En un Timer con Match que conmuta, hay una tarea **por flanco**, y el plazo lo marca el tramo **más corto** de la señal.
+
+### a) Cuadrada con ciclo de trabajo 0,3 y frecuencia de 1 kHz a 100 kHz
+
+- **Subsistema.** Timer 0 con MAT0.0 en modo conmutar y MR0 que interrumpe; la ISR suma al Match el tramo que toque (alto: 0,3 del periodo; bajo: 0,7).
+- **Por qué no el módulo PWM.** Porque el módulo se reserva para el apartado c (tres canales a 5 kHz) y su periodo es único.
+- **T y D.** El caso peor es la frecuencia más alta, 100 kHz: periodo de 10 µs, con el nivel alto de $0{,}3\cdot10 = 3$ µs. El flanco más cercano está a 3 µs, así que cada ISR debe programar el Match antes de que pasen 3 µs: **T = D = 3 µs** (300 ciclos de CPU a 100 MHz).
+
+### b) PWM de 10 kHz con ciclo de trabajo entre el 10 % y el 90 %
+
+- **Subsistema.** Lo mismo que antes con **MAT0.1 y MR1** del Timer 0 (los dos Match comparten el contador, que corre libre).
+- **T y D.** Periodo 100 µs; el tramo más corto es el 10 % (o el 90 % de nivel alto, cuyo bajo es el 10 %): $0{,}1\cdot100 = 10$ µs. **T = D = 10 µs**.
+
+### c) Tres señales PWM de 5 kHz, ciclos de trabajo entre el 10 % y el 90 %
+
+- **Subsistema.** El módulo PWM, en modo *single-edge*, con `MR0` = periodo de 5 kHz y `MR1`, `MR2` y `MR3` para los tres anchos (más `LER` para cambiarlos).
+- **T y D.** **No procede**: no hay ISR. El hardware genera las señales solo. No es una tarea.
+
+### d) Interrupción periódica de 100 ms con el SysTick
+
+- **Subsistema.** SysTick con `SysTick_Config(10 000 000)`: $10^7/10^8 = 100$ ms. Cabe en los 24 bits del SysTick ($16{,}7\cdot10^6$ máximo; es decir, hasta 167 ms a 100 MHz).
+- **T y D.** $T = 100$ ms. Con un error admisible del 30 %, el plazo es el 30 % del periodo: **D = 30 ms**.
+
+### e) Reproducción repetida de un mensaje de 10 s a 8 kHz con muestras de 8 bits, con DMA
+
+- **Cuentas.** $8000\cdot10 = 80\,000$ muestras, 80 000 bytes (80 kB). Un canal solo mueve 4095, así que se parte en bloques de, por ejemplo, 4000 muestras: **20 bloques**, cada uno de $4000/8000 = 0{,}5$ s.
+- **Subsistema.** GPDMA, de memoria al DAC, con `DACCNTVAL` a $F_{PCLK}/8000 - 1$. La solución propone dos canales «enlazados» que se turnan: mientras uno suena, la ISR reconfigura el otro para el bloque siguiente. Al llegar a 20 interrupciones se vuelve a empezar (reproducción repetida).
+- **T y D.** Cada bloque dura 0,5 s y hay que dejar listo el siguiente antes de que acabe: **T = D = 0,5 s**.
+- *Variante.* Con una sola lista de descriptores (`DMACCLLI`) cuyo último nodo apunta al primero, el mensaje se repite sin interrupciones y no hay tarea. La respuesta del profesor es la de los dos canales; la lista es otra forma válida.
+
+### f) Grabación de dos canales de audio a 8 kHz durante un segundo, a petición del usuario
+
+- **Subsistema.** ADC en **modo ráfaga** con dos canales (`SEL` con dos bits) y la interrupción de uno de ellos. La ráfaga solo se enciende (`BURST = 1`) cuando el usuario lo pide y se apaga al pasar 1 s.
+- **Cuentas.** Cada canal debe muestrearse a 8 kHz, es decir, una vuelta completa cada $1/8000 = 125$ µs. Como la vuelta tiene dos conversiones, cada una dura $t_{conv} = 125/2 = 62{,}5$ µs. Para eso hace falta $F_{ADC} = 65/62{,}5\ \mu\text{s} = 1{,}04$ MHz. Con el PCLK del ADC por defecto de $100/4 = 25$ MHz sale `CLKDIV = 23` ($25/24 = 1{,}0417$ MHz, 62,4 µs por conversión y 8,013 kHz).
+- **T y D.** **T = 125 µs** (el tiempo de una vuelta). **D = 125/2 = 62,5 µs**: si interrumpes con el canal que se convierte el último, el ADC arranca enseguida la conversión del primero y, a los 62,5 µs, **pisa** su resultado; ese es el tiempo para leerlo.
+
+### g) Recepción a 4800 baudios por la UART 3, 8 bits, paridad impar y dos bits de stop
+
+- **Subsistema.** UART3 con interrupción de recepción (RDA); la ISR lee `RBR`.
+- **Cuentas.** Un byte son 1 bit de start + 8 de datos + 1 de paridad + 2 de stop = **12 bits** (no 10). Un bit dura $1/4800 = 208{,}3$ µs y la trama $12/4800 = 2{,}5$ ms.
+- **T y D.** **T = D = 2,5 ms.** El byte se pierde si no se lee antes de que llegue el siguiente.
+
+> **Ojo: precisión de la solución oficial.** La solución escribe 2,49 ms: sale de redondear el bit a 208 µs ($12\cdot208 = 2{,}496$ ms). El valor exacto es **2,5 ms**. La diferencia no importa para la nota, pero si te piden el valor con tres cifras, 12/4800 = 2,5 ms.
+
+### Resumen de la cuestión 2
+
+| Tarea | Subsistema y modo | $T$ | $D$ |
+|---|---|---|---|
+| a) cuadrada 0,3, 1 a 100 kHz | Timer 0, MAT0.0 en conmutar, MR0 con interrupción | 3 µs | 3 µs |
+| b) PWM 10 kHz, 10 a 90 % | Timer 0, MAT0.1 en conmutar, MR1 con interrupción | 10 µs | 10 µs |
+| c) 3 PWM de 5 kHz | Módulo PWM (sin ISR) | sin tarea | sin tarea |
+| d) tic de 100 ms | SysTick | 100 ms | 30 ms |
+| e) audio de 10 s por DMA | GPDMA, 20 bloques de 4000 | 0,5 s | 0,5 s |
+| f) 2 canales de audio a 8 kHz | ADC en ráfaga, interrupción de un canal | 125 µs | 62,5 µs |
+| g) UART3 a 4800 baudios, 8O2 | UART3 con RDA | 2,5 ms | 2,5 ms |
+
+**La trampa.** Los **bits por byte** de la UART (12 con paridad y dos stop), el **tramo más corto** de la señal en a y b (no el periodo), que lo que genera el hardware sin ISR (el módulo PWM) no es una tarea, y que en f el plazo es la mitad del periodo.
+
+## Cuestión 3 · Ejecutabilidad en cuatro escenarios
+
+**Qué pide.** Tres tareas con los parámetros de la tabla (unidades en ms) y cuatro escenarios de prioridades (cada uno con prioridad `Pr` y subprioridad `SubPr`). Hay una región crítica de 1 ms en el programa principal, y las de la tabla. Se pide analizar la ejecutabilidad en cada escenario.
+
+| Tarea | $C$ | $T$ | $D$ | Región crítica | Esc. 1 (Pr, SubPr) | Esc. 2 | Esc. 3 | Esc. 4 |
+|---|---|---|---|---|---|---|---|---|
+| Tarea 1 | 1 | 5 | 5 | | 0, 0 | 0, 0 | 0, 0 | 0, 0 |
+| Tarea 2 | 3 | 10 | 10 | 2 | 0, 1 | 1, 0 | 0, 1 | 1, 0 |
+| Tarea 3 | 8 | 20 | 20 | 3 | 0, 2 | 2, 0 | 1, 0 | 1, 1 |
+
+**Qué hay que saber antes.** [Ejecutabilidad](../ejecutabilidad/): $R_i = C_i + B_i + I_i$; el bloqueo $B_i$ es el **peor** (no la suma) entre las regiones críticas de las tareas de menor prioridad y la $C$ completa de las de **igual nivel** (que no se interrumpen entre sí); la interferencia $I_i$ la causan las de mayor nivel, con $\lceil R/T_j\rceil C_j$, o $\lceil (R_i - C_i)/T_j\rceil C_j$ si son del mismo nivel (solo se cuelan antes de que $i$ arranque). Se itera hasta que $R$ se repite.
+
+**Proceso, para cada escenario.**
+
+1. **Niveles.** Lo que decide quién interrumpe a quién es `Pr`: número menor, nivel mayor. La subprioridad solo desempata si dos están pendientes a la vez. Dos tareas con el mismo `Pr` **no** se interrumpen.
+2. **Por cada tarea:** $B_i$ = el mayor entre (a) la región crítica del `main` (1 ms), (b) las regiones críticas de las tareas de nivel menor, (c) la $C$ entera de las del **mismo nivel** con peor subprioridad (porque, si ya han empezado, no se les puede quitar la CPU).
+3. $I_i$ de las tareas de mayor nivel (y de las del mismo nivel con mejor subprioridad, con la ventana $R_i - C_i$).
+4. Iterar y comparar con $D_i$. **Basta con que falle una tarea** para que el escenario no sea ejecutable, así que empieza por la de plazo más justo (la tarea 1, con $D = 5$).
+
+**Solución.**
+
+### Escenario 1: las tres con el mismo nivel (Pr 0)
+
+Nadie interrumpe a nadie. La tarea 1 puede encontrarse con la tarea 3 ya en marcha:
+
+$$
+B_1 = \max\{R C_{PP} = 1,\ C_2 = 3,\ C_3 = 8\} = 8 \text{ ms},\qquad R_1 = 1 + 8 + 0 = 9\ \text{ms} > D_1 = 5\ \text{ms}
+$$
+
+<Donde>
+
+- $B_1$: bloqueo máximo de la tarea 1 (ms).
+- $RC_{PP}$: región crítica del programa principal (1 ms).
+- $C_2$, $C_3$: duración de las tareas 2 y 3 (ms), que no se pueden interrumpir porque tienen el mismo nivel que la 1.
+- $R_1$, $D_1$: tiempo de respuesta y plazo de la tarea 1 (ms).
+
+</Donde>
+
+**No ejecutable.** (Para comprobarlo con la otra tarea: la 2 tiene $B_2 = \max\{1, C_3 = 8\} = 8$ e $I_2 = \lceil (R_2-3)/5\rceil\cdot 1$, de donde $R_2 = 11 \to 13 \to 13 > 10$; también falla. La línea «$R_3 = 15 > D_{33} = 10$» de la solución no corresponde a nada: $D_3$ es 20 ms y con la misma fórmula $R_3 = 13 \le 20$.)
+
+### Escenario 2: tres niveles distintos (1 > 2 > 3)
+
+**Tarea 1.** Nivel más alto: solo la bloquean las regiones críticas de las menores ($RC_{PP} = 1$, $RC_{T2} = 2$, $RC_{T3} = 3$): $B_1 = 3$. $R_1 = 1 + 3 = 4 \le 5$.
+
+**Tarea 2.** $B_2 = \max\{RC_{PP}, RC_{T3}\} = \max\{1, 3\} = 3$ y la interrumpe la tarea 1:
+
+$$
+R_2 = 3 + 3 + \left\lceil \frac{R_2}{5}\right\rceil\cdot 1:\quad R^{(0)} = 6 \to 3+3+\lceil 6/5\rceil = 8 \to 3+3+\lceil 8/5\rceil = 8
+$$
+
+$R_2 = 8 \le 10$.
+
+**Tarea 3.** $B_3 = RC_{PP} = 1$ (solo el `main` es menos prioritaria) y la interrumpen las dos:
+
+$$
+R_3 = 8 + 1 + \left\lceil \frac{R_3}{5}\right\rceil\cdot 1 + \left\lceil \frac{R_3}{10}\right\rceil\cdot 3:\quad 9 \to 14 \to 18 \to 19 \to 19
+$$
+
+$R_3 = 19 \le 20$. (La solución empieza en 13 y llega al mismo valor.)
+
+**Ejecutable**: $R = 4,\ 8,\ 19$ ms.
+
+### Escenario 3: tareas 1 y 2 en el nivel 0 y tarea 3 en el nivel 1
+
+**Tarea 1.** Mismo nivel que la 2: no la puede interrumpir, así que $B_1 = \max\{1,\ C_2 = 3,\ RC_{T3} = 3\} = 3$. $R_1 = 1 + 3 = 4 \le 5$.
+
+**Tarea 2.** $B_2 = \max\{RC_{PP} = 1,\ RC_{T3} = 3\} = 3$. La tarea 1 es del mismo nivel (con mejor subprioridad): solo se cuela si llega antes de que la 2 empiece, ventana $R_2 - C_2$:
+
+$$
+R_2 = 3 + 3 + \left\lceil \frac{R_2 - 3}{5}\right\rceil:\quad 6 \to 6 + \lceil 3/5\rceil = 7 \to 6 + \lceil 4/5\rceil = 7
+$$
+
+$R_2 = 7 \le 10$.
+
+**Tarea 3.** Más baja que las dos: igual que en el escenario 2, $R_3 = 19 \le 20$.
+
+**Ejecutable**: $R = 4,\ 7,\ 19$ ms.
+
+### Escenario 4: tarea 1 en el nivel 0, tareas 2 y 3 en el nivel 1
+
+**Tarea 1.** Es la más prioritaria: $B_1 = \max\{1, 2, 3\} = 3$ y $R_1 = 4 \le 5$.
+
+**Tarea 2.** La tarea 3 es del **mismo nivel**, así que si ya ha empezado hay que esperarla entera: $B_2 = \max\{RC_{PP} = 1,\ C_3 = 8\} = 8$. La interrumpe la tarea 1:
+
+$$
+R_2 = 3 + 8 + \left\lceil \frac{R_2}{5}\right\rceil\cdot 1:\quad 11 \to 14 \to 14
+$$
+
+$R_2 = 14\ \text{ms} > D_2 = 10\ \text{ms}$. **No ejecutable.**
+
+> **Ojo: precisión de la solución oficial.** Escribe «$R_2 = 12$ ms $> D_2$»: 12 es solo la primera iteración con la interferencia de una sola vez de la tarea 1 ($3+8+1$). El valor al que converge es **14 ms**. La conclusión (no ejecutable) es correcta: cualquier iteración que ya pase de 10 basta para saberlo.
+
+### Resumen
+
+| Escenario | $R_1$ ($D$ = 5) | $R_2$ ($D$ = 10) | $R_3$ ($D$ = 20) | ¿Ejecutable? |
+|---|---|---|---|---|
+| 1: todas en el mismo nivel | 9 | 13 | 13 | **No** (falla la 1) |
+| 2: tres niveles | 4 | 8 | 19 | Sí |
+| 3: 1 y 2 juntas, 3 aparte | 4 | 7 | 19 | Sí |
+| 4: 1 aparte, 2 y 3 juntas | 4 | 14 | no hace falta | **No** (falla la 2) |
+
+La lectura cualitativa es la que vale en un examen: lo que arruina el escenario 1 es que la tarea de plazo más corto (la 1) comparte nivel con una de $C = 8$ ms; y lo que arruina el 4 es que la tarea 2 (con $D = 10$) comparte nivel con la 3. Cuando las tareas de plazos cortos están en niveles **más altos** que las largas, el sistema funciona.
+
+**La trampa.** (1) El bloqueo se **toma el máximo**, no se suma. (2) El mismo nivel no interrumpe: hay que meter la $C$ completa de la otra en el bloqueo y usar $R - C$ en la interferencia. (3) Iterar hasta que **se repita** el valor; parar en la primera iteración solo es válido si ya supera $D$.
+
+## Qué llevarte de este examen
+
+1. **La cadena ADC + Timer es siempre la misma.** Máscara de canales, `CLKDIV`, `PDN`, `ADINTEN` con `=` y un solo canal con interrupción. El Timer pone `BURST = 1` y la ISR del ADC lo pone a 0 **con el bit 16**. El tiempo de conversión es $65/F_{ADC}$ (aquí 5,2 µs).
+2. **El servo con un solo Match** es: Timer sin reset, `EMC = 11`, y en la ISR sumar $T_H$ o $T - T_H$ según el nivel del pin. La captura con `CR1 - CR0` es su inversa. Comprueba **los dos extremos** de la fórmula y limita el valor de entrada.
+3. **Siempre que dividas por un entero en C, mira si es una división entera.** Aparece tres veces en este examen: `/255`, `*300/4096` y `cuentas/2000`. Convierte con `f` antes de dividir.
+4. **Audio y DMA.** Tamaño del array = muestras por segundo por segundos (en bytes si son de 8 bits). Con más de 4095 muestras, bloques de $N/k$ y el origen avanza **bytes**, no muestras. El destino de 8 bits es `DACR + 1`.
+5. **Ejecutabilidad.** Define los niveles antes de calcular nada, y recuerda que mismo nivel significa «no se interrumpen» y bloqueo con $C$ completa. En la cuestión 2, **cuenta los bits** de la trama y usa el tramo **más corto** de la señal.

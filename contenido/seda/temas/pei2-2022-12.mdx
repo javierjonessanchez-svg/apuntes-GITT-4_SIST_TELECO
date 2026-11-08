@@ -1,0 +1,758 @@
+---
+titulo: "Diciembre de 2022 · Prueba de evaluación intermedia 2"
+orden: 42
+bloque: "Exámenes resueltos"
+resumen: "Ocho cuestiones: UART3 con un módulo WiFi, red de termostatos DS1621 por I²C, memoria Dual-Port, T y D de seis tareas, ejecutabilidad con regiones críticas, DSP, RTOS y una máquina de estados para decodificar tramas"
+saber:
+  - "La UART se configura con LCR (formato y DLAB), DLL y DLM (divisor, redondeado) y se calcula la velocidad real y la duración de la trama contando todos los bits: start, datos, paridad y stop"
+  - "Una trama binaria no puede terminar en el carácter nulo como una cadena: la ISR de transmisión necesita un contador de bytes que quedan"
+  - "En I²C la dirección de un DS1621 es 1001 seguido de A2 A1 A0, y TH y TL se escriben con los comandos 0xA1 y 0xA2"
+  - "La arbitración por interrupción de una Dual-Port usa dos posiciones reservadas, las dos últimas del chip: escribir en una activa la interrupción del otro procesador y leerla la desactiva"
+  - "Para dar T y D hay que decidir antes qué hace el hardware solo y qué necesita una ISR; el módulo PWM tiene un único periodo para todos sus canales"
+  - "La ejecutabilidad se resuelve con R = C + B + I, iterando, y distinguiendo las tareas del mismo nivel de prioridad, que no se interrumpen entre sí"
+  - "En la máquina de estados del puerto serie hay que distinguir el byte de dirección (bit 7 a 1) de los de comando y datos, y cuidar la precedencia de operadores en C"
+fuentes:
+  - "Prueba de evaluación intermedia 2 de SEDA, diciembre de 2022: enunciado y solución (material de clase de la asignatura)"
+  - "Hoja de características del DS1621 (Anexo 2 del enunciado)"
+  - "UM10360 (manual del LPC17xx)"
+---
+import Donde from '../../../src/asignaturas/seda/Donde.astro';
+import Figura from '../../../src/asignaturas/seda/Figura.astro';
+import fig1 from './img/pei2-2022-12-1.png';
+import fig2 from './img/pei2-2022-12-2.png';
+import fig3 from './img/pei2-2022-12-3.png';
+import fig4 from './img/pei2-2022-12-4.png';
+import fig5 from './img/pei2-2022-12-5.png';
+import fig6 from './img/pei2-2022-12-6.png';
+import fig7 from './img/pei2-2022-12-7.png';
+
+## Resumen del examen
+
+Es una segunda intermedia: ya no hay sensor, servo ni audio como en las primeras. Aquí entran **comunicaciones** (UART, I²C), **memorias** (Dual-Port), **diseño software** (T y D, ejecutabilidad, máquinas de estados) y **teoría** (DSP y sistemas operativos de tiempo real). El enunciado no indica la puntuación de cada cuestión.
+
+| Cuestión | Qué pide | Temas |
+|---|---|---|
+| 1 | Conexión de la UART3 con un módulo WiFi, configuración a 115 200 baudios con paridad par, función de envío de una trama y su duración | [UART](../uart/) |
+| 2 | Direcciones y cableado de tres termostatos DS1621 y función para fijar TH y TL | I²C (esta página) |
+| 3 | Arbitración por interrupción en una memoria Dual-Port | Memorias (esta página) |
+| 4 | T y D de seis tareas y el subsistema que usarías para cada una | [Ejecutabilidad](../ejecutabilidad/), [Timers](../timers-match/), [PWM](../pwm-servos/), [DMA](../dma/), [ADC](../adc-dac/), [UART](../uart/) |
+| 5 | Ejecutabilidad de cuatro tareas con regiones críticas y valor máximo de una región crítica | [Ejecutabilidad](../ejecutabilidad/) |
+| 6 | Qué es un DSP | Teoría (la solución oficial dice solo «ver teoría») |
+| 7 | Ventajas e inconvenientes de un RTOS | Teoría (igual) |
+| 8 | Statechart y código para decodificar tramas por la UART0 | [Máquinas de estados](../maquinas-estados/), [UART](../uart/) |
+
+**Errores de la solución oficial que encontrarás señalados en esta página:** el primer byte que se envía por la UART3 sale dos veces (cuestión 1), la Dual-Port tiene 1 MB y no 512 kB (cuestión 3), «8000·10 muestras» en la grabación (cuestión 4e), un par de iteraciones mal escritas (cuestión 5) y varios fallos de precedencia de operadores y de nibbles en la máquina de estados (cuestión 8).
+
+## Cuestión 1: la UART3 y el módulo WiFi
+
+Un sistema con el LPC1768 se conecta por la **UART3** a un módulo WiFi ESP8266. Se pide:
+
+1. Completar el diagrama de conexión.
+2. Completar `uart3_init` (con FR = 1) y calcular la configuración para **115 200 baudios, 8 bits de datos y paridad par**, y la velocidad real que sale.
+3. Escribir `tx_trama_uart3(char *trama, int longitud)`, que envía una trama de bytes, e indicar qué cambia en el handler de la interrupción (con el Anexo 1 del enunciado).
+4. Calcular lo que tarda en transmitirse `tx_trama_uart3(buffer, 0x2000)`.
+
+El enunciado trae la plantilla de la función y el módulo sin conectar:
+
+<Figura src={fig1} alt="Módulo ESP8266-01 con sus pines TX, GND, CH_PD, GPIO2, RST, GPIO0, VCC y RX, la línea de 3,3 V, la de GND y los cables del lado del microcontrolador sin terminar" pie="Figura del enunciado: el módulo WiFi con las líneas de 3,3 V y GND y los dos cables serie por completar." />
+
+```c
+void uart3_init(void)
+{
+    LPC_PCONP->SC |= (1<<25);      // tal cual viene en el enunciado
+    LPC_PINCON->PINSEL |=  ;
+    LPC_UART3->LCR = ;
+    LPC_UART3->DLL = ;
+    LPC_UART3->DLM = ;
+    LPC_UART3->LCR = ;
+}
+```
+
+(El enunciado escribe `LPC_PCONP->SC`; el registro real es `LPC_SC->PCONP`, como corrige la solución.)
+
+### Qué hay que saber antes
+
+El [tema de la UART](../uart/) cubre la trama, el divisor y las dos interrupciones (`THRE` para transmitir y `RDA` para recibir). Dos datos de partida: la UART3 va en los pines P4.28 (TXD3) y P4.29 (RXD3), que se eligen en `PINSEL9`; y, con la CPU a 100 MHz y el reloj de periférico por defecto (CCLK dividido entre 4), `PCLK = 25 MHz`. El enunciado no da el `PCLK`: la cuestión 4 fija `Fcpu = 100 MHz` y la solución usa 25 MHz, que es el valor por defecto.
+
+### a) La conexión
+
+**Proceso.**
+
+1. Mira qué lleva cada lado. El módulo tiene **TX** y **RX**; el microcontrolador, **TXD3** y **RXD3**.
+2. Las líneas serie se **cruzan**: lo que transmite uno lo recibe el otro. TXD3 va a RX del módulo y TX del módulo va a RXD3.
+3. El módulo funciona a 3,3 V, igual que las E/S del LPC1768, así que se conectan directamente. La figura ya trae VCC a 3,3 V, GND a masa y una resistencia de 10 kΩ que mantiene a nivel alto la patilla de habilitación del módulo (CH_PD).
+4. Falta unir las masas de los dos sistemas: el cable GND de la figura es la referencia común.
+
+**Solución.** La figura de la solución oficial marca los dos cables que faltan:
+
+<Figura src={fig2} alt="El mismo módulo ESP8266 con el cable verde del pin TX del módulo hacia RxD3 y el cable azul del pin RX del módulo hacia TxD3, además de la alimentación a 3,3 V y GND" pie="Figura de la solución oficial: TX del módulo a RxD3 (verde) y RX del módulo a TxD3 (azul y negro)." />
+
+**La trampa.** Conectar TX con TX. Se comprueba rápido: **cada salida acaba en una entrada**.
+
+### b) Configuración de la UART3
+
+**Proceso.**
+
+1. **Encender el periférico.** El bit 25 de `PCONP` (`PCUART3`) lo enciende. Es la línea que ya viene escrita.
+2. **Pines.** En `PINSEL9`, los bits 25:24 eligen la función de P4.28 y los 27:26 la de P4.29. Para TXD3 y RXD3 hace falta `11` en cada par, es decir los cuatro bits a 1: `0x0F << 24`.
+3. **Formato en LCR.** Se escribe dos veces: primero con `DLAB = 1` (para poder cargar el divisor) y después con `DLAB = 0` (para volver a los registros de datos y de interrupciones). Los bits son:
+
+| Bits de LCR | Valor | Significado | Contribuye |
+|---|---|---|---|
+| 1:0 | `11` | 8 bits de datos | `0x03` |
+| 2 | `0` | 1 bit de stop | `0x00` |
+| 3 | `1` | paridad activada | `0x08` |
+| 5:4 | `01` | paridad par | `0x10` |
+| 7 | `1` o `0` | `DLAB` | `0x80` o nada |
+
+   Con `DLAB = 1`, `LCR = 0x03 + 0x08 + 0x10 + 0x80 = 0x9B`. Con `DLAB = 0`, `LCR = 0x1B`.
+4. **Divisor.** Con FR = 1 (sin divisor fraccionario):
+
+$$
+DL = \frac{PCLK}{16 \cdot V \cdot FR}
+$$
+
+<Donde>
+
+- $DL$: divisor de 16 bits formado por `DLM` (byte alto) y `DLL` (byte bajo).
+- $PCLK$: reloj del periférico UART (Hz), aquí 25 MHz.
+- $V$: velocidad deseada (baudios).
+- $FR$: factor del divisor fraccionario; vale 1 si no se usa.
+
+</Donde>
+
+$$
+DL = \frac{25\,000\,000}{16 \cdot 115\,200 \cdot 1} = 13{,}56 \;\rightarrow\; 14
+$$
+
+Los registros solo guardan enteros, así que se redondea: `DLL = 14` y `DLM = 0` (14 cabe en un byte).
+
+5. **Velocidad real**, con el divisor que de verdad se ha cargado:
+
+$$
+V_{real} = \frac{PCLK}{16 \cdot DL \cdot FR} = \frac{25\,000\,000}{16 \cdot 14} = 111\,607 \text{ baudios}
+$$
+
+<Donde>
+
+- $V_{real}$: velocidad que genera el hardware (baudios).
+- $DL$: divisor cargado en `DLM:DLL`, ya redondeado.
+
+</Donde>
+
+Es un 3,1 % menos que los 115 200 pedidos. Es una diferencia que las UART toleran.
+
+**Solución.**
+
+```c
+void uart3_init(void)
+{
+    LPC_SC->PCONP |= (1 << 25);           // enciende la UART3
+    LPC_PINCON->PINSEL9 |= (0x0F << 24);  // P4.28 = TXD3, P4.29 = RXD3
+    LPC_UART3->LCR = 0x9B;                // 8 bits, paridad par, 1 stop, DLAB = 1
+    LPC_UART3->DLL = 14;                  // divisor = 14 (FR = 1)
+    LPC_UART3->DLM = 0;
+    LPC_UART3->LCR = 0x1B;                // mismo formato, DLAB = 0
+}
+```
+
+**Falta en la solución oficial** (no lo pide el apartado, pero sin ello no hay interrupciones): habilitar la interrupción `THRE` con `LPC_UART3->IER |= (1<<1);` y la interrupción de la UART3 en el NVIC con `NVIC_EnableIRQ(UART3_IRQn);`.
+
+**La trampa.** Dos. Usar el divisor sin redondear al calcular la velocidad real (da justo 115 200 y no es lo que genera el chip), y olvidar que el LCR se escribe con `DLAB = 1` y luego con `DLAB = 0`.
+
+### c) Función de envío y cambio en el handler
+
+**Idea.** La transmisión va por interrupción: se escribe el primer byte en `THR` y, cada vez que el registro se vacía, salta `THRE` y el handler escribe el siguiente. El Anexo 1 del enunciado trae el modelo para la UART0 con **cadenas**: el handler sigue enviando mientras `*ptr_tx` no sea 0, es decir, hasta el carácter nulo. Con una **trama** de bytes eso no sirve, porque cualquier byte de la trama puede valer 0. Por eso el cambio que se pide en el handler es **contar los bytes que quedan**.
+
+**Proceso.**
+
+1. Variables globales: un puntero al siguiente byte a enviar (`ptr_tx`), un contador de bytes pendientes (`trama_contador`) y un flag (`tx_completa`) que el programa principal puede consultar.
+2. En `tx_trama_uart3`: se guarda el puntero, se pone `tx_completa = 0`, se pone el contador a `longitud - 1` (el primer byte se envía ya, quedan los demás) y se escribe el primer byte en `THR`.
+3. En el handler, caso `THRE`: si quedan bytes, se envía el siguiente y se decrementa el contador; si no quedan, se levanta `tx_completa`.
+
+**Solución.**
+
+```c
+volatile char *ptr_tx;
+volatile int trama_contador;
+volatile int tx_completa = 1;
+
+void tx_trama_uart3(char *trama, int longitud)
+{
+    if (longitud <= 0) return;        // nada que enviar (evita un contador negativo)
+    ptr_tx = trama;
+    tx_completa = 0;
+    trama_contador = longitud - 1;    // bytes que quedan tras el primero
+    LPC_UART3->THR = *ptr_tx++;       // primer byte: arranca la cadena de interrupciones
+}
+
+void UART3_IRQHandler(void)
+{
+    switch (LPC_UART3->IIR & 0x0E) {
+        case 0x02:                    // THRE: el registro de transmisión se ha vaciado
+            if (trama_contador != 0) {
+                LPC_UART3->THR = *ptr_tx++;
+                trama_contador--;
+            } else {
+                tx_completa = 1;      // ya no quedan bytes
+            }
+            break;
+        // case 0x04: RDA, si también se recibe
+    }
+}
+```
+
+> **Ojo: errata en la solución oficial.** La función de la solución escribe `LPC_UART3->THR = *ptr;` (una variable `ptr` que no existe y que además **no incrementa** el puntero). Con el patrón del Anexo 1 y del handler de la solución, el primer byte se envía **dos veces**: una desde la función (sin avanzar el puntero) y otra desde el handler (`*ptr_tx++`, que sigue apuntando al primero). Lo correcto es `THR = *ptr_tx++;`. Además, en la solución el `break` está solo dentro del `else`: si se ejecuta la rama del `if`, el programa «cae» al caso siguiente. Aquí el `break` va después del `if/else`.
+
+**La trampa.** Terminar con el carácter nulo como hace `tx_cadena_UART0`. En una trama binaria un 0 es un dato válido. Y no empezar una trama nueva sin esperar a que `tx_completa` valga 1: los punteros y el contador son globales y se pisarían.
+
+### d) Tiempo de enviar 0x2000 bytes
+
+**Proceso.**
+
+1. `0x2000` en decimal son 8192 bytes.
+2. Cada byte son **11 bits**: start (1) + datos (8) + paridad (1) + stop (1). Es el error más típico: contar 10 como en 8N1 cuando hay paridad.
+3. Multiplica por el tiempo de bit con la velocidad **real** (111 607 baudios).
+
+**Solución.**
+
+$$
+t_{trama} = \frac{N \cdot n_{bits}}{V_{real}} = \frac{8192 \cdot 11}{111\,607} = 0{,}807 \text{ s}
+$$
+
+<Donde>
+
+- $t_{trama}$: tiempo que tarda en salir toda la trama por la línea (s).
+- $N$: número de bytes de la trama (8192).
+- $n_{bits}$: bits que ocupa cada byte en la línea (11).
+- $V_{real}$: velocidad real de la UART (baudios).
+
+</Donde>
+
+Con la velocidad nominal (115 200) saldrían 0,782 s: 25 ms menos, por eso conviene usar la real. Ese tiempo es el de la línea; la llamada a `tx_trama_uart3` en sí vuelve enseguida, porque solo escribe el primer byte.
+
+## Cuestión 2: red de termostatos DS1621
+
+El diagrama (figura de abajo) muestra tres sensores DS1621 con sus patillas de dirección A0, A1 y A2 parcialmente conectadas, y el bus I²C del microcontrolador en los pines **P0.0 y P0.1**. Se pide:
+
+1. Completar las conexiones.
+2. Escribir `i2C_set_termostato(char sensor, char TH, char TL)`, que fija las temperaturas **TH** y **TL** (con resolución de 1 grado) del termostato `sensor` (1, 2 o 3).
+
+Se dispone de cuatro funciones: `I2CSendAddr(addr, rw)`, `I2CSendByte(byte)`, `I2CGetByte(ACK)` y `I2CSendStop()`. El Anexo 2 trae la tabla de comandos del DS1621.
+
+<Figura src={fig3} alt="Tres sensores DS1621 numerados 1, 2 y 3, cada uno con VCC a 5 V, GND y sus patillas A0, A1 y A2 parcialmente unidas entre sí o a masa; las líneas SDA, SCL y Tout están sin conectar" pie="Figura del enunciado: los tres DS1621 con las patillas de dirección ya cableadas de forma distinta en cada uno y el bus por completar." />
+
+### Qué hay que saber antes
+
+**I²C en tres líneas.** Es un bus serie de dos hilos, **SDA** (datos) y **SCL** (reloj), al que se conectan varios dispositivos. Cada uno tiene una **dirección de 7 bits**; el maestro (aquí, el LPC1768) empieza con una condición *START*, manda la dirección y un bit R/W (0 = escribir), y cada byte lo confirma el esclavo con un *ACK*. Termina con *STOP*. Las dos líneas son de colector abierto, así que necesitan una **resistencia de pull-up** a la alimentación (4,7 kΩ en la figura). En el LPC1768, P0.0 es SDA1 y P0.1 es SCL1: se usa el controlador I²C1.
+
+**El DS1621.** Es un termómetro con termostato: tiene dos registros de umbral, **TH** (alto) y **TL** (bajo), y la salida `Tout` se activa según la temperatura. Su dirección de 7 bits es **1001 A2 A1 A0**, o sea `0x48 + A2A1A0`, y las patillas A se cablean a masa (0) o a 5 V (1). Del Anexo 2 (la tabla de la figura de abajo) interesan dos comandos: `0xA1` para acceder a TH y `0xA2` para acceder a TL, seguidos de los datos que se escriben.
+
+<Figura src={fig7} alt="Tabla 3 del DS1621 con las instrucciones Read Temperature, Read Counter, Read Slope, Start Convert T, Stop Convert T, Access TH, Access TL y Access Config con su código en hexadecimal" pie="Anexo 2 del enunciado: conjunto de comandos del DS1621. Access TH = A1h, Access TL = A2h." />
+
+### a) Cableado y direcciones
+
+**Proceso.**
+
+1. **Un único bus.** Los tres sensores comparten las mismas SDA y SCL: la patilla 1 (SDA) de cada sensor va a P0.0 y la 2 (SCL) a P0.1.
+2. **Pull-ups.** Una resistencia de 4,7 kΩ de SDA a 5 V y otra de SCL a 5 V (se ponen una sola vez para todo el bus).
+3. **Direcciones.** El enunciado ya trae cableadas las patillas A0, A1 y A2: lo que hay que **leer** es qué valor da cada una, porque eso fija la dirección:
+
+| Sensor | A2 A1 A0 (según la figura) | Dirección de 7 bits |
+|---|---|---|
+| 1 | 1 1 1 (las tres a 5 V) | `0x4F` |
+| 2 | 0 0 0 (las tres a masa) | `0x48` |
+| 3 | 0 1 1 (A2 a masa, A1 y A0 a 5 V) | `0x4B` |
+
+Las tres son distintas, así que los tres sensores se pueden direccionar por separado en el mismo bus.
+
+**Solución.** La figura de la solución añade las líneas de SDA y SCL (en rojo) para los sensores 2 y 3 y las resistencias de pull-up:
+
+<Figura src={fig4} alt="Los tres DS1621 con los hilos de SDA y SCL de los sensores 2 y 3 conectados en paralelo con los del sensor 1 a P0.0 y P0.1, con dos resistencias de 4,7 kΩ a 5 V, y las patillas de dirección unidas a 5 V o a masa" pie="Figura de la solución oficial: bus compartido con dos pull-ups de 4,7 kΩ; el sensor 1 tiene las tres patillas A a 5 V, el 2 a masa y el 3 con A2 a masa y A1, A0 a 5 V." />
+
+**La trampa.** Armar mal el número de A2 A1 A0. A2 es el bit de más peso y A0 el de menos. En los sensores 1 y 2 las tres patillas valen lo mismo y no se nota, pero en el 3 sí: A2 a masa y A1, A0 a 5 V es `011`, no `110`.
+
+### b) La función
+
+**Proceso.**
+
+1. Según el número de sensor se elige la dirección: 1 → `0x4F`, 2 → `0x48`, 3 → `0x4B`.
+2. Para escribir en un registro del DS1621 la secuencia es: *START*, dirección con R/W = 0, **comando** (`0xA1` para TH o `0xA2` para TL), **datos** y *STOP*.
+3. Los datos de TH y TL son de 9 bits: el **byte alto** es la parte entera con signo, en complemento a 2 (por eso el argumento es un `char`: una temperatura negativa funciona sin más), y el bit más alto del **byte bajo** es el medio grado. Con resolución de 1 grado el medio grado vale 0.
+
+**Solución.** La solución oficial repite el mismo bloque tres veces, una por sensor, mandando un único byte de datos. Esta versión equivalente elige la dirección una vez:
+
+```c
+void i2c_set_termostato(char sensor, char TH, char TL)
+{
+    unsigned char dir;
+
+    switch (sensor) {
+        case 1:  dir = 0x4F; break;   // A2 A1 A0 = 111
+        case 2:  dir = 0x48; break;   // A2 A1 A0 = 000
+        case 3:  dir = 0x4B; break;   // A2 A1 A0 = 011
+        default: return;              // sensor que no existe
+    }
+
+    I2CSendAddr(dir, 0);   // START + dirección + escritura
+    I2CSendByte(0xA1);     // comando: acceder a TH
+    I2CSendByte(TH);       // byte alto: grados enteros con signo
+    I2CSendByte(0x00);     // byte bajo: 0,0 grados de fracción
+    I2CSendStop();
+
+    I2CSendAddr(dir, 0);
+    I2CSendByte(0xA2);     // comando: acceder a TL
+    I2CSendByte(TL);
+    I2CSendByte(0x00);
+    I2CSendStop();
+}
+```
+
+> **Ojo: diferencias con la solución oficial.** (1) La solución manda **un solo byte** de datos tras el comando y no el byte bajo. El diagrama del Anexo 2 («Write to a two-byte register») muestra *dos* bytes de datos, MSB y LSB, antes del STOP. Con un único byte es posible que el chip no llegue a registrar el valor; por seguridad se manda también el `0x00` del byte bajo. (2) La solución encadena las dos escrituras sin `I2CSendStop()` entre ellas: la segunda `I2CSendAddr` actúa de *START repetido*. Lo más seguro es un STOP entre ambas. (3) Según la hoja de datos completa del DS1621 (no está en el Anexo), TH y TL se guardan en una EEPROM interna y cada escritura tarda unos milisegundos; conviene dejar pasar un tiempo antes de acceder otra vez al chip. Los tres puntos son mejoras de robustez: la solución oficial es la que se pide en el examen.
+
+**La trampa.** Mandar la dirección de 8 bits en lugar de la de 7. Las funciones del enunciado reciben la dirección de 7 bits (`0x4F`) y el bit R/W por separado. Y los nombres de los comandos: TH es `0xA1` y TL es `0xA2`, no al revés.
+
+## Cuestión 3: arbitración por interrupción de una memoria Dual-Port
+
+Se pide explicar el método de **arbitración por interrupción** de las memorias Dual-Port y justificarlo sobre el esquema. El bloque está mapeado en `0x9000.0000` y cada chip tiene **256 kB**.
+
+<Figura src={fig5} alt="Cuatro chips de memoria Dual-Port numerados 4N, 4N+1, 4N+2 y 4N+3. Cada uno tiene dos puertos con señales de habilitación /CE_L y /CE_R; el chip 4N+3 tiene además /INT_L e /INT_R. La CPU izquierda y la derecha usan /EMC_CS1 con ancho de 32 bits y cada una tiene una línea /EINT1" pie="Figura del enunciado: cuatro chips Dual-Port en paralelo para formar un bus de 32 bits, con las dos CPU y las señales de interrupción en el chip 4N+3." />
+
+### Qué hay que saber antes
+
+Una memoria **Dual-Port** tiene dos puertos independientes (izquierdo y derecho), cada uno con su bus de direcciones, de datos y de control, sobre las mismas celdas. Dos procesadores comparten así una memoria sin pasar por un único bus. Eso resuelve el acceso, pero no la **comunicación**: ¿cómo sabe una CPU que la otra le ha dejado un mensaje? Ahí entra la arbitración por interrupción.
+
+### Proceso
+
+1. **Cómo se forma el bloque.** Cada chip tiene 256 kB y es de 8 bits. Cuatro chips en paralelo (4N, 4N+1, 4N+2 y 4N+3) dan un bus de **32 bits** (el modo `MW = 02` de `EMC_CS1`), y cada chip aporta un byte de cada palabra de 4. El tamaño total es $4 \times 256$ kB = **1 MB**, es decir las direcciones `0x9000.0000` a `0x900F.FFFF`.
+2. **Dónde está la señal de interrupción.** Solo el chip **4N+3** (el que aporta el byte más alto de cada palabra) tiene sus patillas `/INT_L` e `/INT_R` conectadas. `/INT_L` va a la entrada de interrupción externa `/EINT1` de la CPU izquierda e `/INT_R` a la `/EINT1` de la CPU derecha.
+3. **Qué posiciones se usan.** Cada chip reserva sus **dos últimas posiciones** como «buzones» de interrupción. Son las posiciones `0x3FFFF` y `0x3FFFE` del chip. Como el chip 4N+3 aporta el byte 3 de cada palabra, la dirección que ve la CPU es 4 veces la posición del chip más 3:
+   - posición `0x3FFFF` del chip: $4 \cdot \text{0x3FFFF} + 3 = \text{0xFFFFF}$, es decir `0x9000.0000 + 0xFFFFF = 0x900F.FFFF`;
+   - posición `0x3FFFE` del chip: $4 \cdot \text{0x3FFFE} + 3 = \text{0xFFFFB}$, es decir `0x900F.FFFB`.
+4. **El mecanismo, en cuatro pasos:**
+   - La CPU izquierda **escribe** en `0x900F.FFFF`. El chip activa (pone a 0) `/INT_R`, que interrumpe a la CPU derecha.
+   - La CPU derecha, en su rutina de interrupción, **lee** `0x900F.FFFF`. Esa lectura desactiva (vuelve a 1) `/INT_R`.
+   - En sentido contrario, la CPU derecha **escribe** en `0x900F.FFFB` e interrumpe a la izquierda por `/INT_L`.
+   - La CPU izquierda **lee** `0x900F.FFFB` y se desactiva `/INT_L`.
+
+   Es decir: **escribir en el buzón ajeno avisa, leer el propio buzón confirma.** El dato escrito en el buzón no importa: el aviso es el hecho de escribir.
+
+### Solución (resumen para escribir en el examen)
+
+- Bloque de 1 MB, con 4 chips de 256 kB en paralelo para formar 32 bits: `0x9000.0000` a `0x900F.FFFF`.
+- Las interrupciones usan las dos últimas posiciones del chip 4N+3: `0x900F.FFFF` (la escribe la izquierda y avisa a la derecha) y `0x900F.FFFB` (la escribe la derecha y avisa a la izquierda).
+- Cada CPU lee en su rutina de interrupción la posición que acaba de activarla; así se desactiva su `/INT` y queda en reposo (nivel alto).
+
+> **Ojo: errata en la solución oficial.** La solución calcula bien «256 kB × 4 chips = 1 MB (0 a `0xFFFFF`)» pero a continuación dice que el espacio de direcciones es de **512 kB** (`0x9000.0000` a `0x900F.FFFF`). Ese rango son **1 MB** (`0x100000` = 1 048 576 bytes): lo correcto es 1 MB.
+
+**La trampa.** Olvidar que el aviso se **limpia con una lectura**. Si la rutina de interrupción de la CPU receptora no lee el buzón, `/INT` sigue a 0 y la interrupción vuelve a saltar sin parar (si la entrada es sensible a nivel). Y confundir qué CPU activa qué señal: escribir en tu buzón de salida activa la interrupción del **otro**.
+
+## Cuestión 4: T y D de seis tareas
+
+Con un LPC1768 a 100 MHz, para cada tarea se pide **T y D** y **justificar** con qué subsistema interno se haría y en qué modo, teniendo en cuenta que «es un único microcontrolador con recursos limitados»:
+
+- a) Señal cuadrada con ciclo de trabajo del 50 % y frecuencia variable entre 1 kHz y 100 kHz.
+- b) PWM de 10 kHz con ciclo de trabajo entre el 10 % y el 90 %.
+- c) PWM de 5 kHz con ciclo de trabajo entre el 10 % y el 90 %.
+- d) Reproducción repetida de un mensaje de audio de 10 s a 8 kHz con muestras de 10 bits, **con DMA**.
+- e) Grabación de dos canales de audio a 8 kHz durante 1 s cuando lo pida el usuario.
+- f) Recepción de datos a 38 400 baudios por la UART3.
+
+### Qué hay que saber antes
+
+El [tema de ejecutabilidad](../ejecutabilidad/) explica qué es T (periodo mínimo entre eventos), D (plazo) y que **solo es tarea lo que ejecuta la CPU**: lo que hace el hardware solo (el módulo PWM, una cadena de DMA) no lo es. Para elegir el subsistema, mira [Timers y Match](../timers-match/), [PWM](../pwm-servos/), [DMA](../dma/), [ADC](../adc-dac/) y [UART](../uart/).
+
+### a) Cuadrada de 1 a 100 kHz, sin PWM
+
+**Proceso.**
+
+1. Con ciclo del 50 % cada **flanco** ocurre cada medio periodo. Hay que cambiar el pin dos veces por periodo.
+2. Se usa un **Timer en modo Match con conmutación (toggle) del pin** (`MAT0.0`), sin poner a cero el contador. En la interrupción de ese Match se suma al registro `MR0` el siguiente medio periodo (`MR0 += medio_periodo`), que es lo que permite variar la frecuencia.
+3. El caso más exigente es la frecuencia más alta: a 100 kHz el periodo es 10 µs y el medio periodo **5 µs**.
+
+**Solución.** Subsistema: Timer0 con Match en modo *toggle* e interrupción.
+
+$$
+T_a = D_a = \frac{1}{2 \cdot f_{max}} = \frac{1}{2 \cdot 100\,000} = 5\ \mu s
+$$
+
+<Donde>
+
+- $T_a$: tiempo mínimo entre dos interrupciones de la tarea (s).
+- $D_a$: plazo para actualizar `MR0`; si se pasa, el flanco sale tarde (s).
+- $f_{max}$: frecuencia máxima de la cuadrada (Hz).
+
+</Donde>
+
+**La trampa.** Dividir por la frecuencia en vez de por **dos veces** la frecuencia: hay una interrupción por flanco, no por periodo.
+
+### b) PWM de 10 kHz con el Timer
+
+**Proceso.** Es el mismo mecanismo que en a), pero con un ciclo de trabajo variable: el pin se pone a 1 en un Match y a 0 en el siguiente (`MAT0.1`), y la ISR suma alternativamente el tiempo en alto (TH) o el tiempo en bajo (TL). El intervalo **más corto** entre dos interrupciones es el del ciclo más pequeño: el 10 % de 100 µs.
+
+**Solución.** Subsistema: Timer0 con `MAT0.1` e interrupción.
+
+$$
+T_b = D_b = 0{,}10 \cdot \frac{1}{10\,000} = 10\ \mu s
+$$
+
+<Donde>
+
+- $T_b$: tiempo mínimo entre dos interrupciones (s).
+- $D_b$: plazo para recargar el Match (s).
+- El ciclo mínimo es el 10 %, y 10 kHz da un periodo de 100 µs.
+
+</Donde>
+
+### c) PWM de 5 kHz con el módulo PWM
+
+Con el **módulo PWM** la señal la genera el hardware: el periodo está en `MR0` y la anchura en `MRx`, y la CPU no tiene que hacer nada en cada periodo (solo escribe el `MRx` nuevo y `LER` cuando cambia el ciclo, y eso no es una tarea periódica). **No hay tarea**, luego no hay T ni D.
+
+**Por qué b) con Timer y c) con PWM.** Es lo que hace el «único microcontrolador con recursos limitados»: el módulo PWM tiene **un solo periodo (`MR0`) para todos sus canales**, así que no puede dar a la vez 10 kHz y 5 kHz. Una de las dos se hace con el módulo PWM y la otra con un Timer. La solución oficial pone el Timer en la de 10 kHz y el PWM en la de 5 kHz.
+
+> **Nota nuestra (no consta en la solución oficial).** Desde el punto de vista de la carga de la CPU sería mejor lo contrario: dejar los 10 kHz al módulo PWM (cero ISR) y hacer los 5 kHz con el Timer, con $T = D = 0{,}10 \cdot 200\ \mu s = 20\ \mu s$, el doble de holgado. El examen no pide justificar la elección, pero si lo razonas así es igualmente válido.
+
+### d) Audio de 10 s con DMA, repetido
+
+**Proceso.**
+
+1. Si el mensaje está en la Flash, el DMA lo copia al **DAC** sin que la CPU intervenga. El ritmo de 8 kHz lo marca el temporizador del propio DAC (`DACCNTVAL`, del orden de 25 MHz / 8 kHz ≈ 3125 ciclos de reloj) con la petición de DMA habilitada.
+2. Tamaño: $10\ \text{s} \cdot 8000\ \text{muestras/s} = 80\,000$ muestras. Un descriptor de DMA solo transfiere hasta **4095** muestras (`TransferSize` tiene 12 bits), así que hacen falta al menos 20 bloques (por ejemplo, 20 bloques de 4000 muestras).
+3. Para repetir **sin la CPU**, los bloques se encadenan en una **lista de descriptores** (*linked list*): cada descriptor apunta al siguiente y el **último apunta al primero**. Así el DMA da vueltas por sí solo.
+
+**Solución.** Subsistema: GPDMA con lista de descriptores circular y el DAC como destino. **No hay tarea**: no hay T ni D, porque la CPU no ejecuta nada en cada bloque. Si en lugar de la lista se reconfigurase el DMA en la interrupción de «fin de bloque» (cada 4000/8000 = 0,5 s), entonces sí habría una tarea.
+
+**La trampa.** Olvidar el límite de 4095 muestras por transferencia, y pensar que «repetir» necesita una interrupción: con descriptores enlazados en bucle no la necesita.
+
+### e) Grabar dos canales a 8 kHz durante 1 s
+
+**Proceso.**
+
+1. El LPC1768 tiene **un solo convertidor ADC** con varios canales multiplexados, así que «dos canales a la vez» no puede ser simultáneo en sentido estricto: se convierten uno tras otro. La solución oficial lo dice y propone la interpretación razonable: leer los dos canales constantemente (ADC0 y ADC1) en **modo ráfaga** (*burst*).
+2. Cada canal debe muestrearse a 8 kHz, es decir, cada $1/8000 = 125\ \mu s$. En ráfaga el ADC convierte un canal y luego el otro, así que **cada conversión** debe durar $125/2 = 62{,}5\ \mu s$. Eso se logra eligiendo el divisor del reloj del ADC.
+3. No hace falta señal de inicio de conversión (la ráfaga va sola), pero sí **una interrupción** para ir recogiendo los datos. Basta habilitar la del canal 1 (`ADINTEN`): cuando acaba, ya están los dos, y la ISR lee `AD0DR0` y `AD0DR1`.
+4. La ISR cuenta rondas y para la grabación al cabo de 1 s: **8000 rondas** (8000 muestras por canal).
+
+**Solución.** Subsistema: ADC en modo ráfaga con interrupción del canal 1.
+
+$$
+T_e = \frac{1}{f_s} = 125\ \mu s \qquad D_e = \frac{125\ \mu s}{2} = 62{,}5\ \mu s
+$$
+
+<Donde>
+
+- $T_e$: tiempo entre dos interrupciones, una por ronda de dos canales (s).
+- $D_e$: plazo para leer el canal 0 antes de que lo pise su siguiente conversión (s).
+- $f_s$: frecuencia de muestreo de cada canal (8 kHz).
+
+</Donde>
+
+Por qué $D$ es la mitad: la interrupción salta al acabar el canal 1. El canal 0 acabó 62,5 µs antes y su siguiente conversión terminará 62,5 µs después, así que su lectura tiene que estar hecha antes de eso.
+
+Si te piden el divisor (cuenta nuestra): con $t_{conv} = 65/F_{ADC} = 62{,}5\ \mu s$, $F_{ADC} \approx 1{,}04$ MHz. Con un reloj de periférico de 25 MHz, `CLKDIV = 23` da $F_{ADC} = 25/24 = 1{,}042$ MHz, y cada canal se muestrea a unos 8013 Hz.
+
+> **Ojo: errata en la solución oficial.** Dice que la ISR detiene la grabación «al cabo de 8000·10 muestras (1 segundo)». 8000 muestras por segundo y por canal son **8000 muestras** (16 000 conversiones entre los dos canales), no 80 000. El «·10» parece arrastrado de los 10 s del apartado d.
+
+**La trampa.** Dos. Dar por hecho que el ADC convierte los dos canales a la vez, y poner $D = T$: la lectura del canal 0 tiene que estar antes que la siguiente conversión, la mitad del tiempo.
+
+### f) Recepción a 38 400 baudios por la UART3
+
+**Proceso.**
+
+1. Cada byte recibido genera una interrupción `RDA`. El caso más rápido es que lleguen bytes **seguidos**: una interrupción por cada trama de byte.
+2. La duración de la trama depende del formato. El enunciado de esta cuestión no lo da; la solución usa **11 bits** (start + 8 datos + paridad + stop), el formato de la cuestión 1.
+3. Hay que leer el byte antes de que llegue el siguiente (si no, se pierde): $D = T$.
+
+**Solución.** Subsistema: UART3 con interrupción de recepción.
+
+$$
+T_f = D_f = \frac{n_{bits}}{V} = \frac{11}{38\,400} = 0{,}286\ \text{ms}
+$$
+
+<Donde>
+
+- $T_f$: tiempo mínimo entre dos bytes recibidos (s).
+- $D_f$: plazo para leer el byte (s).
+- $n_{bits}$: bits por byte en la línea (11 con paridad).
+- $V$: velocidad (baudios).
+
+</Donde>
+
+Si el formato fuese 8N1 (10 bits) saldrían 0,260 ms. Conviene **escribir en el examen el formato que supones**.
+
+**La trampa.** Usar 8 bits en lugar de los de la trama completa, que incluye start, paridad y stop.
+
+## Cuestión 5: ejecutabilidad con regiones críticas
+
+Cuatro tareas (el enunciado dice «tres tareas» pero la tabla trae cuatro), en ms, con una región crítica de 3 ms en la tarea 4 y otra de 1 ms en el programa principal:
+
+| Tarea | Prioridad | Subprioridad | C | T | D |
+|---|---|---|---|---|---|
+| 1 | 0 | 0 | 1 | 5 | 5 |
+| 2 | 0 | 1 | 2 | 10 | 5 |
+| 3 | 1 | 0 | 5 | 30 | 30 |
+| 4 | 1 | 1 | 10 | 30 | 30 |
+
+Se pide: a) ¿es ejecutable? b) Si lo es, la duración máxima de una región crítica del programa principal que lo seguiría permitiendo; **si no lo es**, la duración máxima de la región crítica de la tarea 4 que lo haría ejecutable.
+
+### Qué hay que saber antes
+
+Todo está en el [tema de ejecutabilidad](../ejecutabilidad/): $R = C + B + I$, bloqueo $B$ como el **máximo** de las fuentes de bloqueo, interferencia $I$ como suma de $\lceil R/T_j \rceil C_j$, y la regla de las tareas del **mismo nivel** de prioridad (no se interrumpen entre sí; la de menor número de subprioridad solo se cuela si llega antes de que la otra empiece, con $\lceil (R - C)/T_j \rceil$).
+
+### a) ¿Es ejecutable?
+
+**Proceso.**
+
+1. **Niveles.** Las tareas 1 y 2 son del nivel 0 y las 3 y 4 del nivel 1. Las del nivel 0 **interrumpen** a las del nivel 1. Entre las dos del mismo nivel **no** hay interrupción.
+2. **Bloqueo.** Una tarea puede quedar bloqueada por una región crítica (3 ms en la tarea 4, 1 ms en el `main`) o por una tarea del mismo nivel que ya está ejecutándose.
+3. Se calcula $R_i$ de cada tarea y se compara con $D_i$. Basta que **una** falle para que no sea ejecutable. La más justa es la tarea 2, con $D = 5$.
+
+**Tarea 1** (nivel 0, subprioridad 0).
+
+- Nada más prioritario: $I_1 = 0$.
+- Bloqueo: la región crítica de 3 ms de la tarea 4, la de 1 ms del `main` y la tarea 2 (mismo nivel, no se interrumpen: $C_2 = 2$). $B_1 = \max\{3, 1, 2\} = 3$.
+- $R_1 = 1 + 3 + 0 = 4\ \text{ms} \le D_1 = 5$. **Cumple.**
+
+**Tarea 2** (nivel 0, subprioridad 1).
+
+- Bloqueo: la tarea 1 es del mismo nivel y más prioritaria, no es bloqueo sino interferencia. $B_2 = \max\{3, 1\} = 3$.
+- Interferencia: la tarea 1 (mismo nivel, no puede interrumpir): $\lceil (R_2 - C_2)/T_1 \rceil \cdot C_1 = \lceil (R_2 - 2)/5 \rceil \cdot 1$.
+- Iteración: $R^{(0)} = C_2 + B_2 = 5$; con 5: $\lceil 3/5 \rceil \cdot 1 = 1$ → $R^{(1)} = 6$; con 6: $\lceil 4/5 \rceil \cdot 1 = 1$ → 6 (igual).
+- $R_2 = 6\ \text{ms} > D_2 = 5$. **No cumple.**
+
+**El sistema no es ejecutable.**
+
+**La trampa.** Tratar a la tarea 1 como si pudiera interrumpir a la 2 (usando $R$ en lugar de $R - C$ en la interferencia). Y la de siempre: que la región crítica de la **tarea 4** (de menor prioridad) bloquee a las de arriba: mientras dura, ni siquiera la tarea 1 puede entrar.
+
+### b) Mayor región crítica de la tarea 4 que lo hace ejecutable
+
+**Proceso.**
+
+1. La que falla es la tarea 2, con $B_2 = \max\{RC_4, 1\}$. Con $RC_4$ = la región crítica de la tarea 4 (en ms), se exige $R_2 \le 5$:
+
+$$
+R_2 = C_2 + B_2 + I_2 = 2 + B_2 + 1 \le 5 \;\Rightarrow\; B_2 \le 2 \;\Rightarrow\; RC_4 \le 2\ \text{ms}
+$$
+
+<Donde>
+
+- $R_2$: tiempo de respuesta de la tarea 2 (ms).
+- $C_2 = 2$: su duración.
+- $B_2$: su bloqueo, el mayor entre $RC_4$ y los 1 ms del `main`.
+- $I_2 = 1$: la interferencia de la tarea 1 (una vez, de 1 ms, porque $R_2 - C_2 \le 5$).
+
+</Donde>
+
+2. **Hay que volver a comprobar las otras tres** con $RC_4 = 2$ ms, porque al cambiar la región crítica pueden cambiar sus bloqueos.
+
+**Tarea 1.** $B_1 = \max\{2, 1, 2\} = 2$; $R_1 = 1 + 2 = 3 \le 5$. Cumple (más holgado que antes).
+
+**Tarea 2.** $R_2 = 2 + 2 + 1 = 5 \le 5$. Cumple justo.
+
+**Tarea 3** (nivel 1, subprioridad 0). Interfieren las dos del nivel 0 (la 1 y la 2 la interrumpen). Bloqueo: la tarea 4, del mismo nivel y que no se puede interrumpir, con $C_4 = 10$ (el `main`, con 1 ms, es menor): $B_3 = 10$.
+
+$$
+R_3 = 5 + 10 + \left\lceil \frac{R_3}{5} \right\rceil \cdot 1 + \left\lceil \frac{R_3}{10} \right\rceil \cdot 2
+$$
+
+$R^{(0)} = 15$ → con 15: $3 + 2 \cdot 2 = 7$ → 22 → con 22: $5 + 3 \cdot 2 = 11$ → 26 → con 26: $6 + 3 \cdot 2 = 12$ → 27 → con 27: $6 + 6 = 12$ → 27 (igual). $R_3 = 27 \le 30$. Cumple.
+
+**Tarea 4** (nivel 1, subprioridad 1). Es la menos prioritaria. Bloqueo: la región crítica del `main`: $B_4 = 1$. Interfieren las tareas 1 y 2 (más nivel) y la 3 (mismo nivel, solo se cuela antes de que la 4 empiece).
+
+$$
+R_4 = 10 + 1 + \left\lceil \frac{R_4}{5} \right\rceil \cdot 1 + \left\lceil \frac{R_4}{10} \right\rceil \cdot 2 + \left\lceil \frac{R_4 - 10}{30} \right\rceil \cdot 5
+$$
+
+<Donde>
+
+- $R_4$: tiempo de respuesta de la tarea 4 (ms).
+- Cada sumando después del 11 es la interferencia de una tarea más prioritaria: $\lceil R_4/T_j \rceil \cdot C_j$ para la 1 ($T = 5$, $C = 1$) y la 2 ($T = 10$, $C = 2$), y con $R_4 - C_4$ para la 3 ($T = 30$, $C = 5$).
+
+</Donde>
+
+$R^{(0)} = 11$ → con 11: $3 + 4 + 5 = 12$ → 23 → con 23: $5 + 6 + 5 = 16$ → 27 → con 27: $6 + 6 + 5 = 17$ → 28 → con 28: $6 + 6 + 5 = 17$ → 28 (igual). $R_4 = 28 \le 30$. Cumple.
+
+**Solución.** Con una región crítica de la tarea 4 de **2 ms** (como máximo) el sistema es ejecutable: $R_1 = 3$, $R_2 = 5$, $R_3 = 27$ y $R_4 = 28$ ms.
+
+> **Ojo: erratas menores en la solución oficial.** En la iteración de la tarea 3 escribe $15 + 4 + 2 \cdot 3 = 25$ al evaluar con 23, pero $\lceil 23/5 \rceil = 5$ y daría 26. Los siguientes pasos se desplazan una posición, pero el resultado final (27) es el mismo. En la tarea 4 añade un paso final repetido («$w_2$») sin consecuencia. Los resultados finales (3 ms, 5, 27, 28) son correctos.
+
+**La trampa.** Dos. No re-comprobar las otras tareas tras bajar la región crítica (aquí no cambia nada, pero en general sí), y para la tarea 3 usar la región crítica de la tarea 4 (2 ms) como bloqueo: manda $C_4 = 10$, porque la tarea 4 no se puede interrumpir.
+
+## Cuestión 6: ¿qué es un DSP?
+
+*Resuelto por nosotros, no consta en la solución oficial (solo dice «ver teoría»).*
+
+Un **DSP** (*Digital Signal Processor*) es un procesador diseñado para ejecutar muy rápido y de forma predecible el **procesado digital de señales**: filtros, transformadas, correlaciones… Esas operaciones se reducen casi siempre a **sumas de productos** sobre flujos de muestras ($y = \sum a_k x_k$), y un DSP está construido para eso.
+
+Características fundamentales:
+
+- **Multiplicador-acumulador (MAC)** en hardware: una multiplicación y una suma por ciclo.
+- **Arquitectura Harvard** (memorias separadas de programa y de datos, con varios buses) para leer instrucción y operandos a la vez.
+- **Generadores de direcciones propios**, con direccionamiento **circular** (para buffers de muestras) y de **bit invertido** (para la FFT).
+- **Bucles sin sobrecarga** (*zero-overhead loops*) por hardware, sin gastar ciclos en contar.
+- **Aritmética de saturación** y, según el modelo, de coma fija o de coma flotante.
+- Ejecución **determinista** y respuesta rápida a las interrupciones, para trabajar en tiempo real.
+
+Frente a un microcontrolador como el LPC1768, que reúne CPU y muchos periféricos, el DSP da más rendimiento aritmético a costa de menos periféricos integrados. Se usa en audio, comunicaciones, radar o control de motores.
+
+## Cuestión 7: ventajas e inconvenientes de un RTOS
+
+*Resuelto por nosotros, no consta en la solución oficial (solo dice «ver teoría»).*
+
+Un **sistema operativo de tiempo real** (RTOS) reparte la CPU entre varias **tareas** según su prioridad, con un tiempo de respuesta acotado. Para un proyecto como el de la asignatura (sensores, servos, audio y comunicaciones sobre un LPC1768):
+
+**Ventajas**
+
+- **Concurrencia ordenada:** cada función (leer el sensor, atender la UART, mover el servo) es una tarea independiente, en lugar de una maraña de interrupciones y banderas.
+- **Respuesta acotada:** el planificador por prioridades da tiempos de respuesta analizables.
+- **Herramientas listas:** retardos, temporizadores, semáforos, colas y exclusión mutua para sincronizar tareas y compartir datos.
+- **Modularidad y reutilización:** el código se organiza por tareas y es más fácil de ampliar y repartir en equipo.
+
+**Inconvenientes**
+
+- **Consume recursos:** memoria de programa, RAM (cada tarea tiene su pila) y tiempo de CPU en los cambios de contexto.
+- **Menos control temporal fino:** a escala de microsegundos, una ISR directa suele ser más precisa y ligera.
+- **Nuevos errores posibles:** inversión de prioridades, bloqueos mutuos (*deadlock*) y condiciones de carrera.
+- **Curva de aprendizaje y depuración** más difíciles.
+
+Para un sistema pequeño con pocos eventos (como un esquema de interrupciones más máquinas de estados), un RTOS puede ser más de lo necesario; a partir de cierta cantidad de tareas independientes compensa.
+
+## Cuestión 8: statechart para decodificar tramas
+
+Varias tarjetas con un LPC1768 y 8 indicadores luminosos cuelgan de una misma línea serie por la UART0 (el RX de todas está conectado a la salida del ordenador). El ordenador manda tramas con este formato (cada elemento es un byte):
+
+`1 Dirección` · `0 Comando` · `0 Datos1` · `0 Datos2` (los datos existen según el comando)
+
+- **Dirección:** bit 7 a 1 y, en los 4 bits bajos, la dirección de la tarjeta (0 a 15), que debe coincidir con los micro-interruptores. **La dirección 0 es de difusión**: la atienden todas.
+- **Comando** (bit 7 a 0): `TODOS_ON` y `TODOS_OFF` (sin datos), `UNO_ON` y `UNO_OFF` (seguidos del número de indicador) y `SET_VALOR` (seguido de **dos bytes**: los 4 bits bajos del primero son el estado de 4 indicadores y los 4 bits bajos del segundo, el de los otros 4).
+- Los datos también llevan el bit 7 a 0, así que un byte con el bit 7 a 1 siempre es una dirección.
+- Un valor incoherente: se ignora la trama y se incrementa la variable `error`.
+
+Funciones ya escritas: `TodosOn()`, `TodosOff()`, `UnoOn(int)`, `UnoOff(int)`, `SetValor(int)` (usa los 8 bits bajos), `leeDireccion()` (4 bits bajos, la de los micro-interruptores) y `configPS()`. El programa principal es un `while(1);` vacío. Se pide: a) el **statechart** dentro de la interrupción de la UART; b) el código.
+
+### Qué hay que saber antes
+
+El [tema de máquinas de estados](../maquinas-estados/) explica estados, transiciones y estados jerárquicos; el [tema de la UART](../uart/), la ISR con `IIR` (`RDA` = dato recibido, se lee en `RBR`). Idea de partida: la ISR se ejecuta **una vez por byte** y no puede quedarse esperando, así que lo que recuerda «por dónde va la trama» es una variable de estado `static` que **se conserva entre interrupciones**.
+
+### Proceso
+
+1. **Qué distingue a un byte.** Si el bit 7 vale 1 es una dirección; si vale 0, es un comando o un dato, según el estado en que estés.
+2. **Primer estado: `EsperaDireccion`.** Mientras no llegue una dirección **propia** (la de los micro-interruptores o la 0), se ignoran todos los bytes: son de las tramas de las demás tarjetas y no son un error.
+3. **Al llegar mi dirección** se pasa a `EsperandoDatos`, que es un estado **jerárquico**: dentro tiene subestados para cada momento de la trama. Empieza en `EsperaComando`.
+4. **`EsperaComando`:**
+   - `TODOS_ON` o `TODOS_OFF`: se ejecuta y se vuelve a `EsperaDireccion`.
+   - `UNO_ON` y `UNO_OFF`: se pasa a `EsperaUnoOn` o `EsperaUnoOff`, que esperan **un** byte con el número de indicador (de 0 a 7).
+   - `SET_VALOR`: se pasa a `EsperaValor1` y luego `EsperaValor2`, que esperan **dos** bytes de 4 bits cada uno (menores que 16).
+   - Cualquier otra cosa: `error++` y de vuelta a `EsperaDireccion`.
+5. **Una transición común al estado jerárquico.** Si en cualquier subestado llega un byte con el bit 7 a 1 es una **nueva dirección**, lo que significa que la trama anterior se quedó a medias: `error++` y se vuelve a decidir (si es mía, de nuevo `EsperaComando`; si no, `EsperaDireccion`). Esa es la razón de ser del superestado: una sola transición que sale de todos los subestados.
+6. **Estado inicial** (arranque): `error = 0` y `TodosOff()`, que es lo que hace el `main` antes del `while(1)`.
+
+El statechart de la solución oficial:
+
+<Figura src={fig6} alt="Statechart con el estado EsperaDireccion a la izquierda y el superestado EsperandoDatos a la derecha, que contiene EsperaComando, EsperaUnoOn, EsperaUnoOff y EsperaValor con sus subestados EsperaValor1 y EsperaValor2; las flechas llevan condiciones como RBR igual a leeDireccion o 0x80, RBR igual a TODOS_ON y RBR mayor o igual que 16" pie="Statechart de la solución oficial. Los números junto a las flechas son el orden en que se evalúan las transiciones que salen de un mismo estado." />
+
+### a) y b) Solución
+
+Se ha reescrito el código aplanando los subestados en una sola variable de estado, con la transición común «llega una dirección» comprobada **antes** que el resto (así queda clara como transición del superestado). Los valores numéricos de los comandos no los da el enunciado (solo que tienen el bit 7 a 0): se definen aquí.
+
+```c
+#define TODOS_ON   0x01      // valores supuestos: el enunciado solo exige bit 7 = 0
+#define TODOS_OFF  0x02
+#define UNO_ON     0x03
+#define UNO_OFF    0x04
+#define SET_VALOR  0x05
+
+enum estado_t { ESPERA_DIR, ESPERA_CMD, ESPERA_UNO_ON, ESPERA_UNO_OFF,
+                ESPERA_VAL1, ESPERA_VAL2 };
+
+volatile unsigned int error;
+
+void main(void)
+{
+    configPS();              // configura la UART0 y habilita su interrupción
+    TodosOff();              // estado inicial: todo apagado
+    error = 0;
+    while (1);               // todo el trabajo se hace en la ISR
+}
+
+void UART0_IRQHandler(void)
+{
+    static enum estado_t estado = ESPERA_DIR;   // se conserva entre interrupciones
+    static unsigned int valor;                  // primer nibble de SET_VALOR
+    unsigned int rbr;
+
+    if ((LPC_UART0->IIR & 0x0E) != 0x04) return;   // solo nos interesa RDA
+    rbr = LPC_UART0->RBR;                          // leer RBR borra la interrupción
+
+    if (rbr & 0x80) {                         // byte de dirección (bit 7 = 1)
+        if (estado != ESPERA_DIR) error++;    // había una trama mía a medias
+        if (rbr == 0x80 || rbr == (0x80 | (leeDireccion() & 0x0F)))
+            estado = ESPERA_CMD;              // es para mí o es difusión (dirección 0)
+        else
+            estado = ESPERA_DIR;              // es para otra tarjeta
+        return;
+    }
+
+    switch (estado) {                         // byte con bit 7 = 0
+    case ESPERA_DIR:                          // bytes de tramas ajenas: se ignoran
+        break;
+
+    case ESPERA_CMD:
+        switch (rbr) {
+        case TODOS_ON:  TodosOn();  estado = ESPERA_DIR;     break;
+        case TODOS_OFF: TodosOff(); estado = ESPERA_DIR;     break;
+        case UNO_ON:    estado = ESPERA_UNO_ON;              break;
+        case UNO_OFF:   estado = ESPERA_UNO_OFF;             break;
+        case SET_VALOR: estado = ESPERA_VAL1;                break;
+        default:        error++;    estado = ESPERA_DIR;     break;   // comando inválido
+        }
+        break;
+
+    case ESPERA_UNO_ON:
+        if (rbr < 8) UnoOn(rbr); else error++;   // indicadores 0 a 7
+        estado = ESPERA_DIR;
+        break;
+
+    case ESPERA_UNO_OFF:
+        if (rbr < 8) UnoOff(rbr); else error++;
+        estado = ESPERA_DIR;
+        break;
+
+    case ESPERA_VAL1:
+        if (rbr < 16) { valor = rbr; estado = ESPERA_VAL2; }   // primer nibble
+        else          { error++;     estado = ESPERA_DIR;  }
+        break;
+
+    case ESPERA_VAL2:
+        if (rbr < 16) SetValor((valor << 4) | rbr);   // 4 bits + 4 bits = 8 indicadores
+        else          error++;
+        estado = ESPERA_DIR;
+        break;
+    }
+}
+```
+
+Ejemplo para comprobarlo: a la tarjeta 5, con `SET_VALOR = 0x05`, la trama `0x85, 0x05, 0x0A, 0x03` pasa por `ESPERA_DIR` → `ESPERA_CMD` → `ESPERA_VAL1` (valor = 0x0A) → `ESPERA_VAL2` (llama a `SetValor(0xA3)`) → `ESPERA_DIR`. Se ha supuesto que el primer byte lleva los indicadores 7 a 4 y el segundo, los 3 a 0 (el enunciado no precisa cuál va primero).
+
+> **Ojo: errata en la solución oficial.** El statechart y el código de la solución tienen varios fallos:
+>
+> 1. **`RBR == leeDireccion() | 0x80`**: en C (y en Stateflow) el `==` se evalúa **antes** que el `|`, y esa condición es «`(RBR == leeDireccion()) | 0x80`», que siempre es verdadera: la tarjeta aceptaría cualquier byte como su dirección. Lo correcto es `RBR == (leeDireccion() | 0x80)`.
+> 2. **Difusión olvidada:** no se acepta la dirección 0 (el byte `0x80`), y el enunciado lo exige.
+> 3. **`UNO_ON` llama a `UnoOff(RBR)`** en el código (en el statechart, `UnoOn`). Es un error de copiar y pegar.
+> 4. **`RBR > 8`** en el statechart para `UNO_ON` y `UNO_OFF`: debe ser `RBR < 8` (el código sí lo pone así), con los indicadores numerados de 0 a 7.
+> 5. **`SetValor(valor << 8 + RBR)`**: son dos nibbles de 4 bits, así que el desplazamiento es 4 y no 8. Además, en C `<<` se evalúa **después** de `+`, así que se desplaza `valor` por `8 + RBR`. Lo correcto es `(valor << 4) | RBR`. Con el desplazamiento de 8 el nibble alto se perdería, porque `SetValor` solo mira los 8 bits bajos.
+> 6. En el código del estado `EsperaDato` aparece `<>` (que no es C) y `RBR & 0x80 <> 0`; en C, `!=` va antes que `&`, así que hay que escribir `(RBR & 0x80) != 0`.
+> 7. `LPC_UART0->IIR & (1<<2)` también es cierto con `IIR = 0x06` (error de línea): es mejor `(IIR & 0x0E) == 0x04`, como en el Anexo 1.
+>
+> Los fallos de precedencia (1, 5 y 6) son los que tumbarían un programa que compila.
+
+**La trampa.** Tres. (1) Los paréntesis con `==`, `|`, `&` y `<<`: el operador `==` va antes que `&` y `|`. (2) Mantener el estado **entre interrupciones** (`static`, no una variable local, que se perdería al salir). (3) Tratar los bytes de otras tarjetas como errores: mientras esperas tu dirección, un byte con bit 7 a 0 se ignora sin sumar a `error`.
+
+## Qué llevarte de este examen
+
+1. **Duración de una trama.** Cuenta siempre los bits reales de la trama (start, datos, paridad, stop) y usa la velocidad **real** que sale del divisor redondeado, no la nominal.
+2. **Trama binaria frente a cadena.** El handler de transmisión de una trama de bytes necesita un contador; el carácter nulo no sirve de final. Y vigila que el primer byte no salga dos veces.
+3. **Dual-Port y I²C no son teoría aparte.** En la Dual-Port el aviso es escribir en el buzón del otro y limpiar es leer el propio; en el DS1621 la dirección es `0x48` más A2A1A0 y TH y TL son los comandos `0xA1` y `0xA2`.
+4. **T y D: primero separa lo que hace el hardware solo.** PWM y DMA encadenado no son tareas; Timer en toggle, ADC en ráfaga y UART sí. En un ADC con dos canales, la tarea más justa es la del primer canal (la mitad del tiempo).
+5. **Ejecutabilidad.** Cuando falla una tarea, despeja la región crítica con la desigualdad de esa tarea y **vuelve a comprobar las demás**. Entre tareas del mismo nivel no se interrumpen: bloqueo por $C$ de la otra e interferencia solo con $R - C$.
+6. **Máquinas de estados en C.** Estado `static`, una transición común para el byte de dirección, y cuidado con la precedencia de operadores.

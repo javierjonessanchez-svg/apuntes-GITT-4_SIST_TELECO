@@ -1,0 +1,679 @@
+---
+titulo: "Enero de 2022 · Prueba final"
+orden: 43
+bloque: "Exámenes resueltos"
+resumen: "Final con un sistema de servo, audio, IR, WiFi e I2C (cuestión 1) y seis cuestiones más: doble puerto, tareas y prioridades, DSP, RTOS, StateChart de un aire acondicionado y servidor HTTP/CGI"
+saber:
+  - "La cuestión 1 recorre casi todo el temario con nueve apartados: pines, ADC con Timer y DMA, DAC, captura de un mando IR, UART con paridad e I2C con tres sensores"
+  - "En el ADC, el tiempo de conversión son 65 ciclos y, en ráfaga con N canales, cada canal se muestrea a F_ADC/(65·N); con CLKDIV=191 y 2 canales salen 1001,6 Hz"
+  - "Un buffer de 16000 muestras de 16 bits son 32000 bytes: no cabe con el resto del programa en la RAM local y se coloca en la RAM AHB desde 0x2007C000"
+  - "Las cuestiones 3 y 6 se contestan con método: T y D de cada tarea y prioridades por menor plazo, y un StateChart con dos regiones paralelas y un contador de 300 ticks de 10 ms para 3 s"
+  - "La solución oficial tiene erratas (LCR sin paridad, primer byte de la trama repetido, desplazamiento del sensor I2C, Timer parado con TC, decodificador IR) y no resuelve las cuestiones 4, 5 y 7"
+fuentes:
+  - "PEF_SEDA_Enero_22_final_v3 (enunciado) y PEF_SEDA_Enero_22_final_solucion (material de clase de la asignatura)"
+  - "UM10360 (manual del LPC17xx)"
+---
+import Donde from '../../../src/asignaturas/seda/Donde.astro';
+import Figura from '../../../src/asignaturas/seda/Figura.astro';
+import fig1 from './img/pef-2022-01-1.png';
+import fig2 from './img/pef-2022-01-2.png';
+import fig3 from './img/pef-2022-01-3.png';
+import fig4 from './img/pef-2022-01-4.png';
+import fig5 from './img/pef-2022-01-5.png';
+import fig6 from './img/pef-2022-01-6.png';
+import fig7 from './img/pef-2022-01-7.png';
+import fig8 from './img/pef-2022-01-8.png';
+import fig9 from './img/pef-2022-01-9.png';
+
+## Resumen del examen
+
+| Dato | Valor |
+|---|---|
+| Fecha | Enero de 2022 |
+| Prueba | Prueba de evaluación final, con solución oficial incompleta |
+| Estructura | Siete cuestiones; la primera tiene nueve apartados (a a i) |
+| Puntuación | No consta en el documento |
+| Datos | LPC1768, $F_{cpu}=100$ MHz, $F_{pclk}=25$ MHz |
+
+| Cuestión | Tema | Solución oficial |
+|---|---|---|
+| 1 | Sistema con servo, DTMF, mando IR, audio, WiFi (UART3) e I2C | Sí, con erratas |
+| 2 | Memoria de doble puerto: arbitraje por interrupción | Sí, breve |
+| 3 | Periodo mínimo, plazo límite y prioridades | Sí |
+| 4 | Qué es un DSP | Solo «ver teoría» |
+| 5 | Ventajas e inconvenientes de un RTOS | Solo «ver teoría» |
+| 6 | StateChart de un aire acondicionado y temporización de 3 s | Sí (el diagrama) |
+| 7 | Servidor HTTP con fichero CGI | No hay solución |
+
+Lo marcado como **Resuelto por nosotros** no consta en la solución oficial. Las erratas van en recuadros «Ojo».
+
+## Cuestión 1 · El sistema completo
+
+Un LPC1768 posiciona un servo con tonos DTMF (teclado) o con un mando IR, mide una temperatura, regula el brillo del LCD con un potenciómetro y reproduce una alarma de voz grabada en RAM (8 kHz, 12 bits, 2 s al pulsar KEY 1). El SysTick interrumpe cada 50 ms.
+
+### a) Pines y recursos
+
+**Qué pide.** Escribir en el diagrama el pin (Pn.x) de cada conexión y el recurso del chip (ejemplo, MAT1.0), salvo el LCD.
+
+<Figura src={fig1} alt="Diagrama del sistema con la solución en rojo: KEY1 P2.11 /INT1, KEY2 P2.12 /INT2, altavoz P0.26 AOUT, micrófono P0.23 AD0.0, brillo LCD P0.24 AD0.1, LM35 P0.25 AD0.2, PWM1.6 en P1.26, detector IR en P0.4 CAP2.0 y P0.5 CAP2.1, servo P1.20 PWM1.2" pie="Diagrama del enunciado con la solución oficial en rojo." />
+
+**Qué hay que saber antes.** La tabla de funciones de pines (PINSEL) del Anexo y los temas de [ADC y DAC](../adc-dac/), [PWM y servos](../pwm-servos/) y [Captura](../captura/).
+
+**Proceso.**
+
+1. Los pulsadores van a interrupciones externas: EINT1 está en P2.11 y EINT2 en P2.12.
+2. El altavoz sale del DAC: AOUT está en P0.26.
+3. Las entradas analógicas van en orden: micrófono P0.23 (AD0.0), potenciómetro P0.24 (AD0.1), LM35 P0.25 (AD0.2).
+4. La luz del LCD y el servo son PWM: PWM1.6 está en P1.26 y PWM1.2 en P1.20.
+5. El detector IR entra en **dos** pines, P0.4 (CAP2.0) y P0.5 (CAP2.1), con el mismo cable.
+
+**Solución.** Es la del diagrama de arriba.
+
+**La trampa.** ¿Por qué dos entradas para una sola señal? Cada entrada de captura carga su propio registro: CAP2.0 solo carga CR0 y CAP2.1 solo CR1. Para guardar a la vez el instante del flanco de bajada (CR0) y el del de subida (CR1) hacen falta las dos. Además P0.26 es AOUT y también AD0.3: se elige con PINSEL.
+
+### b) ADC del micrófono, tiempo de conversión y Timer
+
+**Qué pide.** Completar `init_ADC_microfono`, dar el tiempo de conversión, la configuración del Timer que da $F_s=8$ kHz (sin código) y la frecuencia de muestreo máxima. Funciona por DMA. El esqueleto fija `SEL`, `CLKDIV=2`, `PDN` y `START=6`.
+
+**Qué hay que saber antes.** `AD0CR` y el disparo por Match en [ADC y DAC](../adc-dac/); el DMA en [DMA](../dma/).
+
+**Proceso.**
+
+1. El micrófono está en AD0.0: `SEL = 1<<0`.
+2. Con `CLKDIV=2`, el reloj del ADC es $25/3=8{,}33$ MHz, por debajo del límite de 13 MHz.
+3. `PDN=1` enciende el convertidor.
+4. `START=6` (110) es «empezar con el flanco de subida de MAT1.0» (`EDGE=0`).
+5. El ADC no interrumpe: solo pide datos al DMA. Se habilita el canal 0 en `ADINTEN` y no se habilita la interrupción en el NVIC.
+6. El Timer 1 debe dar un flanco de subida de MAT1.0 8000 veces por segundo. Se configura el Match en «conmutar» (EMC0 = 11): cada match cambia el nivel, así que hay una subida cada **dos** matches. El Match va a 16 kHz.
+
+**Solución.**
+
+```c
+void init_ADC_microfono(void)
+{
+  LPC_ADC->ADCR = (1<<0)      // canal 0: P0.23 = AD0.0
+                | (2<<8)      // CLKDIV=2: 25e6/3 = 8,33 MHz
+                | (1<<21)     // PDN=1: ADC encendido
+                | (6<<24);    // START=110: empieza con MAT1.0 (flanco de subida)
+  LPC_ADC->ADINTEN = (1<<0);  // canal 0 pide DMA; con = se borra ADGINTEN
+  NVIC_DisableIRQ(ADC_IRQn);  // el ADC no interrumpe a la CPU
+}
+```
+
+$$
+t_{conv} = \frac{65}{F_{ADC}} = \frac{65}{8{,}33\cdot10^{6}} = 7{,}8\ \mu s \qquad F_{s,max} = \frac{1}{t_{conv}} = 128{,}2\ \text{kHz}
+$$
+<Donde>
+
+- $t_{conv}$: tiempo de una conversión (s).
+- $F_{ADC}$: reloj del ADC, $F_{pclk}/(CLKDIV+1)$ (Hz).
+- $F_{s,max}$: mayor frecuencia de muestreo con un solo canal (Hz).
+
+</Donde>
+
+Timer 1 (sin ISR): PCONP del Timer 1 encendido; `PR=0` (tick de 25 MHz); `MR0 = 25e6/8000/2 - 1`; reset del TC en MR0 y sin interrupción; `EMR` con EMC0 = conmutar; arrancar con `TCR=1`.
+
+**La trampa.** $25\cdot10^6/16000 - 1 = 1561{,}5$ no es entero: se pone 1561 o 1562 y la frecuencia sale 8002,6 o 7997,4 Hz (error de 0,03 %). Y no olvides dividir entre 2 por el modo «conmutar».
+
+### c) ADC de los sensores a unos 1 kHz por canal
+
+**Qué pide.** Completar `init_ADC_sensores` (canales del potenciómetro y del LM35, ráfaga, unos 1 kHz por canal) y comentar `init_ADC_pines`.
+
+**Qué hay que saber antes.** Ráfaga: [ADC y DAC](../adc-dac/).
+
+**Proceso.**
+
+1. Canales AD0.1 y AD0.2: `SEL = (1<<1)|(1<<2)`.
+2. Ráfaga: `BURST = 1` y `START = 000`. Cada vuelta convierte 2 canales de 65 ciclos.
+3. Se despeja el divisor de la frecuencia por canal.
+
+$$
+F_s = \frac{F_{pclk}}{65\cdot N\cdot (CLKDIV+1)} \;\Rightarrow\; CLKDIV+1 = \frac{25\cdot10^6}{65\cdot 2\cdot 1000} = 192{,}3
+$$
+<Donde>
+
+- $F_s$: frecuencia de muestreo de cada canal (Hz).
+- $N$: número de canales activos (2).
+- $CLKDIV$: divisor del ADC (0 a 255).
+
+</Donde>
+
+$CLKDIV=191$. Resultado real: $F_{ADC}=25\cdot10^6/192=130{,}2$ kHz y $F_s = 130\,208/130 = 1001{,}6$ Hz.
+
+```c
+void init_ADC_sensores(void)
+{
+  LPC_ADC->ADCR = (1<<1)|(1<<2)   // canales 1 y 2 (P0.24 y P0.25)
+                | (191<<8)        // CLKDIV=191: F_ADC = 25e6/192
+                | (1<<21)         // PDN=1
+                | (1<<16);        // BURST: convierte sin parar
+  NVIC_DisableIRQ(ADC_IRQn);      // no interrumpe
+}
+
+void init_ADC_pines(void)
+{
+  LPC_SC->PCONP |= (1<<12);                 // alimenta el ADC
+  LPC_PINCON->PINSEL1  |= (0x15<<14);       // P0.23, P0.24, P0.25 = AD0.0, AD0.1, AD0.2
+  LPC_PINCON->PINMODE1 |= (0x2A<<14);       // sin pull-up ni pull-down
+}
+```
+
+<Figura src={fig2} alt="Señal del mando IR: trama con inicio de 2,4 ms y siete bits, y salida del detector con los pulsos 4T, 2T y T" pie="Anexo 2 del enunciado (girado): codificación Sony del mando IR. Se usa en el apartado g." />
+
+**La trampa.** La solución oficial escribe $25\cdot10^6/2\cdot65\cdot(CLKDIV+1)$ sin paréntesis. Y el ADC es **uno solo**: las configuraciones de b) y c) se excluyen, hay que reconfigurarlo al pasar de grabar a medir. Además el enunciado pide leer «cada segundo»: el ADC convierte a 1 kHz y el programa lee el resultado cada segundo.
+
+### d) DMA para el procesado de audio (DTMF)
+
+**Qué pide.** Configurar el DMA para guardar 1000 muestras de 12 bits del ADC.
+
+**Qué hay que saber antes.** Campos del canal en [DMA](../dma/).
+
+**Proceso y solución.**
+
+1. Se enciende el GPDMA (PCONP bit 29 y `DMACConfig`).
+2. Origen: `LPC_ADC->ADDR0` (periférico, no se incrementa). Petición del ADC: número 4.
+3. Destino: `buffer_procesado`, que sí se incrementa. Transferencia periférico a memoria.
+4. Ancho de 16 bits: el resultado de 12 bits ocupa la parte alta de la mitad baja del registro.
+5. `TransferSize = 1000` (el límite es 4095). Interrupción de fin de bloque habilitada.
+
+```c
+uint16_t buffer_procesado[1000];            // OJO: son 2000 bytes de RAM
+
+LPC_GPDMACH1->DMACCSrcAddr  = (uint32_t)&LPC_ADC->ADDR0;   // origen: periférico
+LPC_GPDMACH1->DMACCDestAddr = (uint32_t)buffer_procesado;  // destino: memoria
+// TransferSize=1000, ancho 16 bits, SI=0, DI=1, I=1 (interrupción al acabar el bloque)
+```
+
+**La trampa.** `TransferSize` cuenta muestras, no bytes; el buffer ocupa el doble porque cada muestra son 2 bytes.
+
+### e) ISR del Timer 3 hacia el DAC
+
+**Qué pide.** La ISR que saca muestras al DAC, el valor de MR y la frecuencia de interrupción.
+
+**Proceso.** Las muestras (16000 = 2 s·8000) se grabaron con el ADC y están en los bits 15:4. Eso ya es la alineación del DAC, que usa los bits 15:6: se escribe la muestra tal cual. El Timer interrumpe a $F_s=8$ kHz.
+
+$$
+MR0 = \frac{F_{pclk}}{F_s} - 1 = \frac{25\cdot10^6}{8000}-1 = 3124 \qquad F_{int} = 8\ \text{kHz}
+$$
+<Donde>
+
+- $MR0$: valor del Match 0 con reset en MR0.
+- $F_{pclk}$, $F_s$: reloj del Timer y frecuencia de muestreo (Hz).
+
+</Donde>
+
+```c
+uint16_t buffer_alarma[16000];             // 32000 bytes
+
+void TIMER3_IRQHandler(void)
+{
+  static uint16_t indice = 0;
+  LPC_TIM3->IR = (1<<0);                    // borra el flag de MR0
+  LPC_DAC->DACR = buffer_alarma[indice++];  // muestras ya alineadas (10 bits efectivos)
+  if (indice == 16000) {                    // fin del mensaje
+    indice = 0;
+    LPC_TIM3->TCR = 0x02;                   // resetea y para el Timer 3
+  }
+}
+```
+
+
+**Ojo: errata en la solución oficial.** Escribe `LPC_ADC_DACR` (es `LPC_DAC->DACR`) y para el Timer con `LPC_TIM3->TC=0x02`. Eso solo carga el contador con 2 y el Timer sigue funcionando; se para con `TCR=0x02`.
+
+**La trampa.** Borrar el flag con `IR |=` borra de paso todos los flags pendientes; es mejor `IR = (1<<0)`.
+
+### f) DMA para reproducir la alarma sin cargar la CPU
+
+**Qué pide.** Qué recurso usar, cómo configurarlo y la dirección del buffer (Anexo 1).
+
+**Proceso.**
+
+1. En lugar de 16000 interrupciones se usa un canal de DMA de memoria al DAC. El DAC pide cada muestra con su contador: `DACCNTVAL = 25e6/8000 - 1 = 3124` y `DACCTRL` con `CNT_ENA` y `DMA_ENA`.
+2. Bloques de 4000 muestras (menos de 4095): $16000/4000=4$ bloques, uno cada $4000/8000=0{,}5$ s. Interrupción de fin de bloque: solo 4 interrupciones en 2 s.
+3. Dirección: 16000 muestras de 2 bytes son 32000 bytes (0x7D00). La RAM local son 32 KB y ya la usa el programa. Se usa la RAM AHB, que empieza en **0x2007C000** (banco 0 de 16 KB) y continúa en 0x20080000 (banco 1): 0x2007C000 a 0x20083CFF cabe.
+
+```c
+uint16_t *buffer_alarma = (uint16_t *)0x2007C000;   // RAM AHB
+
+LPC_GPDMACH0->DMACCSrcAddr  = (uint32_t)&buffer_alarma[0];   // origen: memoria
+LPC_GPDMACH0->DMACCDestAddr = (uint32_t)&LPC_DAC->DACR;      // destino: DAC
+LPC_GPDMACH0->DMACCLLI      = 0;                              // sin lista enlazada
+// DMACCControl: TransferSize=4000, anchos 16 bits, SI=1, DI=0, I=1
+// DMACCConfig: memoria a periférico, DestPeripheral=7 (DAC), ITC=1, E=1
+LPC_DAC->DACCNTVAL = 3124;
+LPC_DAC->DACCTRL   = (1<<2)|(1<<3);                           // CNT_ENA y DMA_ENA
+```
+
+En la ISR del DMA se borra el flag de fin de bloque, se avanza la dirección de origen y se rearma el canal con `TransferSize` otra vez (el canal se apaga solo al acabar). Una alternativa sin ninguna interrupción es una lista enlazada de 4 descriptores.
+
+**La trampa.** Al avanzar el origen se suman **bytes**: 4000 muestras son 8000 bytes. Y la solución oficial declara `int32_t *buffer_alarma`, tipo que no coincide con `uint16_t`.
+
+### g) Decodificar el mando IR con captura
+
+**Qué pide.** Pseudocódigo de la función del Timer que detecta el código del mando (Sony, 7 bits, anexo 2).
+
+**Qué hay que saber antes.** [Captura](../captura/).
+
+**Proceso.**
+
+1. Timer 2 con $PR=24$: tick de 1 µs. CAP2.0 captura el flanco de **bajada** (inicio del pulso) sin interrumpir; CAP2.1, el de **subida** (fin), e interrumpe. `CCR = (1<<1)|(1<<3)|(1<<5)`.
+2. En cada interrupción: $N = CR1 - CR0$ es el tiempo a nivel bajo, en cuentas (= µs).
+3. Tiempos con $T=600$ µs: «0» dura $T$, «1» dura $2T$, inicio dura $4T$. Se comparan cuentas con tolerancia: inicio 2300 a 2500, «1» 1100 a 1300, «0» 500 a 700.
+4. Los bits llegan **primero el menos significativo** (LSB, figura del anexo). Por eso se desplaza a la derecha y se mete el bit nuevo por el bit 6.
+5. A los 7 bits, el código está listo.
+
+```c
+void TIMER2_IRQHandler(void)
+{
+  uint32_t N;
+  LPC_TIM2->IR = (1<<5);                       // borra flag de CR1
+  N = LPC_TIM2->CR1 - LPC_TIM2->CR0;           // cuentas a nivel bajo
+  if (esperando_start) {
+    if (N > 2300 && N < 2500) { esperando_start = 0; contador = 0; codigo = 0; flag_error = 0; }
+    return;
+  }
+  if      (N > 500  && N < 700 ) codigo >>= 1;                 // bit 0
+  else if (N > 1100 && N < 1300) { codigo >>= 1; codigo |= 0x40; }  // bit 1
+  else { flag_error = 1; esperando_start = 1; return; }
+  if (++contador == 7) { codigo_OK = 1; esperando_start = 1; }
+}
+```
+
+Comprobación con la figura: bits 1,1,0,0,1,0,0 (LSB primero) dan 0x13.
+
+**Ojo: errata en la solución oficial.** Para un «1» hace `codigo>>=1; codigo+=1;`, que mete el bit por la derecha y lo expulsa en el siguiente desplazamiento. Hay que sumar `0x40`.
+
+**La trampa.** El orden de los bits. Y no se mide en microsegundos con conversiones: basta comparar cuentas.
+
+### h) WiFi con UART3
+
+**Qué pide.** Conexión del módulo ESP8266, `uart3_init` (FR=1, 115200 baudios, 8 bits, paridad par), velocidad real, `tx_trama_uart3`, modificación de la ISR y tiempo de una trama de 0x1000 bytes.
+
+<Figura src={fig3} alt="Conexión del ESP8266 al LPC1768: TX del módulo a RxD3, TxD3 al RX del módulo, alimentación de 3,3 V y masa" pie="Solución oficial: conexión del módulo ESP8266. Se cruzan TX y RX." />
+
+**Proceso.**
+
+1. Conexión: TX del módulo a RXD3 (P4.29), TXD3 (P4.28) al RX del módulo, 3,3 V y masa. Es un cruce.
+2. Divisor sin fraccionario ($FR=1$): $DL = 25\cdot10^6/(16\cdot115200) = 13{,}56 \to 14$.
+3. Velocidad real: $25\cdot10^6/(16\cdot14)=111\,607$ baudios (un 3,1 % menos).
+4. Trama de 8 bits con paridad y 1 stop: 11 bits (con el inicio). Tiempo: $4096\cdot 11/111\,607 = 0{,}404$ s.
+5. LCR: 8 bits (`11`), 1 stop (bit 2 a 0), **paridad habilitada** (bit 3) y par (bits 5:4 = `01`): `0x1B`, y con DLAB `0x9B`.
+
+```c
+void uart3_init(void)
+{
+  LPC_SC->PCONP |= (1<<25);              // alimenta la UART3
+  LPC_PINCON->PINSEL9 |= (0xF<<24);      // P4.28 = TXD3, P4.29 = RXD3
+  LPC_UART3->LCR = 0x9B;                 // DLAB=1, 8 bits, paridad par, 1 stop
+  LPC_UART3->DLL = 14;
+  LPC_UART3->DLM = 0;
+  LPC_UART3->LCR = 0x1B;                 // DLAB=0
+  LPC_UART3->IER = (1<<1);               // interrupción THRE
+  NVIC_EnableIRQ(UART3_IRQn);
+}
+
+static char *ptr_tx;
+static volatile int trama_contador;
+volatile uint8_t tx_completa;
+
+void tx_trama_uart3(char *trama, int longitud)
+{
+  ptr_tx = trama;
+  tx_completa = 0;
+  trama_contador = longitud - 1;          // el primero se envía aquí
+  LPC_UART3->THR = *ptr_tx++;             // arranca la transmisión
+}
+
+// en UART3_IRQHandler, caso THRE:
+case 0x02:
+  if (trama_contador != 0) { LPC_UART3->THR = *ptr_tx++; trama_contador--; }
+  else tx_completa = 1;
+  break;
+```
+
+**Ojo: errata en la solución oficial.** (1) `LCR=0x93/0x13` deja el bit de paridad a 0: no hay paridad, y entonces la trama sería de 10 bits y no de 11 como usa el propio cálculo. (2) `tx_trama_uart3` envía `*ptr` sin incrementar: el primer byte sale dos veces y el último nunca.
+
+**La trampa.** `tx_completa` se activa al vaciarse THR, pero el último byte aún se está desplazando (menos de una trama). Para saber que todo salió, mira TEMT en LSR. Con el divisor fraccionario se afina: $DL=10$, $DivAddVal/MulVal=5/14$ da 115 131 baudios.
+
+### i) Tres sensores DS1621 por I2C
+
+**Qué pide.** Completar el diagrama, escribir la función de temperatura (1 grado) y llamarla para el sensor 3.
+
+<Figura src={fig4} alt="Tres sensores DS1621 con SDA y SCL en el mismo bus (P0.0 y P0.1) y A0-A2 de cada uno a tres bits de P1" pie="Solución oficial: los tres sensores comparten SDA y SCL. Las líneas rojas son lo que había que dibujar." />
+
+**Proceso.**
+
+1. Cableado: SDA y SCL de los tres a P0.0 y P0.1 (bus compartido con pull-up). A0 a A2 de cada chip a un grupo de tres bits de P1: P1.19 a 21, P1.22 a 24 y P1.25 a 27.
+2. Dirección de 7 bits del DS1621: `1001 A2 A1 A0` = `0x48 + A`.
+3. La función pone en los tres pines del sensor elegido el valor `sensor` y así solo ese chip responde a `0x48+sensor`.
+4. Protocolo: START, dirección en escritura, comando `0xAA` (leer temperatura), START repetido, dirección en lectura, leer el byte alto y STOP. El byte alto es la temperatura entera en complemento a 2.
+
+```c
+float i2C_temperatura_sensor(char sensor)      // sensor = 1, 2 o 3
+{
+  int8_t temp;                                  // con signo: hay temperaturas negativas
+  uint32_t desp = 3*sensor + 16;                // bit más bajo del grupo: 19, 22 o 25
+  LPC_GPIO1->FIOCLR = (7u << desp);
+  LPC_GPIO1->FIOSET = ((uint32_t)sensor << desp);   // A2A1A0 = sensor
+  I2CSendAddr(0x48 + sensor, 0);                // START + dirección + escritura
+  I2CSendByte(0xAA);                            // comando: leer temperatura
+  I2CSendAddr(0x48 + sensor, 1);                // START repetido + dirección + lectura
+  temp = I2CGetByte(1);                         // byte alto (ver nota sobre ACK)
+  I2CSendStop();
+  return (float)temp;
+}
+
+temperatura = i2C_temperatura_sensor(3);
+```
+
+**Ojo: errata en la solución oficial.** Desplaza `sensor<<(3*sensor+19)`. Para el sensor 3 son 28 bits, fuera de P1.25 a 27; lo correcto es `3*sensor+16`. Además `FIOPIN=` sobrescribe todo el puerto 1.
+
+**La trampa.** Con `char` sin signo (lo normal en ARM) una temperatura negativa sale como un número grande: usa `int8_t`. El DS1621 también necesita haber recibido antes `Start Convert T` (`0xEE`), que la solución oficial no menciona. Y el último byte leído debería llevar NACK: no tengo el código de `I2CGetByte`, así que no puedo asegurar si su argumento `1` significa ACK o NACK.
+
+## Cuestión 2 · Arbitraje por interrupción en memorias de doble puerto
+
+**Qué pide.** Explicar el método y justificarlo sobre el esquema: bloque en 0x90000000, cada chip de 128 KB.
+
+<Figura src={fig5} alt="Cuatro chips de doble puerto 4N+3, 4N+2, 4N+1 y 4N; solo el 4N+3 tiene sus pines /INT_L e /INT_R conectados a EINT1 de cada CPU" pie="Esquema del enunciado con los dos procesadores. Solo el chip 4N+3 saca sus señales de interrupción." />
+
+**Qué hay que saber antes.** Un chip de doble puerto tiene dos puertos (izquierdo y derecho) que acceden a la misma memoria. Si los dos escriben a la vez en la misma dirección hay conflicto; las posiciones finales sirven de «buzón» para avisarse.
+
+**Proceso.**
+
+1. Cuatro chips de 8 bits en paralelo forman un bus de 32 bits (`MW=02`): $4\cdot128$ KB = 512 KB, de 0x90000000 a 0x9007FFFF.
+2. Cada chip aporta un byte de la palabra: el 4N+3 el byte de más peso, que son las direcciones acabadas en 3 (modo little-endian).
+3. Las dos últimas posiciones de **ese** chip son los buzones: 0x9007FFFF y 0x9007FFFB.
+4. La CPU izquierda **escribe** en 0x9007FFFF: el chip activa `/INT_R` y la CPU derecha recibe su EINT1. La derecha **lee** esa posición y la interrupción vuelve a reposo (nivel alto).
+5. A la inversa: la derecha escribe en 0x9007FFFB, se activa `/INT_L`, y la izquierda lee 0x9007FFFB para borrarla.
+
+**Solución.** Quien avisa **escribe** en el buzón del otro, quien atiende **lee** el mismo buzón. Leer es lo que quita la petición.
+
+**La trampa.** El acceso tiene que ser de un byte (un `char`) a esas direcciones para que solo actúe el chip 4N+3. Con acceso de palabra se escriben también los otros tres chips, que perderían datos.
+
+## Cuestión 3 · Periodo, plazo y prioridades
+
+**Qué pide.** Para cinco funciones: subsistema, configuración, periodo mínimo de ejecución $T$ y plazo límite de finalización $D$; y razonar prioridades con tareas de 2 µs.
+
+**Qué hay que saber antes.** $T$ es cada cuánto puede pedirse la tarea y $D$ el tiempo que hay para acabarla. Ver [Ejecutabilidad](../ejecutabilidad/).
+
+**Proceso y solución.**
+
+| Función | Recurso y configuración | $T$ | $D$ |
+|---|---|---|---|
+| Servo (nivel alto 1 a 2 ms, periodo 10 ms) | Timer libre con un Match que conmuta el pin e interrumpe en cada flanco | 1 ms | 1 ms |
+| 2 PWM de 10 kHz, 1 % de precisión | Módulo PWM: MR0=2499, MRx = 25 por cada 1 % | no hay tarea | no hay tarea |
+| Serie a 9600, 8N1 | UART con interrupción de recepción | 10/9600 = 1,04 ms | 1,04 ms |
+| Audio a 8 kHz, un canal DMA, 4000 muestras | Interrupción de fin de bloque | 0,5 s | 125 µs |
+| SRF04, pulso de 100 µs a 18 ms | Captura: sube a bajada y se reconfigura el flanco | 100 µs | 100 µs |
+
+Razones de cada fila:
+
+- **Servo.** Los flancos están separados 1 ms como mínimo (el nivel alto) y la ISR debe cargar el siguiente Match antes del siguiente flanco.
+- **UART.** 8 bits más inicio y parada son 10 bits por dato; hay que leer RBR antes del siguiente dato.
+- **Audio.** El bloque dura $4000/8000=0{,}5$ s, pero al acabar hay que rearmar el DMA antes de la siguiente muestra, 125 µs después, o se pierde.
+- **SRF04.** En el flanco de subida se cambia la captura a bajada y el pulso más corto dura 100 µs.
+
+**Prioridades (resuelto por nosotros y de acuerdo con la solución oficial).** Se ordena por menor $D$ (monótono en plazo):
+
+| Prioridad | Tarea | $D$ |
+|---|---|---|
+| 0 (más alta) | SRF04 | 100 µs |
+| 1 | Audio por DMA | 125 µs |
+| 2 | Servo | 1 ms |
+| 3 (más baja) | UART | 1,04 ms |
+
+Comprobación: la utilización es $2/100+2/500000+2/1000+2/1040\approx2{,}4$ %, y la tarea de menor prioridad tiene como mucho una interferencia de cada una (respuesta de unos 8 µs, muy por debajo de 1,04 ms).
+
+**La trampa.** Se ordena por $D$, no por $T$: la tarea del DMA tiene el mayor $T$ y, sin embargo, la segunda prioridad.
+
+## Cuestión 4 · Qué es un DSP
+
+*Resuelto por nosotros, no consta en la solución oficial (solo «ver teoría»).*
+
+Un DSP (*Digital Signal Processor*) es un procesador optimizado para procesar señales en tiempo real, con muchas multiplicaciones y sumas seguidas (filtros, FFT). Sus recursos típicos:
+
+1. **Multiplicador-acumulador (MAC)**: multiplica y suma en un solo ciclo.
+2. **Arquitectura Harvard** con memorias y buses separados de programa y datos, y varios accesos a datos por ciclo.
+3. **Generadores de direcciones** con direccionamiento circular (buffers de filtros) y bit-reverso (FFT).
+4. **Bucles hardware** sin coste de salto.
+5. **Aritmética en punto fijo con saturación** y acumuladores más anchos.
+6. **Segmentación** (pipeline) y memorias internas rápidas, además de DMA.
+
+## Cuestión 5 · Ventajas e inconvenientes de un RTOS
+
+*Resuelto por nosotros, no consta en la solución oficial (solo «ver teoría»).*
+
+**Ventajas.**
+
+- **Programación por tareas.** Cada función (servo, WiFi, LCD) es una tarea independiente: el código es modular y más fácil de mantener o ampliar.
+- **Plazos garantizados.** El planificador por prioridades con expulsión da tiempos de respuesta predecibles que se pueden analizar.
+- **Servicios listos.** Semáforos, colas, temporizadores y mensajes evitan reinventar la sincronización entre tareas.
+- **Reutilización y portabilidad** del código entre proyectos.
+
+**Inconvenientes.**
+
+- **Coste en recursos.** El núcleo ocupa Flash y RAM, cada tarea necesita su pila y cada cambio de contexto gasta ciclos.
+- **Nuevos errores.** Inversión de prioridad, interbloqueos y condiciones de carrera.
+- **Complejidad y aprendizaje.** Hay que configurar prioridades, pilas y tick; la depuración es más difícil.
+- **Menos control temporal fino** que con interrupciones directas, y a veces licencia.
+
+En un proyecto pequeño como el de la asignatura, un bucle principal con interrupciones suele bastar; el RTOS compensa cuando crecen las tareas.
+
+## Cuestión 6 · StateChart del aire acondicionado
+
+**Qué pide.** a) El StateChart del sistema. b) Cómo implementar con una interrupción de 10 ms las temporizaciones de 3 s.
+
+**Qué hay que saber antes.** Estados, transiciones y estados jerárquicos y paralelos en [Máquinas de estados](../maquinas-estados/).
+
+### a) El diagrama
+
+<Figura src={fig6} alt="StateChart: estado OFF y estado ON con dos regiones paralelas, SWING con 30, 60 y 90 grados y Swing_aut, y FAN con MANUAL (LOW, MED, HIGH) y AUTOMATICO (STOP, LOW, MED, HIGH)" pie="StateChart de la solución oficial." />
+
+**Proceso para leerlo.**
+
+1. Dos estados de primer nivel: **OFF** (pone `ventilador=0` y `swing=0`) y **ON**. Se pasa con `Cmd=ON` y `Cmd=OFF`.
+2. ON tiene dos regiones **paralelas** (líneas discontinuas): SWING y FAN. Evolucionan a la vez porque el control de la ventana es independiente del modo.
+3. Las dos regiones tienen un punto de **historia** (H): al volver a ON se retoma donde se estaba.
+4. SWING: 30º, 60º y 90º con cada `Cmd==SWING`; desde 90º, el siguiente SWING entra en `Swing_aut`, que va 90, 60, 30, 60, 90... cambiando cada 3 s; otro SWING vuelve a 30º.
+5. FAN: MANUAL (LOW, MED, HIGH con `Cmd==FAN`, empieza en LOW) y AUTOMATICO, con `Cmd==MODO` para pasar de uno a otro.
+6. En AUTOMATICO, con $d=ambiente-consigna$: $d<0$ STOP, $0\le d<5$ LOW, $5\le d<15$ MED, $d\ge15$ HIGH. Los cuatro intervalos no dejan huecos ni se solapan.
+7. Los estados llevan `Entry: Cmd=IDLE` para marcar la orden como atendida.
+
+**Ojo: omisión en la solución oficial.** El diagrama no recoge `TEMP+` ni `TEMP-`. Habría que añadir en AUTOMATICO transiciones internas `Cmd==TEMP+ [consigna<30] / consigna++` y `Cmd==TEMP- [consigna>16] / consigna--`. Además, en las flechas de ON/OFF salen con un solo `=`: debe ser `==`.
+
+### b) Temporización de 3 s
+
+Con una interrupción cada 10 ms, 3 s son $3/0{,}01=300$ ticks. Se usa un contador $T$ que se carga a 300 al entrar en cada estado `SW_xx` (`Entry: T=300`) y se decrementa en la ISR:
+
+```c
+volatile uint16_t T;            // volatile: lo modifica la ISR
+
+void IRQ_Periodica_10ms(void)   // cada 10 ms
+{
+  if (T > 0) T--;
+}
+```
+
+La transición entre estados de `Swing_aut` tiene como condición `T==0`.
+
+**La trampa.** `T` tiene que ser `volatile` y el decremento se protege con `if (T>0)` para que no dé la vuelta.
+
+## Cuestión 7 · Servidor HTTP con fichero CGI
+
+*Resuelto por nosotros, no consta en la solución oficial.*
+
+**Qué pide.** El contenido de `aire.cgi` (sobre uno de los ejemplos) y las funciones `cgi_func`, `cgi_process_data` y/o `cgi_process_var`. Los datos del navegador son del estilo `modo=off`, `vel=LOW`, `consigna=25`. Si la ventana está en modo swing se escribe «SWING» en lugar del ángulo.
+
+<Figura src={fig7} alt="Ejemplo de página con el aire apagado y su código HTML con las líneas marcadas c 1 a c 9 con casillas %s y %d" pie="Ejemplo del enunciado: modo apagado. Las marcas c 1 a c 9 son las líneas donde el CGI inserta datos." />
+
+<Figura src={fig8} alt="Las páginas en modo automático, con casilla de consigna, y manual, con botones LOW, MED y HIGH" pie="Ejemplos del enunciado: modo automático y modo manual." />
+
+<Figura src={fig9} alt="Código HTML de los modos automático y manual con asteriscos en las líneas que cambian" pie="Código de los ejemplos; los asteriscos señalan lo que varía con el modo." />
+
+**Qué hay que saber antes.** El servidor de Keil procesa un fichero `.cgi` así:
+
+1. Si la URL trae datos (`aire.cgi?modo=off`), llama **una vez** a `cgi_process_var(qs)`, con los datos en `qs`.
+2. Luego lee el fichero línea a línea. `t ...` se copia tal cual; `c X ...` llama a `cgi_func` con `env` = esa línea desde `X`: `env[0]` es la letra o número, `&env[2]` el resto, que se usa como **formato de `sprintf`**; `.` acaba.
+3. Con `method="get"` los datos van en la URL y se tratan en `cgi_process_var`; `cgi_process_data` es para POST y aquí no hace falta.
+
+**Proceso.**
+
+1. En los ejemplos, de una página a otra cambian el título (c1), la temperatura (c2), el bloque central (c3 a c5: nada, formulario de consigna o botones de velocidad), la ventana (c6) y qué botón de modo está marcado (c7 a c9).
+2. El enunciado no da una variable de modo, pero el CGI la necesita. Supongo `encendido` (1 o 0) y `modo_auto` (1 automático, 0 manual), mantenidas por el StateChart, y los valores `STOP, LOW, MED, HIGH` = 0, 1, 2, 3.
+3. Para **cambiar** de modo no se escribe `ventilador` a mano: el StateChart lo reescribe en cada paso. Se mandan **órdenes** por `Cmd` (`ON`, `OFF`, `MODO`, `FAN`).
+4. Cada formulario envía una sola variable, y solo si se pulsa: que falte una variable significa «sin cambio».
+
+**Solución.** Fichero `aire.cgi` (las líneas `c` llevan `%%` para el `%` de las anchuras, porque la línea es un formato de `sprintf`):
+
+```
+t <table style="height: 174px; width: 100%; border-collapse: collapse;" border="1">
+t <tbody>
+t   <tr style="height: 18px;">
+t     <td style="width: 58.9827%; height: 18px; background-color: #2e6c80; text-align: center;" colspan="3">
+t     <span style="color: #ffffff;"><strong>Control de Climatizaci&oacute;n<br /></strong></span></td>
+t   </tr>
+t   <tr style="height: 18px;">
+c 1     <td style="width: 25%%; height: 18px; text-align: center;"><strong>%s<br /></strong></td>
+t     <td style="width: 6.38528%; height: 18px;">&nbsp;</td>
+t     <td style="width: 27.5974%; height: 18px; text-align: center;">&nbsp;</td>
+t   </tr>
+t   <tr style="height: 102px;">
+t     <td style="width: 25%; height: 102px; text-align: center;">
+c 2       <p>Temp. Ambiente: %d&ordm;C</p>
+t       <center>
+c 3
+c 4
+c 5
+t       </center></td>
+t     <td style="width: 6.38528%; height: 102px;">&nbsp;</td>
+t     <td style="width: 27.5974%; height: 102px; text-align: center;"><img src="aire.png" alt="" width="200" height="100" /></td>
+t   </tr>
+t </tbody>
+t </table>
+t <table style="border-collapse: collapse; width: 100%;" border="1">
+t <tbody>
+t   <tr>
+c 6     <td style="width: 42.2078%%; text-align: center;">Ventana de salida: %s</td>
+t   </tr>
+t </tbody>
+t </table>
+t <p><strong>Selecci&oacute;n de modo</strong></p>
+t <form action="aire.cgi" method="get">
+t   <p>
+c 7   <input %s name="modo" type="radio" value="automatico" OnClick="submit();"/> Modo Autom&aacute;tico
+c 8   <input %s name="modo" type="radio" value="manual" OnClick="submit();"/> Modo Manual
+c 9   <input %s name="modo" type="radio" value="off" OnClick="submit();"/> Apagado</p>
+t </form>
+.
+```
+
+Cuidado: las líneas `t` se copian tal cual, sin `sprintf`, así que ahí el `%` no se duplica; en las líneas `c` sí.
+
+`cgi_func`:
+
+```c
+U16 cgi_func (U8 *env, U8 *buf, U16 buflen, U32 *pcgi)
+{
+  U32 len = 0;
+  char tmp[24];
+  const char *chk = "checked=\"checked\"";
+
+  switch (env[0]) {
+    case '1':                                   // título según el modo
+      len = sprintf((char *)buf, (const char *)&env[2],
+                    !encendido ? "Modo Apagado" :
+                    modo_auto  ? "Modo Autom&aacute;tico" : "Modo Manual");
+      break;
+    case '2':                                   // temperatura ambiente
+      len = sprintf((char *)buf, (const char *)&env[2], ambiente);
+      break;
+    case '3':
+      if (encendido && modo_auto)
+        len = sprintf((char *)buf, "<form action=\"aire.cgi\" method=\"get\">");
+      else if (encendido)
+        len = sprintf((char *)buf,
+          "<form action=\"aire.cgi\" method=\"get\"> <input %s name=\"vel\" type=\"radio\" value=\"LOW\" OnClick=\"submit();\"/> LOW",
+          ventilador == LOW ? chk : "");
+      break;
+    case '4':
+      if (encendido && modo_auto)
+        len = sprintf((char *)buf,
+          "Consigna: <input style=\"text-align: center;\" name=\"consigna\" size=\"3\" type=\"text\" value=\"%d\" />&ordm;C <input type=\"submit\" value=\"Actualizar\" />",
+          consigna);
+      else if (encendido)
+        len = sprintf((char *)buf,
+          "<input %s name=\"vel\" type=\"radio\" value=\"MED\" OnClick=\"submit();\"/> MED",
+          ventilador == MED ? chk : "");
+      break;
+    case '5':
+      if (encendido && modo_auto)
+        len = sprintf((char *)buf, "</form>");
+      else if (encendido)
+        len = sprintf((char *)buf,
+          "<input %s name=\"vel\" type=\"radio\" value=\"HIGH\" OnClick=\"submit();\"/> HIGH</form>",
+          ventilador == HIGH ? chk : "");
+      break;
+    case '6':                                   // ventana: SWING o el ángulo
+      if (estado_swing) sprintf(tmp, "SWING");
+      else              sprintf(tmp, "%d&ordm;", swing);
+      len = sprintf((char *)buf, (const char *)&env[2], tmp);
+      break;
+    case '7': len = sprintf((char *)buf, (const char *)&env[2], (encendido &&  modo_auto) ? chk : ""); break;
+    case '8': len = sprintf((char *)buf, (const char *)&env[2], (encendido && !modo_auto) ? chk : ""); break;
+    case '9': len = sprintf((char *)buf, (const char *)&env[2], !encendido ? chk : ""); break;
+    default: break;
+  }
+  return (U16)len;
+}
+```
+
+`cgi_process_var`:
+
+```c
+void cgi_process_var (U8 *qs)
+{
+  U8 *var;
+  int val, pedida;
+
+  var = (U8 *)alloc_mem (40);                       // espacio para un par nombre=valor
+  do {
+    qs = http_get_var (qs, var, 40);                // siguiente par; qs=0 al acabar
+    if (var[0] != 0) {
+      if (str_scomp (var, "modo=off") == __TRUE) {
+        if (encendido) Cmd = OFF;
+      }
+      else if (str_scomp (var, "modo=automatico") == __TRUE) {
+        if (!encendido) Cmd = ON;                   // al encender vuelve al último modo
+        else if (!modo_auto) Cmd = MODO;
+      }
+      else if (str_scomp (var, "modo=manual") == __TRUE) {
+        if (!encendido) Cmd = ON;
+        else if (modo_auto) Cmd = MODO;
+      }
+      else if (str_scomp (var, "vel=") == __TRUE && encendido && !modo_auto) {
+        if      (str_scomp (var, "vel=LOW")  == __TRUE) pedida = LOW;
+        else if (str_scomp (var, "vel=MED")  == __TRUE) pedida = MED;
+        else                                            pedida = HIGH;
+        fan_pend = (pedida - ventilador + 3) % 3;   // pulsaciones de FAN: LOW->MED->HIGH->LOW
+      }
+      else if (str_scomp (var, "consigna=") == __TRUE) {
+        val = atoi ((char *)&var[9]);               // "consigna=" son 9 caracteres
+        if (val >= 16 && val <= 30) consigna = val;
+      }
+    }
+  } while (qs);
+  free_mem ((OS_FRAME *)var);
+}
+```
+
+El programa principal debe hacer `if (Cmd==IDLE && fan_pend) { Cmd=FAN; fan_pend--; }`. Limitación aceptada: si el sistema está apagado y se pide un modo distinto del último, primero se enciende y hace falta una segunda pulsación.
+
+**La trampa.** (1) El `%` de una línea `c` es un formato: `25%` hay que escribirlo `25%%`. (2) El formulario solo manda lo que se pulsa: aquí ausencia significa «sin cambio», al contrario que con los checkbox del examen del jardín de noviembre de 2022. (3) El ejemplo manual muestra «5º», que no es un valor posible (0, 30, 60, 90); lo trato como una errata de la imagen.
+
+## Qué llevarte de este examen
+
+1. Los apartados de ADC y DAC se resuelven con tres números: $65/F_{ADC}$ para la conversión, $F_{ADC}/(65N)$ en ráfaga y $F_{pclk}/F_s-1$ para el Timer.
+2. Un buffer grande se mide en **bytes** (muestras por ancho): 16000 muestras de 16 bits no caben con el programa en la RAM local y van a 0x2007C000.
+3. Revisa los bits de configuración uno a uno: el LCR de la solución oficial no habilita la paridad, y para parar un Timer se escribe `TCR`, no `TC`.
+4. Una trama LSB primero se monta desplazando a la derecha e insertando por el bit más alto.
+5. En el CGI de Keil, el `%` y el «ausencia = sin cambio» son las dos trampas; separa siempre lo que lee la página (`cgi_func`) de lo que se pide (`cgi_process_var`).

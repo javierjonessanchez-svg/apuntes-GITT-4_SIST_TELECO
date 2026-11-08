@@ -1,0 +1,391 @@
+---
+titulo: "Noviembre de 2022 · Prueba de evaluación intermedia 1"
+orden: 34
+bloque: "Exámenes resueltos"
+resumen: "Marcador de temperatura con servo, brillo del LCD por LDR, medida del pulso por captura y alarma de tono o voz con DMA (cuestión 1), y un servidor HTTP/CGI que controla la iluminación de un jardín de 4 zonas (cuestión 2)"
+saber:
+  - "Tres canales del ADC en ráfaga con CLKDIV=1 dan 5,2 microsegundos por conversión y 64,1 kHz por canal; el servo con PWM1.5 usa un periodo de 12 ms y MR5 vale 12500 + 1000·T (T en grados) para 0 a 50 grados"
+  - "El brillo del LCD cuelga de PWM1.6 y comparte periodo con el servo: 83,3 Hz; con una LDR que va a masa, el ADC mide oscuridad, y el brillo es uno menos esa fracción"
+  - "El tono de alarma de 64 muestras por ciclo a 1 kHz obliga a interrumpir a 64 kHz; con DMA se evita con un canal enlazado a sí mismo para el tono y otro de 6 bloques de 4000 muestras para la voz"
+  - "En el CGI de Keil, las líneas c se pasan a sprintf como formato: para que cgi_func inserte checked o hidden hay que poner %s en la línea; los checkbox solo envían lo marcado, así que cgi_process_var reconstruye todo el estado desde cero"
+  - "La solución oficial tiene erratas: el sentido del ancho del pulso del servo, la división entera de la luminosidad, TC en vez de TCR para parar el Timer, y en el CGI faltan los %s, hay un todosONtodosON y una variable tofosOFF"
+fuentes:
+  - "PE1_SEDA_Noviembre_2022_enunciado y PE1_SEDA_Noviembre_2022_solucion (material de clase de la asignatura)"
+  - "UM10360 (manual del LPC17xx)"
+---
+import Donde from '../../../src/asignaturas/seda/Donde.astro';
+import Figura from '../../../src/asignaturas/seda/Figura.astro';
+import fig1 from './img/pe1-2022-11-1.png';
+import fig2 from './img/pe1-2022-11-2.png';
+import fig3 from './img/pe1-2022-11-3.png';
+import fig4 from './img/pe1-2022-11-4.png';
+
+## Resumen del examen
+
+| Dato | Valor |
+|---|---|
+| Fecha | Noviembre de 2022 |
+| Prueba | Primera intermedia (PE1) de SEDA, con solución oficial |
+| Estructura | Cuestión 1 con seis apartados (a a f) y cuestión 2 con dos apartados (a y b) |
+| Puntuación | No consta en el documento |
+| Datos | LPC1768, $F_{cpu}=100$ MHz, $F_{pclk}=25$ MHz |
+| Qué toca | ADC, PWM, captura, DAC con Timer y con DMA, servidor HTTP/CGI |
+
+**El sistema.** Un marcador de temperatura (0 a 50 ºC) hecho con un servo (0 a 180º). La temperatura sale de un LM35. El brillo del LCD se regula solo con una LDR. Hay una alarma de tono (500 Hz a 1 kHz, con potenciómetro) o de voz (3 s grabados a 8 kHz y 8 bits). Un PC por UART3 configura parámetros.
+
+<Figura src={fig1} alt="Diagrama del sistema con la solución en rojo: micrófono en P0.23 AD0.0, LDR en P0.25 AD0.2, potenciómetro en P0.3 AD0.6, LM35 en P0.2 AD0.7, servo en P1.24 PWM1.5 conectado también a CAP2.0 y CAP2.1, brillo del LCD en PWM1.6, altavoz en AOUT P0.26" pie="Figura 1 del enunciado con la solución oficial en rojo. Fíjate en que el cable del servo (P1.24) también va a CAP2.0 y CAP2.1." />
+
+## Cuestión 1 · El sistema de temperatura
+
+### a) ADC de los tres sensores a la máxima velocidad
+
+**Qué pide.** Completar `init_ADC_sensores` para la LDR, el LM35 y el potenciómetro, con la frecuencia de muestreo máxima, indicar los canales en el diagrama y calcular la frecuencia por canal y el tiempo de conversión.
+
+**Qué hay que saber antes.** Ráfaga y reloj del ADC: [ADC y DAC](../adc-dac/).
+
+**Proceso.**
+
+1. Los canales salen del diagrama: LDR en P0.25 (AD0.2), potenciómetro en P0.3 (AD0.6) y LM35 en P0.2 (AD0.7). La máscara es $2^2+2^6+2^7 = 4+64+128=196 = $ `0b11000100`.
+2. Máxima velocidad: el reloj más alto que permite el límite de 13 MHz. Con `CLKDIV=0` serían 25 MHz (demasiado); con `CLKDIV=1`, 12,5 MHz.
+3. Ráfaga: `BURST=1` y `START=000`.
+4. No interrumpe.
+
+$$
+t_{conv}=\frac{65}{F_{ADC}}=\frac{65}{12{,}5\cdot10^{6}}=5{,}2\ \mu s \qquad F_s=\frac{F_{ADC}}{65\cdot N}=\frac{12{,}5\cdot10^{6}}{65\cdot 3}=64{,}1\ \text{kHz}
+$$
+<Donde>
+
+- $t_{conv}$: tiempo de una conversión (s).
+- $F_{ADC}$: reloj del ADC, $F_{pclk}/(CLKDIV+1)$ (Hz).
+- $N$: canales activos en la ráfaga (3).
+- $F_s$: frecuencia de muestreo de cada canal (Hz).
+
+</Donde>
+
+```c
+void init_ADC_sensores(void)
+{
+  LPC_ADC->ADCR = 0b11000100      // canales 2, 6 y 7 (3 canales)
+                | (1<<8)          // CLKDIV=1: F_ADC = 25e6/2 = 12,5 MHz
+                | (1<<21)         // PDN=1: ADC encendido
+                | (1<<16);        // BURST: convierte sin parar
+  NVIC_DisableIRQ(ADC_IRQn);      // no interrumpe
+}
+```
+
+**La trampa.** Los exámenes alternan máxima y mínima velocidad. Y no sirve `CLKDIV=0` en un reloj de 25 MHz: pasaría del límite de 13 MHz.
+
+### b) PWM del servo
+
+**Qué pide.** Configurar la señal del servo (periodo 12 ms, nivel alto de 0,5 a 2,5 ms para 0 a 180º) y la función `set_servo(uint8_t temperatura)`.
+
+**Qué hay que saber antes.** [PWM y servos](../pwm-servos/): en PWM de flanco único la salida sube al empezar el periodo y baja en $MR_x$, luego el nivel alto dura $MR_x$.
+
+**Proceso.**
+
+1. El servo está en P1.24, que es PWM1.5 (función 01 de PINSEL3). Se alimenta PWM1 (`PCONP`).
+2. Periodo: $MR0 = 25\cdot10^6\cdot12\cdot10^{-3}-1=299\,999$; con reset en MR0 y sin interrupción.
+3. Se habilita la salida PWM1.5 (`PWMENA5`, bit 13 de `PCR`) y se arranca con `TCR = (1<<0)|(1<<3)`.
+4. La temperatura se reparte entre 0,5 ms (0 ºC) y 2,5 ms (50 ºC): hay 2 ms de recorrido, $25\cdot10^{6}\cdot 2\cdot10^{-3}/50=1000$ cuentas por grado.
+
+$$
+MR5 = F_{pclk}\cdot 0{,}5\,\text{ms} + F_{pclk}\cdot 2\,\text{ms}\cdot\frac{T}{50} = 12\,500 + 1000\cdot T
+$$
+<Donde>
+
+- $MR5$: valor del Match 5, que es la duración del nivel alto en cuentas.
+- $T$: temperatura (0 a 50 ºC).
+- $F_{pclk}$: 25 MHz, así que 0,5 ms son 12 500 cuentas.
+
+</Donde>
+
+Comprobación de los extremos: $T=0$ da 12 500 cuentas = 0,5 ms; $T=50$ da 62 500 = 2,5 ms.
+
+```c
+void config_pwm_servo(void)
+{
+  LPC_PINCON->PINSEL3 |= (1<<16);        // P1.24 = PWM1.5
+  LPC_SC->PCONP |= (1<<6);               // alimenta PWM1
+  LPC_PWM1->MR0  = 25000000*12e-3 - 1;   // periodo de 12 ms
+  LPC_PWM1->MCR  = (1<<1);               // reset en MR0, sin interrupción
+  LPC_PWM1->PCR  = (1<<13);              // habilita PWM1.5
+  LPC_PWM1->TCR  = (1<<0)|(1<<3);        // contador y modo PWM
+}
+
+void set_servo(uint8_t temperatura)
+{
+  LPC_PWM1->MR5 = 12500 + 1000*temperatura;     // 0,5 ms + 2 ms·T/50
+  LPC_PWM1->LER = (1<<5);                       // MR5 se actualiza al empezar el periodo
+}
+```
+
+**Ojo: errata en la solución oficial.** Escribe `MR5 = F_pclk*2.5e-3 - F_pclk*2e-3*temperatura/50`. Con $T=0$ da 2,5 ms y con $T=50$ da 0,5 ms: la aguja se mueve al revés de lo que dice el enunciado (0,5 ms para 0º).
+
+**La trampa.** Sin `LER` el valor nuevo no pasa a MR5.
+
+### c) PWM del brillo del LCD
+
+**Qué pide.** Qué recurso usar, `set_pwm_brillo(float brillo)` de 0 a 1 (ciclo de trabajo de 0 a 100 %) y la frecuencia.
+
+**Proceso.**
+
+1. El control de brillo (BL_CTRL) va a P1.26, que es PWM1.6: el mismo módulo PWM del servo.
+2. Los canales de un módulo PWM comparten MR0, así que la frecuencia es la del servo: $1/12\,\text{ms}=83{,}3$ Hz.
+3. El ciclo de trabajo es $MR6/(MR0+1)$. Se habilita `PWMENA6` y P1.26 en PINSEL3.
+4. La LDR va a masa con 1 kΩ a VDD. En la oscuridad (1 MΩ) el nodo está casi a VDD, así que el ADC da un valor **alto** cuando hay **poca** luz. Lo medido es una fracción de oscuridad, y el brillo debe ser su complemento.
+
+```c
+void set_pwm_brillo(float brillo)                 // brillo de 0 a 1
+{
+  LPC_PWM1->MR6 = (LPC_PWM1->MR0 + 1) * brillo;   // MR6/(MR0+1) = ciclo de trabajo
+  LPC_PWM1->LER = (1<<6);
+}
+
+// periódicamente, con el resultado de AD0.2 (8 bits)
+float oscuridad = ((LPC_ADC->ADDR2 >> 8) & 0xFF) / 255.0f;   // 255.0f: división real
+set_pwm_brillo(1.0f - oscuridad);
+```
+
+**Ojo: errata en la solución oficial.** Calcula `((ADDR2>>8)&0xFF)/255` con enteros, que da 0 o 1 y no valores intermedios (y le sobra un paréntesis). También usa `MR0*brillo`: con $brillo=1$ queda `MR6 = MR0` y la salida baja una cuenta al final del periodo; con `(MR0+1)*brillo` el 100 % es exacto, porque si `MR6` es mayor que `MR0` la salida se queda siempre alta.
+
+**La trampa.** Elegir el sentido: más luz, más brillo. Con la LDR a masa, el valor del ADC crece al oscurecer.
+
+### d) Medir el ancho del pulso del servo con el Timer 2
+
+**Qué pide.** La ISR del Timer 2 que mide en microsegundos el ancho del pulso (con `T2PR=24`) y lo guarda en una variable global.
+
+**Qué hay que saber antes.** [Captura](../captura/).
+
+**Proceso.**
+
+1. $PR=24$ da un tick de $25\,\text{MHz}/25=1$ MHz: una cuenta = 1 µs.
+2. El mismo cable llega a CAP2.0 (P0.4) y a CAP2.1 (P0.5). CAP2.0 captura el flanco de **subida** (sin interrumpir) y CAP2.1 el de **bajada** (interrumpe). `CCR = (1<<0)|(1<<4)|(1<<5)`.
+3. En la ISR: $duracion = CR1-CR0$.
+
+```c
+volatile uint32_t duracion;                    // ancho del pulso, en µs
+
+void TIMER2_IRQHandler(void)
+{
+  if (LPC_TIM2->IR & (1<<5)) {                 // captura en CAP2.1 (flanco de bajada)
+    LPC_TIM2->IR = (1<<5);                     // borra el flag de CR1
+    duracion = LPC_TIM2->CR1 - LPC_TIM2->CR0;  // resta sin signo: vale aunque el TC dé la vuelta
+  }
+}
+```
+
+**La trampa.** Comprueba con la parte b): 12 500 cuentas a 25 MHz son 500 µs, el mínimo que debes medir.
+
+### e) ISR del Timer 3 para la alarma
+
+**Qué pide.** La ISR que saca las muestras al DAC (tono o voz), la frecuencia máxima de interrupción y la declaración del array de voz.
+
+**Proceso.**
+
+1. Tono: una tabla de 64 muestras (un ciclo) ya desplazadas 8 bits. Se recorre en bucle con `indice &= 63`. Frecuencia de interrupción $=64\cdot f_{tono}$.
+2. Voz: 3 s a 8 kHz son 24 000 muestras de 8 bits (`uint8_t`, 24 000 bytes). Se escriben con `<<8`, que las deja en los bits 15:8 de `DACR`.
+3. Peor caso: tono de 1 kHz, $64\cdot1\ \text{kHz}=64$ kHz (cada 15,6 µs). Con la voz son 8 kHz.
+4. $MR0=F_{pclk}/F_{int}-1$: para la voz, 3124.
+
+```c
+uint8_t buffer_alarm_temp[24000];            // 3 s · 8000 muestras de 8 bits
+
+void TIMER3_IRQHandler(void)
+{
+  static uint16_t indice = 0;
+  LPC_TIM3->IR = (1<<0);                     // borra el flag de MR0
+  if (tipo_alarma == tono) {
+    LPC_DAC->DACR = muestras_tono[indice++]; // muestras ya desplazadas
+    indice &= 63;                            // 64 muestras por ciclo
+  } else {
+    LPC_DAC->DACR = buffer_alarm_temp[indice++] << 8;
+    if (indice == 24000) {
+      indice = 0;
+      LPC_TIM3->TCR = 0x02;                  // resetea y para el Timer 3
+    }
+  }
+}
+```
+
+**Ojo: errata en la solución oficial.** Para el final de la voz escribe `LPC_TIM2->TC=0x02`: es el Timer 2 y el registro `TC`. Lo que para el Timer 3 es `TCR=0x02`.
+
+**La trampa.** Con el tono, el valor de MR0 cambia con el potenciómetro: $MR0=25\cdot10^6/(64\cdot f_{tono})-1$, de 780 (500 Hz) a 390 (1 kHz).
+
+### f) DMA para quitar carga a la CPU
+
+**Qué pide.** Qué recurso y cómo configurarlo para reducir la carga de la CPU.
+
+**Qué hay que saber antes.** [DMA](../dma/): origen, destino, tamaño, ancho, lista enlazada.
+
+**Proceso.** Dos canales, uno por tipo de alarma (solo se habilita el del `tipo_alarma`).
+
+1. **Tono, canal 0:** copia 64 muestras de 16 bits al `DACR` y se **enlaza consigo mismo** (`DMACCLLI` apunta a un descriptor que contiene los mismos datos y apunta a sí mismo). Vuelve a empezar sin interrupciones. El ritmo lo da el DAC: $DACCNTVAL=25\cdot10^6/(f_{tono}\cdot64)-1$.
+2. **Voz, canal 1:** 24 000 muestras de 8 bits. Cada bloque tiene 4000 (el límite es 4095): 6 bloques, con interrupción de fin de bloque, solo 6 interrupciones en 3 s ($4000/8000=0{,}5$ s por bloque). $DACCNTVAL=25\cdot10^6/8000-1=3124$.
+3. El destino de la voz es el byte 1 de `DACR` (la dirección de `DACR` más 1, ancho de 8 bits), que son los bits 15:8.
+
+```c
+// canal 0: tono, enlazado a sí mismo
+LPC_GPDMACH0->DMACCSrcAddr  = (uint32_t)&muestras_tono[0];
+LPC_GPDMACH0->DMACCDestAddr = (uint32_t)&LPC_DAC->DACR;
+// TransferSize=64, anchos 16 bits, SI=1, DI=0, sin interrupción
+// DMACCLLI = dirección de un descriptor idéntico que apunta a sí mismo
+LPC_DAC->DACCNTVAL = 25000000/(f_tono*64) - 1;
+
+// canal 1: voz, bloques de 4000
+LPC_GPDMACH1->DMACCSrcAddr  = (uint32_t)&buffer_alarm_temp[0];
+LPC_GPDMACH1->DMACCDestAddr = (uint32_t)&LPC_DAC->DACR + 1;   // byte alto de DACR
+// TransferSize=4000, anchos 8 bits, SI=1, DI=0, I=1 (interrupción al acabar el bloque)
+LPC_GPDMACH1->DMACCLLI = 0;
+LPC_DAC->DACCNTVAL = 3124;
+```
+
+**Ojo: errata menor en la solución oficial.** Para la voz pone `LPC_GPDMACH0->DMACCLLI = 0`; debería ser el canal 1.
+
+**La trampa.** Las 24 000 muestras no caben en un bloque (máximo 4095), de ahí los 6 bloques. Con 16 bits por muestra serían 48 kB, que no caben en la RAM: por eso se escribe en el byte alto de `DACR` con muestras de 8 bits.
+
+## Cuestión 2 · Servidor HTTP del jardín de 4 zonas
+
+Se controla la iluminación de 4 zonas desde el navegador, de una en una o todas a la vez. La variable global `iluminacion` tiene un bit por zona (bit 0 = zona 1, ... bit 3 = zona 4); el programa principal enciende o apaga según ese valor.
+
+<Figura src={fig2} alt="Código CSS común de las dos páginas: clases Plano, Zona1, Zona2, Zona3 y Zona4 con posición absoluta" pie="Código común a las dos páginas de ejemplo del enunciado (estilos de las zonas)." />
+
+<Figura src={fig3} alt="Página de ejemplo 1: zonas 1 y 2 activadas con los recuadros rojos sobre el plano, y su código HTML con form method get action jardin.cgi y checkboxes" pie="Ejemplo de página 1 (zonas 1 y 2) con su código HTML. Subrayado: lo que cambia entre páginas: checked y hidden." />
+
+<Figura src={fig4} alt="Página de ejemplo 2: zonas 1, 2 y 4 activadas, y su código HTML" pie="Ejemplo de página 2 (zonas 1, 2 y 4), la que sale tras pulsar «Zona 4», cuya URL es jardin.html?zona1=on&zona2=on&zona4=on." />
+
+### Qué hay que saber antes: cómo funciona el CGI de Keil
+
+El tema no está en los apuntes públicos, así que va aquí con detalle.
+
+1. El navegador pide `jardin.cgi?zona1=on&zona2=on`. Es un formulario con `method="get"`: los datos van en la URL (con POST irían en el cuerpo y se tratarían en `cgi_process_data`).
+2. Un **checkbox solo envía algo si está marcado** (`nombre=on`). Uno sin marcar no aparece en la URL.
+3. El servidor llama **una vez** a `cgi_process_var(qs)` con la cadena de datos. Dentro, `http_get_var(qs, var, 40)` va sacando un par `nombre=valor` cada vez en `var` y devuelve el resto (0 al acabar). `str_scomp(var, "zona1=on")` es cierto si `var` empieza por ese texto.
+4. Luego recorre el fichero `.cgi` línea a línea. La primera letra decide: `t` copia el texto, `i fichero` incluye otro fichero, `c X ...` llama a `cgi_func` y `.` termina.
+5. En `cgi_func(env, buf, buflen, pcgi)`, `env[0]` es el identificador (`0`, `1`, ...), `env[1]` un espacio y `&env[2]` **el resto de la línea, que se usa como formato de `sprintf`**. La función escribe en `buf` y devuelve cuántos caracteres.
+
+### a) El fichero jardin.cgi
+
+**Proceso.**
+
+1. Lo que no cambia va en líneas `t`. El CSS (entre `style` y `/style`) se guarda en `cabecera.html` y se incluye con `i cabecera.html`.
+2. Cambian solo 8 líneas, que pasan a ser `c`: los cuatro checkbox (aparece o no `checked`) y las cuatro imágenes de zona (aparece o no `hidden`).
+3. En esas líneas el texto fijo `checked` o `hidden="hidden"` se sustituye por `%s`: `cgi_func` rellenará el `%s` con la palabra o con la cadena vacía.
+4. El formulario debe llamar a `jardin.cgi` (así lo hace el HTML de los ejemplos): solo un `.cgi` activa `cgi_process_var`.
+
+```
+i cabecera.html
+t <html>
+t <head></head>
+t <body>
+t   <h1>Sistema de control de iluminaci&oacute;n</h1>
+t   <table>
+t   <tr>
+t     <td>
+t       <form method="get" action="jardin.cgi">
+t         <label for="cars">Activa o desactiva las zonas</label><br>
+c 0         <input type="checkbox" id="zona1" name="zona1" onclick="submit()" %s>
+t         <label for="cars"> Zona 1</label><br>
+c 1         <input type="checkbox" id="zona2" name="zona2" onclick="submit()" %s>
+t         <label for="cars"> Zona 2</label><br>
+c 2         <input type="checkbox" id="zona3" name="zona3" onclick="submit()" %s>
+t         <label for="cars"> Zona 3</label><br>
+c 3         <input type="checkbox" id="zona4" name="zona4" onclick="submit()" %s>
+t         <label for="cars"> Zona 4</label><br>
+t         <br>
+t         <input type="checkbox" id="todosON" name="todosON" onclick="submit()">
+t         <label for="cars"> Enciende todas las zonas</label><br>
+t         <input type="checkbox" id="todosOFF" name="todosOFF" onclick="submit()">
+t         <label for="cars"> Apaga todas las zonas</label>
+t       </form>
+t     </td>
+t     <td style="width: 50px;"></td>
+t     <td style="vertical-align:top;">
+t     <div style="position: relative; left: 0; top: 0;">
+t       <img src="plano.png" class='Plano' >
+c 4       <img src="zona1.png" class="Zona1" %s>
+c 5       <img src="zona1.png" class="Zona2" %s>
+c 6       <img src="zona1.png" class="Zona3" %s>
+c 7       <img src="zona1.png" class="Zona4" %s>
+t     </div>
+t     </td>
+t   </tr>
+t   </table>
+t </body>
+t </html>
+.
+```
+
+**Ojo: erratas en la solución oficial.** (1) Las líneas `c` conservan `checked` y `hidden="hidden"` fijos, sin `%s`: así `cgi_func` no tiene dónde insertar nada. Esto es lo que «se añade o se modifica». (2) El checkbox de encender todo se llama `todosONtodosON`, pero `cgi_process_var` busca `todosON=on`. (3) El formulario apunta a `jardin.html` en vez de `jardin.cgi`.
+
+### b) cgi_func y cgi_process_var
+
+**Proceso de `cgi_func`.**
+
+1. Las líneas 0 a 3 son los checkbox: la zona $k$ (de 0 a 3) está activa si el bit $k$ de `iluminacion` vale 1. Se obtiene $k$ restando el carácter: `env[0]-'0'`.
+2. Las líneas 4 a 7 son las imágenes: se muestran si la zona está activa y se ocultan si no, con $k$ = `env[0]-'4'`.
+
+```c
+U16 cgi_func (U8 *env, U8 *buf, U16 buflen, U32 *pcgi)
+{
+  U32 len = 0;
+  switch (env[0]) {
+    case '0': case '1': case '2': case '3':          // checkbox de las zonas 1 a 4
+      len = sprintf((char *)buf, (const char *)&env[2],
+                    (iluminacion & (1 << (env[0]-'0'))) ? "checked" : "");
+      break;
+    case '4': case '5': case '6': case '7':          // imágenes de las zonas 1 a 4
+      len = sprintf((char *)buf, (const char *)&env[2],
+                    (iluminacion & (1 << (env[0]-'4'))) ? "" : "hidden=\"hidden\"");
+      break;
+    default:
+      break;
+  }
+  return (U16)len;
+}
+```
+
+**Proceso de `cgi_process_var`.** Como los checkbox sin marcar no llegan, **no se puede actualizar solo lo que llega**: se reconstruye el estado entero.
+
+1. Se parte de `_iluminacion = 0`.
+2. Cada `zonaK=on` que llega pone su bit.
+3. `todosON=on` pone los cuatro bits (0x0F). `todosOFF=on` anota que hay que apagar todo.
+4. Al final, si hubo `todosOFF`, se pone 0; se copia a `iluminacion`.
+
+```c
+void cgi_process_var (U8 *qs)
+{
+  U8 *var;
+  U8 _iluminacion = 0;
+  U8 todosOFF = 0;
+
+  var = (U8 *)alloc_mem (40);                        // espacio para un par nombre=valor
+  do {
+    qs = http_get_var (qs, var, 40);                 // siguiente par; qs=0 al acabar
+    if (var[0] != 0) {
+      if      (str_scomp (var, "zona1=on")    == __TRUE) _iluminacion |= 0x01;
+      else if (str_scomp (var, "zona2=on")    == __TRUE) _iluminacion |= 0x02;
+      else if (str_scomp (var, "zona3=on")    == __TRUE) _iluminacion |= 0x04;
+      else if (str_scomp (var, "zona4=on")    == __TRUE) _iluminacion |= 0x08;
+      else if (str_scomp (var, "todosON=on")  == __TRUE) _iluminacion |= 0x0F;
+      else if (str_scomp (var, "todosOFF=on") == __TRUE) todosOFF = 1;
+    }
+  } while (qs);
+  free_mem ((OS_FRAME *)var);
+  if (todosOFF) _iluminacion = 0;
+  iluminacion = _iluminacion;
+}
+```
+
+**Comprobación con el enunciado.** Estado inicial zonas 1 y 2 (`0x03`). Se pulsa «Zona 4»: la URL es `...?zona1=on&zona2=on&zona4=on`, así que `_iluminacion = 1+2+8 = 0x0B` y la página pinta las zonas 1, 2 y 4 marcadas y visibles: es el ejemplo 2. Si se desmarcan todas, la URL no trae variables y el resultado es 0 (se asume que el servidor llama a `cgi_process_var` también así).
+
+**Ojo: erratas en la solución oficial.** Declara `tofosOFF` pero usa `todosOFF` (no compila), y deja una variable `indice` sin usar en `cgi_func`.
+
+**La trampa.** (1) Que falte una variable significa «apagado», porque el navegador no envía los checkbox sin marcar: hay que partir de cero. (2) El `%s` en la línea `c`, no un texto fijo. (3) Cuidado con el `%` en las líneas `c` (aquí no hay ninguno, pero uno suelto se interpretaría como formato).
+
+## Qué llevarte de este examen
+
+1. Con el ADC en ráfaga, $F_s=F_{ADC}/(65N)$ y $t_{conv}=65/F_{ADC}$; usa el menor `CLKDIV` que no pase de 13 MHz para la máxima velocidad.
+2. En PWM de flanco único el nivel alto dura $MR_x$: comprueba siempre los dos extremos del servo (0,5 ms y 2,5 ms) y escribe `LER`.
+3. Cuando el DAC se alimenta por Timer, el tono a 64 muestras por ciclo da una interrupción de $64\cdot f$; el DMA con un canal enlazado a sí mismo lo evita.
+4. Para parar un Timer se escribe `TCR=0x02`, no `TC`, y revisa que sea el Timer correcto.
+5. En el CGI, las líneas `c` son formatos de `sprintf` con `%s`, y los checkbox solo mandan lo marcado: reconstruye el estado entero en `cgi_process_var`.
