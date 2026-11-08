@@ -180,6 +180,18 @@ $$
 
 **Ejemplo (números inventados).** Tres señales de 1, 2 y 5 kHz con $F_{tick} = 25$ MHz: $N_0 = 12\,500$, $N_1 = 6250$, $N_2 = 2500$. **Límite:** cada medio periodo hay una ISR, así que tiene que cumplirse $t_{latencia} + t_{\text{ejecución}} < T_{out}/2$ (y sumando las ISR de las otras señales). Si no, se pierde un Match y la señal se estropea. Con $\le 4$ Match por Timer salen hasta 4 señales.
 
+Frecuencia máxima que se puede generar así (la fórmula de las hojas de clase):
+
+$$
+f_{max} = \frac{1}{4\,(t_{lat} + t_{ej})}
+$$
+
+<Donde>
+
+- $f_{max}$: frecuencia de salida más alta que aguanta la ISR, en Hz. $t_{lat}$: latencia de la interrupción, en s. $t_{ej}$: tiempo que tarda en ejecutarse la ISR, en s.
+
+</Donde>
+
 <span id="t4"></span>
 
 ## Tarea 4 · Cuadrada por hardware (toggle, sin ISR)
