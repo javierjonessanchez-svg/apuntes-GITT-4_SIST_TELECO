@@ -1,0 +1,47 @@
+---
+import Fig from './Fig.astro';
+import { escalera, cota } from './escalera';
+// TC como escalera. modo «reset»: vuelve a 0 en MR0 (interrupción periódica, T_int = (MR0+1)/F_tick).
+// modo «libre»: TC no se reinicia; en cada ISR se suma N a MR0 (MR0 += N).
+interface Props { modo: 'reset' | 'libre' }
+const { modo } = Astro.props;
+const yb = 150, yt = 40;
+const dientes = [[60, 200], [200, 340], [340, 480]];
+---
+{modo === 'reset' ? (
+  <Fig alt="TC sube de 0 a MR0, en la ISR se reinicia y vuelve a empezar: tres dientes de sierra; el tiempo entre interrupciones es T_int" ancho={560}>
+    <svg slot="dibujo" viewBox="0 0 620 205">
+      <path class="eje" d={`M60 ${yt - 14} V${yb} H600`} />
+      <text class="t" x="20" y="30">TC</text><text class="t" x="574" y="168">t</text>
+      <path class="nivel" d={`M60 ${yt} H590`} /><text class="tn" x="14" y={yt + 4}>MR0</text>
+      {dientes.map(([a, b]) => (
+        <g>
+          <path class="tc" d={escalera(a, b, yb, yt, 7)} />
+          <path class="tc" d={`M${b} ${yt} V${yb}`} />
+          <circle class="isr" cx={b} cy={yt} r="6" />
+        </g>
+      ))}
+      <text class="t" x="206" y="30">ISR</text><text class="t" x="346" y="30">ISR</text><text class="t" x="486" y="30">ISR</text>
+      <path class="cota" d={cota(200, 340, 184)} />
+      <text class="tb c" x="270" y="200">T_int = (MR0+1)/F_tick</text>
+    </svg>
+    Con «reinicia en MR0» (MCR: MR0I y MR0R) cada diente dura MR0+1 tics. La ISR solo borra el flag de IR.
+  </Fig>
+) : (
+  <Fig alt="TC sube sin reiniciarse; cuando alcanza MR0 hay interrupción y la ISR suma N a MR0, de modo que el siguiente Match ocurre N tics después" ancho={560}>
+    <svg slot="dibujo" viewBox="0 0 620 205">
+      <path class="eje" d={`M60 20 V${yb} H600`} />
+      <text class="t" x="20" y="30">TC</text><text class="t" x="574" y="168">t</text>
+      <path class="tc" d={escalera(60, 560, yb, 30, 24)} />
+      {[[187.5, 120], [312.5, 90], [437.5, 60]].map(([x, y]) => (
+        <g>
+          <path class="nivel" d={`M60 ${y} H${x}`} /><path class="guia" d={`M${x} ${y} V${yb}`} />
+          <circle class="isr" cx={x} cy={y} r="6" />
+        </g>
+      ))}
+      <text class="tn" x="64" y="114">MR0</text><text class="tn" x="64" y="84">MR0 + N</text><text class="tn" x="64" y="54">MR0 + 2N</text>
+      <path class="cota" d={cota(187.5, 312.5, 184)} /><text class="tb c" x="250" y="200">N = F_tick · T</text>
+    </svg>
+    Sin reset, TC corre libre y cada Match tiene su propio periodo: en la ISR, MR0 = MR0 + N. Sirve para varias señales con un solo Timer.
+  </Fig>
+)}

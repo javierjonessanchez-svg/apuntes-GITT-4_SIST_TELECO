@@ -2,13 +2,18 @@
 titulo: "DMA: mover datos sin la CPU"
 orden: 7
 bloque: "Analógico"
-resumen: "El GPDMA del LPC1768: qué pide cada canal, cuántas muestras caben en un bloque y cómo grabar con el ADC y reproducir con el DAC sin interrupciones"
+resumen: "El GPDMA del LPC1768: qué pide cada canal, cuántas muestras caben en un bloque, bytes frente a muestras, lista de descriptores y cómo grabar con el ADC y reproducir con el DAC sin interrupciones"
 saber:
   - "El DMA copia datos entre memoria y periféricos sin que la CPU ejecute código por cada dato. El LPC1768 tiene 8 canales, cada uno en un solo sentido"
   - "Un canal se configura con: dirección de origen, de destino, tamaño del bloque, ancho (8, 16 o 32 bits), si se incrementa cada dirección, el tipo de transferencia y la señal que pide cada dato"
   - "Un bloque no puede pasar de 4095 transferencias (el campo TransferSize tiene 12 bits). Para grabar o reproducir más muestras hay que encadenar bloques (lista de descriptores) o volver a apuntar el canal cuando acaba"
   - "Grabar con el ADC: el Timer dispara cada conversión por MAT, el ADC pide un dato al DMA y se habilita su interrupción en ADINTEN pero no en el NVIC. Reproducir con el DAC: DACCNTVAL fija el ritmo y el DAC pide cada muestra"
   - "N = f_s · t son las muestras, y los bytes dependen del ancho: 1 por muestra de 8 bits, 2 por muestra de 10 o 12 bits"
+  - "Las direcciones del DMA avanzan en bytes: el origen del bloque k es el origen del bloque 0 más k · muestras_por_bloque · bytes_por_muestra. Con muestras de 16 bits, un bloque de 2000 muestras son 4000 bytes"
+  - "Para sacar 8 bits por el DAC (o leer 8 bits del ADC) se usa el byte alto del registro: (uint32_t)&(LPC_DAC->DACR) + 1. El + 1 va después del cast; dentro del paréntesis sumaría 4 bytes y apuntaría a otro registro"
+  - "Para que un bloque avise hacen falta tres cosas: I en DMACCControl, ITC en DMACCConfig y DMA_IRQn en el NVIC. Dentro de la ISR se borra el flag escribiendo un 1 en DMACIntTCClear"
+  - "Un descriptor de la lista son cuatro palabras, en este orden: origen, destino, siguiente y control. El último lleva siguiente = 0. DMACCConfig no va en el descriptor: no se recarga"
+  - "Un canal que termina se desactiva solo. Para repetir hay que reconfigurarlo entero, o cerrar la lista en anillo (el último descriptor apunta al primero)"
   - "Lo que se pide en el examen casi siempre es la lista de ajustes del canal con sus números, no el programa entero"
 fuentes:
   - "UM10360 (manual del LPC17xx), cap. 31 (GPDMA), cap. 29 (DAC) y cap. 30 (ADC)"
@@ -35,6 +40,26 @@ test:
     o: ["Cuando acaba su bloque, y solo en ese se habilita la interrupción de terminación", "Nunca: la lista no puede interrumpir", "Después de cada muestra", "Cuando se llena la FIFO del DMA"]
     c: 0
     e: "Los bloques intermedios pasan al siguiente descriptor sin avisar. Solo el último tiene el bit de interrupción de terminación a 1."
+  - p: "Un array de uint16_t se reproduce en bloques de 3000 muestras con un solo canal que se reconfigura en la ISR. ¿Cuántos bytes hay que sumar al origen para pasar del bloque 0 al bloque 1?"
+    o: ["6000", "3000", "12 000", "1500"]
+    c: 0
+    e: "El DMA trabaja con direcciones en bytes: 3000 muestras · 2 bytes por muestra = 6000. Sumar 3000 haría que el bloque 1 empezara a mitad del bloque 0."
+  - p: "Escribes DMACCDestAddr = (uint32_t)(&(LPC_DAC->DACR) + 1). ¿A qué dirección apunta?"
+    o: ["A DACCTRL: el + 1 de un puntero a uint32_t suma 4 bytes", "Al byte 1 de DACR, el byte alto", "A DACR, sin cambios", "A DACCNTVAL"]
+    c: 0
+    e: "El + 1 se aplica a un puntero a uint32_t, así que avanza 4 bytes y llega al registro siguiente, DACCTRL. Para el byte alto de DACR hay que convertir a entero primero: (uint32_t)&(LPC_DAC->DACR) + 1."
+  - p: "Un bloque debe interrumpir al acabar. Pones I = 1 en DMACCControl, pero no entra en la ISR del DMA. ¿Qué es lo más probable que falte?"
+    o: ["ITC en DMACCConfig o NVIC_EnableIRQ(DMA_IRQn)", "Poner SI = 1", "Poner BURST en el ADC", "Habilitar el canal 7"]
+    c: 0
+    e: "El aviso pasa por tres filtros: I en el Control del bloque, ITC en el Config del canal y la línea del DMA en el NVIC. Falta alguno de los dos últimos."
+  - p: "En una lista de descriptores, ¿qué orden llevan las cuatro palabras de cada descriptor?"
+    o: ["Origen, destino, siguiente, control", "Control, origen, destino, siguiente", "Origen, destino, control, config", "Siguiente, origen, destino, control"]
+    c: 0
+    e: "Es el mismo orden que los registros del canal en memoria: SrcAddr, DestAddr, LLI, Control. DMACCConfig no forma parte del descriptor."
+  - p: "Reproduces 30 000 muestras a 12 500 Hz con bloques de 3750. ¿Cuánto dura cada bloque?"
+    o: ["0,3 s", "3,3 s", "0,03 s", "2,4 s"]
+    c: 0
+    e: "t_bloque = TransferSize / f_s = 3750 / 12 500 = 0,3 s. Hay 30 000 / 3750 = 8 bloques y todo dura 2,4 s."
 ---
 import Practica from '../../../src/asignaturas/seda/Practica.astro';
 import Frecuencia from '../../../src/asignaturas/seda/Frecuencia.astro';
@@ -65,6 +90,21 @@ Que un Match de un Timer sirva de petición es lo que permite **mover datos a un
   { bits: '0–7', nombre: 'Petición 8 a 15', que: '0 = la UART correspondiente (valor tras el reset); <b>1 = el Match del Timer</b>. El bit 0 es la petición 8 (UART0 Tx o MAT0.0), el bit 1 la 9 (MAT0.1)… el bit 2 la 10 (MAT1.0)' },
 ]} />
 
+**Un Match como petición: sin el «÷ 2».** Con el ADC disparado por un Timer, el Match se pone en modo conmutar y el ADC arranca solo con el flanco de subida, uno de cada dos Match: por eso allí $MR = F_{tick}/(2\,f_s) - 1$. Aquí no hay flancos: **cada vez que TC iguala al Match hay una petición**. Con reset en el Match, una transferencia cada $T$ segundos pide
+
+$$
+MR = F_{tick}\cdot T - 1
+$$
+
+<Donde>
+
+- $MR$: valor del registro de Match (MR0, MR1…) que se usa como petición, sin unidades. $F_{tick}$: frecuencia a la que cuenta el Timer ($F_{PCLK}/(PR+1)$), en Hz.
+- $T$: tiempo entre dos transferencias, en s. El «−1» es porque el contador cuenta de 0 a $MR$, o sea $MR + 1$ ciclos.
+
+</Donde>
+
+**Ejemplo (números inventados).** Mandar un patrón de 20 bytes a los ocho pines P1.24 a P1.31 (el byte `FIOPIN3` del puerto 1), un byte cada 0,2 s con el Timer 1 y su Match 0 (petición 10, bit 2 de DMAREQSEL). Con $F_{tick} = 25$ MHz: $MR0 = 25\cdot 10^6\cdot 0{,}2 - 1 = 4\,999\,999$, con reset en MR0. El canal es memoria→periférico, `SI = 1`, `DI = 0`, ancho 8 bits y `TransferSize = 20`. Si no se quiere ninguna ISR, se deja `DMACCLLI = 0` y el patrón se envía una vez.
+
 ## Los ajustes de un canal
 
 Cualquier transferencia se describe con **los mismos seis datos**. Esta lista es lo que más se pregunta, en forma de «indica cómo configurarías el DMA»:
@@ -92,6 +132,73 @@ Cualquier transferencia se describe con **los mismos seis datos**. Esta lista es
 ]} />
 
 Antes de configurar ningún canal, el DMA hay que **encenderlo**: `PCONP` bit 29 (PCGPDMA) y `DMACConfig` bit 0 (habilita el controlador entero). No tiene `PCLKSEL`: va con el reloj de la CPU. Y tras terminar un bloque se **borra** la interrupción de ese canal en `DMACIntTCClear` (y los errores en `DMACIntErrClr`), escribiendo un 1 en su bit.
+
+**Cuál de los dos campos de periférico se rellena.** Solo se mira el del lado que es un periférico; el del lado de memoria se ignora. Memoria→DAC: `DestPeripheral = 7`. ADC→memoria: `SrcPeripheral = 4`. Memoria→Match de un Timer: `DestPeripheral` = la petición 8 a 15 que toque.
+
+**Anchos y ráfagas.** Los códigos son los de la tabla; para audio se deja la ráfaga en 1 dato (`000`, los campos a cero) y solo se tocan los anchos.
+
+| Campo | Código | Significa |
+|---|---|---|
+| `SWidth`, `DWidth` | `000`, `001`, `010` | 8, 16 y 32 bits |
+| `SBSize`, `DBSize` | `000`, `001`, `010`, `011` | ráfaga de 1, 4, 8 y 16 datos (siguen 32, 64, 128 y 256) |
+
+Dos reglas sobre el ancho que el examen aprovecha: la dirección tiene que ser **múltiplo del ancho** (con 16 bits, una dirección par; con 32, múltiplo de 4), y **el incremento es del tamaño del ancho**: con `SWidth = 8 bits` la dirección avanza 1 byte tras cada dato, con 16 bits avanza 2.
+
+## Un canal de principio a fin
+
+Todo junto, en el orden en que se escribe. Caso: reproducir `sonido[]`, de $n$ muestras de 8 bits ($n \le 4095$), por el DAC, con una interrupción al acabar.
+
+```c
+// Memoria -> DAC, un solo bloque. Los anchos quedan a 000 (8 bits).
+LPC_SC->PCONP |= (1 << 29);                    // alimentar el GPDMA
+LPC_GPDMA->DMACConfig |= 1;                    // habilitar el controlador
+LPC_GPDMA->DMACIntTCClear = 0xFF;              // borrar fin de bloque pendientes (todos los canales)
+LPC_GPDMA->DMACIntErrClr  = 0xFF;              // y errores
+
+LPC_GPDMACH0->DMACCSrcAddr  = (uint32_t) &sonido[0];
+LPC_GPDMACH0->DMACCDestAddr = (uint32_t) &(LPC_DAC->DACR) + 1;   // byte alto de DACR
+LPC_GPDMACH0->DMACCLLI      = 0;                                 // sin lista
+LPC_GPDMACH0->DMACCControl  = n | (1u << 26) | (1u << 31);       // TransferSize | SI | I
+LPC_GPDMACH0->DMACCConfig   = (7 << 6) | (1 << 11) | (1 << 15);  // DestPeripheral = 7 | mem->perif | ITC
+
+NVIC_EnableIRQ(DMA_IRQn);                      // una sola línea para los 8 canales
+LPC_GPDMACH0->DMACCConfig |= 1;                // E = 1: el canal queda habilitado
+
+LPC_DAC->DACCNTVAL = 25000000 / 8000 - 1;      // ritmo: 3124 con 25 MHz y 8 kHz
+LPC_DAC->DACCTRL   = (1 << 2) | (1 << 3);      // CNT_ENA y DMA_ENA: empieza a pedir muestras
+```
+
+Y la rutina del DMA, que es **una sola** para todos los canales, así que primero se mira quién ha sido:
+
+```c
+void DMA_IRQHandler(void) {
+  if (LPC_GPDMA->DMACIntTCStat & (1 << 0)) {   // ¿ha terminado el canal 0?
+    LPC_GPDMA->DMACIntTCClear = (1 << 0);      // se borra escribiendo un 1 en el bit del canal
+    LPC_DAC->DACCTRL = 0;                      // paramos el contador del DAC
+    fin_audio = 1;
+  }
+  if (LPC_GPDMA->DMACIntErrStat & (1 << 0)) {  // ¿error en el canal 0?
+    LPC_GPDMA->DMACIntErrClr = (1 << 0);
+  }
+}
+```
+
+Por qué cada línea está donde está:
+
+- **El DAC se arranca el último.** Si el contador del DAC pidiera muestras antes de habilitar el canal, las primeras peticiones se perderían.
+- **`n` tiene que ser menor o igual que 4095.** `TransferSize` ocupa solo los bits 11:0; si `n` fuera 5000, el exceso caería sobre `SBSize` y el canal haría cosas raras sin avisar.
+- **El aviso necesita los tres filtros**: `I` en el `Control` del bloque, `ITC` en el `Config` del canal y `NVIC_EnableIRQ(DMA_IRQn)`. Con el ADC era justo al revés: se habilita ADINTEN y **no** el NVIC del ADC, porque ahí quien atiende es el DMA. Aquí lo que se quiere es avisar a la CPU al final del bloque, y la línea que despierta es la del DMA.
+- **Un canal que termina se desactiva solo** (se borra `E`). Según el manual, volver a poner `E` a pelo tiene efectos impredecibles: para otro bloque se reescriben todos los registros del canal.
+- **Si las muestras son de 16 bits**, ya colocadas como pide `DACR` (valor × 64, bits 15:6), el destino es `&(LPC_DAC->DACR)` sin el `+ 1` y el ancho es de 16 bits en origen y en destino.
+
+Los mismos ajustes, como números (útiles para comprobar una respuesta):
+
+| Canal | `DMACCConfig` sin `E` | Con `E` | `DMACCControl` con 4000 muestras de 8 bits |
+|---|---|---|---|
+| Memoria→DAC, con fin de bloque | `0x89C0` | `0x89C1` | `0x84000FA0` (SI e I) |
+| ADC→memoria, con fin de bloque | `0x9008` | `0x9009` | `0x88000FA0` (DI e I) |
+
+Cómo salen: `0x89C0` = `(7 << 6)` (DestPeripheral = 7) + `(1 << 11)` (memoria→periférico) + `(1 << 15)` (ITC). Y `0x9008` = `(4 << 1)` (SrcPeripheral = 4) + `(2 << 11)` (periférico→memoria) + `(1 << 15)`. En `Control`, 4000 = `0xFA0`, el bit 26 es SI (`0x04000000`), el bit 27 es DI (`0x08000000`) y el bit 31 es I (`0x80000000`).
 
 ## Cuántas muestras, cuántos bloques
 
@@ -128,6 +235,48 @@ $$
 
 **Ejemplo (números inventados).** Grabar 2,5 s de un sensor a $f_s = 6$ kHz con muestras de 8 bits: $N = 6000\cdot 2{,}5 = 15\,000$ muestras, 15 000 bytes. Con un bloque máximo de 4095, hacen falta $\lceil 15\,000/4095\rceil = 4$ bloques; 4 bloques de 3750 caben y cada uno dura $3750/6000 = 0{,}625$ s.
 
+**Un reparto que no sale redondo.** Si $N/n_{bloques}$ no es entero, se hacen $n_{bloques} - 1$ bloques iguales y uno más corto con el resto. Con $N = 10\,000$ y bloques de 4000: $\lceil 10\,000/4000\rceil = 3$ bloques, dos de 4000 y uno de 2000. Lo importante es que **ninguno pase de 4095** y que la suma dé $N$.
+
+## Bytes frente a muestras: el desplazamiento de cada bloque
+
+Aquí cae casi todo el mundo. `TransferSize` cuenta **transferencias** (muestras), pero las direcciones que se escriben en `DMACCSrcAddr` y `DMACCDestAddr` son **direcciones de bytes**. Para pasar del bloque 0 al bloque $k$:
+
+$$
+dir_k = dir_0 + k\cdot M\cdot b
+$$
+
+<Donde>
+
+- $dir_k$: dirección de origen (o de destino, la que recorra el array) del bloque $k$, en bytes. $dir_0$: la del primer bloque, la del elemento `array[0]`.
+- $k$: índice del bloque, empezando en 0 (adimensional). $M$: muestras por bloque, o sea `TransferSize`.
+- $b$: bytes por muestra, igual al ancho de la transferencia dividido entre 8: 1, 2 o 4.
+
+</Donde>
+
+**Ejemplo (números inventados).** Un array de `uint16_t` se reproduce en bloques de $M = 3000$ muestras. El bloque 2 (el tercero, $k = 2$) empieza $2\cdot 3000\cdot 2 = 12\,000$ bytes más allá del principio. Con muestras de 8 bits serían 6000. Con 32 bits, 24 000.
+
+En C hay dos formas, y **solo una se equivoca**:
+
+```c
+uint16_t audio[9000];                // 3 bloques de 3000 muestras de 16 bits
+
+// 1) El compilador multiplica por el tamaño del elemento: bien con cualquier tipo
+DMACCSrcAddr = (uint32_t) &audio[2 * 3000];
+
+// 2) Sumar a mano, ya en bytes: hay que multiplicar por sizeof
+DMACCSrcAddr = (uint32_t) &audio[0] + 2 * 3000 * sizeof(audio[0]);
+
+// MAL: suma 6000 bytes, que son solo 3000 muestras de 16 bits (la mitad del recorrido)
+DMACCSrcAddr = (uint32_t) &audio[0] + 2 * 3000;
+```
+
+Las trampas que salen de esto:
+
+- **Sumar muestras donde van bytes**, como en el ejemplo malo. Con `uint8_t` da igual (cada muestra es un byte) y por eso el fallo pasa desapercibido hasta que el array es de 16 bits.
+- **Poner el `+ 1` donde no toca.** `(uint32_t) &(LPC_DAC->DACR) + 1` es el byte alto de `DACR`; en cambio `(uint32_t)(&(LPC_DAC->DACR) + 1)` es aritmética de punteros sobre un `uint32_t` y **suma 4 bytes**: apunta a `DACCTRL`. Lo mismo para leer el byte alto del resultado del ADC: `(uint32_t) &(LPC_ADC->ADDR0) + 1`.
+- **Ancho y tipo del array que no coinciden.** Si el array es de `uint16_t` pero el canal usa ancho de 8 bits, la dirección avanza 1 byte por dato y el DMA lee alternando el byte bajo y el alto de cada muestra. Con 12 bits guardados en 16, el ancho es de 16.
+- **Error de redondeo en el tamaño del último bloque**, que se pasa de 4095 o deja muestras sin mover.
+
 ## Grabar con el ADC: del pin a la memoria
 
 El esquema de la grabación a ritmo fijo, sin una sola interrupción por muestra:
@@ -152,6 +301,10 @@ canal.config   = periférico_a_memoria | peticion_ADC | habilitar;
 iniciar_timer_y_ADC();                 // el Timer ya marca el ritmo: no hay más código
 ```
 
+**Por qué los 8 bits altos.** El resultado de 12 bits vive en los bits 15:4. Quedarse con los 8 de más peso (bits 15:8) equivale a dividir entre 16: se pierden los 4 de menos peso y quedan $2^8 = 256$ niveles en vez de 4096. El ruido que se pierde es el de menos peso; para voz sobra, y a cambio el array ocupa la mitad (1 byte por muestra en vez de 2) y se evita desplazar y enmascarar en la ISR.
+
+**El silencio no es el 0.** Un micrófono con su amplificador en reposo no da 0 V, sino un nivel continuo a mitad de la escala (con $V_{REF} = 3{,}3$ V, hacia 1,65 V, es decir, un valor de 128 con 8 bits). Es el «cero» del audio: al reproducir, el silencio vuelve a ser 128, no 0.
+
 ## Reproducir con el DAC: de la memoria al pin
 
 El DAC tiene su **propio contador**, así que no hace falta un Timer. Dos registros lo manejan:
@@ -174,7 +327,13 @@ $$
 
 **Ejemplo (números inventados).** Reproducir a 16 kHz con $F_{PCLK} = 25$ MHz: $DACCNTVAL = 25\cdot 10^6/16\,000 - 1 = 1561{,}5$. Como no es entero, se redondea (1561 o 1562) y sale $f_s \approx 16\,005$ Hz o 15 994 Hz: un 0,04 % de error, sin importancia para audio.
 
+**Límites de $f_s$.** Con 16 bits, $DACCNTVAL \le 65\,535$, y con 25 MHz la frecuencia más baja que se puede pedir es $25\cdot 10^6/65\,536 \approx 381$ Hz. Por arriba manda el DAC: con `BIAS = 0` admite hasta 1 MHz de actualización; con `BIAS = 1`, 400 kHz.
+
 El canal es memoria→DAC: `SI = 1`, `DI = 0`, petición 7. Si las muestras son de 8 bits, el destino es el byte alto de `DACR` (el registro entero, más 1) para no tener que desplazar. Si el array tiene muestras de 16 bits ya colocadas como pide `DACR`, el ancho es de 16 bits y se escribe `DACR` tal cual.
+
+**Por qué el byte alto sirve.** `DACR` guarda el valor de 10 bits en los bits 15:6. El byte que está en la posición 1 son los bits 15:8, es decir, los **8 bits de más peso** de ese valor: una muestra de 8 bits escrita ahí queda en `VALUE` multiplicada por 4 (desplazada 2 posiciones), que es justo escalarla de 0–255 a 0–1023. Es lo mismo que hace la ISR con `DACR = muestra << 8`. Los dos bits bajos de `VALUE` valen 0, así que la salida avanza en escalones de $3{,}3/256 \approx 12{,}9$ mV en vez de los $3{,}2$ mV de la resolución completa.
+
+**Parar y arrancar la reproducción.** Para parar basta con quitar `CNT_ENA` (`DACCTRL &= ~(1 << 2)`): el DAC deja de pedir muestras y la salida se queda en el último valor. Para volver a reproducir desde el principio hay que reconfigurar el canal (origen, tamaño y `E`), porque el anterior se desactivó solo al acabar.
 
 ## Cuando 4095 no llega
 
@@ -184,7 +343,120 @@ Un solo canal solo mueve 4095 transferencias. Hay dos formas de seguir:
 
 **Volver a apuntar en la ISR.** Un solo canal con `DMACCLLI = 0` interrumpe al acabar cada bloque. En la ISR se borra el flag, se suma el tamaño del bloque a la dirección de origen (o de destino) y se vuelve a habilitar el canal. Es más simple, pero la CPU se despierta una vez por bloque (no por muestra), y hay un hueco corto entre bloques.
 
+**Dos canales que se alternan** (*ping-pong*). Para no tener hueco entre bloques sin usar lista, un canal reproduce mientras la ISR prepara el otro. Es más trabajo que la lista y solo compensa si cada bloque se rellena con datos nuevos.
+
 La elección se justifica por **cuántas veces despierta a la CPU**: una por muestra (sin DMA), una por bloque (volver a apuntar) o ninguna hasta el final (lista).
+
+**Una puntualización sobre «canales enlazados».** En el hardware los canales son independientes y no existe ningún registro que enlace un canal con otro: lo que encadena es `DMACCLLI`, que enlaza **bloques** dentro de un mismo canal. Cuando un enunciado dice «dos canales enlazados de forma que cuando termina uno empieza el otro», lo que corresponde configurar es una lista (o, si de verdad se usan dos canales, que la ISR del primero habilite el segundo). El tamaño de cada bloque y el reparto de interrupciones se justifican igual.
+
+## La lista de descriptores, paso a paso
+
+Un descriptor son **cuatro palabras de 32 bits** que se copian a los registros del canal cuando empieza el bloque. El orden es el de los registros:
+
+| Palabra | Registro que rellena | Qué lleva |
+|---|---|---|
+| 0 | `DMACCSrcAddr` | Dirección de origen del bloque |
+| 1 | `DMACCDestAddr` | Dirección de destino del bloque |
+| 2 | `DMACCLLI` | Dirección del **siguiente** descriptor; **0 si es el último** |
+| 3 | `DMACCControl` | `TransferSize`, anchos, `SI`, `DI` e `I` de ese bloque |
+
+El ejemplo completo (números inventados): reproducir 30 000 muestras de 8 bits a 12 500 Hz. Hay $\lceil 30\,000/4095\rceil = 8$ bloques; con bloques iguales de 3750 muestras (0,3 s cada uno) dura 2,4 s. $DACCNTVAL = 25\cdot 10^6/12\,500 - 1 = 1999$.
+
+```c
+typedef struct {            // un descriptor (LLI): 4 palabras, en este orden
+  uint32_t origen;          // -> DMACCSrcAddr
+  uint32_t destino;         // -> DMACCDestAddr
+  uint32_t siguiente;       // -> DMACCLLI (0 = último)
+  uint32_t control;         // -> DMACCControl
+} lli_t;
+
+#define M 3750                                  // muestras por bloque
+#define NB 8                                    // bloques
+static uint8_t  sonido[NB * M];                 // 30 000 muestras de 8 bits
+static lli_t    lista[NB - 1];                  // 7 descriptores: el bloque 0 va en los registros
+
+void dma_lista_init(void) {
+  uint32_t dac = (uint32_t) &(LPC_DAC->DACR) + 1;      // byte alto de DACR
+  uint32_t ctrl = M | (1u << 26);                      // TransferSize | SI, sin interrupción
+
+  for (int i = 0; i < NB - 1; i++) {                   // el descriptor i describe el bloque i + 1
+    lista[i].origen    = (uint32_t) &sonido[(i + 1) * M];   // el compilador multiplica por el tamaño
+    lista[i].destino   = dac;
+    lista[i].siguiente = (i < NB - 2) ? (uint32_t) &lista[i + 1] : 0;   // el último termina en 0
+    lista[i].control   = (i < NB - 2) ? ctrl : (ctrl | (1u << 31));     // solo el último avisa (I)
+  }
+
+  LPC_GPDMACH0->DMACCSrcAddr  = (uint32_t) &sonido[0];     // bloque 0: en los registros del canal
+  LPC_GPDMACH0->DMACCDestAddr = dac;
+  LPC_GPDMACH0->DMACCLLI      = (uint32_t) &lista[0];      // y de ahí, a la lista
+  LPC_GPDMACH0->DMACCControl  = ctrl;                      // el bloque 0 tampoco avisa
+  LPC_GPDMACH0->DMACCConfig   = (7 << 6) | (1 << 11) | (1 << 15) | 1;   // DestPeripheral=7 | mem->perif | ITC | E
+  // ...y DACCNTVAL = 1999 y DACCTRL como en el apartado anterior
+}
+```
+
+Qué hay que saber de esto:
+
+- **El primer bloque va en los registros del canal, no en la lista.** Con 8 bloques hay 7 descriptores. El manual lo dice así: el primer elemento de la lista se programa directamente en el controlador.- **`DMACCConfig` no está en el descriptor y no se recarga.** El `ITC` y la petición que se escribieron al principio valen para toda la lista. Por eso `ITC = 1` va en el `Config` aunque el bloque 0 no avise: lo que hace avisar al último es su `I`, y que el aviso llegue a la CPU depende de que `ITC` esté puesto.
+- **La interrupción la decide el `I` de cada descriptor.** Solo el último lo lleva a 1: la CPU recibe un aviso en total, cuando ya ha sonado todo.
+- **Los descriptores van alineados a palabra** (dirección múltiplo de 4). Una estructura de `uint32_t` ya lo cumple.
+- **El último descriptor lleva `siguiente = 0`**: ahí el canal se desactiva solo. Si se quiere repetir el audio sin parar, se cierra el **anillo**: el último descriptor apunta al primero (y entonces el bloque 0 también tiene que estar en la lista, para que el ciclo lo incluya).
+- **No se tocan los registros del canal mientras corre.** El manual avisa de efectos impredecibles. Si hace falta cambiar algo, se para el canal y se reescribe todo.
+
+**Un tono que se repite sin interrupciones.** Un seno de 64 muestras (de 16 bits y ya colocadas para `DACR`) se puede sacar sin ISR con **un solo descriptor que se apunta a sí mismo**: `siguiente = &descriptor`, `TransferSize = 64`, ancho 16 bits, sin `I`. Con $f_{tono} = 1$ kHz hacen falta $64\cdot 1000 = 64\,000$ muestras por segundo, o sea $DACCNTVAL = 25\cdot 10^6/64\,000 - 1 = 389{,}6$ (390 o 389). Se cambia de tono cambiando solo `DACCNTVAL`, no la tabla.
+
+## ISR de Timer, DMA que se reconfigura o lista: cuál y por qué
+
+Los tres sirven y la pregunta de examen es casi siempre «reduce la carga de CPU». La respuesta es contar **interrupciones por segundo**:
+
+| Estrategia | Interrupciones por segundo | Qué hace la CPU |
+|---|---|---|
+| ISR de Timer | $f_s$ | Una ISR por muestra: lee del array, escribe `DACR`, incrementa el índice |
+| DMA con un canal que se reconfigura | $f_s/M$ | Una ISR por bloque: borra el flag, avanza el origen y rehabilita |
+| DMA con lista de descriptores | 0 (en anillo) o 1 al final | Nada hasta que acaba |
+
+<Donde>
+
+- $f_s$: muestras por segundo, en Hz. $M$: muestras por bloque (`TransferSize`), sin unidades.
+
+</Donde>
+
+Y el porcentaje de CPU que consume una ISR:
+
+$$
+carga = \frac{f_{int}\cdot c_{ISR}}{F_{CPU}}
+$$
+
+<Donde>
+
+- $f_{int}$: interrupciones por segundo, en Hz (la de la tabla). $c_{ISR}$: ciclos de reloj que gasta cada una, entre entrar, ejecutar y salir.
+- $F_{CPU}$: frecuencia de la CPU, en Hz (100 MHz en la Mini-DK2). $carga$: fracción del tiempo de la CPU, de 0 a 1.
+
+</Donde>
+
+**Ejemplo (números inventados).** Audio a $f_s = 12\,500$ Hz y unos 50 ciclos por ISR: $carga = 12\,500\cdot 50/10^8 = 0{,}625\,\%$. Con el DMA reconfigurado cada bloque de 3750, $f_{int} = 12\,500/3750 = 3{,}33$ por segundo, y aun con 150 ciclos por ISR el consumo es de unos $5\cdot 10^{-6}$: despreciable. En una sola tarea los 0,6 % no importan; **lo que importa es el resto del sistema**: si la ISR del Timer se retrasa porque otra interrupción tiene más prioridad, la muestra sale tarde y el audio suena con ruido (*jitter*). La cuenta del DAC con DMA no depende de ninguna ISR: llega a su hora siempre.
+
+Resumen para elegir:
+
+- **Un bloque o poco audio**: ISR de Timer, la más simple.
+- **Más de 4095 muestras y sin hueco**: lista de descriptores, una sola interrupción al final.
+- **Datos que cambian (un mensaje de alarma distinto cada vez)**: volver a apuntar en la ISR, o elegir el origen al arrancar y dejar la lista fija. Una lista con el origen del bloque 0 variable se monta al arrancar: se rellenan los descriptores con las direcciones del mensaje elegido.
+- **Un tono periódico**: un descriptor autoenlazado y `DACCNTVAL` para la frecuencia.
+
+## Trampas típicas del DMA
+
+1. **Bytes frente a muestras** (arriba): el desplazamiento de un bloque son $M\cdot b$ bytes, no $M$.
+2. **`+ 1` dentro o fuera del cast**: fuera suma 1 byte; dentro del paréntesis suma 4 (puntero a `uint32_t`) y llega a otro registro.
+3. **`TransferSize` mayor que 4095**: se sale del campo de 12 bits. Hay que partir.
+4. **Interrupción que no llega**: falta `ITC` en `Config`, `I` en `Control` o el NVIC. Con el ADC se hace lo contrario: ADINTEN sí, NVIC no.
+5. **No borrar el flag**: `DMACIntTCClear` es de solo escritura, y se escribe un 1 en el bit del canal. Si no se borra, queda la interrupción pendiente y la ISR vuelve a entrar.
+6. **Habilitar el canal antes de acabar de escribir sus registros**: `E` va el último.
+7. **Reconfigurar solo la dirección y volver a poner `E`**: en la práctica se reescriben todos los registros del canal (el manual desaconseja reactivar a pelo un canal que ha terminado). En una respuesta de examen basta con decir que se actualiza la dirección y se vuelve a habilitar.
+8. **Interrupción en todos los descriptores**: solo el último. Si se pone en todos, la CPU se despierta tantas veces como bloques y se pierde la gracia de la lista.
+9. **Olvidar el `0` del último descriptor**: sin él, el DMA sigue leyendo basura como si fuera otro descriptor.
+10. **El `DMACCConfig` no va en el descriptor**: no se recarga entre bloques.
+11. **`DACCNTVAL` sin el «−1»** o con $F_{PCLK}$ equivocado: sale una $f_s$ ligeramente distinta, que a la hora de la verdad se paga en tono (un audio ligeramente grave o agudo).
+12. **Arrancar el contador del DAC antes que el canal**: se pierden las primeras peticiones.
 
 <Practica n={7} nombre="Grabación y reproducción de audio" />
 
@@ -224,5 +496,33 @@ Ancho de 16 bits en origen y destino (el resultado de 12 bits cabe en 16), incre
 <summary>¿Por qué un bloque de 5000 muestras no se puede hacer con un solo canal?</summary>
 
 Porque `TransferSize` tiene 12 bits: el máximo es $2^{12} - 1 = 4095$. Habría que partirlo en dos bloques de 2500 (encadenados o volviendo a apuntar el canal). *(Respuesta redactada a partir de los apuntes.)*
+
+</details>
+
+<details>
+<summary>Un mensaje de 9 s a 10 kHz con muestras de 8 bits está en un array de Flash. Reprodúcelo por el DAC con un solo canal de DMA y una interrupción por bloque. Indica el bloque, el origen que se suma en la ISR y DACCNTVAL.</summary>
+
+$N = 10\,000\cdot 9 = 90\,000$ muestras de 1 byte. $\lceil 90\,000/4095\rceil = 22$ bloques como mínimo; se reparten en 24 bloques iguales de 3750 ($90\,000/3750 = 24$), cada uno de $3750/10\,000 = 0{,}375$ s. Un canal memoria→DAC, petición 7, `SI = 1`, `DI = 0`, ancho 8 bits, destino `(uint32_t)&(LPC_DAC->DACR) + 1`, `TransferSize = 3750`, `DMACCLLI = 0`, `I = 1` e `ITC = 1`. En cada interrupción (24 en total) se borra el flag, se suma **3750 bytes** al origen (con 8 bits, bytes = muestras) y se vuelve a configurar y habilitar el canal; la ISR cuenta bloques y al llegar a 24 para el contador del DAC. $DACCNTVAL = 25\cdot 10^6/10\,000 - 1 = 2499$. La CPU entra $1/0{,}375 \approx 2{,}7$ veces por segundo. *(Respuesta redactada a partir de los apuntes; números inventados.)*
+
+</details>
+
+<details>
+<summary>Lo mismo, pero con las muestras de 16 bits (ya colocadas para DACR). ¿Qué cambia?</summary>
+
+El destino pasa a `&(LPC_DAC->DACR)` **sin** `+ 1` y el ancho es de 16 bits en origen y destino. El número de transferencias por bloque sigue siendo 3750, pero cada bloque ocupa 7500 bytes: en la ISR se suma **7500 bytes** al origen (`k · 3750 · 2`), no 3750. El array ocupa 180 000 bytes. $DACCNTVAL$ y el tiempo por bloque no cambian, porque dependen de $f_s$ y no del ancho. *(Respuesta redactada a partir de los apuntes; números inventados.)*
+
+</details>
+
+<details>
+<summary>Describe cómo harías una lista de descriptores para 30 000 muestras de 8 bits en bloques de 3750.</summary>
+
+Son $30\,000/3750 = 8$ bloques. El bloque 0 se escribe en los registros del canal y los otros siete en **siete descriptores** de cuatro palabras (origen, destino, siguiente, control). El origen del descriptor $i$ es `&sonido[(i + 1)·3750]` y el destino es siempre el byte alto de `DACR`. Cada descriptor apunta al siguiente y el último lleva `siguiente = 0`. El `Control` de todos es `3750 | SI` y solo el del último añade `I`. El `Config` del canal lleva `DestPeripheral = 7`, memoria→periférico, `ITC` y `E`. Una sola interrupción, al final. *(Respuesta redactada a partir de los apuntes; números inventados.)*
+
+</details>
+
+<details>
+<summary>Un tono de 64 muestras a 1 kHz debe sonar sin interrupciones. ¿Cómo lo haces con el DMA?</summary>
+
+Un descriptor que se apunta a sí mismo (lista en anillo de un solo elemento): origen la tabla, destino `DACR`, `TransferSize = 64`, ancho 16 bits (muestras ya desplazadas), `SI = 1`, `DI = 0`, sin `I`. El canal no acaba nunca y la CPU no interviene. La frecuencia la fija el contador del DAC: $DACCNTVAL = 25\cdot 10^6/(64\cdot 1000) - 1 \approx 390$. *(Respuesta redactada a partir de los apuntes; números inventados.)*
 
 </details>

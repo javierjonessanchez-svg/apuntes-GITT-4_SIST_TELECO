@@ -34,8 +34,15 @@ const asignaturas = defineCollection({
 });
 
 // Un tema por archivo: contenido/<slug>/temas/<tema>.mdx
+// Capa SOLO LOCAL: contenido/<slug>/privado/*.mdx (exámenes del profesor, con enunciados,
+// figuras y soluciones oficiales). Está en .gitignore y aquí se excluye cuando se construye en
+// GitHub Actions (variable GITHUB_ACTIONS) o con APUNTES_SIN_PRIVADO=1, así que nunca llega a
+// la web pública. Ver contenido/README-privado.md.
+const sinPrivado = process.env.GITHUB_ACTIONS === 'true' || process.env.APUNTES_SIN_PRIVADO === '1';
+const patronesTemas = sinPrivado ? ['*/temas/*.mdx'] : ['*/temas/*.mdx', '*/privado/*.mdx'];
+
 const temas = defineCollection({
-  loader: glob({ base: './contenido', pattern: '*/temas/*.mdx' }),
+  loader: glob({ base: './contenido', pattern: patronesTemas }),
   schema: z.object({
     titulo: z.string().min(1),
     orden: z.number(),

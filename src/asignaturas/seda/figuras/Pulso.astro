@@ -1,0 +1,20 @@
+---
+import Fig from './Fig.astro';
+import { escalera, cota } from './escalera';
+const yb = 130, yt = 40;
+---
+<Fig alt="Pulso de duración T con un Match: el pin sube por software al arrancar el Timer y el Match con MR1 lo baja y para el contador" ancho={560}>
+  <svg slot="dibujo" viewBox="0 0 620 252">
+    <path class="eje" d={`M60 20 V${yb} H600`} /><text class="t" x="20" y="30">TC</text>
+    <path class="nivel" d={`M60 ${yt} H590`} /><text class="tn" x="14" y={yt + 4}>MR1</text>
+    <path class="tc" d={`M60 ${yb} H150 ` + escalera(150, 390, yb, yt, 8, false) + ` H560`} />
+    <circle class="isr" cx="390" cy={yt} r="6" />
+    <path class="guia" d={`M150 ${yb} V222 M390 ${yb} V222`} />
+    <text class="t" x="14" y="190">MATn.1</text>
+    <path class="sen" d="M60 205 H150 V175 H390 V205 H580" />
+    <text class="tr" x="156" y="168">arranca (EMR a 1 + TCR = 1)</text>
+    <text class="tr" x="394" y="168">Match: baja y para TC</text>
+    <path class="cota" d={cota(150, 390, 230)} /><text class="tb c" x="270" y="248">T = (MR1 + 1)/F_tick</text>
+  </svg>
+  El flanco de subida lo pones tú (software); el de bajada lo hace el hardware sin ISR. MR1 = F_tick·T − 1.
+</Fig>

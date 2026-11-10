@@ -1,0 +1,29 @@
+---
+import Fig from './Fig.astro';
+import { cota } from './escalera';
+// Código Sony: T = 600 µs. Start = 4T de portadora + T de pausa. Un 1 = 2T + T. Un 0 = T + T.
+const T = 30, y0 = 90, y1 = 50;
+const piezas = [
+  { n: 4, t: 'start', c: 'tr' }, { n: 2, t: '1', c: 'tp' }, { n: 1, t: '0', c: 'tp' }, { n: 2, t: '1', c: 'tp' }, { n: 1, t: '0', c: 'tp' },
+];
+let x = 60;
+const rect = piezas.map((p) => { const r = { ...p, x }; x += (p.n + 1) * T; return r; });
+---
+<Fig alt="Código Sony de infrarrojos: un start de 4T con portadora, y después cada bit es una ráfaga de portadora de T para un 0 o 2T para un 1, seguida de una pausa de T" ancho={560}>
+  <svg slot="dibujo" viewBox="0 0 620 160">
+    <path class="eje" d={`M40 ${y0} H${x + 40}`} />
+    {rect.map((r) => (
+      <g>
+        <rect class="relleno" x={r.x} y={y1} width={r.n * T} height={y0 - y1} stroke="var(--primario)" stroke-width="1.6" />
+        {[...Array(r.n * 3).keys()].map((k) => <path class="guia" d={`M${r.x + 5 + k * (T / 3)} ${y1 + 4} V${y0 - 4}`} />)}
+        <text class={`${r.c} c`} x={r.x + (r.n * T) / 2} y="40">{r.t}</text>
+      </g>
+    ))}
+    <path class="cota" d={cota(60, 60 + 4 * T, 112)} /><text class="tb c" x={60 + 2 * T} y="130">4T</text>
+    <path class="cota" d={cota(60 + 5 * T, 60 + 7 * T, 112)} /><text class="tb c" x={60 + 6 * T} y="130">2T</text>
+    <path class="cota" d={cota(60 + 8 * T, 60 + 9 * T, 112)} /><text class="tb c" x={60 + 8.5 * T} y="130">T</text>
+    <text class="t" x={x + 4} y={y1 + 24}>…</text>
+    <text class="t" x="40" y="154">Portadora de 38 kHz en las ráfagas; en las pausas el LED no emite. T = 600 µs.</text>
+  </svg>
+  12 bits tras el start, con el de menos peso primero: 7 de comando y 5 de dirección.
+</Fig>

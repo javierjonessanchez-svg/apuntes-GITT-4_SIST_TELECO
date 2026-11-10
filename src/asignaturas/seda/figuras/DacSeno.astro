@@ -1,0 +1,30 @@
+---
+import Fig from './Fig.astro';
+import { cota } from './escalera';
+// M = 16 muestras de una senoide: valor = 511 + 511·sen(2π·i/M), de 0 a 1022 (10 bits).
+const M = 16, x0 = 80, w = 30, yMid = 100, A = 55;
+const val = (i: number) => yMid - A * Math.sin((2 * Math.PI * i) / M);
+let d = `M${x0} ${val(0).toFixed(1)}`;
+for (let i = 0; i < M; i++) {
+  d += ` V${val(i).toFixed(1)} H${x0 + w * (i + 1)}`;
+}
+let suave = '';
+for (let k = 0; k <= 96; k++) {
+  const x = x0 + (w * M * k) / 96;
+  suave += `${k ? 'L' : 'M'}${x.toFixed(1)} ${(yMid - A * Math.sin((2 * Math.PI * k) / 96)).toFixed(1)} `;
+}
+---
+<Fig alt="Senoide generada con 16 muestras sacadas al DAC: la salida es una escalera, una ISR del Timer por muestra, y un periodo de salida son M muestras" ancho={560}>
+  <svg slot="dibujo" viewBox="0 0 620 242">
+    <path class="eje" d={`M${x0} 20 V170 H${x0 + w * M + 30}`} />
+    <text class="t" x="4" y="48">3,3 V</text><text class="t" x="4" y={yMid + 4}>1,65 V</text><text class="t" x="4" y="164">0 V</text>
+    <path class="guia" d={`M${x0} ${yMid} H${x0 + w * M}`} />
+    <path class="guia" d={suave} />
+    <path class="sen" d={d} />
+    {[...Array(M).keys()].map((i) => <circle class="isr" cx={x0 + w * i} cy="170" r="3.5" />)}
+    <text class="t" x={x0 + w * M + 8} y="188">ISR</text>
+    <path class="cota" d={cota(x0 + w * 4, x0 + w * 5, 190)} /><text class="tb c" x={x0 + w * 4.5} y="207">T_int</text>
+    <path class="cota" d={cota(x0, x0 + w * M, 218)} /><text class="tb c" x={x0 + (w * M) / 2} y="236">T_out = M · T_int</text>
+  </svg>
+  Cada ISR del Timer saca una muestra de la tabla al DAC (DACR = muestra &lt;&lt; 6). Más muestras M, escalera más fina, pero más interrupciones.
+</Fig>

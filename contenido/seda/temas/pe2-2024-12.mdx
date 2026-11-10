@@ -1,0 +1,658 @@
+---
+titulo: "Diciembre de 2024 · Prueba de evaluación intermedia 2"
+orden: 40
+bloque: "Exámenes resueltos"
+resumen: "Siete cuestiones: T y D de siete tareas, ejecutabilidad en tres escenarios de prioridades, DSP, RTOS, servidor HTTP con CGI para una iluminación de cinco zonas, 16 LEDs con dos PCF8574 por I2C y arbitraje por interrupción de una memoria de doble puerto"
+saber:
+  - "Es la prueba más variada: la ejecutabilidad (cuestiones 1 y 2) se calcula con números; DSP y RTOS son teoría que hay que explicar y justificar; HTTP, I2C y doble puerto piden código y direcciones"
+  - "En la cuestión 1, T y D salen del evento más rápido y de cuánto se puede retrasar la CPU: la solución oficial se equivoca en la UART (12 bits por carácter, no 11: T y D valen 48 microsegundos, no 44)"
+  - "En la cuestión 2 la tarea 3 incumple su plazo en los tres escenarios (tiempos de respuesta de 15, 15 y 12 ms contra D de 10 ms); la solución oficial para en el primer valor que pasa de D y en el escenario 3 escribe R3 igual a 10 ms, que no es lo que sale"
+  - "La solución oficial es solo parcial: las cuestiones 3, 4 y 5 no tienen solución y las hemos resuelto nosotros, la del CGI adaptando el método de noviembre de 2022"
+  - "En la cuestión 6 el código oficial tiene tres fallos de C: la condición 1 menor o igual que LEDn menor o igual que 8 siempre es cierta, las variables estáticas empiezan a 0 (todos los LEDs encendidos) y la expresión de apagar todos da otro valor"
+  - "En la cuestión 7 los dos buzones de interrupción son las dos últimas posiciones del chip 4N+2: 0x9001FFFE y 0x9001FFFA (la solución oficial escribe una dirección fuera del bloque, 0x9003FFFA)"
+fuentes:
+  - "PE2_SEDA_Diciembre_24_solucion_parcial (Prueba de evaluación intermedia 2 de SEDA, 16-12-2024, enunciado y solución parcial; material privado de la asignatura)"
+  - "PE1_SEDA_Noviembre_2022_solucion (para el método del CGI, mismo problema con 4 zonas)"
+  - "UM10360 (manual del LPC17xx)"
+---
+import Donde from '../../../src/asignaturas/seda/Donde.astro';
+import Figura from '../../../src/asignaturas/seda/Figura.astro';
+import fig1 from './img/pe2-2024-12-1.png';
+import fig2 from './img/pe2-2024-12-2.png';
+import fig3 from './img/pe2-2024-12-3.png';
+import fig4 from './img/pe2-2024-12-4.png';
+import fig5 from './img/pe2-2024-12-5.png';
+import fig6 from './img/pe2-2024-12-6.png';
+import fig7 from './img/pe2-2024-12-7.png';
+
+## Resumen del examen
+
+| Dato | Valor |
+|---|---|
+| Fecha | 16 de diciembre de 2024 |
+| Prueba | Segunda intermedia (PE2) de SEDA, con solución parcial |
+| Estructura | Siete cuestiones, todas con varios apartados salvo las de teoría |
+| Puntuación | No consta en el documento |
+| Con solución oficial | Cuestiones 1, 2, 6 y 7 |
+| Sin solución oficial (resueltas por nosotros) | Cuestión 3 (DSP) y 4 (RTOS), donde el PDF solo dice «ver teoría», y 5 (HTTP con CGI) |
+| Qué toca | Ejecutabilidad, PWM y Timer, DMA, SysTick, ADC, UART, DSP, RTOS, HTTP/CGI, I2C, memoria de doble puerto |
+
+**Cómo leer esta página.** Cada cuestión sigue el mismo esquema: qué pide, qué hay que saber antes, el proceso paso a paso, la solución y la trampa. Donde la solución oficial falla, hay un recuadro «Ojo». Donde no hay solución oficial, lo decimos con «Resuelto por nosotros, no consta en la solución oficial».
+
+## Cuestión 1 · Parámetros T y D de siete tareas
+
+### Qué pide
+
+Para cada una de las siete funciones, identificar los parámetros **D** (plazo) y **T** (periodo mínimo) y justificarlos explicando **qué subsistema** del microcontrolador se usa y **en qué modo**. Es un único microcontrolador con recursos limitados, y el **error máximo admisible es del 30 %**. Las funciones son:
+
+1. Señal cuadrada con ciclo de trabajo del 30 % y frecuencia variable de 1 kHz a 100 kHz.
+2. PWM de 10 kHz con ciclo de trabajo que oscila entre el 10 % y el 90 %.
+3. Tres PWM de 5 kHz con ciclos de trabajo entre el 10 % y el 90 %.
+4. Interrupción periódica de 100 ms para las comunicaciones TCP/IP, con el SysTick.
+5. Reproducción repetida de un mensaje de audio de 10 s a 8 kHz con muestras de 8 bits, con DMA.
+6. Grabación de dos canales de audio a 8 kHz durante 1 s cuando lo pida el usuario.
+7. Recepción por la UART 3 a 250 000 baudios, 8 bits de datos, paridad impar y dos bits de stop.
+
+### Qué hay que saber antes
+
+- Una **tarea** es el código que se ejecuta con un evento (casi siempre una ISR). Lo que hace el hardware solo no es una tarea. **T** es el tiempo mínimo entre dos eventos; **D** es el plazo para acabar. Mira [Ejecutabilidad](../ejecutabilidad/) y la tabla de ejemplos de ese tema.
+- Un pin MATn.x de un Timer solo lo gobierna su `MRx`, y el módulo PWM tiene **un solo periodo** compartido por todos sus canales. Mira [Timers y Match](../timers-match/) y [PWM y servos](../pwm-servos/).
+- La UART, el ADC y el DMA: [UART](../uart/), [ADC y DAC](../adc-dac/), [DMA](../dma/).
+
+### Proceso y solución
+
+La clave de las tres primeras es una **restricción de recursos**: el módulo PWM solo tiene una frecuencia a la vez. Como en el apartado 3 se usa a 5 kHz, las funciones 1 y 2 (frecuencias distintas) **no pueden** usarlo y se hacen con un Timer.
+
+**1. Cuadrada de ciclo 30 % y frecuencia variable.**
+
+1. Se usa el **Timer 0** con el pin MAT0.0 en modo **conmutar** (toggle) sobre `MR0`. El contador corre sin reset.
+2. En cada coincidencia, la ISR suma a `MR0` el tiempo del siguiente tramo: el tiempo en alto, $0{,}3/f$, o el tiempo en bajo, $0{,}7/f$, alternando.
+3. **Periodo T.** El evento más rápido es el del tramo más corto: el tramo en alto a la frecuencia máxima, $0{,}3\cdot10\ \mu\text{s}=3\ \mu\text{s}$.
+4. **Plazo D.** La ISR tiene que haber puesto el siguiente `MR0` antes de que llegue ese siguiente flanco: $D=T=3\ \mu\text{s}$.
+
+$$
+T=D=0{,}3\cdot\frac{1}{100\ \text{kHz}}=3\ \mu\text{s}
+$$
+
+<Donde>
+
+- $T$: tiempo mínimo entre dos coincidencias consecutivas, que es el tramo más corto de la señal.
+- $D$: plazo de la ISR; si se pasa, el nuevo `MR0` ya está en el pasado y se pierde un flanco.
+- 0,3: fracción del periodo en alto. 100 kHz: la frecuencia máxima, que da el periodo más corto (10 µs).
+
+</Donde>
+
+**2. PWM de 10 kHz con ciclo entre el 10 % y el 90 %.**
+
+1. Mismo recurso: **MAT0.1** y `MR1` del Timer 0 (el mismo contador libre, otro canal de Match), también en conmutar.
+2. Periodo de 100 µs. El tramo más corto es el 10 % (ciclo del 10 %, o el tramo en bajo si es del 90 %): $0{,}1\cdot100\ \mu\text{s}=10\ \mu\text{s}$.
+
+$$
+T=D=0{,}1\cdot100\ \mu\text{s}=10\ \mu\text{s}
+$$
+
+**3. Tres PWM de 5 kHz.** Se usa el **módulo PWM**: tres canales con el mismo periodo (5 kHz es común a las tres) y distinto `MRx`. El hardware genera todo sin interrupciones, así que **no hay tarea**: no procede hablar de T ni de D.
+
+**4. SysTick cada 100 ms para TCP/IP.** Es una interrupción periódica pura. $T=100$ ms. Con un error admisible del 30 %, la tarea puede retrasarse hasta el 30 % del periodo: $D=0{,}3\cdot100\ \text{ms}=30$ ms.
+
+**5. Audio repetido de 10 s a 8 kHz con DMA.**
+
+1. Tamaño: $8000\cdot10=80\,000$ muestras de 1 byte, **80 kB**. Es más que toda la SRAM del LPC1768 (64 kB en total), así que el audio tiene que estar en la **Flash** como un array `const` (el DMA puede leerla). Esto lo razonamos nosotros.
+2. Un bloque de DMA admite 4095 transferencias como máximo. La solución oficial elige **bloques de 4000 muestras** (0,5 s): son 20 bloques.
+3. Se usan **dos canales de DMA enlazados** de forma cíclica: cuando acaba uno, empieza el otro. Cada canal interrumpe al terminar, y la ISR **reconfigura** ese canal con el bloque siguiente (el que seguirá al que está sonando ahora). Tras 20 interrupciones se vuelve al principio.
+4. El tiempo que tiene la ISR es lo que dura el bloque que está sonando: $T=D=4000/8000=0{,}5$ s.
+
+$$
+T=D=\frac{\text{muestras por bloque}}{F_s}=\frac{4000}{8000}=0{,}5\ \text{s}
+$$
+
+<Donde>
+
+- $T$: tiempo entre dos interrupciones del DMA (una por bloque). $D$: tiempo para reconfigurar el canal que acaba de terminar antes de que le toque otra vez.
+- $F_s$: frecuencia de muestreo del audio (8 kHz).
+
+</Donde>
+
+**6. Grabación de dos canales a 8 kHz durante 1 s.**
+
+1. Se usa el **ADC en modo ráfaga con dos canales** activos. Cada canal debe muestrearse a 8 kHz, es decir, una vez cada 125 µs; con dos canales, cada conversión debe durar $125/2=62{,}5\ \mu\text{s}$.
+2. Se habilita la interrupción de fin de conversión de **uno** de los canales (el último en convertirse, que es el de número mayor) y en la ISR se leen las **dos** muestras.
+3. $T=125\ \mu\text{s}$. $D=62{,}5\ \mu\text{s}$: el canal que se convirtió primero se vuelve a sobrescribir en una conversión más ($62{,}5\ \mu\text{s}$), así que hay que leerlo antes.
+4. Cómo se consigue la conversión de 62,5 µs (lo calculamos nosotros): $65/F_{ADC}=62{,}5\ \mu\text{s}$ pide $F_{ADC}=1{,}04$ MHz. Con $F_{pclk}=25$ MHz, `CLKDIV=23` da $25/24=1{,}0417$ MHz, $t_{conv}=62{,}4\ \mu\text{s}$ y 8013 Hz por canal. Con `CLKDIV=24` bajaría a 7692 Hz, por debajo de lo pedido.
+
+$$
+T=\frac{1}{8\ \text{kHz}}=125\ \mu\text{s}
+\qquad
+D=\frac{T}{N}=\frac{125\ \mu\text{s}}{2}=62{,}5\ \mu\text{s}
+\qquad
+t_{conv}=\frac{65\cdot(CLKDIV+1)}{F_{pclk}}
+$$
+
+<Donde>
+
+- $T$: periodo de muestreo de cada canal (s). $N$: canales de la ráfaga (2).
+- $D$: tiempo máximo para leer el primer canal antes de que su resultado lo pise la siguiente conversión.
+- $t_{conv}$: tiempo de una conversión; 65 ciclos del reloj del ADC, que dura $(CLKDIV+1)/F_{pclk}$.
+
+</Donde>
+
+**7. UART 3 a 250 000 baudios, 8 bits, paridad impar y 2 stop.**
+
+1. Tiempo de bit: $1/250\,000=4\ \mu\text{s}$.
+2. Bits por carácter: **1 de arranque + 8 de datos + 1 de paridad + 2 de stop = 12**.
+3. $T=D=12\cdot4\ \mu\text{s}=48\ \mu\text{s}$: si el byte no se lee antes de que llegue el siguiente, se pierde.
+
+$$
+T=D=n_{bits}\cdot\frac{1}{baud}=12\cdot\frac{1}{250\,000}=48\ \mu\text{s}
+$$
+
+<Donde>
+
+- $n_{bits}$: bits por carácter en la línea (arranque, datos, paridad y parada).
+- $baud$: velocidad en baudios (250 000).
+
+</Donde>
+
+Un detalle que añadimos: 250 000 baudios con $F_{pclk}=25$ MHz da $DL=6{,}25$. Redondear a 6 daría 260 417 baudios (un 4,2 % de error). Con el divisor fraccionario se llega justo: $DL=5$, $DIVADDVAL=1$, $MULVAL=4$ da $25\cdot10^6/(16\cdot5\cdot1{,}25)=250\,000$ baudios exactos.
+
+| Función | Subsistema | T | D |
+|---|---|---|---|
+| 1. Cuadrada 30 %, 1 a 100 kHz | Timer 0, MAT0.0 en conmutar, ISR que suma al `MR0` | 3 µs | 3 µs |
+| 2. PWM de 10 kHz, 10 a 90 % | Timer 0, MAT0.1 en conmutar, ISR que suma al `MR1` | 10 µs | 10 µs |
+| 3. Tres PWM de 5 kHz | Módulo PWM, sin interrupciones | sin tarea | sin tarea |
+| 4. TCP/IP cada 100 ms | SysTick | 100 ms | 30 ms |
+| 5. Audio de 10 s con DMA | Dos canales de DMA enlazados, bloques de 4000 muestras | 0,5 s | 0,5 s |
+| 6. Grabar dos canales a 8 kHz | ADC en ráfaga con dos canales, interrupción de fin | 125 µs | 62,5 µs |
+| 7. UART 3 a 250 000 baudios, 8O2 | UART con interrupción de recepción | 48 µs | 48 µs |
+
+> **Ojo: errata en la solución oficial.** En el apartado 7 escribe «8+1+2 = 11 → T = D = 44 µs». Se ha olvidado el **bit de arranque**: son 12 bits por carácter y $T=D=48\ \mu\text{s}$. El mismo tema de ejecutabilidad trae la regla: con paridad o dos stop los bits por byte son 11 o 12, no 10; aquí, con las dos cosas, son **12**.
+
+> **Nota sobre el 30 % de error.** La solución oficial solo lo aplica en el apartado 4 (D del 30 % del periodo). En 1, 2, 5, 6 y 7 el plazo es el tiempo hasta el siguiente evento, porque llegar tarde ahí no «degrada» la señal, la **estropea** (un flanco perdido, una muestra pisada, un byte perdido).
+
+### La trampa
+
+1. Contar **todos los bits** de la trama en la UART: arranque, datos, paridad y stop.
+2. En las cuadradas, T no es el periodo de la señal sino el **tramo más corto**, porque cada flanco es un evento.
+3. Decidir por qué subsistema se hace: si hay un recurso con **un solo periodo** (el PWM) y ya está ocupado, hay que ir al Timer.
+
+## Cuestión 2 · Ejecutabilidad en tres escenarios
+
+### Qué pide
+
+Con tres tareas y la tabla de abajo, **analizar la ejecutabilidad** en los tres escenarios de prioridades. Hay además una región crítica del programa principal de 1 ms (`RC_PP`) y las que indica la tabla.
+
+<Figura src={fig1} alt="Tabla con las prioridades y subprioridades de las tareas 1, 2 y 3 en los escenarios 1, 2 y 3, y sus C, T y D en ms; la tarea 2 tiene RC=2 y la tarea 3 RC=1" pie="Tabla del enunciado. Pr es la prioridad (menor número, mayor nivel) y SubPr la subprioridad. Los datos C, T y D están en ms; RC es la región crítica de cada tarea." />
+
+| Tarea | C | T | D | Región crítica |
+|---|---|---|---|---|
+| Tarea 1 | 1 | 5 | 5 | ninguna |
+| Tarea 2 | 3 | 10 | 10 | 2 ms |
+| Tarea 3 | 5 | 20 | 10 | 1 ms |
+
+| Escenario | Tarea 1 (Pr, SubPr) | Tarea 2 | Tarea 3 |
+|---|---|---|---|
+| 1 | (0, 0) | (1, 0) | (2, 0) |
+| 2 | (0, 0) | (0, 1) | (1, 0) |
+| 3 | (0, 0) | (1, 0) | (1, 1) |
+
+### Qué hay que saber antes
+
+La fórmula $R=C+B+I$ y las reglas de qué interrumpe a qué: [Ejecutabilidad](../ejecutabilidad/). Resumen de las reglas que se usan aquí:
+
+- Interrumpe quien tiene **menor número de prioridad** (mayor nivel). Del **mismo nivel** no se interrumpen, aunque la subprioridad decide cuál va primero si las dos esperan.
+- **Bloqueo $B$**: lo causan las tareas de **igual o menor nivel que no se pueden interrumpir**, y las **regiones críticas** (incluida la del programa principal). Solo cuenta **la peor** fuente.
+- **Interferencia $I$**: la causan las tareas de **mayor nivel** (suma de $\lceil R/T_j\rceil\cdot C_j$). Si la otra tarea es del mismo nivel pero con prioridad de arranque (menor subprioridad), solo puede colarse **antes** de que empiece la tarea que analizamos, y se usa $R-C$ en vez de $R$.
+- Se **itera** hasta que $R$ no cambie.
+
+### Proceso: Escenario 1 (tres niveles distintos)
+
+Orden de mayor a menor: tarea 1, tarea 2, tarea 3.
+
+**Tarea 1.** Nadie la interfiere. El bloqueo es la peor región crítica de las tareas menos prioritarias o del programa principal: $B_1=\max\{RC_{PP}=1,\ RC_{T2}=2,\ RC_{T3}=1\}=2$ ms.
+
+$$
+R_1=C_1+B_1=1+2=3\ \text{ms}\le D_1=5\ \text{ms}\ \checkmark
+$$
+
+**Tarea 2.** Bloqueo: $B_2=\max\{RC_{PP}=1,\ RC_{T3}=1\}=1$ ms. La interfiere la tarea 1.
+
+$$
+R_2=3+1+\left\lceil\frac{R_2}{5}\right\rceil\cdot1
+$$
+
+Iteración: $w_0=3+1=4$; $w_1=4+\lceil4/5\rceil=5$; $w_2=4+\lceil5/5\rceil=5$. Converge: $R_2=5\ \text{ms}\le10$ ✓.
+
+**Tarea 3.** Bloqueo: solo la región crítica del programa principal, $B_3=1$ ms. La interfieren las tareas 1 y 2.
+
+$$
+R_3=5+1+\left\lceil\frac{R_3}{5}\right\rceil\cdot1+\left\lceil\frac{R_3}{10}\right\rceil\cdot3
+$$
+
+Iteración: $w_0=6$; $w_1=6+2\cdot1+1\cdot3=11$; $w_2=6+\lceil11/5\rceil\cdot1+\lceil11/10\rceil\cdot3=6+3+6=15$; $w_3=6+3+6=15$. Converge: **$R_3=15$ ms, mayor que $D_3=10$ ms**. **No es ejecutable.** (Ya en $w_1=11$ se pasa de $D_3$, por lo que se podría parar ahí.)
+
+### Proceso: Escenario 2 (tareas 1 y 2 al mismo nivel)
+
+Ahora la tarea 1 (subprioridad 0) y la tarea 2 (subprioridad 1) tienen la misma prioridad 0: **la tarea 1 no puede interrumpir a la tarea 2**. La tarea 3 tiene nivel 1.
+
+**Tarea 1.** Ahora puede ser bloqueada por la tarea 2 entera (mismo nivel, no la interrumpe): $B_1=\max\{RC_{PP}=1,\ C_2=3,\ RC_{T3}=1\}=3$ ms.
+
+$$
+R_1=1+3=4\ \text{ms}\le5\ \checkmark
+$$
+
+**Tarea 2.** Bloqueo por las tareas de nivel inferior: $B_2=\max\{RC_{PP}=1,\ RC_{T3}=1\}=1$ ms. La tarea 1, del mismo nivel y con prioridad de arranque, solo puede colarse **antes** de que empiece la tarea 2:
+
+$$
+R_2=3+1+\left\lceil\frac{R_2-C_2}{5}\right\rceil\cdot1
+$$
+
+Iteración: $w_0=4$; $w_1=4+\lceil(4-3)/5\rceil=5$; $w_2=4+\lceil(5-3)/5\rceil=5$. $R_2=5\ \text{ms}\le10$ ✓.
+
+**Tarea 3.** Es la menos prioritaria y la interfieren las dos (ambas de nivel mayor); $B_3=1$ ms. Es **la misma cuenta que en el escenario 1**: $R_3=15$ ms mayor que 10. **No es ejecutable.**
+
+### Proceso: Escenario 3 (tareas 2 y 3 al mismo nivel)
+
+La tarea 1 es de nivel 0; las tareas 2 y 3 comparten nivel 1 (la 2 con subprioridad 0, la 3 con subprioridad 1). No se interrumpen entre sí.
+
+**Tarea 1.** Es la más prioritaria y puede interrumpir a las otras dos, salvo en sus regiones críticas: $B_1=\max\{1,\ 2,\ 1\}=2$ ms. $R_1=1+2=3\le5$ ✓.
+
+**Tarea 2.** Puede ser bloqueada por la tarea 3 entera (mismo nivel, no la interrumpe): $B_2=\max\{RC_{PP}=1,\ C_3=5\}=5$ ms. La interfiere la tarea 1.
+
+$$
+R_2=3+5+\left\lceil\frac{R_2}{5}\right\rceil\cdot1
+$$
+
+Iteración: $w_0=8$; $w_1=8+\lceil8/5\rceil=10$; $w_2=8+\lceil10/5\rceil=10$. $R_2=10\ \text{ms}\le D_2=10$ ✓ (justo en el límite).
+
+**Tarea 3.** $B_3=RC_{PP}=1$ ms. La interfiere la tarea 1 (mayor nivel) con $R$, y la tarea 2 (mismo nivel, con prioridad de arranque) solo antes de que empiece, con $R-C_3$:
+
+$$
+R_3=5+1+\left\lceil\frac{R_3}{5}\right\rceil\cdot1+\left\lceil\frac{R_3-5}{10}\right\rceil\cdot3
+$$
+
+Iteración: $w_0=6$; $w_1=6+\lceil6/5\rceil+\lceil1/10\rceil\cdot3=6+2+3=11$; $w_2=6+\lceil11/5\rceil+\lceil6/10\rceil\cdot3=6+3+3=12$; $w_3=6+\lceil12/5\rceil+\lceil7/10\rceil\cdot3=6+3+3=12$. Converge: **$R_3=12$ ms, mayor que $D_3=10$ ms**. **No es ejecutable.**
+
+### Solución (resumen)
+
+| Escenario | $R_1$ | $R_2$ | $R_3$ | ¿Ejecutable? |
+|---|---|---|---|---|
+| 1 | 3 ms (D = 5) | 5 ms (D = 10) | 15 ms (D = 10) | No: falla la tarea 3 |
+| 2 | 4 ms (D = 5) | 5 ms (D = 10) | 15 ms (D = 10) | No: falla la tarea 3 |
+| 3 | 3 ms (D = 5) | 10 ms (D = 10) | 12 ms (D = 10) | No: falla la tarea 3 |
+
+$$
+R_i=C_i+B_i+I_i
+\qquad
+I_i=\sum_j\left\lceil\frac{R_i}{T_j}\right\rceil C_j
+$$
+
+<Donde>
+
+- $R_i$: tiempo de respuesta de la tarea $i$ (ms). $C_i$: su duración. $B_i$: el peor bloqueo. $I_i$: la interferencia de las tareas de mayor nivel.
+- $T_j$, $C_j$: periodo mínimo y duración de la tarea $j$ que interfiere. El redondeo es hacia arriba. Para una tarea del mismo nivel con prioridad de arranque, $R_i$ se sustituye por $R_i-C_i$.
+
+</Donde>
+
+> **Ojo: errata en la solución oficial.** La conclusión (no ejecutable) coincide, pero las cuentas del PDF tienen varios fallos. **(1)** Para la tarea 3 del escenario 1 y 2 arranca la iteración en $w_0=10$ (en vez de $C_3+B_3=6$), llega a 11 y escribe «R3 mayor que 11»: el valor al que converge es **15**. **(2)** En el escenario 3 escribe «R3 = 10 ms mayor que D3 = 10 ms», que es falso como desigualdad: tras $w_1=11$ el valor sigue subiendo hasta **12**, y 12 sí es mayor que 10. **(3)** En el escenario 1 deja un $R_2$ dentro de la fórmula de $R_3$ (en vez de $R_3$) y un «$D_{33}$». **(4)** En el escenario 3 la tarea 2 empieza en $w_0=9$ y no en $C_2+B_2=8$; sale 10 igualmente.
+
+### La trampa
+
+1. **Mismo nivel no interrumpe**, y se nota en **qué sumas**: la que tiene menor subprioridad bloquea con su $C$ entero a la otra (escenarios 2 y 3), y la otra solo se cuela con $R-C$.
+2. El bloqueo es **un máximo**, no una suma. En el escenario 1 la tarea 1 se bloquea 2 ms (la región de la tarea 2), no $1+2+1=4$.
+3. Sigue iterando hasta que dos valores seguidos coincidan. Pararse en el primer valor que pasa de $D$ vale para decir «no ejecutable», pero no para dar $R$.
+
+## Cuestión 3 · DSP
+
+### Qué pide
+
+Explicar qué es un DSP, sus características fundamentales y poner tres ejemplos de sistemas que pueden usar DSPs.
+
+> **Resuelto por nosotros, no consta en la solución oficial.** El PDF solo dice «ver teoría» y el material de clase de que disponemos no trae esa teoría, así que lo que sigue es la respuesta tipo, razonada desde conocimiento general.
+
+### Qué hay que saber antes
+
+Los exámenes piden **explicar y justificar**, no solo enumerar: cada característica se acompaña de **para qué sirve**.
+
+### Proceso
+
+1. **Definición.** Un **DSP** (*Digital Signal Processor*, procesador digital de señal) es un microprocesador cuya arquitectura y juego de instrucciones están **optimizados para procesar señales digitales en tiempo real**: filtros, transformadas (FFT), correlaciones. Lo que se repite en todos esos algoritmos es la operación de **multiplicar y acumular**.
+2. **Características**, cada una con su motivo:
+   - **Multiplicador-acumulador (MAC) en un ciclo.** Los filtros FIR/IIR son sumas de productos; hacer cada producto y su suma en un ciclo es lo que da la velocidad.
+   - **Arquitectura Harvard** (buses separados de programa y datos, a veces varios de datos): permite leer la instrucción y los dos operandos de un MAC en el mismo ciclo.
+   - **Bucles por hardware** (sin gastar ciclos en el contador y el salto) y **ejecución determinista**: el tiempo de cada muestra es predecible, necesario en tiempo real.
+   - **Direccionamiento especial:** buffers **circulares** (para las líneas de retardo de un filtro) y direccionamiento de **bits invertidos** (para la FFT).
+   - **Aritmética con saturación** y datos en coma fija o flotante, para no dar vueltas al desbordar una muestra.
+   - **Periféricos y DMA** para entrar y sacar muestras sin parar el cálculo.
+3. **Comparación con el LPC1768.** Su Cortex-M3 es un microcontrolador general: tiene multiplicador de un ciclo, pero no tiene instrucciones DSP ni unidad de coma flotante (el Cortex-M4 sí las añade).
+
+### Solución
+
+Un DSP es un procesador especializado en el tratamiento digital de señales en tiempo real; lo caracterizan el MAC de un ciclo, la arquitectura Harvard con varios buses, los bucles sin sobrecarga, el direccionamiento circular y de bits invertidos, la aritmética con saturación y el comportamiento determinista.
+
+Tres ejemplos de sistemas:
+
+1. **Audio:** ecualizadores, cancelación de ruido y audífonos (filtrado en tiempo real).
+2. **Comunicaciones:** módems, estaciones base móviles, cancelación de eco (modulación, ecualización de canal, FFT en OFDM).
+3. **Radar y sonar**, o **imagen y vídeo** (compresión), o **instrumentación biomédica** (filtrado de un electrocardiograma).
+
+### La trampa
+
+Decir solo «es un procesador rápido». La pregunta pide **características fundamentales**: hay que nombrar el MAC y la arquitectura de buses y relacionarlos con los algoritmos de filtrado. Y no confundir DSP (procesador) con «procesado digital de señal» (la disciplina).
+
+## Cuestión 4 · RTOS
+
+### Qué pide
+
+(a) Ventajas e inconvenientes de usar un **sistema operativo de tiempo real** (RTOS) en sistemas empotrados. (b) Si se usara un RTOS en el proyecto de laboratorio, qué **tareas** se configurarían y qué funcionalidad quedaría **fuera** del sistema operativo.
+
+> **Resuelto por nosotros, no consta en la solución oficial.** El PDF dice «ver teoría» y el apartado (b) depende del proyecto de laboratorio de cada grupo, así que damos una respuesta tipo.
+
+### Qué hay que saber antes
+
+Un RTOS reparte la CPU entre **tareas** con un planificador por prioridades, y ofrece mecanismos para comunicarlas y sincronizarlas (semáforos, colas, mutex, temporizadores). Ya lo has visto de otra forma en [Ejecutabilidad](../ejecutabilidad/): prioridades, bloqueo e interferencia.
+
+### Proceso
+
+1. **Ventajas.**
+   - Se **estructura** el programa en tareas independientes, más fácil de entender, repartir y mantener que un único bucle con muchas banderas.
+   - **Prioridades y planificación** gestionadas por el sistema: lo urgente se atiende antes sin escribir a mano el reparto.
+   - Mecanismos de **sincronización y comunicación** ya hechos (semáforos, colas, mutex), y **temporizadores y retardos** del sistema.
+   - **Escalabilidad y reutilización:** añadir una función es añadir una tarea; las pilas de comunicaciones (TCP/IP, USB) suelen venir pensadas para un RTOS.
+2. **Inconvenientes.**
+   - **Memoria y CPU:** código del núcleo en Flash, **una pila por tarea** en RAM y tiempo gastado en los cambios de contexto. Es mucho en un microcontrolador con 32 kB de RAM.
+   - **Complejidad:** aparecen **inversión de prioridad**, interbloqueos (*deadlock*) y condiciones de carrera que no existían.
+   - **Análisis de tiempos** más difícil: hay que tener en cuenta el planificador y el bloqueo en los recursos compartidos.
+   - **Curva de aprendizaje** y, a veces, coste de licencia.
+3. **Tareas del proyecto (respuesta tipo).** Una tarea por función con plazos distintos: **adquisición** de sensores (periódica, alta prioridad), **comunicaciones** (servidor HTTP o UART, prioridad media), **interfaz** con la pantalla y los pulsadores (baja prioridad) y **control** de los actuadores.
+4. **Lo que se deja fuera.** Lo que tiene **plazos de microsegundos** y no admite el retardo del planificador: ISR cortas, la generación de señales por **PWM** o **Timer con Match**, las transferencias con **DMA** y el muestreo disparado por Timer. Esas partes solo avisan a las tareas con un semáforo o una cola.
+
+### Solución
+
+- **Ventajas:** programa estructurado en tareas, prioridades y planificación ya resueltas, comunicación y sincronización estándar, temporizadores, mantenimiento más sencillo.
+- **Inconvenientes:** consumo de Flash y RAM (una pila por tarea), tiempo de cambio de contexto, riesgos como la inversión de prioridad y el interbloqueo, análisis de tiempos más difícil.
+- **Proyecto:** tareas de adquisición, comunicaciones, interfaz y control; fuera del RTOS, las ISR críticas, los periféricos que generan señales por hardware (PWM, Timer, DMA).
+
+### La trampa
+
+Dar una lista sin **justificar**: hay que decir **por qué** algo va dentro o fuera. Un RTOS **no** hace que el código sea más rápido; da orden y garantías de planificación, a cambio de recursos.
+
+## Cuestión 5 · Servidor HTTP con CGI: iluminación de cinco zonas
+
+### Qué pide
+
+Un servidor HTTP embebido en el LPC1768 controla la iluminación de **5 zonas** de una vivienda, activables una a una o todas de golpe. Hay una variable global `iluminacion` (un bit por zona: el bit 0 es la zona 1, hasta el bit 4 para la zona 5) que el programa principal usa para encender o apagar. Cuando se pulsa una casilla, se envía una URL con las zonas marcadas:
+
+- Al pulsar «zona 4» con las zonas 1 y 2 activas: `iluminacion.html?zona1=on&zona2=on&zona4=on`.
+- Al pulsar «Enciende todas las zonas» estando ya la 1, la 2 y la 4: `iluminacion.html?zona1=on&zona2=on&zona4=on&todosONtodosON=on`.
+
+Hay que (a) escribir el fichero **`vivienda.cgi`** completando el HTML impreso y dejando claro **lo que se añade o se modifica**, y (b) escribir `cgi_func(...)`, `cgi_process_var(...)` y, si hace falta, `cgi_process_data(...)`.
+
+> **Resuelto por nosotros, no consta en la solución oficial.** El PDF no trae solución para esta cuestión. La resolvemos con el **mismo método** que la solución oficial de noviembre de 2022, que es el mismo problema con 4 zonas («jardín»), ampliado aquí a 5 zonas.
+
+<Figura src={fig2} alt="Página web de control con las casillas Zona 1 y Zona 2 marcadas y el plano de la vivienda con esas dos zonas resaltadas en rojo" pie="Ejemplo de página 1 del enunciado: zonas 1 y 2 activas. A la izquierda las casillas, a la derecha el plano con las zonas encendidas resaltadas." />
+
+<Figura src={fig3} alt="Código HTML del ejemplo de página 1: formulario con método get y una casilla por zona con atributo checked en la zona 1 y la 2, casillas todosON y todosOFF, y las imágenes de zona con hidden en las zonas 3, 4 y 5" pie="Código HTML del ejemplo de página 1 (enunciado). Subrayado en el original: el método get, los atributos checked de las zonas activas y los hidden de las imágenes de las zonas apagadas: es lo que cambia según el estado." />
+
+<Figura src={fig4} alt="Página web de control con las casillas Zona 1, Zona 2 y Zona 4 marcadas y el plano con esas zonas resaltadas" pie="Ejemplo de página 2: tras pulsar la zona 4, quedan activas las zonas 1, 2 y 4. Es la página que genera el servidor al recibir la URL de arriba." />
+
+<Figura src={fig5} alt="Código CSS común: clases Plano, Zona1, Zona2, Zona3, Zona4 y Zona5 con su posición, tamaño y z-index" pie="Código común a los dos ejemplos (enunciado): el estilo de las cinco zonas. Se supone guardado en un fichero aparte, cabecera.html." />
+
+### Qué hay que saber antes
+
+El servidor HTTP del LPC1768 (el de la práctica, con las funciones `http_get_var`, `str_scomp`, `alloc_mem`) trabaja así:
+
+- Un fichero **`.cgi`** es una página HTML en la que cada línea empieza por una letra: `t` (texto que se envía tal cual), `i` (incluir otro fichero), `c` (**llamar a `cgi_func`** para que genere esa línea) y un punto solo para terminar.
+- En las líneas `c n texto`, el servidor llama a `cgi_func` con `env[0]` igual al carácter `n` y `&env[2]` apuntando al texto de la línea. La función escribe en `buf` la línea final (normalmente un `sprintf` con el texto como formato y un `%s`) y devuelve cuántos bytes ha escrito.
+- Con el método **GET**, las variables viajan en la URL (`?zona1=on&...`) y el servidor llama a **`cgi_process_var`** con la cadena de variables. **`cgi_process_data`** es para el método POST y aquí **no hace falta**.
+- Un formulario solo envía las casillas **marcadas**: lo que no aparece en la URL, está apagado. Así, cada URL trae **el estado completo**, y `cgi_process_var` lo reconstruye desde cero.
+
+### Proceso
+
+1. **Qué cambia en el HTML según el estado.** Dos cosas: el atributo `checked` de cada casilla (cinco) y el atributo `hidden="hidden"` de cada imagen de zona (cinco). Cada una de esas **diez líneas** pasa a ser una línea `c`, con un `%s` donde iba el atributo variable. El resto va con `t`.
+2. **Numerar las líneas `c`.** Casillas: `c 0` a `c 4` (zonas 1 a 5). Imágenes: `c 5` a `c 9`.
+3. **Modificación en las casillas todos.** La casilla «Apaga todas las zonas» del enunciado **no tiene `name`**, y una casilla sin `name` no se envía nunca. Hay que **añadir `name="todosOFF"`**. La de «Enciende todas» sí lo tiene (`todosONtodosON`, con ese nombre tan raro que viene en el enunciado y que aparece en la URL).
+4. **`cgi_func`.** Para `env[0]` de '0' a '4', escribe `checked` si el bit de esa zona está a 1 en `iluminacion`. Para '5' a '9', escribe `hidden="hidden"` si el bit está a 0. El número de zona es `env[0]` menos '0' (casillas) o menos '5' (imágenes).
+5. **`cgi_process_var`.** Recorre las variables de la URL con `http_get_var`. Cada `zonaN=on` pone su bit; `todosONtodosON=on` pone los cinco bits; `todosOFF=on` anula todo al final.
+
+### Solución
+
+**Fichero `vivienda.cgi`** (lo añadido o modificado respecto al HTML del enunciado está en las líneas `c`, y la casilla todosOFF lleva `name`):
+
+```
+i cabecera.html
+t <html>
+t <head></head>
+t <body>
+t   <h1>Sistema de control de iluminaci&oacute;n</h1>
+t   <table>
+t   <tr>
+t     <td>
+t       <form method="get" action="iluminacion.html">
+t         <label for="cars">Activa o desactiva las zonas</label><br>
+c 0       <input type="checkbox" id="zona1" name="zona1" onclick="submit()" %s>
+t         <label for="cars"> Zona 1</label><br>
+c 1       <input type="checkbox" id="zona2" name="zona2" onclick="submit()" %s>
+t         <label for="cars"> Zona 2</label><br>
+c 2       <input type="checkbox" id="zona3" name="zona3" onclick="submit()" %s>
+t         <label for="cars"> Zona 3</label><br>
+c 3       <input type="checkbox" id="zona4" name="zona4" onclick="submit()" %s>
+t         <label for="cars"> Zona 4</label><br>
+c 4       <input type="checkbox" id="zona5" name="zona5" onclick="submit()" %s>
+t         <label for="cars"> Zona 5</label><br>
+t         <br>
+t         <input type="checkbox" id="todosON" name="todosONtodosON" onclick="submit()">
+t         <label for="cars"> Enciende todas las zonas</label><br>
+t         <input type="checkbox" id="todosOFF" name="todosOFF" onclick="submit()">
+t         <label for="cars"> Apaga todas las zonas</label>
+t       </form>
+t     </td>
+t     <td style="width: 50px;"></td>
+t     <td style="vertical-align:top;">
+t       <div style="position: relative; left: 0; top: 0;">
+t         <img src="plano.png" class='Plano' >
+c 5       <img src="zona1.png" class='Zona1' %s>
+c 6       <img src="zona.png" class='Zona2' %s>
+c 7       <img src="zona.png" class='Zona3' %s>
+c 8       <img src="zona.png" class='Zona4' %s>
+c 9       <img src="zona.png" class='Zona5' %s>
+t       </div>
+t     </td>
+t   </tr>
+t   </table>
+t </body>
+t </html>
+.
+```
+
+**`cgi_func`**: genera cada línea `c`.
+
+```c
+#include <Net_Config.h>
+#include <stdio.h>
+#include <string.h>
+
+extern volatile uint8_t iluminacion;      // bit 0 = zona 1 ... bit 4 = zona 5
+
+U16 cgi_func (U8 *env, U8 *buf, U16 buflen, U32 *pcgi) {
+  U32 len = 0;
+
+  switch (env[0]) {
+    case '0': case '1': case '2': case '3': case '4':       // casillas de las zonas 1 a 5
+      len = sprintf((char *)buf, (const char *)&env[2],
+                    (iluminacion & (1 << (env[0] - '0'))) ? "checked" : "");
+      break;
+    case '5': case '6': case '7': case '8': case '9':       // imágenes de las zonas 1 a 5
+      len = sprintf((char *)buf, (const char *)&env[2],
+                    (iluminacion & (1 << (env[0] - '5'))) ? "" : "hidden=\"hidden\"");
+      break;
+    default:
+      break;
+  }
+  return ((U16)len);
+}
+```
+
+**`cgi_process_var`**: reconstruye `iluminacion` desde la URL.
+
+```c
+void cgi_process_var (U8 *qs) {
+  U8 *var;
+  U8 _iluminacion = 0;                     // se construye aparte y se vuelca al final
+  U8 todosOFF = 0;
+
+  var = (U8 *)alloc_mem(40);
+  do {
+    qs = http_get_var(qs, var, 40);        // siguiente variable, por ejemplo "zona4=on"
+    if (var[0] != 0) {
+      if      (str_scomp(var, (U8 *)"zona1=on") == __TRUE) _iluminacion |= 0x01;
+      else if (str_scomp(var, (U8 *)"zona2=on") == __TRUE) _iluminacion |= 0x02;
+      else if (str_scomp(var, (U8 *)"zona3=on") == __TRUE) _iluminacion |= 0x04;
+      else if (str_scomp(var, (U8 *)"zona4=on") == __TRUE) _iluminacion |= 0x08;
+      else if (str_scomp(var, (U8 *)"zona5=on") == __TRUE) _iluminacion |= 0x10;
+      else if (str_scomp(var, (U8 *)"todosONtodosON=on") == __TRUE) _iluminacion |= 0x1F;  // las cinco
+      else if (str_scomp(var, (U8 *)"todosOFF=on") == __TRUE) todosOFF = 1;
+    }
+  } while (qs);
+  free_mem((OS_FRAME *)var);
+
+  if (todosOFF) _iluminacion = 0;          // apagar todas manda sobre lo demás
+  iluminacion = _iluminacion;              // el programa principal lee esta variable
+}
+```
+
+Comprobación con la URL del enunciado `?zona1=on&zona2=on&zona4=on&todosONtodosON=on`: tras las tres zonas, `_iluminacion = 0x0B`; luego `todosONtodosON=on` la pone a `0x1F`: las cinco zonas encendidas. Con `?zona1=on&zona2=on&zona4=on`: `0x01 | 0x02 | 0x08 = 0x0B`, como en la página de ejemplo 2.
+
+> **Ojo: erratas de la solución de 2022 que no hay que copiar.** La solución oficial de noviembre de 2022 (el mismo problema) sirve de modelo, pero tiene fallos: compara con `"todosON=on"` mientras la URL trae `todosONtodosON=on` (la comparación nunca acierta, porque `str_scomp` mira el principio de la variable), declara `tofosOFF`, y en el fichero `.cgi` las líneas `c` llevan el texto fijo `checked` o `hidden="hidden"` en vez de un `%s`, así que el `sprintf` de `cgi_func` no tendría dónde escribirlo.
+
+> **Nota sobre `action`.** El enunciado deja `action="iluminacion.html"` y la URL de ejemplo también. Para que el servidor ejecute el CGI, lo habitual es que el formulario apunte al propio fichero `.cgi` (`vivienda.cgi`). Hemos respetado el enunciado, pero conviene comentarlo en el examen.
+
+### La trampa
+
+1. **Las casillas desmarcadas no viajan.** Por eso hay que partir de `_iluminacion = 0` y poner solo los bits que aparecen. Si se partiera del valor anterior, una zona nunca se apagaría.
+2. **El `name` que falta** en «Apaga todas». Sin él, esa casilla no envía nada.
+3. **El nombre `todosONtodosON`** que hay que comparar exactamente como sale en la URL.
+4. **`str_scomp` compara el principio** de la variable, así que `zona1=on` no se confunde con otras, pero un texto distinto al esperado nunca coincide.
+5. **Una zona apagada y nada en la URL.** Si se apaga la última zona activa, la URL llega sin variables; conviene que el programa tolere una cadena vacía (el `if (var[0] != 0)` ya lo hace).
+
+## Cuestión 6 · 16 LEDs con dos PCF8574 por I2C
+
+### Qué pide
+
+Un indicador de 16 LEDs con **dos PCF8574** por I2C. Hay que **completar la interconexión** de los chips y con el LPC1768, y escribir `LEDs_ON_OFF(char LEDn, char estado)`: `LEDn` es el LED (1 a 16) y `estado` es 1 (encender) o 0 (apagar). Si `LEDn` es `0xFF`, se encienden o se apagan **todos**.
+
+<Figura src={fig6} alt="Esquema con dos PCF8574: el primero con A0, A1 y A2 a masa, el segundo con A0 a +5 V y A1, A2 a masa, ambos con SCL y SDA al LPC1768 (P0.0 y P0.1) y resistencias de 4,7 kiloohmios a +5 V; los LEDs 1 a 8 y 9 a 16 se conectan a +5 V a través de 470 ohmios a los pines P0 a P7" pie="Esquema de la solución (trazos rojos: lo que hay que completar). Cada LED va de +5 V al pin del PCF8574 a través de 470 ohmios; las direcciones salen de los pines A0 a A2." />
+
+### Qué hay que saber antes
+
+- El **PCF8574** es un expansor de 8 pines de entrada/salida controlado por I2C. Se escribe **un byte** y sus 8 pines toman ese valor. Es de salida «casi bidireccional»: puede **hundir** corriente con facilidad, pero entrega muy poca a nivel alto.
+- Su dirección I2C es `0100 A2 A1 A0` (los tres pines A0 a A2 se cablean a masa o a +5 V): con los tres a masa, la dirección es **0x20**; con A0 a +5 V, **0x21**.
+- I2C usa dos líneas, **SDA** y **SCL**, de colector abierto: necesitan **resistencias de pull-up** a +5 V (aquí de 4,7 kΩ, una en cada línea).
+
+### Proceso
+
+1. **Interconexión.**
+   - Los dos chips comparten SDA y SCL con el LPC1768, con una resistencia de 4,7 kΩ a +5 V en cada línea. En el LPC1768 el I2C1 es **P0.0 = SDA1** y **P0.1 = SCL1** (UM10360).
+   - Primer chip: A0, A1 y A2 a masa, dirección **0x20**. Segundo chip: A0 a +5 V y A1, A2 a masa, dirección **0x21**.
+   - LEDs: de +5 V, a través del LED y de 470 Ω, al pin del chip. Chip 1: LED1 a LED8 en P0 a P7; chip 2: LED9 a LED16 en P0 a P7.
+2. **Los LEDs son activos a nivel bajo.** Como van de +5 V al pin, **se encienden cuando el pin está a 0**, que es cuando el chip puede hundir la corriente. Encender es poner el bit a **0** y apagar es ponerlo a **1**.
+3. **Estado «en la sombra».** Escribir en el PCF8574 reescribe **los ocho pines a la vez**. Para cambiar un LED sin tocar los otros hay que recordar el último byte escrito en cada chip: dos variables `static`, una por chip.
+4. **Valor inicial.** Tras el reset, el PCF8574 deja todos los pines a 1 (LEDs apagados). Las variables de sombra deben empezar en **`0xFF`**.
+5. **Un solo LED.** Chip 1 para $1\le n\le8$ con el bit $n-1$, chip 2 para $9\le n\le16$ con el bit $n-9$. Encender: borrar el bit; apagar: ponerlo. Luego se envía el byte entero.
+6. **Todos.** Encender todos es escribir `0x00` en los dos chips; apagar todos, `0xFF`. Y se actualiza también la sombra.
+
+### Solución
+
+```c
+#define apaga      0
+#define enciende   1
+#define todos_LEDs 0xFF
+
+// Envía un byte a un PCF8574 (7 bits de dirección, escritura)
+static void pcf_escribe(uint8_t dir, uint8_t valor)
+{
+  I2CSendAddr(dir, 0);          // dirección y bit de escritura
+  I2CSendByte(valor);
+  I2CSendStop();
+}
+
+void LEDs_ON_OFF(uint8_t LEDn, uint8_t estado)
+{
+  static uint8_t LEDS1_8  = 0xFF;      // LEDs 1 a 8: todos apagados (bit a 1 = LED apagado)
+  static uint8_t LEDS9_16 = 0xFF;      // LEDs 9 a 16
+
+  if (LEDn == todos_LEDs) {                       // todos a la vez
+    LEDS1_8 = LEDS9_16 = estado ? 0x00 : 0xFF;    // encender = todos los bits a 0
+    pcf_escribe(0x20, LEDS1_8);
+    pcf_escribe(0x21, LEDS9_16);
+  }
+  else if (LEDn >= 1 && LEDn <= 8) {              // chip 1, dirección 0x20
+    if (estado) LEDS1_8 &= ~(1 << (LEDn - 1));    // enciende: bit a 0
+    else        LEDS1_8 |=  (1 << (LEDn - 1));    // apaga: bit a 1
+    pcf_escribe(0x20, LEDS1_8);
+  }
+  else if (LEDn >= 9 && LEDn <= 16) {             // chip 2, dirección 0x21
+    if (estado) LEDS9_16 &= ~(1 << (LEDn - 9));
+    else        LEDS9_16 |=  (1 << (LEDn - 9));
+    pcf_escribe(0x21, LEDS9_16);
+  }
+}
+```
+
+Comprobación: `LEDs_ON_OFF(3, enciende)` con todo apagado deja `LEDS1_8 = 0xFB` (`1111 1011`): solo el bit 2, el del LED3, está a 0.
+
+> **Ojo: errores en el código de la solución oficial.** El código oficial tiene tres fallos que no son de concepto: **(1)** `else if (1<=LEDn<=8)` en C **siempre es cierto**: se evalúa `(1<=LEDn)`, que da 0 o 1, y luego `<=8`, que siempre se cumple. Los LEDs 9 a 16 nunca llegarían a su rama; hay que escribir `LEDn>=1 && LEDn<=8`. **(2)** `static uint8_t LEDS1_8, LEDS9_16;` empieza a **0**: la primera llamada para un solo LED escribiría un 0 en los otros siete bits, es decir, **los encendería todos**. Deben empezar en `0xFF`. **(3)** Para «todos», `~estado*0xFF` no vale: con `estado=1` da `0x02` y con `estado=0` da `0x01` en el byte bajo; lo correcto es `estado ? 0x00 : 0xFF`. Además, esa rama no actualiza las variables de sombra. Y con `char` con signo, `LEDn==0xFF` no se cumple nunca (el `char` vale −1): por eso aquí es `uint8_t` (en Keil el `char` por defecto no tiene signo, pero no hay que fiarse).
+
+> **Dudas sobre la figura.** En la figura de la solución las dos líneas P0.0 y P0.1 parecen unirse a SCL y SDA respectivamente. Según el UM10360, **P0.0 es SDA1 y P0.1 es SCL1**: si en el examen te piden el cableado, usa esa asignación. Además, la figura dibuja una sola resistencia de pull-up; hacen falta dos (SDA y SCL). Y hay que configurar los pines con `PINSEL0` (función 11 para P0.0 y P0.1) y el I2C1 con el reloj y los bits de arranque, que el enunciado supone hecho por las funciones `I2CSend...`.
+
+### La trampa
+
+1. **Nivel bajo = encendido.** Es lo primero que hay que deducir del esquema; se falla invirtiendo el sentido en todo el código.
+2. **Escribir el byte completo:** sin la variable de sombra se apagan los demás LEDs al cambiar uno.
+3. **El valor inicial** de esas variables, y la condición `LEDn>=1 && LEDn<=8`: dos fallos de C que el propio código oficial comete.
+
+## Cuestión 7 · Arbitraje por interrupción de una memoria de doble puerto
+
+### Qué pide
+
+Explicar con detalle el método de **arbitraje por interrupción** de las memorias de doble puerto (dual-port) y justificarlo sobre el esquema, de modo que se usen para ello **las dos últimas posiciones pares más altas** del bloque. El bloque está en `0x9000.0000` y cada chip tiene **32 kB**. Hay que **conectar la línea de interrupción de cada CPU** al chip correspondiente.
+
+<Figura src={fig7} alt="Cuatro chips de memoria de doble puerto (4N+3, 4N+2, 4N+1 y 4N) con las señales de selección de chip izquierda y derecha, las dos CPU con sus líneas EMC_CS1 y EINT1, y en el chip 4N+2 las patillas de interrupción INT_L e INT_R conectadas a la línea EINT1 de la CPU izquierda y de la derecha" pie="Esquema de la cuestión 7 (con los trazos en rojo de la solución): cuatro chips de 32 kB en paralelo en un bus de 32 bits (EMC_CS1 con MW=02). Las patillas de interrupción del chip 4N+2 se unen a EINT1 de cada CPU." />
+
+### Qué hay que saber antes
+
+Una memoria de **doble puerto** tiene dos buses de acceso independientes (izquierdo y derecho) a las mismas celdas, y por eso dos CPU pueden compartir datos sin pasar por un bus común. Los problemas son dos: **dos accesos simultáneos a la misma dirección** (lo resuelve la señal de ocupado, *BUSY*) y **avisar a la otra CPU de que hay un dato nuevo** sin que esté sondeando. Eso último es el **arbitraje por interrupción**: las dos últimas posiciones de cada chip actúan como **buzones**.
+
+### Proceso
+
+1. **Capacidad y direcciones.** 4 chips de 32 kB en paralelo, cada uno aportando **un byte** del bus de 32 bits (`MW=02`, 32 bits): $4\cdot32\ \text{kB}=128$ kB. Las direcciones van de `0x9000.0000` a `0x9001.FFFF`.
+2. **Qué byte aporta cada chip.** Con el bus de 32 bits, los bits $A_1A_0$ de la dirección eligen el byte dentro de la palabra, y el chip $4N+k$ aporta el byte $k$. El chip $4N+2$ aporta el **byte 2** de cada palabra: las direcciones acabadas en 2, 6, A y E.
+3. **Los buzones.** En cada chip, las dos últimas posiciones son los buzones: la **última** (dirección interna `0x7FFF`) y la **penúltima** (`0x7FFE`). La dirección del bus es $4\cdot\text{interna}+2$ (por el byte 2):
+   - interna `0x7FFF` → `0x9000.0000 + 4*0x7FFF + 2 =` **`0x9001.FFFE`**;
+   - interna `0x7FFE` → `0x9000.0000 + 4*0x7FFE + 2 =` **`0x9001.FFFA`**.
+   Son direcciones **pares** y las más altas que pertenecen al chip $4N+2$.
+4. **Cómo se avisan.**
+   - La **CPU izquierda escribe** en `0x9001.FFFE`: el chip activa **/INT_R** (en bajo) y **interrumpe a la CPU derecha**. La CPU derecha, en su ISR, **lee** esa misma posición y la línea /INT_R vuelve a reposo (nivel alto).
+   - La **CPU derecha escribe** en `0x9001.FFFA`: se activa **/INT_L**, que interrumpe a la CPU izquierda. La CPU izquierda **lee** esa posición y /INT_L se desactiva.
+5. **Conexión.** /INT_L del chip $4N+2$ a **/EINT1 de la CPU izquierda** y /INT_R a **/EINT1 de la CPU derecha** (las líneas rojas de la figura). Solo un chip lleva las interrupciones; los demás no necesitan nada.
+
+### Solución
+
+- Espacio de direcciones del bloque: 128 kB, `0x9000.0000` a `0x9001.FFFF`, igual para las dos CPU.
+- Buzones en el chip $4N+2$: **`0x9001.FFFE`** (la izquierda escribe y avisa a la derecha, que lee para borrar el aviso) y **`0x9001.FFFA`** (la derecha escribe y avisa a la izquierda, que lee para borrarlo).
+- Conexiones: /INT_L a /EINT1 de la CPU izquierda y /INT_R a /EINT1 de la CPU derecha.
+
+Cómo se configuraría una de las CPU (lo añadimos nosotros): la entrada **EINT1** (P2.11, función 01 en `PINSEL4`) **por nivel bajo** (`EXTMODE` bit 1 a 0, `EXTPOLAR` bit 1 a 0), porque la línea del chip se mantiene baja hasta que se lee el buzón. En la ISR hay que **leer el buzón** (con eso baja el aviso) y borrar el flag `EXTINT`; si no se lee, la línea sigue baja y la interrupción se repite sin parar.
+
+> **Ojo: erratas en la solución oficial.** Hay dos. **(1)** La dirección del buzón de la CPU izquierda se escribe «0x9001.FFE», sin un carácter: es `0x9001.FFFE`. **(2)** Para la CPU derecha escribe `0x9003.FFFA`, que queda **fuera** del bloque (que acaba en `0x9001.FFFF`): es `0x9001.FFFA`. Su propio texto dice «las dos últimas posiciones del chip», y el cálculo da `0x9001.FFFA`. Nota de interpretación: «las dos últimas posiciones pares más altas» no coincide literalmente con las dos direcciones más altas del bloque (que serían `...FFFE` y `...FFFC`, de chips distintos); la solución oficial toma las **dos últimas posiciones de un mismo chip** (el $4N+2$), y es lo que hacemos aquí.
+
+### La trampa
+
+Calcular la dirección del bus **a partir de la dirección interna del chip**: no es `0x9001.7FFF`, sino $4\cdot0x7FFF+2$, porque el chip solo ve una de cada cuatro direcciones. Y el detalle del protocolo: **escribe uno, lee el otro**; leer es lo que **borra** la interrupción.
+
+## Qué llevarte de este examen
+
+1. **T y D de cada función** salen del **evento más rápido** y de lo que el sistema tolera de retraso: cuenta todos los bits de la trama de la UART (aquí 12, no 11) y usa el tramo **más corto** en una cuadrada por Timer.
+2. **Ejecutabilidad:** ordena las tareas, separa **bloqueo** (el máximo) de **interferencia** (la suma con redondeo hacia arriba), usa $R-C$ para el mismo nivel con prioridad de arranque, e **itera hasta que $R$ repita**. Aquí la tarea 3 falla siempre, con 15, 15 y 12 ms.
+3. **Cuando no hay solución oficial**, razona con el método de otro examen parecido y **comprueba los extremos**: en el CGI, las casillas desmarcadas no viajan, y en los LEDs, nivel bajo es encendido.
+4. **Revisa los operadores de C**: `1<=n<=8` siempre es cierto y `~estado*0xFF` no hace lo que parece; son los fallos que se cuelan en el examen.
+5. **Doble puerto:** los buzones son las **últimas posiciones de un chip**, y la dirección del bus es $4\cdot\text{interna}+k$. Uno escribe, el otro lee y borra.

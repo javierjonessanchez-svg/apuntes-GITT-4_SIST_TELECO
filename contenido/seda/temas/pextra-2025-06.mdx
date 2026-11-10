@@ -1,0 +1,483 @@
+---
+titulo: "Junio de 2025 · Prueba extraordinaria"
+orden: 39
+bloque: "Exámenes resueltos"
+resumen: "Prueba extraordinaria de junio de 2025: el mismo sistema de temperatura del final de enero (ADC en ráfaga, servo con un Match, captura, audio con DMA, LEDs por I2C), un sensor radar por UART2 con máquina de estados, ejecutabilidad, CGI de Keil, dual-port, DSP y RTOS"
+saber:
+  - "La cuestión 1 es la del final de enero de 2025 con solución oficial completa, pero esa solución tiene varias erratas (ancho del servo invertido, TL con Fpclk, TC en vez de TCR, desplazar un float, lógica de los LEDs)"
+  - "Para un sensor que manda tramas fijas por UART, la máquina de estados cuenta bytes: cabecera, datos, cola, y solo da por buena la trama si la cola coincide"
+  - "El tiempo de un byte por UART es bits por byte entre la velocidad real: 10 bits a 260 417 baudios son 38,4 µs, no 0,384 µs"
+  - "Con los datos de ejecutabilidad de este examen, el escenario 2 es el único ejecutable: en el 1 falla la tarea 2 y en el 3 también"
+  - "Un fichero CGI de Keil con dos modos se resuelve con una sola función cgi_func que decide qué escribir según el nivel de un pin"
+fuentes:
+  - "Prueba de evaluación extraordinaria de SEDA, junio de 2025, con solución (material de clase de la asignatura)"
+  - "Prueba de evaluación final de SEDA, enero de 2025 (misma cuestión 1 y 5)"
+  - "UM10360 (manual del LPC17xx)"
+---
+import Donde from '../../../src/asignaturas/seda/Donde.astro';
+import Figura from '../../../src/asignaturas/seda/Figura.astro';
+import fig1 from './img/pextra-2025-06-1.png';
+import fig2 from './img/pextra-2025-06-2.png';
+import fig3 from './img/pextra-2025-06-3.png';
+import fig4 from './img/pextra-2025-06-4.png';
+import fig5 from './img/pextra-2025-06-5.png';
+
+## Resumen del examen
+
+**Fecha:** junio de 2025. **Tipo:** prueba de evaluación extraordinaria, 7 cuestiones. La puntuación de cada una no consta en el enunciado.
+
+| Cuestión | De qué va | Temas | Solución oficial |
+|---|---|---|---|
+| 1 | Sistema de temperatura con servo, alarma de audio y 16 LEDs por I2C (a a h) | [ADC y DAC](../adc-dac/), [Timers](../timers-match/), [PWM y servos](../pwm-servos/), [Captura](../captura/), [DMA](../dma/) | Sí, con erratas |
+| 2 | Sensor radar HLK-LD2450 por UART2: velocidad, señal, máquina de estados | [UART](../uart/), [Máquinas de estados](../maquinas-estados/) | Solo el apartado a (y la señal del b). C y d: resueltos por nosotros |
+| 3 | Ejecutabilidad en tres escenarios | [Ejecutabilidad](../ejecutabilidad/) | No consta (la hoja está en blanco): resuelta por nosotros |
+| 4 | Página web de un plotter con Keil | Servidor web de Keil (no está en los temas) | No consta: resuelta por nosotros |
+| 5 | Dual-port: arbitraje por interrupción | Teoría | Sí |
+| 6 | Qué es un DSP | Teoría | No consta: resuelta por nosotros |
+| 7 | RTOS | Teoría | No consta: resuelta por nosotros |
+
+**Cómo leer esta página.** La cuestión 1 es la misma que la del final de enero de 2025, que está explicada paso a paso en la página de ese examen. Aquí damos el resultado, lo comparamos con la solución oficial de junio y **señalamos sus erratas**. Todo lo marcado como «Resuelto por nosotros» no es del profesor: lo hemos hecho rehaciendo las cuentas y comprobando los registros con el UM10360.
+
+**Datos comunes.** CPU a 100 MHz, $F_{PCLK} = 25$ MHz (valor tras el reset), $V_{REFP} = 3$ V.
+
+## Cuestión 1 · Control de temperatura con servo y alarma de audio
+
+**Qué pide.** El mismo sistema que en enero: LM35, servo (0 a 180 º para 0 a 50 ºC), dos potenciómetros (brillo del LCD y amplitud de la alarma), micrófono y altavoz, y LEDs por I2C. La figura de este examen ya trae el esquema resuelto del apartado a.2.
+
+<Figura src={fig1} alt="Diagrama de bloques del sistema con la solución del apartado a.2 en rojo: micrófono en AD0.0 (P0.23), brillo en AD0.1 (P0.24), amplitud en AD0.2 (P0.25), LM35 en AD0.5 (P1.31), potenciómetros entre 3 V y masa, Vrefp 3 V, Vrefn a masa, altavoz por AOUT (P0.26) y servo por MAT1.0 (P1.22)" pie="Figura 1 con la solución oficial del apartado a.2: en rojo, los canales (AD0.0, AD0.1, AD0.2 y AD0.5), las referencias (3 V y masa), los potenciómetros entre 3 V y masa y el pin AOUT del DAC. El servo sale por MAT1.0 (P1.22) y su señal vuelve a CAP2.1." />
+
+### a.1, a.2 y a.3 · ADC de los sensores
+
+**Qué hay que saber antes.** `AD0CR`, 65 ciclos por conversión y máximo de 13 MHz: [ADC y DAC](../adc-dac/).
+
+**Proceso.** La máscara `0x26` son los canales 1, 2 y 5 (los dos potenciómetros y el LM35). Para la máxima velocidad, el reloj del ADC más alto menor que 13 MHz: con 25 MHz, CLKDIV = 1 (12,5 MHz). BURST = 1 recorre los canales sin parar.
+
+$$
+t_{conv} = \frac{65}{F_{CLK\,ADC}} = \frac{65}{12{,}5\cdot 10^6} = 5{,}2\ \mu s
+\qquad
+f_s = \frac{F_{CLK\,ADC}}{65\cdot N} = \frac{12{,}5\cdot 10^6}{65\cdot 3} = 64{,}1\ \text{kHz}
+$$
+<Donde>
+
+- $t_{conv}$: tiempo de una conversión (s). $F_{CLK\,ADC} = 25\ \text{MHz}/(CLKDIV+1)$: reloj del ADC (Hz).
+- $f_s$: frecuencia de muestreo de cada canal (Hz). $N = 3$: canales activos en la ráfaga.
+
+</Donde>
+
+```c
+void init_ADC_sensores(void) {
+   LPC_ADC->ADCR= ( 0x26<<0)|   // canales 1, 2 y 5
+                  ( 1  <<8)|    // CLKDIV=1: F_ADC = 25 MHz / 2 = 12,5 MHz
+                  (1<<21)|      // PDN=1: ADC encendido
+                  (1<<16);      // BURST=1: ráfaga de los 3 canales (START = 000)
+   NVIC_DisableIRQ(ADC_IRQn);   // el ADC no interrumpe
+}
+```
+
+**Solución oficial (figura).** Los potenciómetros llevan un extremo a 3 V y el otro a masa, y el cursor a la entrada (0 a 3 V). El LM35 da 10 mV por ºC, de 0 a 0,5 V. La solución oficial coincide con esto.
+
+**La trampa.** Dividir solo entre 65: en ráfaga cada canal tiene la tercera parte, 64,1 kHz y no 192 kHz.
+
+### b · Servo con un Match
+
+**Qué hay que saber antes.** Toggle y suma en la ISR: [Timers y Match](../timers-match/) y [PWM y servos](../pwm-servos/).
+
+**Proceso.** El servo está en P1.22 = MAT1.0, luego **Timer 1**, Match 0 en toggle, sin reset. Resolución de 1 µs: PR = 24 (25 MHz entre 25). En cada interrupción se suma al MR0 el tramo siguiente: $T_H$ si el pin acaba de subir y $T_L = 12\,000 - T_H$ si acaba de bajar (en µs, porque el tic dura 1 µs).
+
+$$
+T_H = 500 + 2000\cdot\frac{T}{50}\ \ [\mu s]
+$$
+<Donde>
+
+- $T_H$: tiempo en alto en µs. $T$: temperatura en ºC (0 a 50). 500 µs es el ancho a 0 º y 2000 µs lo que crece hasta 2500 µs a 50 ºC.
+
+</Donde>
+
+```c
+void TIMER1_IRQHandler(void) {
+   uint32_t th;
+   LPC_TIM1->IR = (1 << 0);                       // borrar el flag de MR0
+   th = 500 + (uint32_t)(40.0f * temperatura);    // T_H en µs
+   if (LPC_TIM1->EMR & (1 << 0)) LPC_TIM1->MR0 += th;          // el pin acaba de subir
+   else                          LPC_TIM1->MR0 += 12000 - th;   // el pin acaba de bajar
+}
+```
+
+> **Ojo: erratas en la solución oficial.**
+>
+> 1. **Ancho invertido.** La oficial escribe `Ftick*2.5e-3 - Ftick*2.0e-3*temperatura/50`: da 2,5 ms a 0 ºC y 0,5 ms a 50 ºC, el **contrario** de lo que dice el enunciado (de 0,5 a 2,5 ms para 0 º a 180 º). Lo correcto es `0.5e-3 + 2.0e-3*temperatura/50` multiplicado por `Ftick`.
+> 2. **Unidad del tramo bajo.** En la rama de $T_L$ usa `Fpclk*12e-3` (25 MHz, 300 000 tics) en lugar de `Ftick*12e-3` (1 MHz, 12 000 tics): con PR = 24 el periodo saldría 25 veces más largo.
+
+**La trampa.** Mezclar `Fpclk` y `Ftick`: con PR = 24 todo se cuenta en tics de 1 µs. Y no acotar la temperatura entre 0 y 50.
+
+### c · Ciclo de trabajo con el Timer 2
+
+**Qué hay que saber antes.** Captura en los dos flancos con una entrada: [Captura](../captura/).
+
+**Proceso.** La señal del servo va a CAP2.1 (P0.5, `PINSEL0` bits 11:10 = 11; Timer 2 alimentado en `PCONP` bit 22). Se capturan los dos flancos en CR1 con interrupción (`CCR = 0x38`) y el TC corre libre. La ISR lee el nivel del pin para saber qué flanco ha sido: en la subida mide el periodo, y en la bajada, el ancho.
+
+```text
+TIMER2_IRQHandler():
+    borrar el flag de CR1            // IR, bit 5
+    t = CR1
+    si P0.5 == 1:                    // subida
+        periodo = t - subida_anterior
+        subida_anterior = t
+    si no:                           // bajada
+        ciclo = 100 * (t - subida_anterior) / periodo     // en tanto por ciento
+```
+
+**Solución oficial.** Igual que esto (usa `temp` como la subida anterior y `N_periodo`). Es correcta; solo falta proteger la división: en la primera bajada `periodo` aún vale 0. Con $T_H$ de 0,5 a 2,5 ms y $T$ = 12 ms, el ciclo va del 4,2 % al 20,8 %.
+
+**La trampa.** El orden `100 * ancho / periodo`: si divides antes de multiplicar, con enteros sale 0.
+
+### d · ADC del micrófono y Timer de muestreo
+
+**Qué hay que saber antes.** Disparar el ADC con un Match: [ADC y DAC](../adc-dac/).
+
+**Proceso.** El micrófono (P0.23) es AD0.0: bit 0. CLKDIV = 24 da un reloj de 1 MHz y **65 µs por conversión**, menor que los 100 µs del periodo de muestreo a 10 kHz. START = 100 es MAT0.1. Como el pin conmuta y la conversión empieza con la **subida**, hay un flanco de subida cada dos Match, así que el Match va a **50 µs**: $MR1 = 25\cdot 10^6/(2\cdot 10\,000) - 1 = 1249$, con reset en MR1, sin interrupción y toggle (EMC1 = 11). El timer se arranca al pulsar P1.
+
+```c
+void init_ADC_microfono(void)
+{
+LPC_ADC->ADCR= ( 1<<0 )|     // canal AD0.0 (P0.23)
+               ( 24<<8)|     // CLKDIV=24: 1 MHz, t_conv = 65 µs
+               (1<<21)|      // PDN=1
+               (4<<24);      // START=100: MAT0.1 (Timer 0) marca la frecuencia de muestreo
+LPC_ADC->ADINTEN=(1<<0);     // interrumpe el canal 0
+NVIC_EnableIRQ(ADC_IRQn);
+}
+```
+
+**La trampa.** Poner $MR1 = F_{tick}/F_s - 1$ sin dividir entre 2: la subida llegaría cada 200 µs (5 kHz).
+
+### e · ISR del ADC y tamaño del array
+
+**Proceso.** $N = 10\,000\cdot 1{,}3 = 13\,000$ muestras de 8 bits: `uint8_t` y 13 000 bytes. Los 8 bits altos del resultado (bits 15:8 de `ADDR0`) son `ADDR0 >> 8` (al guardarlo en un `uint8_t` se descartan los bits altos).
+
+```c
+uint8_t buffer_alarm_temp[13000];      // 10 kHz · 1,3 s = 13 000 muestras de 8 bits
+void ADC_IRQHandler(void) {
+   buffer_alarm_temp[indice_muestra++] = (LPC_ADC->ADDR0 >> 8) & 0xFF;   // leer ADDR0 borra DONE
+   if (indice_muestra >= 13000) {
+      indice_muestra = 0;
+      LPC_TIM0->TCR = 0x02;            // para el Timer 0
+      fin_grabacion = 1;
+   }
+}
+```
+
+> **Ojo: errata en la solución oficial.** Para parar el Timer 0 escribe `LPC_TIM0->TC = 0x02`. `TC` es el **contador**, no el registro de control: solo cambia el valor de la cuenta y el timer sigue funcionando (y las conversiones, también). Hay que escribir en **`TCR`**.
+
+### f · ISR del Timer 3 y frecuencia
+
+**Proceso.** Se reproduce a la misma $F_s$ que se grabó: **10 kHz**, MR0 = 2499 con reset. El valor de 8 bits, multiplicado por `amplitud` (0 a 1) y desplazado 8 posiciones, queda en los bits 15:8 de `DACR`, que es el valor de 10 bits multiplicado por 4.
+
+```c
+void TIMER3_IRQHandler(void) {
+   LPC_TIM3->IR = (1 << 0);                                   // borrar el flag de MR0
+   LPC_DAC->DACR = ((uint32_t)(buffer_alarm_temp[indice] * amplitud)) << 8;
+   if (++indice >= 13000) { indice = 0; LPC_TIM3->TCR = 0x02; fin_mensaje = 1; }
+}
+```
+
+> **Ojo: erratas en la solución oficial.**
+>
+> 1. **Desplazar un `float`.** `(buffer*amplitud)<<8` multiplica un entero por un `float` y desplaza el resultado: en C no se puede desplazar un `float` (no compila). Hay que convertir antes con `(uint32_t)`.
+> 2. **Nombre.** El array se declara `buffer_alarm_temp` y la ISR usa `buffer_alarma_temp`.
+> 3. **Parar el timer** con `LPC_TIM3->TC = 0x02`: igual que en el apartado e, debe ser `TCR`.
+
+**La trampa.** Escalar la muestra con signo y sin cuidado cambia también el nivel medio de la señal. Aquí, con el LM386 acoplado, basta.
+
+### g · DMA en la grabación
+
+**Proceso.** GPDMA, periférico → memoria (petición 4 del ADC). $\lceil 13\,000/4095\rceil = 4$ bloques de $13\,000/4 = 3250$ transferencias de 8 bits. Origen: byte alto del resultado, `ADDR0 + 1` (en bytes), sin incremento; destino: el array con incremento. Cuatro descriptores encadenados, con interrupción solo en el último. Para que el ADC pida DMA se habilita el canal 0 en `AD0INTEN` y la interrupción del ADC **no** se habilita en el NVIC.
+
+**Solución oficial.** Igual, pero habla de «4 canales en modo linked». En el GPDMA lo que se encadenan son **descriptores** de un mismo canal (`DMACCLLI`), no canales distintos. Y la oficial no menciona `AD0INTEN`.
+
+### h · PCF8575 por I2C
+
+**Proceso.** Dirección `0100 A2A1A0`; con A0, A1 y A2 a masa son `0x20` en 7 bits. Se envían dos bytes: primero P07..P00 y después P17..P10. Los LED van de VCC al pin (el pin conduce con fuerza al nivel bajo): **se encienden con 0**. Conexión: SDA y SCL al I2C0 (P0.27 y P0.28) con resistencias de pull-up a 3,3 V, A0 a A2 a masa, INT sin conectar, LED con resistencia a VCC.
+
+```c
+void LEDs_ON_OFF(char LEDn, char estado)
+{
+   static uint16_t dato = 0xFFFF;                  // 1 = LED apagado
+   if (LEDn == 0xFF) dato = estado ? 0x0000 : 0xFFFF;
+   else if (estado)  dato &= ~(1 << (LEDn - 1));   // encender = 0
+   else              dato |=  (1 << (LEDn - 1));   // apagar = 1
+   I2CSendAddr(0x20, 0);
+   I2CSendByte(dato & 0xFF);                       // LED1 a LED8
+   I2CSendByte(dato >> 8);                         // LED9 a LED16
+   I2CSendStop();
+}
+```
+
+> **Ojo: erratas en la solución oficial.**
+>
+> 1. **Todos los LED.** Manda `~estado*0xFF`. En C, `~1` vale `0xFFFFFFFE` (no 0) y `~0` vale `0xFFFFFFFF`: los bytes que salen son `0x02` y `0x01`, no `0x00` y `0xFF`. Con `estado = 1` hay que mandar `0x00` (todos a 0 = encendidos).
+> 2. **Estado inicial.** `static uint16_t dato;` empieza en 0: la primera llamada para encender un solo LED encendería los 16. Debe empezar en `0xFFFF`.
+> 3. **Con 0xFF no se actualiza `dato`.** Tras «todos encendidos», la siguiente llamada a un solo LED recompondría un estado antiguo.
+
+**La trampa.** La lógica invertida de los LED, y que el chip no devuelve lo que hay en los pines: guardas tú el estado.
+
+## Cuestión 2 · Sensor radar HLK-LD2450 por UART2
+
+**Qué pide.** Un sensor radar por UART2 manda tramas de **30 bytes**: 4 de cabecera (`AA FF 03 00`), 3 targets de 8 bytes (X, Y, velocidad y resolución, 2 bytes cada uno) y 2 de cola (`55 CC`). Se pide: a) configurar la UART2 a 256 000 baudios (FR = 1, 8N1) y la velocidad real; b) dibujar la señal de la cabecera y la duración de la trama; c) el statechart de la máquina de estados; d) la función `StateMachine(uint8_t dato)` que deje X, Y (y speed) del primer target en la estructura `objetivo`.
+
+<Figura src={fig2} alt="Formato de la trama del sensor: cabecera AA FF 03 00, campos X, Y, velocidad y resolución de distancia de cada target, y cola 55 CC" pie="Figura del enunciado: formato de la trama. Los primeros 4 bytes y los últimos 2 son fijos; en medio, 8 bytes por target (X, Y, velocidad y resolución de distancia, 2 bytes cada uno)." />
+
+### a · Velocidad de la UART2
+
+**Qué hay que saber antes.** Divisor y velocidad real: [UART](../uart/).
+
+$$
+DL = \frac{F_{PCLK}}{16\cdot V} = \frac{25\cdot 10^6}{16\cdot 256\,000} = 6{,}10 \to 6
+\qquad
+V_{real} = \frac{25\cdot 10^6}{16\cdot 6} = 260\,416{,}7\ \text{baudios}
+$$
+<Donde>
+
+- $DL = 256\cdot DLM + DLL$: divisor entero. $V$: velocidad pedida (baudios). $V_{real}$: la que sale con el $DL$ redondeado.
+
+</Donde>
+
+El error es $(260\,416{,}7 - 256\,000)/256\,000 = +1{,}7\ \%$, tolerable. Registros: `U2DLL = 6`, `U2DLM = 0`, `U2FDR = 0x10` (FR = 1), `U2LCR = 0x03` (8N1; con DLAB = `0x83` al escribir el divisor), `PCONP` bit 24 (UART2 apagada tras el reset), pines TXD2/RXD2 en P0.10/P0.11.
+
+### b · Señal de la cabecera y duración de la trama
+
+<Figura src={fig3} alt="Señal en RxD2 de los dos primeros bytes de la cabecera: 0xAA y 0xFF, y debajo 0x03 y 0x00, con bit de start a 0, ocho bits de datos de LSB a MSB y bit de stop a 1" pie="Solución oficial del apartado b: la cabecera AA FF 03 00, cada byte con start a 0, 8 bits (primero el de menos peso) y stop a 1. Sin paridad, así que son 10 bits por byte." />
+
+**Proceso.** Cada byte son 1 start + 8 datos + 1 stop = **10 bits** (sin paridad). Los bits van con el de menos peso primero: `0xAA = 1010 1010` se envía `0 1 0 1 0 1 0 1`, y `0xFF` son ocho unos.
+
+$$
+t_{byte} = \frac{10}{V_{real}} = \frac{10}{260\,416{,}7} = 38{,}4\ \mu s
+\qquad
+t_{trama} = 30\cdot 38{,}4\ \mu s = 1{,}152\ ms
+$$
+<Donde>
+
+- $t_{byte}$: tiempo de un byte (s). 10: bits por byte. $V_{real}$: velocidad real (baudios).
+- $t_{trama}$: tiempo de la trama de 30 bytes. La cabecera sola (4 bytes) dura 153,6 µs.
+
+</Donde>
+
+> **Ojo: errata en la solución oficial.** Escribe «Tcaract = 0,384 us». Son **38,4 µs**: un bit dura $1/260\,416 = 3{,}84\ \mu s$ y el byte, 10 veces eso. Con 0,384 µs la trama no daría 1,152 ms. El resultado de la trama (1,152 ms) sí está bien.
+
+**La trampa.** Las unidades: 10 bits por 3,84 µs son 38,4 µs, no décimas de microsegundo.
+
+### c y d · Máquina de estados y función StateMachine
+
+**Resuelto por nosotros, no consta en la solución oficial** (las hojas de la solución están en blanco).
+
+**Qué hay que saber antes.** Una máquina de estados con un byte por paso: [Máquinas de estados](../maquinas-estados/).
+
+**Proceso.**
+
+1. **Un estado por campo fijo.** Esperar `AA`, `FF`, `03`, `00`. Si falla uno, vuelve al inicio; ojo, si el byte que falla es otro `AA`, el estado es el segundo (la cabecera puede empezar justo ahí).
+2. **Datos.** Tras la cabecera vienen 24 bytes de datos (3 targets por 8). Dentro de los datos **no se resincroniza** (un byte de datos puede valer `AA`), se cuenta. Se guardan los 6 primeros bytes (X, Y, velocidad del primer target) en un array auxiliar y se ignoran los demás.
+3. **Cola.** Esperar `55` y `CC`. Solo cuando los dos coinciden la trama es válida y se copia el auxiliar a `objetivo`: así una trama dañada nunca deja valores a medias.
+
+| Estado | Condición del byte | Acción | Siguiente |
+|---|---|---|---|
+| 0 | igual a 0xAA | | 1 |
+| 1 | 0xFF (si es 0xAA, se queda en 1; otro, a 0) | | 2 |
+| 2 | 0x03 (igual que arriba) | | 3 |
+| 3 | 0x00 (igual que arriba) | n = 0 | 4 |
+| 4 | cualquiera | si n menor que 6, guardar en aux[n]; n = n + 1 | 4; con n = 24, a 5 |
+| 5 | igual a 0x55 (otro, a 0) | | 6 |
+| 6 | igual a 0xCC | copiar aux a objetivo | 0 |
+
+```c
+struct s_objetivo { uint16_t x, y, speed; } objetivo;
+
+void StateMachine(uint8_t dato) {
+   static uint8_t estado = 0, n, aux[6];
+   switch (estado) {
+   case 0: if (dato == 0xAA) estado = 1; break;
+   case 1: estado = (dato == 0xFF) ? 2 : (dato == 0xAA ? 1 : 0); break;
+   case 2: estado = (dato == 0x03) ? 3 : (dato == 0xAA ? 1 : 0); break;
+   case 3:
+      if (dato == 0x00) { n = 0; estado = 4; }
+      else estado = (dato == 0xAA) ? 1 : 0;
+      break;
+   case 4:                                   // 24 bytes de datos: se cuentan, no se interpretan
+      if (n < 6) aux[n] = dato;              // solo el primer target: X, Y y velocidad
+      if (++n == 24) estado = 5;
+      break;
+   case 5: estado = (dato == 0x55) ? 6 : 0; break;
+   case 6:
+      if (dato == 0xCC) {                    // trama completa y válida
+         objetivo.x     = aux[0] | (aux[1] << 8);   // primero el byte bajo (little-endian)
+         objetivo.y     = aux[2] | (aux[3] << 8);
+         objetivo.speed = aux[4] | (aux[5] << 8);
+      }
+      estado = 0;
+      break;
+   }
+}
+```
+
+El enunciado no dice el orden de los bytes; se asume que el byte bajo va primero. Los campos son enteros con signo cuyo bit alto indica el sentido (1 = positivo, 0 = negativo, según la figura): aquí se guardan en bruto, tal y como pide la estructura con `uint16_t`.
+
+**La trampa.** Resincronizar dentro de los datos: un `AA` en medio de los datos rompería la trama. Y no copiar nada hasta ver `55 CC`.
+
+## Cuestión 3 · Ejecutabilidad en tres escenarios
+
+**Qué pide.** Los mismos escenarios de prioridades que en enero, con otros tiempos: tarea 1 con C = 2, T = 7, D = 6; tarea 2 con C = 4, T = 10, D = 10 y RC = 2; tarea 3 con C = 5, T = 30, D = 20 y RC = 3. Región crítica del `main`: 1 ms. Unidades en ms. Escenarios: (1) niveles 0, 1, 2; (2) T1 y T2 en el nivel 0 (subprioridades 0 y 1) y T3 en el 1; (3) T1 en el 0 y T2 y T3 en el 1 (subprioridades 0 y 1).
+
+**Resuelto por nosotros, no consta en la solución oficial** (la hoja de la solución está en blanco).
+
+**Qué hay que saber antes.** [Ejecutabilidad](../ejecutabilidad/): $R_i = C_i + B_i + I_i$; el bloqueo es el peor de varios y la interferencia es la suma; las tareas del mismo nivel no se interrumpen.
+
+$$
+R_i = C_i + B_i + I_i \qquad I_i = \sum_j \left\lceil \frac{R_i}{T_j}\right\rceil C_j
+$$
+<Donde>
+
+- $R_i$, $C_i$: respuesta y duración de la tarea $i$ (ms). $B_i$: bloqueo, el mayor de los retrasos de las tareas menos prioritarias.
+- $I_i$: interferencia de las más prioritarias que la interrumpen. $T_j$, $C_j$: su periodo y su duración. Si $j$ es del mismo nivel, se usa $R_i - C_i$ dentro del redondeo.
+
+</Donde>
+
+**Escenario 1** (niveles 0, 1, 2):
+
+- T1: $B = \max\{1, 2, 3\} = 3$. $R_1 = 2 + 3 = 5 \le 6$. Cumple.
+- T2: $B = \max\{1, 3\} = 3$; interfiere T1. $R^{(0)} = 7$; con 7: $\lceil 7/7\rceil\cdot 2 = 2$, $R = 9$; con 9: $\lceil 9/7\rceil = 2$, $R = 11$; con 11: $\lceil 11/7\rceil = 2$, $R = 11$. $R_2 = 11 > 10$. **No cumple.**
+- T3: $B = 1$; interfieren T1 y T2. $R$: 6, 12, 18, 20, 20 (con 18: $3\cdot 2 + 2\cdot 4 = 14$, $R = 20$). $R_3 = 20 \le 20$. Cumple, justo.
+
+**Escenario 2** (T1 y T2 en el mismo nivel, T3 más baja):
+
+- T1: T2 no se puede interrumpir: $B = \max\{1, C_{T2} = 4, 3\} = 4$. $R_1 = 6 \le 6$. Cumple, justo.
+- T2: $B = \max\{1, 3\} = 3$; T1 es del mismo nivel: $I = \lceil (R-4)/7\rceil\cdot 2$. $R^{(0)} = 7$: $\lceil 3/7\rceil\cdot 2 = 2$, $R = 9$; con 9: $\lceil 5/7\rceil\cdot 2 = 2$, $R = 9$. $R_2 = 9 \le 10$. Cumple.
+- T3: igual que en el escenario 1: $R_3 = 20 \le 20$. Cumple.
+
+**Escenario 3** (T2 y T3 en el mismo nivel):
+
+- T1: $B = 3$, $R_1 = 5 \le 6$. Cumple.
+- T2: $B = \max\{1, C_{T3} = 5\} = 5$; interfiere T1. $R^{(0)} = 9$: $\lceil 9/7\rceil\cdot 2 = 4$, $R = 13$; con 13: $\lceil 13/7\rceil\cdot 2 = 4$, $R = 13$. $R_2 = 13 > 10$. **No cumple.**
+- T3: $B = 1$; $I = \lceil R/7\rceil\cdot 2 + \lceil (R-5)/10\rceil\cdot 4$. $R$: 6, 12, 14, 14. $R_3 = 14 \le 20$. Cumple.
+
+| Tarea | Esc. 1: R | Esc. 2: R | Esc. 3: R | D |
+|---|---|---|---|---|
+| T1 | 5 | 6 | 5 | 6 |
+| T2 | 11 (falla) | 9 | 13 (falla) | 10 |
+| T3 | 20 | 20 | 14 | 20 |
+
+**Conclusión:** solo el **escenario 2** es ejecutable. En el 1, T2 se retrasa por la interferencia de T1 (que llega dos veces); en el 3, por esperar a T3 entera.
+
+**La trampa.** Con los datos de enero el escenario 1 era ejecutable y ahora no: basta con que T1 tenga $C = 2$ en vez de 1 para que llegue dos veces en la ventana de T2. Si no se itera hasta que el valor se repita, se cree que T2 cumple con 9.
+
+## Cuestión 4 · Página web del plotter (Keil)
+
+**Qué pide.** Un plotter muestra por una página web sus parámetros con las bibliotecas de red de Keil. Un interruptor en **P0.7** elige el modo: nivel bajo, manual; nivel alto, automático. Las variables globales son `X`, `Y`, `Periodo` y `Desplazamiento` (`uint16_t`). En modo NORMAL se muestran el periodo y el desplazamiento; en modo MANUAL, X e Y. La página ya trae un refresco cada 5 s. Se pide el fichero `plotter.cgi` y las funciones necesarias.
+
+<Figura src={fig4} alt="Dos páginas web del plotter con su código HTML: modo MANUAL con X = 20 e Y = 200, y modo NORMAL con Periodo = 5 y Desplazamiento = 33, con la etiqueta meta refresh de 5 segundos" pie="Figura del enunciado: las dos páginas y su HTML. Solo cambian el texto del modo y los dos elementos de la lista." />
+
+**Resuelto por nosotros, no consta en la solución oficial** (la hoja de la solución está en blanco).
+
+**Qué hay que saber antes.** Esto no está en los temas. Un `.cgi` de Keil es un guion: las líneas **`t`** se mandan tal cual, las **`c`** son un hueco que rellena `cgi_func` (tras la `c` va un carácter identificador y el texto con los `%d` o `%s`; `env[0]` es el identificador y `&env[2]` el texto), y el punto final termina el guion. Es la misma estructura de la cuestión 8 de enero de 2025.
+
+**Proceso.**
+
+1. **Qué es fijo y qué cambia.** Todo el HTML es fijo salvo dos cosas: el texto del modo y los dos elementos de la lista, cuyo rótulo y valor cambian según el modo. Hacen falta dos huecos.
+2. **Hueco `a`:** el nombre del modo, `MANUAL` o `NORMAL`.
+3. **Hueco `b`:** `<li>%s = %d</li><li>%s = %d</li>` con cuatro argumentos: en manual, `"X"`, `X`, `"Y"`, `Y`; en normal, `"Periodo"`, `Periodo`, `"Desplazamiento"`, `Desplazamiento`.
+4. **Modo.** `cgi_func` lee el pin: `LPC_GPIO0->FIOPIN & (1 << 7)`. A 1 es automático (NORMAL), a 0 es manual. Se supone que NORMAL equivale a «automático». Como la página no recibe datos del usuario, no hace falta `cgi_process_var`.
+5. **Refresco.** La etiqueta `meta http-equiv="refresh" content="5"` ya está en el HTML: basta con copiarla en una línea `t`.
+
+```text
+t <!DOCTYPE html>
+t <html>
+t   <head>
+t     <meta content="text/html; charset=windows-1252" http-equiv="content-type">
+t     <meta http-equiv="refresh" content="5">
+t     <title>Control de acceso</title>
+t   </head>
+t   <body>
+t     <h1 style="text-align: center;">Plotter registrador de se&#241;ales</h1>
+c a     <h2>Modo: %s</h2><ul>
+c b       <li>%s = %d</li><li>%s = %d</li>
+t     </ul>
+t   </body>
+t </html>
+.
+```
+
+```c
+extern uint16_t X, Y, Periodo, Desplazamiento;
+
+U16 cgi_func (U8 *env, U8 *buf, U16 buflen, U32 *pcgi) {
+   U32 len = 0;
+   uint8_t automatico = (LPC_GPIO0->FIOPIN & (1 << 7)) ? 1 : 0;     // P0.7: 1 = automático (NORMAL)
+
+   switch (env[0]) {
+      case 'a':                                                  // nombre del modo
+         len = sprintf((char *)buf, (const char *)&env[2], automatico ? "NORMAL" : "MANUAL");
+         break;
+      case 'b':                                                  // dos parámetros según el modo
+         if (automatico)
+            len = sprintf((char *)buf, (const char *)&env[2], "Periodo", Periodo, "Desplazamiento", Desplazamiento);
+         else
+            len = sprintf((char *)buf, (const char *)&env[2], "X", X, "Y", Y);
+         break;
+      default:
+         break;
+   }
+   return ((U16)len);
+}
+```
+
+**La trampa.** Que el guion es **el mismo** para los dos modos: lo que cambia lo decide `cgi_func` leyendo el pin cada vez que se sirve la página, no el fichero. Si el modo cambiara y el navegador no se refrescara, se vería el antiguo: por eso está el refresco de 5 s. Y los `%d` reciben `uint16_t`, que C promociona a `int`: están bien.
+
+## Cuestión 5 · Dual-port: arbitraje por interrupción
+
+**Qué pide.** Explicar el arbitraje por interrupción de las dual-port y justificarlo sobre el esquema para que use las posiciones del chip **4N+1**, con el bloque en `0x9000.0000` y chips de 16 KB, conectando la interrupción de cada CPU a su chip.
+
+<Figura src={fig5} alt="Esquema de los cuatro chips dual-port con la solución en rojo: la línea EINT1 de la CPU izquierda al pin INT_L del chip 4N+1 y la de la CPU derecha al pin INT_R del mismo chip" pie="Solución oficial: /EINT1 de la CPU izquierda conectado a /INT_L del chip 4N+1 y /EINT1 de la CPU derecha a /INT_R del mismo chip. Los chip-select ya estaban dibujados." />
+
+**Qué hay que saber antes.** Una dual-port tiene dos puertos (izquierdo y derecho) para dos CPU. Para avisarse entre ellas, cada chip reserva **dos posiciones de buzón**: escribir en una activa la interrupción del otro lado, y **leerla** desde el otro lado la desactiva.
+
+**Proceso.**
+
+1. **Tamaño.** 4 chips de 16 KB en paralelo (cada uno aporta un byte de los 32 bits) dan 64 KB: de `0x9000.0000` a `0x9000.FFFF`.
+2. **Buzones del chip 4N+1.** Sus dos últimas posiciones internas (`0x3FFF` y `0x3FFE`). La dirección global de la posición $k$ del chip 4N+1 es $\texttt{0x9000.0000} + 4k + 1$:
+
+$$
+4\cdot \texttt{0x3FFF} + 1 = \texttt{0xFFFD}
+\qquad
+4\cdot \texttt{0x3FFE} + 1 = \texttt{0xFFF9}
+$$
+
+Es decir, `0x9000.FFFD` y `0x9000.FFF9`.
+
+3. **Uso.** La CPU izquierda **escribe** `0x9000.FFFD` y se activa /INT_R: interrumpe a la derecha, que **lee** esa posición para desactivarla. La CPU derecha **escribe** `0x9000.FFF9` y se activa /INT_L: interrumpe a la izquierda, que la lee para desactivarla.
+4. **Conexiones.** /EINT1 de la CPU izquierda a /INT_L del chip 4N+1; /EINT1 de la CPU derecha a /INT_R del chip 4N+1.
+
+**Solución oficial.** Coincide con esto (nuestras cuentas dan las mismas direcciones).
+
+**La trampa.** Usar `0x9000.3FFF`: el bloque son 4 chips en paralelo, así que hay que multiplicar por 4 y sumar el byte. Y la interrupción se **quita leyendo**, no escribiendo.
+
+## Cuestión 6 · Qué es un DSP
+
+**Resuelto por nosotros** (no hay solución en la hoja; es un resumen general, no el texto de las diapositivas).
+
+Un **DSP** (*Digital Signal Processor*) es un procesador diseñado para ejecutar en tiempo real los algoritmos de tratamiento de señal (filtros, FFT, correlación), que son sumas de productos. **Características hardware fundamentales:** unidad **MAC** (multiplica y acumula en un ciclo); arquitectura **Harvard** con buses separados de programa y datos (a menudo dos buses de datos, para los dos operandos); generadores de direcciones con **buffers circulares** e inversión de bits; **bucles sin sobrecarga**; segmentación (*pipeline*); aritmética con **saturación**; memoria rápida en el chip y DMA; coma fija o coma flotante.
+
+**Ejemplos:** módems y radio definida por software, procesado de audio (ecualizadores, cancelación de eco), radar y sonar. También imagen y vídeo, equipos médicos y control de motores. El LPC1768 (Cortex-M3) no es un DSP; los Cortex-M4 traen instrucciones DSP.
+
+## Cuestión 7 · RTOS
+
+**Resuelto por nosotros** (no hay solución en la hoja; respuesta general).
+
+**a.** Un **RTOS** reparte la CPU entre tareas con un planificador por prioridades y tiempos de respuesta acotados. **Ventajas:** el programa se divide en tareas independientes, es más fácil de mantener y ampliar, hay semáforos, colas y mensajes para sincronizar, y es más fácil razonar sobre plazos. **Inconvenientes:** gasta memoria (una pila por tarea) y CPU (planificador y cambios de contexto), añade latencia a las interrupciones, trae problemas nuevos (inversión de prioridades, interbloqueos) y hay que aprender su API.
+
+**b.** Tomando como ejemplo el sistema de la cuestión 1: en el RTOS iría lo que puede esperar milisegundos, como el **LCD**, el **menú por UART**, el umbral de alarma y el histórico de temperatura. Fuera, en interrupciones y hardware: el servo (Timer), la captura, el muestreo del ADC y la reproducción del audio (Timer, ADC, DMA). Las ISR pasan datos a las tareas con colas o semáforos.
+
+## Qué llevarte de este examen
+
+1. **No te fíes a ciegas de una solución oficial.** En este examen hay erratas reales: ancho del servo invertido, `Fpclk` en lugar de `Ftick`, escribir en `TC` en vez de `TCR`, desplazar un `float`, `~estado*0xFF` y un byte de UART de 0,384 µs. Rehaz siempre las cuentas y compila mentalmente.
+2. **El esqueleto de la cuestión 1 se repite:** si sabes ADC en ráfaga ($f_s = F_{ADC}/(65N)$), servo con un Match, captura de dos flancos, audio con `ADDR0 >> 8` y DMA en bloques de 4095, la tienes.
+3. **Una trama fija por UART es una máquina de estados que cuenta:** cabecera, datos contados (sin resincronizar dentro) y cola; solo se acepta si la cola coincide. Y el tiempo de un byte son los bits por byte entre la velocidad **real**.
+4. **En ejecutabilidad, un cambio pequeño de datos cambia el resultado:** con C = 2 en la tarea 1 el escenario 1 deja de ser ejecutable. Itera siempre hasta que el valor se repita.
+5. **El CGI de Keil es siempre lo mismo:** líneas `t`, huecos `c` con un identificador y un `cgi_func` que decide qué escribir (aquí, según el pin del modo). Y dual-port, DSP y RTOS puntúan y se preparan con poco esfuerzo.

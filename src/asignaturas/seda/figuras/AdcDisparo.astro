@@ -1,0 +1,25 @@
+---
+import Fig from './Fig.astro';
+import { escalera, cota } from './escalera';
+// Timer en conmutar con reset en MR1: MATn.1 sube cada dos Match y esa subida arranca el ADC.
+const yb = 100, yt = 30;
+const xs = [60, 160, 260, 360, 460, 560];
+---
+<Fig alt="Muestreo con Timer: TC se reinicia en MR1, el pin MAT0.1 conmuta en cada Match y cada flanco de subida arranca una conversión del ADC; al acabar hay interrupción" ancho={560}>
+  <svg slot="dibujo" viewBox="0 0 620 270">
+    <path class="eje" d={`M60 14 V${yb} H600`} /><text class="t" x="20" y="26">TC</text>
+    <path class="nivel" d={`M60 ${yt} H590`} /><text class="tn" x="14" y={yt + 4}>MR1</text>
+    {[0, 1, 2, 3, 4].map((i) => (
+      <g><path class="tc" d={escalera(xs[i], xs[i + 1], yb, yt, 5)} /><path class="tc" d={`M${xs[i + 1]} ${yt} V${yb}`} /></g>
+    ))}
+    <path class="guia" d="M160 30 V225 M260 30 V160 M360 30 V225 M460 30 V160 M560 30 V225" />
+    <text class="t" x="14" y="150">MAT0.1</text>
+    <path class="sen" d="M60 165 H160 V135 H260 V165 H360 V135 H460 V165 H560 V135 H600" />
+    <text class="t" x="14" y="215">ADC</text>
+    <rect class="relleno" x="160" y="200" width="22" height="22" /><rect class="relleno" x="360" y="200" width="22" height="22" /><rect class="relleno" x="560" y="200" width="22" height="22" />
+    {[182, 382].map((x) => <circle class="isr" cx={x} cy="211" r="5" />)}
+    <text class="tr" x="188" y="196">t_conv, luego ISR</text>
+    <path class="cota" d={cota(160, 360, 250)} /><text class="tb c" x="260" y="266">T_s = 1/f_s = 2·(MR1+1)/F_tick</text>
+  </svg>
+  La subida de MAT0.1 (EMC1 = toggle, START = 100 en ADCR) inicia la conversión. Como solo se aprovecha una subida de cada dos Match, MR1 = F_tick/(2·f_s) − 1.
+</Fig>

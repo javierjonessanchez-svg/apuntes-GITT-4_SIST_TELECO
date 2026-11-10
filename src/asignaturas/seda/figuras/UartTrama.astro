@@ -1,0 +1,30 @@
+---
+import Fig from './Fig.astro';
+import { cota } from './escalera';
+// Trama 8N1 con el byte 0x41 (A): bits 1 0 0 0 0 0 1 0 (el de menos peso sale primero).
+const bits = [1, 0, 0, 0, 0, 0, 1, 0];
+const w = 46, x0 = 100, hi = 60, lo = 110;
+let d = `M20 ${hi} H${x0} V${lo} H${x0 + w}`;
+let nivel = lo;
+bits.forEach((b, i) => {
+  const y = b ? hi : lo;
+  if (y !== nivel) d += ` V${y}`;
+  nivel = y;
+  d += ` H${x0 + w * (i + 2)}`;
+});
+d += ` V${hi} H${x0 + w * 10 + 60}`;
+---
+<Fig alt="Trama de la UART: línea en reposo a 1, bit de start a 0, ocho bits de datos empezando por el de menos peso y bit de stop a 1" ancho={560}>
+  <svg slot="dibujo" viewBox="0 0 620 170">
+    <path class="sen" d={d} />
+    <path class="guia" d={[...Array(11).keys()].map((i) => `M${x0 + w * i} 40 V132`).join(' ')} />
+    <text class="tr c" x={x0 + w / 2} y="34">start</text><text class="t c" x={x0 + w / 2} y="150">0</text>
+    {bits.map((b, i) => (
+      <g><text class="tb c" x={x0 + w * (i + 1) + w / 2} y="34">D{i}</text><text class="t c" x={x0 + w * (i + 1) + w / 2} y="150">{b}</text></g>
+    ))}
+    <text class="tr c" x={x0 + w * 9 + w / 2} y="34">stop</text><text class="t c" x={x0 + w * 9 + w / 2} y="150">1</text>
+    <path class="cota" d={cota(x0, x0 + w, 160)} /><text class="tb" x={x0 + w + 8} y="164">t_bit = 1/V</text>
+    <text class="t" x="20" y="52">reposo (1)</text>
+  </svg>
+  Una trama de 8 bits son 10 tiempos de bit (start + 8 datos + stop). Se transmite primero el bit D0.
+</Fig>

@@ -1,0 +1,23 @@
+---
+// Banda de aviso de las páginas de la capa SOLO LOCAL (contenido/<slug>/privado/).
+// Esas páginas llevan material del profesor y nunca se construyen en GitHub Actions.
+---
+<aside class="sd-local" data-solo-local role="note">
+  <b>Solo local.</b> Esta página tiene material del profesor (enunciados, figuras o soluciones oficiales) y no se publica en la web: solo la ves en tu ordenador.
+</aside>
+
+<style>
+  .sd-local {
+    margin: 0 0 18px; padding: 8px 14px; border-radius: 10px; font-size: .88rem; line-height: 1.45;
+    background: color-mix(in srgb, var(--acento) 10%, var(--superficie));
+    box-shadow: inset 3px 0 0 var(--acento), inset 0 0 0 1px var(--linea);
+  }
+</style>
+
+<style is:global>
+  /* En móvil, las fórmulas en línea largas de los exámenes pueden partirse en vez de ensanchar la página */
+  @media (max-width: 700px) {
+    .tema-articulo p .katex .base, .tema-articulo li .katex .base { display: inline; white-space: normal; width: auto; }
+    .tema-articulo code { overflow-wrap: anywhere; }
+  }
+</style>

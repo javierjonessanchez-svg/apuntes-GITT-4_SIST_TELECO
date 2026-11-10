@@ -1,0 +1,633 @@
+---
+titulo: "Noviembre de 2023 · Prueba de evaluación intermedia 1"
+orden: 33
+bloque: "Exámenes resueltos"
+resumen: "Sistema de temperatura y humedad con LCD, servo, micrófono y alarmas de voz: ADC en ráfaga, PWM del brillo, servo con Timer y Match, medida por captura, ISR periódica, grabación y reproducción de audio con DMA"
+saber:
+  - "El examen es una sola cuestión con nueve apartados (a a i) que recorren el esqueleto clásico de la primera intermedia: ADC, PWM, servo con Match, captura, ISR periódica, grabación con ADC y DMA, reproducción con DAC y DMA"
+  - "Tres canales del ADC en ráfaga con CLKDIV=255 dan 0,665 ms por conversión y 500,8 Hz por canal; grabar 2 s a 10 kHz con 8 bits son 20 000 bytes por mensaje, y no caben en un solo bloque de DMA (máximo 4095)"
+  - "El pin MAT1.0 solo lo maneja el Match 0: por eso el pulso del servo se cierra a mano desde la interrupción del Match 1, escribiendo EM0 en EMR"
+  - "El servo se mide conectando el mismo pin a dos entradas de captura del Timer 2 (CAP2.0 en flanco de subida y CAP2.1 en el de bajada): el ancho del pulso es CR1 menos CR0"
+  - "La solución oficial tiene erratas que conviene conocer: Ts de 125 microsegundos en vez de 100, el sentido de la fórmula de MR1 del servo, TC en vez de TCR para parar el Timer 3, y las unidades de la humedad"
+fuentes:
+  - "PE1_SEDA_Noviembre_23_solucion (Prueba de evaluación intermedia 1 de SEDA, 6-11-2023, enunciado y solución; material privado de la asignatura)"
+  - "UM10360 (manual del LPC17xx)"
+---
+import Donde from '../../../src/asignaturas/seda/Donde.astro';
+import Figura from '../../../src/asignaturas/seda/Figura.astro';
+import fig1 from './img/pe1-2023-11-1.png';
+import fig2 from './img/pe1-2023-11-2.png';
+import fig3 from './img/pe1-2023-11-3.png';
+import fig4 from './img/pe1-2023-11-4.png';
+
+## Resumen del examen
+
+| Dato | Valor |
+|---|---|
+| Fecha | 6 de noviembre de 2023 |
+| Prueba | Primera intermedia (PE1) de SEDA, con solución |
+| Estructura | Una sola cuestión con nueve apartados, de la a a la i |
+| Puntuación | No consta en el documento |
+| Datos del sistema | LPC1768 en la Mini-DK2, $F_{pclk}=25$ MHz, $F_{cpu}=100$ MHz |
+| Qué toca | ADC, PWM, Timer en modo Match, captura, interrupciones periódicas, DAC y DMA |
+
+**El sistema.** Un LPC1768 mide **temperatura** (LM35) y **humedad** (HIH4000) y las enseña de dos maneras: en un LCD y en **un único marcador analógico** movido por un servo (señal de 50 Hz). Dos LEDs dicen qué magnitud está mostrando el marcador. Un potenciómetro regula el **brillo del LCD** con una PWM de 1 kHz. Además, el sistema guarda un **mensaje de voz de alarma** por magnitud: se graba con un micrófono (10 kHz, 8 bits, 2 s) al pulsar KEY 1 y se reproduce por el DAC al pulsar KEY 2.
+
+<Figura src={fig1} alt="Diagrama de bloques del LPC1768 en la Mini-DK2: pulsadores en P2.10 y P2.11, altavoz en AOUT P0.26, micrófono en AD0.5 P1.31, LM35 en AD0.1 P0.24, HIH4000 en AD0.2 P0.25, potenciómetro en AD0.0, servo en MAT1.0 P1.22, LCD con luz de fondo en PWM1.6, LED1 y LED2 en P3.25 y P3.26" pie="Figura del enunciado: conexiones del sistema. Fíjate en los canales del ADC (AD0.0, AD0.1, AD0.2 y AD0.5), en el servo en P1.22 (MAT1.0) y en la luz de fondo del LCD en PWM1.6." />
+
+Antes de empezar, **lee el diagrama como un mapa**: de él salen todos los pines que te piden después.
+
+| Función | Pin | Función del pin |
+|---|---|---|
+| Potenciómetro (brillo) | P0.23 | AD0.0 |
+| LM35 (temperatura) | P0.24 | AD0.1 |
+| HIH4000 (humedad) | P0.25 | AD0.2 |
+| Micrófono | P1.31 | AD0.5 |
+| Altavoz | P0.26 | AOUT (salida del DAC) |
+| Luz de fondo del LCD | P1.26 | PWM1.6 |
+| Servo | P1.22 | MAT1.0 |
+| LED1 y LED2 | P3.25 y P3.26 | GPIO |
+
+El potenciómetro va de $V_{refp}=3$ V a masa, así que su cursor da de 0 a 3 V. Eso importa luego para escalar.
+
+## Apartado a · Configurar el ADC de los sensores
+
+### Qué pide
+
+Deducir qué entradas del ADC se usan (sensores y potenciómetro), completar `ADCR`, comentar el código y calcular la frecuencia de muestreo de **cada canal**, con el **máximo tiempo de conversión**. El esqueleto del enunciado es:
+
+```c
+void init_ADC_sensores(void)
+{
+  LPC_SC->PCONP |= (1<<12);
+  LPC_PINCON->PINSELx  |= /* solo comentarios */;   // AD0.0, AD0.1, AD0.2
+  LPC_PINCON->PINMODEx |= /* solo comentarios */;   // sin pull-up ni pull-down
+  LPC_ADC->ADCR = (  ...  ) | (  ...  ) | (  ...  ) | (  ...  );
+}
+```
+
+### Qué hay que saber antes
+
+El registro `ADCR`, la diferencia entre ráfaga y disparo por Match, y que una conversión son **65 ciclos** del reloj del ADC. Todo está en [ADC y DAC](../adc-dac/).
+
+### Proceso
+
+1. **Qué canales.** Del diagrama: potenciómetro en AD0.0, LM35 en AD0.1, HIH4000 en AD0.2. Son tres canales: 0, 1 y 2. El micrófono (AD0.5) no entra aquí, tiene su propia función en el apartado g.
+2. **Máscara de canales** (bits 7:0 de `ADCR`). Un bit por canal: canales 0, 1 y 2 son `0b00000111 = 0x07`.
+3. **Máximo tiempo de conversión** quiere decir el reloj del ADC **más lento**: divisor `CLKDIV` (bits 15:8) a su máximo, 255. Entonces $F_{ADC}=F_{pclk}/(255+1)$.
+4. **Ráfaga** (bit 16, `BURST`): el ADC convierte solo, canal tras canal, sin que nadie le dispare. Es lo que se quiere para tres sensores que se leen cuando se necesite.
+5. **Encendido** (bit 21, `PDN`): sin él el ADC está apagado.
+6. **Pines.** Aunque el enunciado solo pida comentarios, esto es lo que habría que escribir: P0.23, P0.24 y P0.25 con función 01 (ADC) en `PINSEL1`, y modo 10 (sin pull-up ni pull-down) en `PINMODE1`.
+
+### Solución
+
+```c
+void init_ADC_sensores(void)
+{
+  LPC_SC->PCONP |= (1<<12);                          // alimenta el ADC (PCADC)
+  LPC_PINCON->PINSEL1  |= (1<<14)|(1<<16)|(1<<18);   // P0.23=AD0.0, P0.24=AD0.1, P0.25=AD0.2
+  LPC_PINCON->PINMODE1 |= (2<<14)|(2<<16)|(2<<18);   // sin pull-up ni pull-down
+  LPC_ADC->ADCR = (0x07)    |   // canales 0, 1 y 2 (3 canales)
+                  (255<<8)  |   // CLKDIV=255: F_ADC = 25 MHz / 256
+                  (1<<16)   |   // BURST=1: modo ráfaga
+                  (1<<21);      // PDN=1: ADC encendido
+}
+```
+
+Las cuentas, con $F_{ADC}=25\cdot10^6/256=97\,656{,}25$ Hz:
+
+$$
+t_{conv}=\frac{65}{F_{ADC}}=\frac{65}{97\,656{,}25}=0{,}665\ \text{ms}
+\qquad
+f_{canal}=\frac{F_{ADC}}{65\cdot N}=\frac{97\,656{,}25}{65\cdot 3}=500{,}8\ \text{Hz}
+$$
+
+<Donde>
+
+- $t_{conv}$: tiempo de una conversión (s).
+- $F_{ADC}$: frecuencia del reloj del ADC (Hz), igual a $F_{pclk}/(CLKDIV+1)$.
+- 65: ciclos de reloj del ADC por conversión.
+- $f_{canal}$: cada cuánto se refresca el resultado de un canal, en veces por segundo (Hz).
+- $N$: número de canales activos en la ráfaga (aquí 3).
+
+</Donde>
+
+### La trampa
+
+En ráfaga el ADC **reparte** su tiempo entre los canales: cada uno se convierte una vez cada $65\cdot N$ ciclos, no cada 65. Los 500,8 Hz son por canal, no del ADC entero (que hace 1502 conversiones por segundo). Y no olvides el 255: `CLKDIV` vale 255 para dividir entre 256.
+
+## Apartado b · PWM del brillo del LCD
+
+### Qué pide
+
+Explicar qué recurso se usa para la señal de brillo (1 kHz) y cómo se configura, y escribir en pseudocódigo `modifica_brillo(float brillo)`: con `brillo` entre 0 y 1, el ciclo de trabajo va de 0 a 100 %.
+
+### Qué hay que saber antes
+
+El módulo **PWM1** tiene seis canales con un solo contador y siete registros de Match: `MR0` fija el periodo y `MR1` a `MR6` el ancho de cada canal. Mira [PWM y servos](../pwm-servos/).
+
+### Proceso
+
+1. **Qué recurso.** El diagrama pone el pin de la luz de fondo en PWM1.6, que es el pin P1.26 (función 10 en `PINSEL3`). Se usa el módulo PWM1, canal 6, en modo de **un solo flanco**.
+2. **Periodo.** Para 1 kHz con $F_{pclk}=25$ MHz: periodo de $25\,000$ ciclos. El contador cuenta de 0 a `MR0` ambos incluidos, así que `MR0 = 25000 - 1 = 24999`.
+3. **Reinicio.** Hay que decirle al PWM que ponga el contador a 0 cuando llegue a `MR0` (bit de reset en `PWMMCR`), sin interrupción.
+4. **Activar el canal 6** (`PWMENA6`, bit 14 de `PWMPCR`) y arrancar el contador y el PWM (bits 0 y 3 de `PWMTCR`).
+5. **Ancho.** El ancho del pulso es `MR6`. Para un `brillo` entre 0 y 1: $MR6 = MR0\cdot brillo$.
+6. **Latch.** Los registros de Match del PWM no se actualizan al escribirlos, sino al final del periodo, y solo si el bit correspondiente de `LER` está a 1. Sin eso, el brillo no cambia.
+
+### Solución
+
+```c
+void config_pwm_brillo(void)
+{
+  LPC_SC->PCONP |= (1<<6);                 // alimenta el módulo PWM1
+  LPC_PINCON->PINSEL3 |= (2<<20);          // P1.26 = PWM1.6
+  LPC_PWM1->PR  = 0;                       // sin prescaler: el contador cuenta a 25 MHz
+  LPC_PWM1->MR0 = 25000000/1000 - 1;       // periodo: 24999 -> 1 kHz
+  LPC_PWM1->MCR = (1<<1);                  // reset del contador en MR0, sin interrupción
+  LPC_PWM1->PCR = (1<<14);                 // PWMENA6=1: canal 6 activo (un solo flanco)
+  LPC_PWM1->LER = (1<<0);                  // carga MR0
+  LPC_PWM1->TCR = (1<<0)|(1<<3);           // contador y modo PWM encendidos
+}
+
+void modifica_brillo(float brillo)         // brillo entre 0.0 y 1.0
+{
+  LPC_PWM1->MR6 = LPC_PWM1->MR0 * brillo;  // ancho del pulso en ciclos
+  LPC_PWM1->LER |= (1<<6);                 // MR6 se carga al empezar el siguiente periodo
+}
+```
+
+$$
+\text{ciclo de trabajo}=\frac{MR6}{MR0+1}
+$$
+
+<Donde>
+
+- $MR6$: valor del registro de Match del canal 6, en ciclos del reloj del PWM.
+- $MR0+1$: ciclos que dura el periodo (el contador va de 0 a MR0).
+
+</Donde>
+
+### La trampa
+
+Dos detalles. Primero, **`LER`**: la escritura en `MR6` no sirve de nada sin el bit 6 de `LER`. Segundo, el ciclo es $MR6/(MR0+1)$ y no $MR6/MR0$. Con `brillo = 1` queda `MR6 = MR0 = 24999` y el pulso dura 24 999 de 25 000 ciclos (99,996 %), no exactamente 100 %; si quieres el 100 % de verdad, `MR6` debe ser mayor que `MR0` (por ejemplo `MR0+1`), y entonces nunca hay coincidencia y la salida se queda alta. Con `brillo = 0`, `MR6 = 0` y la salida se queda baja. Para el brillo de una pantalla esa diferencia no se ve.
+
+## Apartado c · Servo con un Timer en modo Match
+
+### Qué pide
+
+Qué recurso se usa para generar la señal del servo (pulso de $0{,}5\ \text{ms}\le T_H<2{,}5\ \text{ms}$ cada 20 ms), con su configuración y el pin.
+
+### Qué hay que saber antes
+
+Un Timer con **Match** puede **sacar un valor por un pin** (poner a 1, a 0 o conmutar) cuando el contador coincide con un `MRx`. Lo que casi nadie recuerda: ese pin lo gobierna **solo la coincidencia con el registro del mismo número**. El pin MAT1.0 depende de `MR0`, MAT1.1 de `MR1`, y así. Mira [Timers y Match](../timers-match/) y [PWM y servos](../pwm-servos/).
+
+### Proceso
+
+1. **Elegir el recurso.** El servo está en P1.22, que es MAT1.0, del **Timer 1**. Por eso no se usa el módulo PWM (sus pines son otros): se usa el Timer 1 con Match.
+2. **Periodo de 50 Hz = 20 ms.** `MR0 = F_pclk/50 - 1 = 499999`, y se configura **reset en Match 0** para que el contador vuelva a cero cada 20 ms.
+3. **Flanco de subida automático.** En `EMR`, `EMC0` = 10: **poner a 1** el pin cuando el contador coincide con `MR0`. Así el pulso empieza solo al principio de cada periodo.
+4. **Flanco de bajada.** El Match 0 ya está ocupado con el periodo y el pin MAT1.0 solo obedece a `MR0`. Por eso el final del pulso, a $T_H$, no se puede hacer por hardware con `MR1`: se pone `MR1` en el valor de $T_H$ con **interrupción en el Match 1**, y la ISR pone el bit EM0 de `EMR` a 0, que baja el pin P1.22.
+5. **Sin interrupción en Match 0**: no hace falta, el hardware ya hace todo.
+
+### Solución
+
+```c
+void config_servo(void)
+{
+  LPC_SC->PCONP |= (1<<2);                    // alimenta el Timer 1
+  LPC_PINCON->PINSEL3 |= (3<<12);             // P1.22 = MAT1.0
+  LPC_TIM1->PR  = 0;                          // el contador cuenta a 25 MHz
+  LPC_TIM1->MR0 = 25000000/50 - 1;            // periodo: 499999 -> 20 ms
+  LPC_TIM1->MR1 = 25000000*1.5e-3;            // TH inicial de 1,5 ms (posición central)
+  LPC_TIM1->MCR = (1<<1)|(1<<3);              // MR0: reset sin interrupción. MR1: interrumpe
+  LPC_TIM1->EMR = (2<<4);                     // EMC0=10: pin a 1 en el Match 0
+  NVIC_EnableIRQ(TIMER1_IRQn);
+  LPC_TIM1->TCR = 1;                          // arranca el Timer
+}
+```
+
+### La trampa
+
+Es la pregunta de si el MR que mandas es el del **pin**. Con `MR1` se genera la interrupción, pero la salida del pin sigue siendo asunto de `MR0`. Si quisieras generar la PWM del servo solo por hardware, necesitarías el módulo PWM (que usa varios Match sobre un mismo periodo), no el Timer.
+
+## Apartado d · La ISR que mueve el servo
+
+### Qué pide
+
+El pseudocódigo de la función asociada que mueve el servo según las variables globales `temperatura` y `humedad`, y la booleana `magnitud`, que dice cuál de las dos se representa.
+
+### Qué hay que saber antes
+
+El pulso empieza en el Match 0 (hardware) y termina cuando la ISR del Match 1 baja el pin. La anchura entre 0,5 y 2,5 ms corresponde a un recorrido de 0 a 100 en el marcador.
+
+### Proceso
+
+1. **Borrar el flag.** Esta ISR salta por el **Match 1** (bit 1 de `IR`), aunque la solución oficial escribe «MR0» (ver la errata más abajo).
+2. **Bajar el pin.** Poner a 0 el bit EM0 de `EMR`. Esto es lo que termina el pulso.
+3. **Elegir la magnitud.** `valor = magnitud ? temperatura : humedad`.
+4. **Calcular el siguiente ancho.** Del valor (0 a 100) al ancho: $T_H = 0{,}5\ \text{ms}+2\ \text{ms}\cdot valor/100$. Esto da 0,5 ms para 0 y 2,5 ms para 100. Después se pasa a ciclos del reloj del Timer.
+5. **Guardarlo en `MR1`.** Así el periodo siguiente lleva el ancho nuevo.
+
+### Solución
+
+```c
+void TIMER1_IRQHandler(void)
+{
+  float valor;
+  LPC_TIM1->IR = (1<<1);                 // borra el flag del Match 1
+  LPC_TIM1->EMR &= ~(1<<0);              // EM0=0: P1.22 a 0 -> acaba el pulso
+
+  valor = magnitud ? temperatura : humedad;      // 0..100 (misma escala)
+  if (valor < 0)   valor = 0;                    // proteger el servo de valores fuera de rango
+  if (valor > 100) valor = 100;
+
+  // TH = 0,5 ms + 2 ms * valor/100, convertido a ciclos de 25 MHz
+  LPC_TIM1->MR1 = 25000000*0.5e-3 + 25000000*2.0e-3*valor/100;
+}
+```
+
+Valores de comprobación: con `valor = 0`, `MR1 = 12 500` (0,5 ms); con `valor = 100`, `MR1 = 62 500` (2,5 ms).
+
+$$
+MR1=F_{pclk}\cdot\left(0{,}5\cdot10^{-3}+2\cdot10^{-3}\cdot\frac{valor}{100}\right)
+$$
+
+<Donde>
+
+- $MR1$: Match 1 del Timer 1, en ciclos del reloj (25 MHz). Es el tiempo, desde el principio del periodo, al que baja el pin.
+- $F_{pclk}$: reloj del Timer, 25 MHz.
+- $valor$: magnitud a mostrar, de 0 a 100.
+
+</Donde>
+
+> **Ojo: errata en la solución oficial.** La solución oficial escribe `MR1 = F_pclk*2.5e-3 - F_pclk*2.0e-3*valor/100`. Con esa fórmula el pulso mide **2,5 ms** cuando el valor es 0 y **0,5 ms** cuando es 100, es decir, **al revés** que la medida del apartado e (donde 0,5 ms es 0 grados y 2,5 ms es el extremo). Como el pulso empieza al reiniciarse el contador, el tiempo $T_H$ es directamente `MR1`, y la relación correcta con el valor es creciente, la de arriba. Salvo que el servo estuviera montado al revés, que el enunciado no dice. Además, la ISR oficial dice «borrar flag MR0», pero esta ISR atiende al **Match 1**: el flag que se borra es el de `MR1`. En el examen, defiende la fórmula creciente.
+
+### La trampa
+
+La más repetida: el **sentido** de la fórmula y que `MR1` es un tiempo absoluto desde el inicio del periodo (no una duración restada del periodo). Compruébalo siempre en los dos extremos, como en «valores de comprobación». Y escalar: `valor_magnitud/100` con un `int` sería una división entera; aquí `valor` es `float`, así que no hay problema.
+
+## Apartado e · Medir la posición real del servo
+
+### Qué pide
+
+Dibujar el conexionado y explicar el recurso más sencillo para medir la posición del servo a partir de la señal real de P1.22, con su configuración y los pines.
+
+### Qué hay que saber antes
+
+La **captura**: un pin de entrada del Timer (CAPn.m) copia el valor del contador en un registro `CRm` cuando llega el flanco que tú elijas, y puede interrumpir. Mira [Captura](../captura/).
+
+### Proceso
+
+1. **Qué hay que medir.** El ancho del pulso $T_H$ (de subida a bajada). Con esos dos instantes, $T_H$ es su resta.
+2. **Dos entradas de captura.** Capturar los dos flancos pide dos canales del mismo Timer que vean la misma señal: **CAP2.0** (pin P0.4) captura la subida y **CAP2.1** (pin P0.5) la bajada. Se unen ambos pines al P1.22 con un cable, como en la figura.
+3. **Timer 2 sin reiniciar.** Se deja correr (modo *running*) a $F_{tick}=F_{pclk}=25$ MHz y no se resetea. La resta de las dos capturas, con enteros de 32 bits sin signo, da la diferencia correcta aunque el contador haya dado la vuelta.
+4. **Quién interrumpe.** Solo la captura de bajada (CAP2.1): cuando llega, ya están guardados los dos instantes.
+5. **De $T_H$ a posición.** El servo va de 0° a 180° con $T_H$ de 0,5 a 2,5 ms.
+
+<Figura src={fig3} alt="Esquema del cableado: P1.22 (MAT1.0) unido a P0.4 (CAP2.0) y a P0.5 (CAP2.1)" pie="Figura de la solución: el pin P1.22 (salida MAT1.0) se lleva con un cable a las dos entradas de captura P0.4 (CAP2.0) y P0.5 (CAP2.1) del Timer 2." />
+
+### Solución
+
+```c
+void config_captura_servo(void)
+{
+  LPC_SC->PCONP |= (1<<22);                   // alimenta el Timer 2
+  LPC_PINCON->PINSEL0 |= (3<<8)|(3<<10);      // P0.4 = CAP2.0, P0.5 = CAP2.1
+  LPC_TIM2->PR  = 0;                          // F_tick = 25 MHz
+  LPC_TIM2->CCR = (1<<0)        |             // CAP2.0: captura en flanco de subida, sin interrupción
+                  (1<<4)|(1<<5);              // CAP2.1: captura en flanco de bajada, con interrupción
+  NVIC_EnableIRQ(TIMER2_IRQn);
+  LPC_TIM2->TCR = 1;                          // el contador corre, sin reset
+}
+
+// Dentro de TIMER2_IRQHandler:
+if (LPC_TIM2->IR & (1<<5)) {                  // flag de CR1: ha llegado la bajada
+  LPC_TIM2->IR = (1<<5);                      // se borra
+  uint32_t ticks = LPC_TIM2->CR1 - LPC_TIM2->CR0;     // duración del pulso en ciclos
+  float TH = ticks / 25e6f;                           // en segundos
+  posicion_servo = (TH - 0.5e-3f) * 180.0f / 2.0e-3f; // grados
+}
+```
+
+$$
+posicion=\frac{(T_H-0{,}5\ \text{ms})\cdot180^\circ}{2{,}0\ \text{ms}}
+\qquad
+T_H=\frac{CR1-CR0}{F_{tick}}
+$$
+
+<Donde>
+
+- $posicion$: ángulo del servo, en grados (0° a 180°).
+- $T_H$: duración del pulso alto, en segundos.
+- $CR1$, $CR0$: valores capturados en la bajada y en la subida, en ciclos de reloj.
+- $F_{tick}$: reloj del contador del Timer 2 (25 MHz).
+- 0,5 ms y 2,0 ms: el pulso mínimo y el margen total (2,5 ms menos 0,5 ms) del servo.
+
+</Donde>
+
+Comprobación: $T_H=1{,}5$ ms son $37\,500$ ciclos y da $(1{,}5-0{,}5)\cdot180/2=90^\circ$, la posición central.
+
+### La trampa
+
+Dos. Una: la resta **siempre** `CR1 - CR0` (bajada menos subida) y con tipos **sin signo** de 32 bits. Dos: el Timer 2 también se usa en el apartado f para la interrupción periódica de 50 ms; los dos comparten la misma ISR, así que hay que mirar **qué flag** de `IR` está levantado (Match 0 es el bit 0 y la captura CR1 el bit 5) y borrar solo ese.
+
+## Apartado f · ISR periódica de 50 ms
+
+### Qué pide
+
+Con el Timer 2 ya interrumpiendo cada 50 ms, añadir a su ISR: leer el potenciómetro y poner el brillo, actualizar `temperatura` y `humedad`, encender los LEDs según `magnitud`, y sacar al LCD las dos magnitudes **cada 10 s**.
+
+### Qué hay que saber antes
+
+Cada `ADDRx` guarda el resultado de 12 bits en los bits 15:4. Como el Timer 2 va en modo *running* (no se resetea, por la captura), la siguiente interrupción se programa **sumando** al `MR0` actual. Ver [Reloj, GPIO e interrupciones](../reloj-gpio-interrupciones/) y [ADC y DAC](../adc-dac/).
+
+### Proceso
+
+1. **Borrar el flag del Match 0 y reprogramar:** `MR0 += F_pclk*50e-3` ($=1\,250\,000$ ciclos).
+2. **Brillo.** Los 8 bits altos del resultado (bits 15:8 de `ADDR0`) dan un número de 0 a 255; dividido entre 255 da el 0 a 1 que espera `modifica_brillo`. Hay que **convertir a `float` antes de dividir**.
+3. **Temperatura.** El LM35 da 10 mV por °C. Con $V_{ref}=3$ V, la tensión es $3\cdot raw/4095$ y la temperatura es esa tensión dividida entre 0,01 V/°C, es decir $T=300\cdot raw/4095$.
+4. **Humedad.** Del anexo del HIH4000 (figura de abajo): 0,8 V a 0 % y 3,0 V al 70 %, recta de pendiente $2{,}2\ \text{V}/70\ \%$. Despejando, $H=(V-0{,}8)\cdot70/2{,}2$.
+5. **LEDs.** LED1 (P3.25) indica temperatura y LED2 (P3.26) humedad. Como cada LED cuelga de 3,3 V a través de una resistencia hasta el pin, se **enciende con el pin a 0**.
+6. **LCD cada 10 s.** $10\ \text{s}/50\ \text{ms}=200$ interrupciones: se cuenta y se actúa cuando el contador es múltiplo de 200.
+
+<Figura src={fig2} alt="Gráfica de la tensión de salida del HIH4000 frente a la humedad relativa: recta de 0,8 V al 0 % a unos 3,9 V al 100 %, para 0 grados y 70 grados" pie="Figura del anexo III del enunciado: tensión de salida del HIH4000 (alimentado a 5 V) frente a la humedad relativa. A 0 °C pasa por 0,8 V al 0 % y por 3,0 V al 70 %." />
+
+### Solución
+
+```c
+void TIMER2_IRQHandler(void)
+{
+  float brillo;
+  if (LPC_TIM2->IR & (1<<0)) {                       // flag de MR0: toca la tarea de 50 ms
+    LPC_TIM2->IR = (1<<0);                           // borra el flag de MR0
+    LPC_TIM2->MR0 += 25000000*50e-3;                 // próxima interrupción en 50 ms
+    contador++;
+
+    // Brillo: 8 bits altos de la lectura del potenciómetro (0..255) a 0.0..1.0
+    brillo = (float)((LPC_ADC->ADDR0 >> 8) & 0xFF) / 255;
+    modifica_brillo(brillo);
+
+    // LM35: 10 mV/ºC, Vref = 3 V, 12 bits
+    temperatura = (float)((LPC_ADC->ADDR1 >> 4) & 0xFFF) * 300 / 4095;
+    // HIH4000: 0,8 V + 2,2 V/70 % (a 0 ºC, ver anexo III)
+    humedad = ((((LPC_ADC->ADDR2 >> 4) & 0xFFF) * 3.0 / 4095) - 0.8) * 70 / 2.2;
+
+    // LEDs activos a nivel bajo (entre 3,3 V y el pin)
+    if (magnitud) { LPC_GPIO3->FIOCLR = (1<<25); LPC_GPIO3->FIOSET = (1<<26); }  // LED1 ON, LED2 OFF
+    else          { LPC_GPIO3->FIOSET = (1<<25); LPC_GPIO3->FIOCLR = (1<<26); }  // LED1 OFF, LED2 ON
+
+    if (contador % 200 == 0) {                       // 10 s / 50 ms = 200 interrupciones
+      sprintf(cadena, "Temperatura= %2.1f C", temperatura);
+      GUI_text(10, 20, cadena, black, White);
+      sprintf(cadena, "Humedad= %2.1f %%", humedad);
+      GUI_text(10, 40, cadena, black, White);
+    }
+  }
+  if (LPC_TIM2->IR & (1<<5)) {                       // flag de CR1: captura del servo (apartado e)
+    LPC_TIM2->IR = (1<<5);
+    /* ... cálculo de la posición del apartado e ... */
+  }
+}
+```
+
+$$
+T=\frac{3\cdot raw/4095}{0{,}01}=\frac{300\cdot raw}{4095}\ {}^\circ\text{C}
+\qquad
+H=\left(\frac{3\cdot raw}{4095}-0{,}8\right)\cdot\frac{70}{2{,}2}\ \%
+$$
+
+<Donde>
+
+- $raw$: valor de 12 bits del ADC (0 a 4095), ya extraído con `(ADDRx >> 4) & 0xFFF`.
+- $T$: temperatura en grados Celsius. 0,01 V/°C es la sensibilidad del LM35.
+- $H$: humedad relativa, en por ciento. 0,8 V es la tensión a 0 %; 2,2 V es lo que sube hasta el 70 % (3,0 V).
+- 3 V: tensión de referencia del ADC ($V_{refp}$).
+
+</Donde>
+
+> **Ojo: errata en la solución oficial.** El código del PDF tiene varios fallos que no son de concepto: `LPC_ADC-ADDR0` en lugar de `LPC_ADC->ADDR0` (lo mismo con `ADDR1` y `ADDR2`), y el texto de la humedad lleva «ºC» en vez de «%». Además escribe todo el puerto con `FIOPIN`, que pisa los demás bits del puerto 3; con `FIOSET` y `FIOCLR` solo cambias los dos LEDs.
+
+### La trampa
+
+La **división entera**: `(ADDR0>>8)&0xFF / 255` con enteros es 0 salvo cuando vale 255. Hay que convertir a `float` **antes** de dividir. Y otra, de **rango**: con $V_{refp}=3$ V el ADC se satura en 3 V, que en el HIH4000 es el 70 %. Por encima de esa humedad el sistema leería siempre 70 %. El enunciado no lo trata, pero conviene saberlo. Y, por último, la ISR comparte el Timer 2 con la captura: lee `IR` y atiende cada flag por separado.
+
+## Apartado g · Grabar el audio: ADC del micrófono y Timer
+
+### Qué pide
+
+Completar la configuración del ADC para el micrófono (AD0.5), indicar el **tiempo de conversión** y la **configuración del Timer** (sin código) que da el muestreo ($F_s=10$ kHz, 8 bits), con DMA y 2 s de audio por mensaje, y **justificar la memoria**.
+
+```c
+void init_ADC_microfono(void)
+{
+  LPC_ADC->ADCR = ( ... )|( ... )|( ... )|( ... );
+  LPC_ADC->ADINTEN = ( ... );
+  NVIC_DisableIRQ(ADC_IRQn);
+}
+```
+
+### Qué hay que saber antes
+
+La grabación a ritmo fijo con ADC, Timer y DMA, explicada en [DMA](../dma/) y [ADC y DAC](../adc-dac/). El ADC no va en ráfaga: cada conversión la **dispara un Match** del Timer.
+
+### Proceso
+
+1. **Canal.** El micrófono es AD0.5 (P1.31): bit 5 de `ADCR`.
+2. **Reloj del ADC.** Con $F_s=10$ kHz sobra tiempo; lo más fácil es `CLKDIV=1`, es decir $25/2=12{,}5$ MHz (por debajo del límite de 13 MHz). $t_{conv}=65/12{,}5\ \text{MHz}=5{,}2\ \mu\text{s}$, mucho menos que el periodo de muestreo $T_s=100\ \mu\text{s}$.
+3. **Arrancar por Match.** `BURST=0` y `START=100` (bits 26:24): empieza la conversión con el flanco de **MAT0.1**. Flanco de subida (bit 27 a 0).
+4. **Timer 0.** Un Match con salida en modo **conmutar** (toggle) hace que MAT0.1 cambie en cada coincidencia. La señal sube una vez cada **dos** Match, así que cada Match va a la mitad del periodo: `MR1 = 25e6/10000/2 - 1 = 1249` (50 µs). Con reset del contador en ese mismo valor y sin interrupciones.
+5. **ADC y DMA.** `ADINTEN` bit 5 a 1: el flag de fin de conversión del canal 5 es la petición que atiende el DMA. **No** se habilita la interrupción del ADC en el NVIC, porque si no habría 10 000 ISR por segundo.
+6. **Memoria.** $10\,000\ \text{muestras/s}\cdot2\ \text{s}=20\,000$ muestras de 1 byte.
+
+### Solución
+
+```c
+void init_ADC_microfono(void)
+{
+  LPC_ADC->ADCR = (1<<5)    |   // canal AD0.5 (P1.31)
+                  (1<<8)    |   // CLKDIV=1: F_ADC = 25e6/2 = 12,5 MHz
+                  (1<<21)   |   // PDN=1: ADC encendido
+                  (4<<24);      // START=100: conversión con el flanco de subida de MAT0.1
+  LPC_ADC->ADINTEN = (1<<5);    // el flag del canal 5 es la petición del DMA
+  NVIC_DisableIRQ(ADC_IRQn);    // ojo: el ADC no interrumpe a la CPU
+}
+```
+
+Configuración del Timer 0 (sin código, como pide el enunciado):
+
+- Alimentar el Timer 0 y no usar prescaler ($F_{tick}=25$ MHz).
+- `MR1 = 25e6/10000/2 - 1 = 1249` y reset del contador en la coincidencia (con `MR0` al mismo valor, 1249).
+- Salida MAT0.1 en modo conmutar (`EMC1 = 11`), sin interrupción.
+- El Timer queda parado hasta que se pulsa KEY 1 (entonces se pone en marcha y se activa el DMA).
+
+$$
+t_{conv}=\frac{65}{12{,}5\ \text{MHz}}=5{,}2\ \mu\text{s}
+\qquad
+T_s=\frac{1}{F_s}=\frac{1}{10\,000}=100\ \mu\text{s}
+\qquad
+MR1=\frac{F_{tick}}{2F_s}-1
+$$
+
+<Donde>
+
+- $t_{conv}$: tiempo de una conversión del ADC. 65 ciclos del reloj del ADC.
+- $T_s$: periodo de muestreo (s). $F_s$: frecuencia de muestreo, 10 kHz.
+- $MR1$: valor del Match 1 del Timer 0, en ciclos de $F_{tick}=25$ MHz.
+- El 2 del denominador es porque la salida conmuta en cada Match y el ADC solo arranca con el flanco de **subida**: un periodo de muestreo son dos Match.
+
+</Donde>
+
+**Memoria.** Cada mensaje: 20 000 muestras por 1 byte = **20 000 bytes**. Hay dos mensajes (temperatura y humedad): **40 000 bytes** en total. Según el mapa de memoria del anexo del examen (figura de abajo), el LPC1768 tiene 32 kB de SRAM local y dos bancos de 16 kB de SRAM AHB, 64 kB en total. Un buffer cabe en la SRAM local; los dos juntos no (40 000 bytes frente a 32 768) y además el programa necesita su propia RAM para variables y pila. Esto no figura en la solución oficial, que se queda en los 20 000 bytes por mensaje: lo razonamos nosotros. Hay que repartir los buffers entre las zonas de RAM. Tampoco caben en un único bloque de DMA: el máximo es 4095, así que se encadenan **5 bloques de 4000** muestras (ver apartado i).
+
+<Figura src={fig4} alt="Tabla del mapa de memoria del LPC176x/5x: flash, SRAM local de 32 kB en 0x10000000, SRAM AHB banco 0 en 0x2007C000 y banco 1 en 0x20080000, periféricos" pie="Figura del anexo I del enunciado: mapa de memoria del LPC1768. La SRAM local tiene 32 kB y hay dos bancos de SRAM AHB de 16 kB, que suman 64 kB de RAM en total." />
+
+> **Ojo: errata en la solución oficial.** El PDF escribe «Ts = 1/Fs = 125 µs». Con $F_s=10$ kHz, $T_s=1/10\,000=100\ \mu\text{s}$ (125 µs serían 8 kHz). En el apartado h la propia solución usa 100 µs, y los 5,2 µs de $t_{conv}$ son correctos. Además, dice «reset on Match 0» pero da el valor de `MR1`: ponlos iguales (o resetea en `MR1`).
+
+### La trampa
+
+Tres. El **«/2»**: sin él, la señal conmutada tiene la mitad de frecuencia y grabas a 5 kHz. El **`NVIC_DisableIRQ`**: el flag de interrupción del ADC es lo que mueve al DMA, no a la CPU. Y los **bytes**: 20 000 muestras de 8 bits son 20 000 bytes por mensaje, no 20 kbits.
+
+## Apartado h · Reproducir con el Timer 3 y el DAC
+
+### Qué pide
+
+La ISR del Timer 3 que saca las muestras al DAC según la variable global `tipo_alarma`, el **periodo de interrupción** y la inicialización de los arrays de audio de cada alarma.
+
+### Qué hay que saber antes
+
+El valor del DAC va en los bits 15:6 de `DACR` (10 bits). Ver [ADC y DAC](../adc-dac/). Un Timer con Match, reset e interrupción da una ISR periódica ([Timers y Match](../timers-match/)).
+
+### Proceso
+
+1. **Periodo.** Una muestra por interrupción: $T_{int}=1/F_s=100\ \mu\text{s}$, o sea `MR0 = 25e6/10000 - 1 = 2499` con reset en `MR0` e interrupción.
+2. **Arrays.** Los dos buffers de 20 000 `uint8_t` se **llenan al grabar**, así que tienen que estar en RAM (no `const`, que iría a la Flash).
+3. **ISR.** Se elige el buffer por `tipo_alarma` y se escribe la muestra en `DACR`.
+4. **Colocar el byte.** Una muestra de 8 bits desplazada 8 posiciones queda en los bits 15:8, justo los 8 más altos de los 10 del DAC: amplitud completa, sin más cuentas.
+5. **Fin del mensaje.** Al llegar a 20 000: poner el índice a 0, **parar el Timer 3** y avisar con `fin_mensaje = 1`.
+
+### Solución
+
+```c
+uint8_t buffer_alarma_T[20000];   // mensaje de temperatura (en RAM: se rellena al grabar)
+uint8_t buffer_alarma_H[20000];   // mensaje de humedad
+volatile uint32_t indice = 0;
+
+void TIMER3_IRQHandler(void)
+{
+  LPC_TIM3->IR = (1<<0);                                   // borra el flag de MR0
+
+  if (tipo_alarma == temperatura)
+    LPC_DAC->DACR = buffer_alarma_T[indice++] << 8;        // muestra de 8 bits en los bits 15:8
+  else
+    LPC_DAC->DACR = buffer_alarma_H[indice++] << 8;
+
+  if (indice >= 20000) {                                   // Fs * 2 s = 20 000 muestras
+    indice = 0;
+    LPC_TIM3->TCR = 0x02;                                  // parar y resetear el Timer 3
+    fin_mensaje = 1;
+  }
+}
+```
+
+$$
+T_{int}=\frac{1}{F_s}=\frac{1}{10\,000}=100\ \mu\text{s}
+\qquad
+MR0=\frac{F_{pclk}}{F_s}-1=2499
+$$
+
+<Donde>
+
+- $T_{int}$: tiempo entre dos interrupciones del Timer 3 (una por muestra).
+- $F_s$: frecuencia de muestreo del audio, 10 kHz.
+- $MR0$: Match 0 del Timer 3, en ciclos de $F_{pclk}=25$ MHz; el «−1» porque el contador cuenta desde 0.
+
+</Donde>
+
+> **Ojo: errata en la solución oficial.** Para parar el Timer 3 el PDF escribe `LPC_TIM3->TC = 0x02`, que **no lo detiene**: solo pone el contador en 2. Para parar (y resetear) se escribe en el registro de control: `LPC_TIM3->TCR = 0x02`.
+
+### La trampa
+
+Olvidar el desplazamiento: el valor del DAC ocupa los bits **15:6** de `DACR`, y los bits 5:0 se ignoran. Una muestra de 8 bits sin desplazar caería en los bits 7:0 y la señal saldría unas 256 veces más baja de lo debido; desplazada 8 posiciones, ocupa los bits 15:8. Y no olvides **parar el Timer**, o la ISR seguiría leyendo más allá del array.
+
+## Apartado i · Reproducir sin interrupciones, con DMA
+
+### Qué pide
+
+Sin escribir código, qué recurso y cómo se configuraría para reducir al máximo la carga de CPU (la menor tasa de interrupción) al generar las alarmas.
+
+### Qué hay que saber antes
+
+El GPDMA y los seis ajustes de un canal; el límite de 4095 por bloque; las listas encadenadas; y el contador propio del DAC (`DACCNTVAL`). Todo en [DMA](../dma/).
+
+### Proceso
+
+1. **Quién marca el ritmo.** Se quita el Timer 3: el DAC tiene un contador propio. `DACCNTVAL = 25e6/10000 - 1 = 2499` (100 µs) y se activan `CNT_ENA` (bit 2) y `DMA_ENA` (bit 3) de `DACCTRL`. Cada vez que el contador llega a cero, el DAC pide una muestra al DMA.
+2. **Qué copia el DMA.** Memoria al DAC, petición 7. Origen: el array de la alarma elegida; destino: el byte alto de `DACR` (la dirección de `DACR` más 1, para escribir sin desplazar); ancho de 8 bits; incrementa el origen y no el destino.
+3. **Cuántos bloques.** Un bloque admite 4095 transferencias como máximo y hay 20 000 muestras: $\lceil20\,000/4095\rceil=5$, y 5 bloques iguales son **5 de 4000**.
+4. **Cómo se encadenan.** Cada bloque lleva la dirección de origen del anterior más 4000. La CPU solo se entera al final del último, que es el único con la interrupción de terminación.
+5. **Qué carga queda.** De 10 000 interrupciones por segundo del apartado h se pasa a **una por mensaje** (al final de los 2 s).
+6. **Qué mensaje.** `init_DMA(magnitud)` elige el origen: `buffer_alarma_T` o `buffer_alarma_H`.
+
+### Solución
+
+La solución oficial lo expresa en forma de lista de ajustes, sin código:
+
+- Origen: `buffer_alarma_T[0]` o `buffer_alarma_H[0]`, según la alarma.
+- Destino: `(uint32_t)&(LPC_DAC->DACR) + 1`, byte alto del DAC.
+- `TransferSize` = 4000 por bloque; ancho de 8 bits; incrementa origen, no destino.
+- Cinco bloques encadenados, con interrupción **solo al final**.
+- `LPC_DAC->DACCNTVAL = (F_pclk/10000) - 1;` marca el ritmo de las transferencias.
+
+Para que lo veas completo, así quedaría con una **lista encadenada** (como el examen no pide código, esto es de apoyo y lo escribimos nosotros):
+
+```c
+typedef struct { uint32_t src, dst, lli, ctrl; } LLI_t;   // descriptor de un bloque
+static LLI_t lista[4];                                    // bloques 1 a 4 (el 0 va en los registros)
+
+void init_DMA(uint8_t magnitud)                           // magnitud: 1 = temperatura, 0 = humedad
+{
+  uint8_t *buf = magnitud ? buffer_alarma_T : buffer_alarma_H;
+  uint32_t dst = (uint32_t)&(LPC_DAC->DACR) + 1;          // byte alto de DACR (suma 1 BYTE: el cast va antes)
+  uint32_t ctrl    = 4000 | (1u<<26);                     // 4000 transferencias de 8 bits, SI=1 y DI=0
+  int k;
+
+  LPC_SC->PCONP |= (1<<29);                               // enciende el GPDMA
+  LPC_GPDMA->DMACConfig = 1;                              // habilita el controlador
+  LPC_GPDMA->DMACIntTCClear = 0xFF;  LPC_GPDMA->DMACIntErrClr = 0xFF;
+
+  for (k = 1; k <= 4; k++) {                              // bloques 1 a 4
+    lista[k-1].src  = (uint32_t)(buf + 4000*k);
+    lista[k-1].dst  = dst;
+    lista[k-1].lli  = (k < 4) ? (uint32_t)&lista[k] : 0;  // el último no apunta a nada
+    lista[k-1].ctrl = (k < 4) ? ctrl : (ctrl | (1u<<31)); // interrupción solo en el último
+  }
+
+  LPC_GPDMACH0->DMACCSrcAddr  = (uint32_t)buf;            // bloque 0
+  LPC_GPDMACH0->DMACCDestAddr = dst;
+  LPC_GPDMACH0->DMACCLLI      = (uint32_t)&lista[0];      // el siguiente bloque
+  LPC_GPDMACH0->DMACCControl  = ctrl;
+  LPC_GPDMACH0->DMACCConfig   = (1<<0)  |                 // canal habilitado
+                                (7<<6)  |                 // petición de destino: DAC (7)
+                                (1<<11) |                 // memoria a periférico
+                                (1<<15);                  // interrupción de fin (ITC)
+
+  LPC_DAC->DACCNTVAL = 25000000/10000 - 1;                // 2499 -> 100 µs entre muestras
+  LPC_DAC->DACCTRL   = (1<<2)|(1<<3);                     // CNT_ENA y DMA_ENA
+  NVIC_EnableIRQ(DMA_IRQn);
+}
+```
+
+> **Nota de terminología.** La solución oficial habla de «canal 0 enlazado con el canal 1, el 1 con el 2… hasta el 4», con interrupción en el canal 4. En el LPC1768 lo normal es **un solo canal que recorre una lista** (`DMACCLLI`), y el efecto que se pide es el mismo: cinco bloques seguidos y una única interrupción. Ambas formas de explicarlo sirven para contestar. Además la solución oficial se limita a decir que `DACCNTVAL` fija el ritmo; sin activar `CNT_ENA` y `DMA_ENA` en `DACCTRL` el DAC no pide nada: lo hemos añadido.
+
+### La trampa
+
+Dos de **unidades**. La del destino: `(uint32_t)&DACR + 1` suma 1 **byte** (el cast se aplica antes de sumar); `&(LPC_DAC->DACR) + 1` sumaría 4 bytes y escribirías en otro registro. Y la del origen de cada bloque: es `buf + 4000*k` en **bytes** porque el ancho es de 8 bits (con muestras de 16 bits serían 8000 bytes por bloque).
+
+## Qué llevarte de este examen
+
+1. **Lee el diagrama primero.** De él salen los canales del ADC (AD0.0, AD0.1, AD0.2 y AD0.5), el pin del servo (P1.22 = MAT1.0) y los pines de captura. Un canal mal asignado hace mal el resto.
+2. **Comprueba cada fórmula en los dos extremos.** El servo debe dar 0,5 ms para 0 y 2,5 ms para 100 (en la solución oficial sale al revés); el brillo debe dar 0 % y 100 %.
+3. **El pin de un Match lo manda su registro.** MAT1.0 solo responde a `MR0`; por eso el final del pulso se hace en la ISR del Match 1.
+4. **Audio por DMA son cuentas con bloques.** 2 s a 10 kHz = 20 000 muestras = 20 000 bytes por mensaje, 5 bloques de 4000, `DACCNTVAL = 2499`, y una sola interrupción por mensaje.
+5. **Desconfía de las cuentas de la solución oficial.** En este examen tiene un $T_s$ mal (125 µs en vez de 100), un `TC` en lugar de `TCR`, y varios `-` en lugar de `->`. Rehaz las cuentas.
