@@ -1,0 +1,41 @@
+---
+// 3G, UMTS, R'99 y UTRAN no son sinónimos: están en niveles distintos.
+// Un dibujo anidado (generación ⊃ sistema ⊃ red de acceso) y una etiqueta de versión.
+import Widget from '../../../widgets/Widget.astro';
+import { CONCEPTOS } from './umts';
+import './umts.css';
+const c = Object.fromEntries(CONCEPTOS.map((x) => [x.id, x]));
+---
+<Widget titulo="3G, UMTS, R'99 y UTRAN: ¿es lo mismo?" tipo="entender">
+  <div data-quien>
+    <p style="margin:0 0 10px;color:var(--suave)">Pulsa cada capa del dibujo. Cada término contesta a una pregunta distinta.</p>
+    <div class="u-nido">
+      <button type="button" class="u-btn" data-c="g3" aria-pressed="true"><span class="u-nombre">3G <small>{c.g3.naturaleza}</small></span></button>
+      <div class="u-nido">
+        <button type="button" class="u-btn" data-c="umts" aria-pressed="false"><span class="u-nombre">UMTS <small>{c.umts.naturaleza}</small></span></button>
+        <div class="u-nido">
+          <button type="button" class="u-btn" data-c="utran" aria-pressed="false"><span class="u-nombre">UTRAN <small>{c.utran.naturaleza}</small></span></button>
+        </div>
+      </div>
+    </div>
+    <p style="margin:12px 0 6px;color:var(--suave)">Y una etiqueta que cruza el dibujo: la <b>versión</b> del estándar.</p>
+    <button type="button" class="u-btn" data-c="r99" aria-pressed="false" style="max-width:26rem"><span class="u-nombre">R'99 <small>{c.r99.naturaleza}</small></span></button>
+    {CONCEPTOS.map((x, i) => (
+      <div class="u-panel" data-panel={x.id} hidden={i !== 0}>
+        <p><b>{x.nombre}</b>: {x.naturaleza.toLowerCase()}.</p><p>{x.texto}</p>
+        {x.extra && <p class="u-extra">{x.extra}</p>}
+      </div>
+    ))}
+  </div>
+</Widget>
+<script>
+  import { montar } from '../../../widgets/cliente';
+  montar('[data-quien]', (caja) => {
+    const botones = [...caja.querySelectorAll<HTMLButtonElement>('[data-c]')];
+    const paneles = [...caja.querySelectorAll<HTMLElement>('[data-panel]')];
+    for (const b of botones) b.addEventListener('click', () => {
+      for (const o of botones) o.setAttribute('aria-pressed', String(o === b));
+      for (const p of paneles) p.hidden = p.dataset.panel !== b.dataset.c;
+    });
+  });
+</script>

@@ -1,0 +1,82 @@
+---
+// PS8, pregunta 2: la secuencia HDLC de la hoja con sus cinco recuadros. Se revelan de uno en uno
+// con la razón de cada trama, y a los lados se ve qué número espera cada extremo.
+import Widget from '../../../widgets/Widget.astro';
+import { SECUENCIA_PS8 } from './umts';
+import './umts.css';
+const AX = 110, BX = 410, Y0 = 62, DY = 50;
+const filas = SECUENCIA_PS8.map((f, i) => ({ ...f, i, y: Y0 + i * DY }));
+const respuestas = filas.filter((f) => f.respuesta);
+---
+<Widget titulo="PS8 · Secuencia HDLC con números de 3 bits" tipo="resolver">
+  <div data-hdlc>
+    <div class="widget-opciones" style="margin-bottom:10px">
+      <button type="button" data-sig>Revelar el siguiente recuadro</button>
+      <button type="button" data-todo>Revelar todo</button>
+      <button type="button" data-reset>Empezar de nuevo</button>
+    </div>
+    <div class="u-seq">
+      <svg class="u-svg" viewBox={`0 0 520 ${Y0 + filas.length * DY + 20}`} role="group" aria-label="Diagrama de secuencia entre A y B">
+        <text x={AX} y="24" text-anchor="middle">A</text><text x={BX} y="24" text-anchor="middle">B</text>
+        <line x1={AX} x2={AX} y1="34" y2={Y0 + filas.length * DY} stroke="var(--suave)" stroke-width="3" />
+        <line x1={BX} x2={BX} y1="34" y2={Y0 + filas.length * DY} stroke="var(--suave)" stroke-width="3" />
+        {filas.map((f) => {
+          const aB = f.de === 'A';
+          const x1 = aB ? AX : BX, x2 = aB ? BX : AX;
+          const xf = f.perdida ? x1 + (x2 - x1) * 0.55 : x2;
+          const mx = (x1 + xf) / 2, my = f.y + 14;
+          return (
+            <g>
+              <line class={`trama ${aB ? '' : 'b'} ${f.perdida ? 'perdida' : ''}`} x1={x1} y1={f.y} x2={xf} y2={f.y + 28} />
+              {!f.perdida && <path d={`M${x2} ${f.y + 28}l${aB ? -9 : 9} -4m${aB ? 9 : -9} 4l${aB ? -3 : 3} -9`} class={`trama ${aB ? '' : 'b'}`} />}
+              {f.perdida && <text x={xf + 6} y={f.y + 32} class="peq" style="fill:var(--acento2)">✗ se pierde</text>}
+              {f.dato && <text x={mx} y={my - 8} text-anchor="middle">{f.dato}</text>}
+              {f.respuesta && (
+                <g class="hito" data-hito={f.i} tabindex="0" role="button" aria-label={`Recuadro ${respuestas.indexOf(f) + 1}: pulsa para revelar`}>
+                  <rect class="caja" x={mx - 42} y={my - 20} width="84" height="26" rx="6" />
+                  <text x={mx} y={my - 2} text-anchor="middle" data-txt>?</text>
+                </g>
+              )}
+              {f.esperaB && <text x={BX + 14} y={f.y + 30} class="peq">B espera {f.esperaB}</text>}
+              {f.esperaA && <text x={AX - 14} y={f.y + 30} class="peq" text-anchor="end">A espera {f.esperaA}</text>}
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+    {respuestas.map((f, k) => (
+      <div class="u-panel" data-por={f.i} hidden>
+        <p><b>Recuadro {k + 1}: {f.respuesta}</b> ({f.de === 'A' ? 'A → B' : 'B → A'})</p><p>{f.porque}</p>
+      </div>
+    ))}
+    <p class="u-extra u-solo-sin-js" style="margin-top:8px">Sin JavaScript se ven las cinco respuestas con su razón: {respuestas.map((f) => f.respuesta).join(', ')}.</p>
+  </div>
+</Widget>
+<script>
+  import { montar } from '../../../widgets/cliente';
+  import { SECUENCIA_PS8 } from './umts';
+  montar('[data-hdlc]', (caja) => {
+    const hitos = [...caja.querySelectorAll<SVGGElement>('[data-hito]')];
+    const paneles = [...caja.querySelectorAll<HTMLElement>('[data-por]')];
+    let n = 0;
+    const revelar = (k: number) => {
+      const h = hitos[k]; if (!h) return;
+      const f = SECUENCIA_PS8[+h.dataset.hito!];
+      h.querySelector('[data-txt]')!.textContent = f.respuesta!;
+      h.querySelector('.caja')!.classList.add('lleno');
+      paneles.find((p) => p.dataset.por === h.dataset.hito)!.hidden = false;
+      n = Math.max(n, k + 1);
+    };
+    const reiniciar = () => {
+      hitos.forEach((h) => { h.querySelector('[data-txt]')!.textContent = '?'; h.querySelector('.caja')!.classList.remove('lleno'); });
+      paneles.forEach((p) => (p.hidden = true)); n = 0;
+    };
+    hitos.forEach((h, k) => {
+      h.addEventListener('click', () => revelar(k));
+      h.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); revelar(k); } });
+    });
+    caja.querySelector('[data-sig]')!.addEventListener('click', () => revelar(n));
+    caja.querySelector('[data-todo]')!.addEventListener('click', () => hitos.forEach((_, k) => revelar(k)));
+    caja.querySelector('[data-reset]')!.addEventListener('click', reiniciar);
+  });
+</script>

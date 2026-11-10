@@ -1,0 +1,96 @@
+---
+// W-CDMA en pequeño: dos usuarios transmiten a la vez en la misma frecuencia,
+// cada uno ensanchado con su código ortogonal. Se suman en el aire y el receptor
+// recupera los bits de uno multiplicando por su código.
+import Widget from '../../../widgets/Widget.astro';
+import { FACTORES_SF, WALSH, ksimbolos } from './umts';
+import './umts.css';
+---
+<Widget titulo="Ensanchado de espectro: dos usuarios en la misma frecuencia" tipo="entender">
+  <div data-cdma>
+    <form class="widget-campos">
+      <label class="widget-campo">Código de A
+        <select name="ca">{WALSH.map((_, i) => <option value={i} selected={i === 1}>Código {i + 1}</option>)}</select>
+      </label>
+      <label class="widget-campo">Código de B
+        <select name="cb">{WALSH.map((_, i) => <option value={i} selected={i === 2}>Código {i + 1}</option>)}</select>
+      </label>
+      <label class="widget-campo">El receptor escucha con el código de
+        <select name="rx"><option value="a" selected>A</option><option value="b">B</option><option value="x">otro, que nadie usa</option></select>
+      </label>
+    </form>
+    <p style="margin:12px 0 4px">Bits de A (pulsa para cambiarlos): <span class="u-bits" data-bits="a"></span></p>
+    <p style="margin:4px 0">Bits de B: <span class="u-bits" data-bits="b"></span></p>
+    <svg class="u-svg" data-svg viewBox="0 0 560 330" role="img" aria-label="Señales ensanchadas de A y B y su suma"></svg>
+    <p class="widget-resultado" data-res aria-live="polite" style="font-size:1rem"></p>
+    <details style="margin-top:12px"><summary>¿Y los códigos reales? Factor de ensanchado y velocidad</summary>
+      <div class="widget-campos" style="margin-top:8px">
+        <label class="widget-campo">Factor de ensanchado (SF) <select name="sf">{FACTORES_SF.map((f) => <option value={f} selected={f === 16}>{f}</option>)}</select></label>
+      </div>
+      <p data-sf style="margin:8px 0 0">Con SF = 16: 3,84 Mchip/s ÷ 16 = <b>240 ksímbolos/s</b> por usuario. Cuanto mayor es el SF, menos velocidad y más protección.</p>
+    </details>
+  </div>
+  <Fragment slot="estatico">
+    <p>Cada usuario multiplica sus bits (±1) por un código de chips. Si los códigos son ortogonales, al sumar las dos señales y multiplicar por el código de uno, el otro se cancela y el bit sale limpio. En W-CDMA la chip rate es de 3,84 Mchip/s y el factor de ensanchado (SF) va de 4 a 256: {FACTORES_SF.map((f) => `SF ${f} → ${ksimbolos(f)} ksímb/s`).join('; ')}.</p>
+  </Fragment>
+</Widget>
+<script>
+  import { montar } from '../../../widgets/cliente';
+  import { fmt } from '../../../widgets/numeros';
+  import { WALSH, ensanchar, sumarSenales, desensanchar, ksimbolos } from './umts';
+
+  montar('[data-cdma]', (caja) => {
+    const bits = { a: [1, 0, 1], b: [0, 0, 1] };
+    const sel = (n: string) => caja.querySelector<HTMLSelectElement>(`[name=${n}]`)!;
+    const svg = caja.querySelector<SVGSVGElement>('[data-svg]')!;
+    const res = caja.querySelector<HTMLElement>('[data-res]')!;
+    const W = 40, X0 = 70, N = 12;
+    const ruta = (v: number[], y0: number, amp: number) => {
+      let d = '';
+      v.forEach((x, i) => { const y = y0 - x * amp; d += `${i ? 'L' : 'M'}${X0 + i * W} ${y}L${X0 + (i + 1) * W} ${y}`; });
+      return d;
+    };
+    const fila = (v: number[], y0: number, amp: number, clase: string, nombre: string) =>
+      `<line class="u-rejilla" x1="${X0}" x2="${X0 + N * W}" y1="${y0}" y2="${y0}"/><path class="u-onda ${clase}" d="${ruta(v, y0, amp)}"/><text x="6" y="${y0 + 4}">${nombre}</text>`;
+    const pintar = () => {
+      const ca = WALSH[+sel('ca').value], cb = WALSH[+sel('cb').value];
+      const rxv = sel('rx').value;
+      const a = ensanchar(bits.a, ca), b = ensanchar(bits.b, cb), s = sumarSenales(a, b);
+      // «otro código»: el primer código de Walsh que no usa ni A ni B
+      const libre = WALSH.find((_, i) => i !== +sel('ca').value && i !== +sel('cb').value)!;
+      const co = rxv === 'a' ? ca : rxv === 'b' ? cb : libre;
+      const r = desensanchar(s, co);
+      let sv = '';
+      for (let i = 0; i <= 3; i++) sv += `<line x1="${X0 + i * 4 * W}" x2="${X0 + i * 4 * W}" y1="10" y2="250" stroke="var(--linea)" stroke-width="1.5"/>`;
+      sv += fila(a, 45, 22, '', 'A ensanch.') + fila(b, 105, 22, 'b', 'B ensanch.') + fila(s, 185, 22, 's', 'Suma (aire)');
+      r.forEach((v, i) => {
+        const x = X0 + i * 4 * W + 2 * W;
+        const ok = Math.abs(v) > 0.99;
+        sv += `<rect x="${x - 34}" y="262" width="68" height="46" rx="8" fill="${ok ? 'color-mix(in srgb, var(--primario) 20%, var(--superficie))' : 'var(--fondo)'}" stroke="${ok ? 'var(--primario)' : 'var(--linea)'}" stroke-width="2"/>`
+          + `<text x="${x}" y="282" text-anchor="middle">${fmt(v, 2)}</text><text x="${x}" y="299" text-anchor="middle" class="peq">${ok ? `bit ${v > 0 ? 1 : 0}` : 'sin señal'}</text>`;
+      });
+      sv += `<text x="6" y="285">Correlación</text>`;
+      svg.innerHTML = sv;
+      const choque = sel('ca').value === sel('cb').value;
+      const objetivo = rxv === 'a' ? bits.a : rxv === 'b' ? bits.b : null;
+      res.textContent = rxv === 'x' ? 'El receptor usa un código que nadie ha usado: ve ruido (0 en todos los símbolos).'
+        : choque ? 'A y B usan el mismo código: no son ortogonales y se pisan. No se pueden separar.'
+        : r.every((v, i) => v === (objetivo![i] ? 1 : -1)) ? `Se recuperan los bits de ${rxv === 'a' ? 'A' : 'B'}: ${objetivo!.join(' ')}. La señal del otro usuario se ha cancelado.` : 'Los bits no coinciden.';
+    };
+    for (const u of ['a', 'b'] as const) {
+      const cont = caja.querySelector<HTMLElement>(`[data-bits=${u}]`)!;
+      const dib = () => { cont.innerHTML = ''; bits[u].forEach((v, i) => {
+        const b = document.createElement('button'); b.type = 'button'; b.textContent = String(v);
+        b.setAttribute('aria-label', `Bit ${i + 1} de ${u.toUpperCase()}: ${v}. Pulsa para cambiarlo`);
+        b.addEventListener('click', () => { bits[u][i] = 1 - bits[u][i]; dib(); pintar(); cont.querySelectorAll('button')[i].focus(); });
+        cont.append(b); }); };
+      dib();
+    }
+    caja.addEventListener('change', (e) => {
+      const t = e.target as HTMLSelectElement;
+      if (t.name === 'sf') caja.querySelector('[data-sf]')!.innerHTML = `Con SF = ${t.value}: 3,84 Mchip/s ÷ ${t.value} = <b>${fmt(ksimbolos(+t.value), 2)} ksímbolos/s</b> por usuario. Cuanto mayor es el SF, menos velocidad y más protección.`;
+      else pintar();
+    });
+    pintar();
+  });
+</script>

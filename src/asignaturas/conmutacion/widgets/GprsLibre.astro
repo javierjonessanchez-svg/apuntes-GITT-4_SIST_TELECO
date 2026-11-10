@@ -1,0 +1,51 @@
+---
+// Hoja del bloque 3, ejercicio 3: de los 30 canales de tráfico, los que no usa la voz son de GPRS.
+import Widget from '../../../widgets/Widget.astro';
+import Desarrollo from '../../../widgets/Desarrollo.astro';
+import { fmt } from '../../../widgets/numeros';
+import { ej3, pasosEj3 } from './umts';
+import './umts.css';
+interface Props { terminales?: number }
+const { terminales = 400 } = Astro.props;
+const r = ej3(terminales);
+---
+<Widget titulo="¿Cuántos canales le quedan al GPRS?" tipo="resolver">
+  <div data-gprs>
+    <form class="widget-campos">
+      <label class="widget-campo">Terminales por célula
+        <input name="n" inputmode="numeric" value={terminales} autocomplete="off" spellcheck="false" />
+      </label>
+    </form>
+    <p class="widget-aviso" data-aviso role="status" hidden></p>
+    <div class="u-canales" data-canales role="img" aria-label="30 canales de tráfico: ocupados por voz y libres para GPRS"></div>
+    <p style="margin:0;font-size:.9rem;color:var(--suave)"><span class="u-etiqueta">Voz</span> <span class="u-etiqueta nuevo">Libres para GPRS</span></p>
+    <p class="widget-resultado" data-resultado aria-live="polite"></p>
+    <Desarrollo />
+  </div>
+  <Fragment slot="estatico">
+    <p class="widget-resultado">Con {terminales} terminales la voz ocupa {fmt(r.cursado, 2)} de 30 canales: quedan {fmt(r.libres, 2)} para GPRS, es decir {fmt(r.BR, 1)} BR.</p>
+    <Desarrollo pasos={pasosEj3(terminales)} />
+  </Fragment>
+</Widget>
+<script>
+  import { montar } from '../../../widgets/cliente';
+  import { calculadora } from '../../../widgets/calculadora';
+  import { fmt } from '../../../widgets/numeros';
+  import { ej3, pasosEj3 } from './umts';
+  montar('[data-gprs]', (caja) => {
+    const canales = caja.querySelector<HTMLElement>('[data-canales]')!;
+    calculadora(caja, [{ nombre: 'n', etiqueta: 'Terminales', reglas: { entero: true, min: 1, max: 100000 } }], ({ n }) => {
+      const r = ej3(n!);
+      canales.replaceChildren(...Array.from({ length: 30 }, (_, i) => {
+        const c = document.createElement('i');
+        const llenos = Math.floor(r.cursado);
+        c.className = i < llenos ? '' : i === llenos && r.cursado - llenos > 0.05 ? 'parcial' : 'libre';
+        return c;
+      }));
+      return {
+        resultado: `La voz ocupa **${fmt(r.cursado, 2)}** de 30 canales. Quedan **${fmt(r.libres, 2)}** para GPRS = **${fmt(r.BR, 1)} BR** (${fmt(r.kbps, 1)} kbps).`,
+        pasos: pasosEj3(n!),
+      };
+    });
+  });
+</script>

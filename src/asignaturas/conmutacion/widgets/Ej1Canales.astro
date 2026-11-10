@@ -1,0 +1,44 @@
+---
+// Hoja del bloque 3, ejercicio 1 (a–c): de la ocupación de PCH y RACH al número de terminales.
+import Widget from '../../../widgets/Widget.astro';
+import Desarrollo from '../../../widgets/Desarrollo.astro';
+import { fmt } from '../../../widgets/numeros';
+import { pasosEj1Canales, ej1Canales } from './umts';
+import './umts.css';
+interface Props { pch?: number; rach?: number }
+const { pch = 0.76, rach = 0.09 } = Astro.props;
+const r = ej1Canales(pch, rach);
+---
+<Widget titulo="De la señalización al número de terminales" tipo="resolver">
+  <div data-ej1c>
+    <form class="widget-campos">
+      <label class="widget-campo">Ocupación del PCH (%)
+        <input name="p" inputmode="decimal" value={fmt(pch)} autocomplete="off" spellcheck="false" />
+      </label>
+      <label class="widget-campo">Ocupación del RACH (%)
+        <input name="r" inputmode="decimal" value={fmt(rach)} autocomplete="off" spellcheck="false" />
+      </label>
+    </form>
+    <p class="widget-aviso" data-aviso role="status" hidden></p>
+    <p class="widget-resultado" data-resultado aria-live="polite"></p>
+    <Desarrollo />
+  </div>
+  <Fragment slot="estatico">
+    <p class="widget-resultado">Con PCH al {fmt(pch)} % y RACH al {fmt(rach)} %: {fmt(r.lE, 1)} llamadas entrantes/h y {fmt(r.lS, 1)} salientes/h por célula, {fmt(r.NT, 0)} terminales.</p>
+    <Desarrollo pasos={pasosEj1Canales(pch, rach)} />
+  </Fragment>
+</Widget>
+<script>
+  import { montar } from '../../../widgets/cliente';
+  import { calculadora } from '../../../widgets/calculadora';
+  import { fmt } from '../../../widgets/numeros';
+  import { ej1Canales, pasosEj1Canales } from './umts';
+  montar('[data-ej1c]', (caja) => calculadora(caja, [
+    { nombre: 'p', etiqueta: 'Ocupación del PCH', reglas: { positivo: true, max: 100 } },
+    { nombre: 'r', etiqueta: 'Ocupación del RACH', reglas: { positivo: true, max: 100 } },
+  ], ({ p, r }) => {
+    const q = ej1Canales(p!, r!);
+    if (q.lS < 0) return { resultado: 'Con esos datos salen llamadas salientes negativas: el RACH no puede ocupar menos que los avisos.', pasos: [] };
+    return { resultado: `λ_E = **${fmt(q.lE, 1)}** /h · λ_S = **${fmt(q.lS, 1)}** /h por célula → **${fmt(q.NT, 0)} terminales**`, pasos: pasosEj1Canales(p!, r!) };
+  }));
+</script>

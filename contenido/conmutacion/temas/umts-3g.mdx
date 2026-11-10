@@ -1,0 +1,108 @@
+---
+titulo: "3G y más allá: UMTS"
+orden: 10
+bloque: "Datos"
+resumen: "UMTS, UTRAN y W-CDMA, calidad de servicio y la evolución hasta LTE"
+saber:
+  - "3G es la generación (IMT-2000), UMTS el sistema europeo, R'99 su primera versión y UTRAN su red de acceso radio"
+  - "R'99: UTRAN nueva (UE, Nodo B, RNC) con un núcleo heredado de GSM-GPRS, con dominios de circuitos (MSC) y de paquetes (SGSN y GGSN)"
+  - "Interfaces: Uu (radio), Iub (Nodo B–RNC), Iur (RNC–RNC, nueva) e Iu-CS e Iu-PS hacia el núcleo"
+  - "W-CDMA: 3,84 Mchip/s en 5 MHz, usuarios separados por códigos ortogonales; el factor de ensanchado (SF) fija la velocidad por usuario"
+  - "Cuatro clases de QoS: conversacional, afluente (streaming), interactiva y diferible"
+  - "Evolución: HSDPA (R5), HSUPA (R6), HSPA+ (R7) y, con LTE (R8), una red solo de paquetes con menos tipos de nodo"
+fuentes:
+  - "Cx_3GandBeyond.pdf"
+---
+
+import Generaciones from '../../../src/asignaturas/conmutacion/widgets/Generaciones.astro';
+import QuienEsQuien from '../../../src/asignaturas/conmutacion/widgets/QuienEsQuien.astro';
+import ArquitecturaR99 from '../../../src/asignaturas/conmutacion/widgets/ArquitecturaR99.astro';
+import Ensanchado from '../../../src/asignaturas/conmutacion/widgets/Ensanchado.astro';
+import ClasesQos from '../../../src/asignaturas/conmutacion/widgets/ClasesQos.astro';
+import Evolucion from '../../../src/asignaturas/conmutacion/widgets/Evolucion.astro';
+
+GPRS dio paquetes sobre la radio de GSM. 3G cambia la radio entera: un acceso nuevo (W-CDMA), un núcleo que reaprovecha lo de GSM-GPRS y, más tarde, una red pensada solo para paquetes.
+
+## La escalera de velocidades
+
+<Generaciones />
+
+## 3G, UMTS, R'99 y UTRAN: ¿no es todo lo mismo?
+
+No. Cada término está en un nivel distinto, y es una pregunta típica de examen.
+
+<QuienEsQuien />
+
+## Arquitectura de la R'99
+
+UMTS separa claramente la **red de acceso** (UTRAN, nueva) de la **red troncal** (heredada). Un RNC con sus Nodos B forma un **RNS**, equivalente a un BSS de GSM.
+
+<ArquitecturaR99 />
+
+> **Extra, no está en las diapositivas:** los terminales duales GSM-UMTS permiten la itinerancia y el traspaso entre ambas redes; por eso el núcleo se reaprovechó.
+
+## El acceso radio: W-CDMA
+
+GSM reparte el canal en frecuencia y en tiempo (FDMA/TDMA). W-CDMA hace que **todos los usuarios usen la misma frecuencia a la vez** y los separa con **códigos**: cada usuario multiplica sus bits por una secuencia de chips; si los códigos son ortogonales, el receptor recupera los bits de uno multiplicando por su código y el resto se cancela.
+
+- Portadora de **5 MHz** y **3,84 Mchip/s**.
+- La velocidad de símbolo es 3,84 Mchip/s ÷ SF. Con SF pequeño hay más velocidad y menos protección.
+- Reutilización de frecuencias universal: todas las células usan la misma portadora.
+
+<Ensanchado />
+
+## Servicios y calidad de servicio
+
+UMTS reparte el ancho de banda de forma dinámica entre servicios. Los agrupa en cuatro clases según su sensibilidad al retardo.
+
+<ClasesQos />
+
+## De UMTS a LTE
+
+HSDPA (R5) y HSUPA (R6) aceleran la bajada y la subida; HSPA+ (R7) las mejora. Con LTE (R8) cambia el sistema: **EPS**, todo IP y solo de paquetes, con una topología plana.
+
+<Evolucion />
+
+## Autoevaluación
+
+<details>
+<summary>¿Qué diferencia hay entre 3G, UMTS, R'99 y UTRAN?</summary>
+
+3G es la generación (un concepto), UMTS el sistema europeo de 3G, R'99 su primera versión y UTRAN su red de acceso radio.
+
+</details>
+
+<details>
+<summary>¿Qué es nuevo en la R'99 respecto a GSM-GPRS y qué se hereda?</summary>
+
+Es nueva la UTRAN (UE, Nodo B y RNC, con W-CDMA). Se hereda el núcleo: MSC y GMSC para circuitos, SGSN y GGSN para paquetes, y los registros (HLR, AuC, EIR).
+
+</details>
+
+<details>
+<summary>¿Qué equivalencia hay entre los elementos de UTRAN y los de GSM?</summary>
+
+Nodo B ≈ BTS y RNC ≈ BSC; un RNC con sus Nodos B forma un RNS, como un BSS. Los RNC se conectan entre sí por Iur, que en GSM no tiene equivalente.
+
+</details>
+
+<details>
+<summary>¿Cómo separa W-CDMA a los usuarios que comparten la misma frecuencia?</summary>
+
+Con códigos ortogonales de ensanchado. Cada usuario multiplica sus bits por su código; el receptor correlaciona con ese mismo código y el resto de señales se anula.
+
+</details>
+
+<details>
+<summary>¿Por qué una videollamada es de clase conversacional y ver un vídeo en directo es afluente?</summary>
+
+La videollamada es en tiempo real y en los dos sentidos, sin buffering y con retardo mínimo. El vídeo en directo es en un solo sentido y admite buffering: lo importante es un retardo constante.
+
+</details>
+
+<details>
+<summary>¿Qué ventaja tiene la arquitectura de EPS sobre la de UMTS?</summary>
+
+Tiene menos tipos de nodo (eNode-B y pasarela A-GW frente a Nodo B, RNC, SGSN y GGSN), por lo que baja la latencia (unos 10 ms frente a unos 50 ms de HSPA) y es más sencilla.
+
+</details>

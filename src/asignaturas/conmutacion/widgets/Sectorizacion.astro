@@ -1,0 +1,78 @@
+---
+// Hoja del bloque 3, ejercicio 2: ¿cuánto hay que sectorizar la célula? Cada opción
+// (120º, 90º, 60º, 45º) se dibuja como un círculo partido y sus tres probabilidades de bloqueo.
+import Widget from '../../../widgets/Widget.astro';
+import Desarrollo from '../../../widgets/Desarrollo.astro';
+import { fmt } from '../../../widgets/numeros';
+import { SECTORIZACIONES, ej2, ej2Minimo, pasosEj2 } from './umts';
+import './umts.css';
+interface Props { densidad?: number; sectores?: number }
+const { densidad = 100, sectores = 6 } = Astro.props;
+const min = ej2Minimo(densidad);
+---
+<Widget titulo="Sectorizar hasta que el bloqueo sea aceptable" tipo="resolver">
+  <div data-sect>
+    <form class="widget-campos">
+      <label class="widget-campo">Usuarios por km²
+        <input name="d" inputmode="numeric" value={densidad} autocomplete="off" spellcheck="false" />
+      </label>
+      <label class="widget-campo">Detallar el cálculo con (sectores)
+        <input name="n" inputmode="numeric" value={sectores} autocomplete="off" spellcheck="false" />
+      </label>
+    </form>
+    <p class="widget-aviso" data-aviso role="status" hidden></p>
+    <div data-opciones></div>
+    <p class="widget-resultado" data-resultado aria-live="polite"></p>
+    <Desarrollo />
+  </div>
+  <Fragment slot="estatico">
+    <div class="tw" style="overflow-x:auto"><table>
+      <thead><tr><th>Sectorización</th><th>SDCCH (≤ 0,1 %)</th><th>TCH (≤ 1 %)</th><th>Abis (≤ 1 %)</th></tr></thead>
+      <tbody>{SECTORIZACIONES.map((s) => { const r = ej2(s.n, densidad); return <tr><td>{s.grados}º ({s.n} células)</td><td>{fmt(r.pbS * 100, 3)} %</td><td>{fmt(r.pbT * 100, 2)} %</td><td>{fmt(r.pbA * 100, 3)} %</td></tr>; })}</tbody>
+    </table></div>
+    <p class="widget-resultado">{min ? `La menos fina que cumple los tres límites es ${min.grados}º (${min.n} células).` : 'Ni con 45º se cumple.'}</p>
+    <Desarrollo pasos={pasosEj2(sectores, densidad)} />
+  </Fragment>
+</Widget>
+<script>
+  import { montar } from '../../../widgets/cliente';
+  import { calculadora } from '../../../widgets/calculadora';
+  import { SECTORIZACIONES, ej2, ej2Minimo, pasosEj2 } from './umts';
+  import { pintarMedidas } from './medidas';
+
+  /** Círculo partido en n sectores, de verde si cumple y de rojo si no. */
+  function tarta(n: number, ok: boolean): string {
+    let d = '';
+    for (let i = 0; i < n; i++) {
+      const a0 = (i / n) * 2 * Math.PI - Math.PI / 2, a1 = ((i + 1) / n) * 2 * Math.PI - Math.PI / 2;
+      const p = (a: number) => `${30 + 26 * Math.cos(a)} ${30 + 26 * Math.sin(a)}`;
+      d += `<path d="M30 30L${p(a0)}A26 26 0 0 1 ${p(a1)}Z" fill="${ok ? 'var(--primario)' : 'var(--acento2)'}" fill-opacity="${i % 2 ? .55 : .8}" stroke="var(--superficie)" stroke-width="1.5"/>`;
+    }
+    return `<svg viewBox="0 0 60 60" width="60" height="60" aria-hidden="true">${d}</svg>`;
+  }
+
+  montar('[data-sect]', (caja) => {
+    const cont = caja.querySelector<HTMLElement>('[data-opciones]')!;
+    calculadora(caja, [
+      { nombre: 'd', etiqueta: 'Usuarios por km²', reglas: { entero: true, min: 1, max: 100000 } },
+      { nombre: 'n', etiqueta: 'Sectores', reglas: { entero: true, min: 1, max: 24 } },
+    ], ({ d, n }) => {
+      cont.replaceChildren(...SECTORIZACIONES.map((s) => {
+        const r = ej2(s.n, d!);
+        const ok = r.pbS < 0.001 && r.pbT < 0.01 && r.pbA < 0.01;
+        const fila = document.createElement('div');
+        fila.style.cssText = 'display:grid;grid-template-columns:72px minmax(0,1fr);gap:10px;align-items:center;margin:10px 0';
+        fila.innerHTML = `<div style="text-align:center">${tarta(s.n, ok)}<div style="font-size:.8rem">${s.grados}º · ${s.n}</div></div><div></div>`;
+        pintarMedidas(fila.lastElementChild as HTMLElement, [
+          { nombre: 'SDCCH', valor: r.pbS, limite: 0.001 }, { nombre: 'TCH', valor: r.pbT, limite: 0.01 }, { nombre: 'Abis', valor: r.pbA, limite: 0.01 },
+        ]);
+        return fila;
+      }));
+      const min = ej2Minimo(d!);
+      return {
+        resultado: min ? `La sectorización menos fina que cumple los tres límites es **${min.grados}º (${min.n} células)**.` : 'Ni con 45º se cumplen los tres límites.',
+        pasos: pasosEj2(n!, d!),
+      };
+    });
+  });
+</script>

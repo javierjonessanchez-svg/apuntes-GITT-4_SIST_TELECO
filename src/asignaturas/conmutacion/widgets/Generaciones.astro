@@ -1,0 +1,47 @@
+---
+// Escalera de velocidades de GPRS a LTE, en escala logarítmica: cada escalón
+// multiplica por 2 o por 3, y LTE salta de golpe dos órdenes de magnitud.
+import Widget from '../../../widgets/Widget.astro';
+import { GENERACIONES, anchoLog } from './umts';
+import './umts.css';
+---
+<Widget titulo="De GPRS a LTE: la escalera de velocidades" tipo="entender">
+  <div data-gens>
+    <p class="u-extra" style="margin:0 0 10px;color:var(--suave)">Escala logarítmica: cada marca es diez veces la anterior. Pulsa una fila.</p>
+    {GENERACIONES.map((g, i) => (
+      <div class="u-fila">
+        <button type="button" class="u-btn" data-g={g.id} aria-expanded={i === 0 ? 'true' : 'false'}>
+          <span class="u-nombre">{g.nombre}<small>{g.gen}</small></span>
+        </button>
+        <div class="u-barra" role="img" aria-label={`${g.nombre}: ${g.etiqueta}`}>
+          <i style={`--w:${anchoLog(g.kbps) / 100}`} data-barra></i>
+          {g.max && <i style={`--w:${anchoLog(g.max) / 100};opacity:.35`} data-barra></i>}
+          <b>{g.etiqueta}</b>
+        </div>
+      </div>
+    ))}
+    {GENERACIONES.map((g, i) => (
+      <div class="u-panel" data-panel={g.id} hidden={i !== 0}><p><b>{g.nombre}</b> · {g.gen}</p><p>{g.texto}</p></div>
+    ))}
+  </div>
+</Widget>
+<script>
+  import { montar } from '../../../widgets/cliente';
+  montar('[data-gens]', (caja) => {
+    const botones = [...caja.querySelectorAll<HTMLButtonElement>('[data-g]')];
+    const paneles = [...caja.querySelectorAll<HTMLElement>('[data-panel]')];
+    const barras = [...caja.querySelectorAll<HTMLElement>('[data-barra]')];
+    const mover = !matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (mover) { // las barras crecen al entrar en pantalla
+      barras.forEach((b) => b.classList.add('u-pre'));
+      const ver = new IntersectionObserver((es) => {
+        if (es.some((e) => e.isIntersecting)) { barras.forEach((b) => b.classList.remove('u-pre')); ver.disconnect(); }
+      }, { threshold: 0.2 });
+      ver.observe(caja);
+    }
+    for (const b of botones) b.addEventListener('click', () => {
+      for (const o of botones) o.setAttribute('aria-expanded', String(o === b));
+      for (const p of paneles) p.hidden = p.dataset.panel !== b.dataset.g;
+    });
+  });
+</script>

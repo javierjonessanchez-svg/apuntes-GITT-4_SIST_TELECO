@@ -1,0 +1,100 @@
+---
+titulo: "Ejercicios GSM-GPRS (bloque 3)"
+orden: 11
+bloque: "Datos"
+resumen: "Los tres ejercicios de la hoja Red3, resueltos paso a paso con calculadoras"
+saber:
+  - "Calcular λ_E, λ_S y el número de terminales a partir de la ocupación del PCH y del RACH de una multitrama de 51 tramas"
+  - "Comprobar los criterios de QoS de SDCCH, TCH y Abis con Erlang B y hallar el máximo de terminales"
+  - "Elegir el nivel mínimo de sectorización que cumple los tres criterios de bloqueo"
+  - "Calcular los bloques radio GPRS libres: 30 canales de tráfico menos la voz cursada, por 12 BR"
+fuentes:
+  - "Cx_EjerciciosRed3.pdf"
+---
+
+import Ej1Canales from '../../../src/asignaturas/conmutacion/widgets/Ej1Canales.astro';
+import Ej1Calidad from '../../../src/asignaturas/conmutacion/widgets/Ej1Calidad.astro';
+import Sectorizacion from '../../../src/asignaturas/conmutacion/widgets/Sectorizacion.astro';
+import GprsLibre from '../../../src/asignaturas/conmutacion/widgets/GprsLibre.astro';
+
+Hoja de ejercicios del bloque 3. Los enunciados son los de la hoja; puedes cambiar los datos en cada calculadora y ver cómo se mueve el resultado.
+
+> **Qué es oficial y qué no.** Solo el **ejercicio 3** tiene solución oficial (la de la hoja). Las soluciones de los ejercicios 1 y 2 son **mías**, calculadas con los apuntes: contrástalas con las de clase.
+
+## Ejercicio 1: señalización, terminales y calidad
+
+Dos células forman un LA y dependen de un mismo BSC por un E1 con 15 canales de 64 kbps para tráfico, con 4 canales de tráfico multiplexados en cada uno (60 circuitos). El PCH tiene el doble de recursos que el AGCH. Ocupación del PCH 0,76 % y del RACH 0,09 %; llamadas de 2 minutos de media; estrategia típica (6 s de fase inicial y 3 s de resto del establecimiento); carga similar en las dos BTS.
+
+Criterios de calidad: bloqueo de los canales de señalización dedicados < 0,002, de los de tráfico < 2 % y del Abis < 1 %.
+
+### a), b) y c): llamadas por célula y terminales
+
+a) Tasa media de llamadas entrantes a cada célula λ<sub>E</sub> (un aviso son 4 ráfagas). b) Tasa media de salientes λ<sub>S</sub> (cada petición es una ráfaga y se hace tanto para salientes como entrantes). c) Terminales por célula con 50 mE de tráfico vocal por terminal.
+
+<Ej1Canales />
+
+**Resultado:** λ<sub>E</sub> ≈ **348,7** llamadas/hora, λ<sub>S</sub> ≈ **353,3** llamadas/hora y **N<sub>T</sub> = 468** terminales.
+
+> **Ojo con el aviso.** El aviso se emite en todas las células del LA, así que la tasa de avisos del PCH es la del LA entero y hay que repartirla entre sus dos células.
+
+### d) ¿Se cumplen los criterios con 468 terminales y SMS?
+
+Se añade 1 SMS por hora y terminal (enviados más recibidos), de 6 s de entrega, que nunca coincide con una llamada. Con λ<sub>E</sub> = λ<sub>S</sub> = 350 llamadas/hora y N<sub>T</sub> = 468, justifica si se cumplen los criterios y cuántos terminales se podrían servir si no.
+
+<Ej1Calidad />
+
+**Resultado:** el SDCCH cumple de sobra (≈ 3·10⁻¹⁰), pero el **TCH no**: 5,11 % frente a un máximo del 2 %. El Abis (0,62 %) cumple. Se pueden servir como máximo **411 terminales** por célula.
+
+> **Una decisión de modelado.** Para el Abis uso el tráfico **cursado** por los TCH de las dos células (lo que de verdad llega al enlace). Si se usara el tráfico ofrecido, el resultado final (411) no cambia.
+
+## Ejercicio 2: nivel mínimo de sectorización
+
+Emplazamiento único en un centro comercial que sirve un círculo de radio R = 3 km con antenas sectorizadas a 45º, 60º, 90º o 120º. Cada BTS tiene dos portadoras (1 intervalo C-IV, 1 intervalo C-VII y el resto de tráfico C-I). Todas comparten un MIC en el Abis con 28 canales de tráfico, de hasta 4 llamadas cada uno (112 circuitos). Estrategia típica. Cada residente interviene en 0,8 llamadas/hora; densidad de 100 residentes/km². Criterios: P<sub>B,SDCCH</sub> < 1 ‰, P<sub>B,TCH</sub> < 1 % y P<sub>B,Abis</sub> < 1 %.
+
+<Sectorizacion />
+
+**Resultado:** la sectorización mínima admisible es **60º (6 células)**. Con 90º el TCH da un 3,6 % y con 120º un 12,2 %, muy por encima del 1 %.
+
+> **Dónde se pierde la nota.** El tiempo medio en el TCH no es 95 s: las llamadas salientes sin respuesta ocupan 12,5 s y las entrantes con éxito 95 s; el tiempo medio ponderado sale 58 s. Y el SDCCH ocupa 11 s en todos los casos.
+
+## Ejercicio 3: GPRS y bloques radio libres
+
+Una célula con cuatro frecuencias: un intervalo de señalización GSM (C-V), uno de señalización exclusiva de GPRS y el resto de tráfico compartido entre GSM (C-I) y GPRS, con prioridad para GSM. 40 mE por terminal GSM; reciben del exterior el 75 % de las llamadas que hacen; llamadas de 2 minutos. **a)** Tasa binaria de un bloque radio (BR) con ráfaga normal. **b)** Con N<sub>T</sub> = 400, número medio de BR GPRS disponibles.
+
+<GprsLibre />
+
+**Solución oficial:** a) R<sub>BR</sub> = **1,9 kbps**. b) N<sub>GPRS</sub> = 30 − 27,55·(1 − 0,0907) = 30 − 25,05 = **4,949** combinaciones, es decir N<sub>BR</sub> = 4,949 · 12 = **59,39 BR**.
+
+> **De dónde sale el 27,55 E.** La solución oficial no lo explica. Sale de las llamadas que no se bloquean en el SDCCH (P<sub>B</sub> ≈ 4 % con 4 canales de la combinación V), con 3 s + 120 s en el TCH. La calculadora lo reconstruye paso a paso y da la misma cifra.
+>
+> Es un **valor medio**: en cada instante la voz ocupa un número entero de canales, de 0 a 30.
+
+## Autoevaluación
+
+<details>
+<summary>¿Por qué la tasa de avisos del PCH se divide entre las células del LA?</summary>
+
+Porque el aviso se emite en todas las células del LA. La tasa medida en el PCH es la del LA entero, y cada célula recibe solo su parte.
+
+</details>
+
+<details>
+<summary>¿Qué ocupa el SDCCH y qué el TCH en la estrategia típica?</summary>
+
+El SDCCH ocupa solo la fase inicial del establecimiento (6 s). El TCH ocupa el resto del establecimiento (3 s) y la conversación.
+
+</details>
+
+<details>
+<summary>¿Qué tráfico se usa para dimensionar el Abis?</summary>
+
+El que llega al enlace: el tráfico cursado por los TCH de todas las células que lo comparten, con tantos circuitos como canales E1 por 4.
+
+</details>
+
+<details>
+<summary>¿Cuántos bloques radio tiene una combinación GPRS y qué velocidad lleva un BR?</summary>
+
+12 bloques radio por multitrama de 52 tramas. Cada BR son 4 ráfagas de 114 bits cada 240 ms: 1,9 kbps.
+
+</details>
