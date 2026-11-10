@@ -1,0 +1,58 @@
+---
+// Clases de calidad de servicio de UMTS: tabla y un pequeño juego de «¿a qué clase pertenece?».
+import Widget from '../../../widgets/Widget.astro';
+import { CLASES_QOS, ESCENARIOS_QOS } from './umts';
+import './umts.css';
+---
+<Widget titulo="Clases de calidad de servicio: ¿dónde va cada servicio?" tipo="resolver">
+  <div data-qos>
+    <div class="tw" style="overflow-x:auto">
+      <table>
+        <thead><tr><th>Clase</th><th>Retardo</th><th>Buffering</th><th>Sentido</th><th>Garantizado</th></tr></thead>
+        <tbody>
+          {CLASES_QOS.map((c) => <tr><td><b>{c.nombre}</b></td><td>{c.retardo}</td><td>{c.buffering}</td><td>{c.sentido}</td><td>{c.garantizado}</td></tr>)}
+        </tbody>
+      </table>
+    </div>
+    <p style="margin:14px 0 6px"><b data-contador aria-live="polite">Aciertos: 0 de {ESCENARIOS_QOS.length}</b></p>
+    {ESCENARIOS_QOS.map((e) => (
+      <div class="u-panel" data-esc={e.id} data-clase={e.clase} style="margin-top:10px">
+        <p><b>{e.texto}</b></p>
+        <div class="widget-opciones" style="margin-top:8px">
+          {CLASES_QOS.map((c) => <button type="button" data-elige={c.id}>{c.nombre}</button>)}
+        </div>
+        <p data-porque hidden style="margin-top:8px"></p>
+        <p class="u-solo-sin-js" style="margin-top:6px"><span class="u-ok">Clase: {CLASES_QOS.find((c) => c.id === e.clase)!.nombre}.</span> {e.porque}</p>
+      </div>
+    ))}
+  </div>
+</Widget>
+<script>
+  import { montar } from '../../../widgets/cliente';
+  import { CLASES_QOS, ESCENARIOS_QOS } from './umts';
+  montar('[data-qos]', (caja) => {
+    let aciertos = 0;
+    const cuenta = caja.querySelector<HTMLElement>('[data-contador]')!;
+    for (const esc of caja.querySelectorAll<HTMLElement>('[data-esc]')) {
+      const datos = ESCENARIOS_QOS.find((e) => e.id === esc.dataset.esc)!;
+      const porque = esc.querySelector<HTMLElement>('[data-porque]')!;
+      let resuelto = false;
+      for (const b of esc.querySelectorAll<HTMLButtonElement>('[data-elige]')) b.addEventListener('click', () => {
+        if (resuelto) return;
+        const ok = b.dataset.elige === datos.clase;
+        b.setAttribute('aria-pressed', 'true');
+        if (ok) {
+          resuelto = true; aciertos++;
+          cuenta.textContent = `Aciertos: ${aciertos} de ${ESCENARIOS_QOS.length}`;
+          porque.innerHTML = `<span class="u-ok">✓ Clase ${CLASES_QOS.find((c) => c.id === datos.clase)!.nombre}.</span> `;
+          porque.append(datos.porque);
+          for (const o of esc.querySelectorAll<HTMLButtonElement>('[data-elige]')) o.disabled = true;
+        } else {
+          porque.innerHTML = '<span class="u-ko">✗ Esa no.</span> Piensa en dos preguntas: ¿es tiempo real? ¿Va en los dos sentidos por igual?';
+          b.disabled = true;
+        }
+        porque.hidden = false;
+      });
+    }
+  });
+</script>

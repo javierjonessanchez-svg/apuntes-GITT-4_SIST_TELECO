@@ -1,0 +1,58 @@
+---
+// Hoja del bloque 3, ejercicio 1 (d): calidad de servicio de SDCCH, TCH y Abis en función
+// del número de terminales. Las barras se ponen rojas al pasar el límite.
+import Widget from '../../../widgets/Widget.astro';
+import Desarrollo from '../../../widgets/Desarrollo.astro';
+import { fmt } from '../../../widgets/numeros';
+import { ej1Calidad, ej1Maximo, pasosEj1Calidad } from './umts';
+import './umts.css';
+interface Props { terminales?: number }
+const { terminales = 468 } = Astro.props;
+const q = ej1Calidad(terminales, 1);
+const maximo = ej1Maximo(1);
+---
+<Widget titulo="¿Aguanta la red con tantos terminales?" tipo="resolver">
+  <div data-ej1q>
+    <form class="widget-campos">
+      <label class="widget-campo">Terminales por célula
+        <input name="n" inputmode="numeric" value={terminales} autocomplete="off" spellcheck="false" />
+      </label>
+      <label class="widget-campo">SMS por terminal y hora
+        <input name="s" inputmode="decimal" value="1" autocomplete="off" spellcheck="false" />
+      </label>
+    </form>
+    <p class="widget-aviso" data-aviso role="status" hidden></p>
+    <div data-medidas></div>
+    <p class="widget-resultado" data-resultado aria-live="polite"></p>
+    <Desarrollo />
+  </div>
+  <Fragment slot="estatico">
+    <p class="widget-resultado">Con {terminales} terminales y 1 SMS/h: SDCCH {fmt(q.pbS * 100, 6)} %, TCH {fmt(q.pbT * 100, 2)} %, Abis {fmt(q.pbA * 100, 2)} %. El máximo que cumple los tres límites es {maximo}.</p>
+    <Desarrollo pasos={pasosEj1Calidad(terminales, 1)} />
+  </Fragment>
+</Widget>
+<script>
+  import { montar } from '../../../widgets/cliente';
+  import { calculadora } from '../../../widgets/calculadora';
+  import { fmt } from '../../../widgets/numeros';
+  import { ej1Calidad, ej1Maximo, pasosEj1Calidad } from './umts';
+  import { pintarMedidas } from './medidas';
+  montar('[data-ej1q]', (caja) => {
+    const barras = caja.querySelector<HTMLElement>('[data-medidas]')!;
+    calculadora(caja, [
+      { nombre: 'n', etiqueta: 'Terminales', reglas: { entero: true, min: 1, max: 5000 } },
+      { nombre: 's', etiqueta: 'SMS por hora', reglas: { min: 0, max: 20 } },
+    ], ({ n, s }) => {
+      const q = ej1Calidad(n!, s!);
+      pintarMedidas(barras, [
+        { nombre: 'SDCCH (≤ 0,2 %)', valor: q.pbS, limite: 0.002 },
+        { nombre: 'TCH (≤ 2 %)', valor: q.pbT, limite: 0.02 },
+        { nombre: 'Abis (≤ 1 %)', valor: q.pbA, limite: 0.01 },
+      ]);
+      return {
+        resultado: `${q.cumple ? '**Cumple** los tres límites.' : '**No cumple** alguno de los límites.'} Máximo con ${fmt(s!)} SMS/h: **${fmt(ej1Maximo(s!), 0)} terminales** por célula.`,
+        pasos: pasosEj1Calidad(n!, s!),
+      };
+    });
+  });
+</script>

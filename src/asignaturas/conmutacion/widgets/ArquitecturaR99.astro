@@ -1,0 +1,70 @@
+---
+// Arquitectura de la R'99: lo nuevo (acceso radio) frente a lo heredado de GSM-GPRS.
+// Cada elemento es clicable y un interruptor deja solo lo nuevo a la vista.
+import Widget from '../../../widgets/Widget.astro';
+import { ELEMENTOS_R99, INTERFACES_R99 } from './umts';
+import './umts.css';
+// Posición de cada elemento en el dibujo (x, y, ancho)
+const POS: Record<string, [number, number, number]> = {
+  ue: [10, 130, 100], nodob: [150, 130, 100], rnc: [290, 130, 100],
+  msc: [470, 40, 110], gmsc: [600, 40, 100], reg: [470, 130, 230], sgsn: [470, 220, 110], ggsn: [600, 220, 100],
+};
+---
+<Widget titulo="Arquitectura de la R'99: qué es nuevo y qué se hereda" tipo="entender">
+  <div data-r99>
+    <div class="widget-opciones" style="margin-bottom:10px">
+      <button type="button" data-solo aria-pressed="false">Resaltar solo lo nuevo</button>
+    </div>
+    <svg class="u-svg" viewBox="0 0 710 290" role="group" aria-label="Arquitectura de UMTS R'99">
+      <g class="enlace nuevo"><path d="M110 153H150" /><path d="M250 153H290" /><path d="M335 130V95Q335 82 350 82H390" stroke-dasharray="4 4" /></g>
+      <path class="enlace" d="M390 153H430V63H470" /><path class="enlace" d="M390 153H430V243H470" />
+      <path class="enlace" d="M580 63H600" /><path class="enlace" d="M580 243H600" />
+      <text x="130" y="145" text-anchor="middle" class="peq">Uu</text><text x="270" y="145" text-anchor="middle" class="peq">Iub</text>
+      <text x="395" y="78" class="peq">Iur (a otro RNC)</text>
+      <text x="438" y="108" class="peq" text-anchor="end">Iu-CS</text><text x="438" y="205" class="peq" text-anchor="end">Iu-PS</text>
+      <text x="470" y="26" class="peq">Dominio de circuitos (CS)</text><text x="470" y="210" class="peq" transform="translate(0 -4)">Dominio de paquetes (PS)</text>
+      <text x="10" y="116" class="peq">UTRAN (nuevo)</text><text x="10" y="28" class="peq">Los azules ya existían en GSM-GPRS</text>
+      {ELEMENTOS_R99.map((e) => {
+        const [x, y, w] = POS[e.id];
+        return (
+          <g class={`nodo ${e.nuevo ? 'nuevo' : 'viejo'}`} data-n={e.id} tabindex="0" role="button" aria-label={`${e.nombre}: ${e.nuevo ? 'nuevo' : 'heredado'}`}>
+            <rect x={x} y={y} width={w} height="46" rx="10" />
+            <text x={x + w / 2} y={y + 20} text-anchor="middle">{e.nombre.split(' · ')[0]}</text>
+            <text x={x + w / 2} y={y + 36} text-anchor="middle" class="peq">{e.nuevo ? `nuevo (≈ ${e.gsm})` : 'de GSM-GPRS'}</text>
+          </g>
+        );
+      })}
+    </svg>
+    {ELEMENTOS_R99.map((e, i) => (
+      <div class="u-panel" data-panel={e.id} hidden={i !== 2}>
+        <p><b>{e.nombre}</b> <span class={`u-etiqueta ${e.nuevo ? 'nuevo' : ''}`}>{e.nuevo ? 'Nuevo en UMTS' : 'Heredado'}</span></p><p>{e.texto}</p>
+      </div>
+    ))}
+    <ul class="u-extra" style="margin:12px 0 0;padding-left:1.2em;color:var(--suave);font-size:.9rem">
+      {INTERFACES_R99.map((f) => <li><b>{f.id}</b> ({f.une}): {f.texto}</li>)}
+    </ul>
+  </div>
+</Widget>
+<script>
+  import { montar } from '../../../widgets/cliente';
+  montar('[data-r99]', (caja) => {
+    const nodos = [...caja.querySelectorAll<SVGGElement>('[data-n]')];
+    const paneles = [...caja.querySelectorAll<HTMLElement>('[data-panel]')];
+    const svg = caja.querySelector('svg')!;
+    const ver = (id: string) => {
+      for (const n of nodos) n.toggleAttribute('data-activo', n.dataset.n === id);
+      for (const p of paneles) p.hidden = p.dataset.panel !== id;
+    };
+    for (const n of nodos) {
+      n.addEventListener('click', () => ver(n.dataset.n!));
+      n.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); ver(n.dataset.n!); } });
+    }
+    ver('rnc');
+    const solo = caja.querySelector<HTMLButtonElement>('[data-solo]')!;
+    solo.addEventListener('click', () => {
+      const on = solo.getAttribute('aria-pressed') !== 'true';
+      solo.setAttribute('aria-pressed', String(on));
+      svg.toggleAttribute('data-solo-nuevo', on);
+    });
+  });
+</script>

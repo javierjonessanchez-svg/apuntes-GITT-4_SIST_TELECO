@@ -1,0 +1,99 @@
+/* Estilos compartidos de los widgets de 3G, de la hoja del bloque 3 y de la PS8.
+   Solo usan las variables del tema de la asignatura (claro y oscuro). */
+.u-fila { display: grid; grid-template-columns: 7.5rem minmax(0, 1fr); gap: 4px 12px; align-items: center; margin: 0; }
+.u-fila + .u-fila { margin-top: 6px; }
+.u-btn {
+  all: unset; box-sizing: border-box; cursor: pointer; display: block; width: 100%;
+  padding: 8px 10px; border-radius: 10px; min-height: 44px; background: var(--fondo);
+  box-shadow: inset 0 0 0 1px var(--linea); transition: box-shadow .15s, background-color .15s, scale .1s;
+}
+.u-btn:hover { box-shadow: inset 0 0 0 1.5px var(--primario); }
+.u-btn:active { scale: .98; }
+.u-btn:focus-visible { outline: 2px solid var(--foco); outline-offset: 2px; }
+.u-btn[aria-pressed="true"], .u-btn[aria-expanded="true"] {
+  background: color-mix(in srgb, var(--resalte) 18%, var(--superficie)); box-shadow: inset 0 0 0 2px var(--resalte);
+}
+.u-nombre { font-weight: 700; line-height: 1.2; }
+.u-nombre small { display: block; font-weight: 500; color: var(--suave); font-size: .78rem; }
+.u-barra { position: relative; height: 26px; border-radius: 8px; background: var(--fondo); box-shadow: inset 0 0 0 1px var(--linea); overflow: hidden; }
+.u-barra > i {
+  position: absolute; inset: 0 auto 0 0; width: 100%; transform-origin: left; transform: scaleX(var(--w, 1));
+  background: var(--primario); border-radius: 8px; transition: transform .6s cubic-bezier(.2, .8, .2, 1);
+}
+.u-barra > i.u-pre { transform: scaleX(0); }
+.u-barra > b { position: absolute; inset: 0 8px; display: flex; align-items: center; font-size: .8rem; color: var(--sobre-primario); mix-blend-mode: normal; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.u-panel { margin-top: 12px; padding: 12px 14px; border-radius: 12px; background: var(--fondo); box-shadow: inset 3px 0 0 var(--resalte); }
+.u-panel p { margin: 0; }
+.u-panel p + p { margin-top: 6px; }
+.u-panel .u-extra { color: var(--suave); font-size: .9rem; }
+.u-panel[hidden], [data-listo] .u-solo-sin-js { display: none; }
+.widget:not([data-listo]) .u-panel[hidden] { display: block; }
+.u-etiqueta { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: .75rem; font-weight: 700; background: color-mix(in srgb, var(--primario) 18%, var(--superficie)); color: var(--texto); }
+.u-etiqueta.nuevo { background: color-mix(in srgb, var(--resalte) 35%, var(--superficie)); }
+.u-ok { color: var(--primario); font-weight: 700; }
+.u-ko { color: var(--acento2); font-weight: 700; }
+
+/* nido 3G ⊃ UMTS ⊃ UTRAN */
+.u-nido { display: grid; gap: 8px; padding: 10px; border-radius: 14px; box-shadow: inset 0 0 0 2px var(--linea); background: var(--fondo); }
+.u-nido > .u-btn { text-align: left; }
+.u-nido .u-nido { margin-top: 2px; }
+
+/* diagramas SVG */
+.u-svg { width: 100%; height: auto; display: block; }
+.u-svg text { fill: var(--texto); font: 600 13px system-ui, sans-serif; }
+.u-svg .peq { font-size: 11px; font-weight: 500; fill: var(--suave); }
+.u-svg .nodo rect { fill: var(--superficie); stroke: var(--linea); stroke-width: 1.5; transition: fill .2s, stroke .2s; }
+.u-svg .nodo.nuevo rect { fill: color-mix(in srgb, var(--resalte) 30%, var(--superficie)); stroke: var(--resalte); }
+.u-svg .nodo.viejo rect { fill: color-mix(in srgb, var(--primario) 16%, var(--superficie)); stroke: var(--primario); }
+.u-svg .nodo[data-activo] rect { stroke: var(--texto); stroke-width: 3; }
+.u-svg .nodo { cursor: pointer; }
+.u-svg .nodo:focus-visible { outline: none; }
+.u-svg .nodo:focus-visible rect { stroke: var(--foco); stroke-width: 3.5; }
+.u-svg .enlace { stroke: var(--suave); stroke-width: 2; fill: none; }
+.u-svg .enlace.nuevo { stroke: var(--resalte); stroke-width: 3; }
+
+/* ensanchado */
+.u-onda { fill: none; stroke: var(--primario); stroke-width: 2; stroke-linejoin: round; }
+.u-onda.b { stroke: var(--acento2); }
+.u-onda.s { stroke: var(--texto); }
+.u-rejilla { stroke: var(--linea); stroke-width: 1; stroke-dasharray: 3 4; }
+.u-bits { display: inline-flex; gap: 4px; }
+.u-bits button { all: unset; box-sizing: border-box; cursor: pointer; width: 40px; height: 40px; display: grid; place-items: center; border-radius: 8px; font: 700 1.05rem ui-monospace, Consolas, monospace; background: var(--fondo); box-shadow: inset 0 0 0 1.5px var(--linea); transition: scale .1s; }
+.u-bits button:active { scale: .92; }
+.u-bits button:focus-visible { outline: 2px solid var(--foco); outline-offset: 2px; }
+
+/* barras de calidad con umbral */
+.u-medida { display: grid; grid-template-columns: 6.5rem minmax(0, 1fr) auto; gap: 4px 12px; align-items: center; margin: 8px 0; font-size: .95rem; }
+.u-medida .u-barra { height: 16px; }
+.u-medida .u-barra > i.mal { background: var(--acento2); }
+.u-medida .u-barra > u { position: absolute; top: -2px; bottom: -2px; width: 3px; background: var(--texto); }
+.u-medida output { font-variant-numeric: tabular-nums; min-width: 7ch; text-align: right; }
+@media (max-width: 560px) { .u-fila { grid-template-columns: 1fr; } .u-medida { grid-template-columns: 1fr auto; } .u-medida .u-barra { grid-column: 1 / -1; order: 3; } }
+
+/* canales GPRS */
+.u-canales { display: grid; grid-template-columns: repeat(15, minmax(0, 1fr)); gap: 3px; margin: 10px 0; }
+.u-canales i { height: 26px; border-radius: 4px; background: var(--primario); transition: background-color .3s; }
+.u-canales i.parcial { background: color-mix(in srgb, var(--primario) 50%, var(--resalte)); }
+.u-canales i.libre { background: var(--resalte); }
+
+/* secuencia HDLC */
+.u-seq { overflow-x: auto; }
+.u-seq svg { min-width: 480px; }
+.u-seq .trama { stroke: var(--primario); stroke-width: 2.5; fill: none; }
+.u-seq .trama.b { stroke: var(--acento2); }
+.u-seq .trama.perdida { stroke-dasharray: 5 5; stroke: var(--suave); }
+.u-seq .caja { fill: var(--superficie); stroke: var(--resalte); stroke-width: 2.5; stroke-dasharray: 5 3; }
+.u-seq .caja.lleno { stroke-dasharray: none; fill: color-mix(in srgb, var(--resalte) 22%, var(--superficie)); }
+.u-seq .hito { cursor: pointer; }
+.u-seq .hito:focus-visible { outline: 2px solid var(--foco); }
+
+/* relleno de bits */
+.u-bytes { display: flex; flex-wrap: wrap; gap: 6px 10px; margin: 8px 0; }
+.u-byte { display: inline-flex; border-radius: 6px; overflow: hidden; box-shadow: inset 0 0 0 1.5px var(--linea); background: var(--fondo); }
+.u-byte b { width: 22px; height: 32px; display: grid; place-items: center; font: 600 .95rem ui-monospace, Consolas, monospace; }
+.u-byte b.uno5 { background: color-mix(in srgb, var(--primario) 22%, var(--fondo)); }
+.u-byte b.ins { background: var(--acento2); color: var(--sobre-marco); animation: u-pop .35s cubic-bezier(.2, .8, .2, 1); }
+@keyframes u-pop { from { scale: .4; opacity: 0; } to { scale: 1; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .u-barra > i, .u-btn, .u-canales i { transition: none; } .u-byte b.ins { animation: none; } }
+.u-svg[data-solo-nuevo] .nodo.viejo, .u-svg[data-solo-nuevo] .enlace:not(.nuevo) { opacity: .25; }
+.u-svg .nodo, .u-svg .enlace { transition: opacity .2s; }

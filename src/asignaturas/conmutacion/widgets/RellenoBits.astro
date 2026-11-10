@@ -1,0 +1,70 @@
+---
+// PS8, pregunta 3: relleno de bits de HDLC, bit a bit. Tras cinco unos seguidos se inserta un cero.
+import Widget from '../../../widgets/Widget.astro';
+import { DATOS_PS8, rellenarBits } from './umts';
+import './umts.css';
+const fin = rellenarBits(DATOS_PS8);
+const grupos = (s: string) => s.match(/.{1,4}/g)!.join(' ');
+---
+<Widget titulo="PS8 · Relleno de bits paso a paso" tipo="resolver">
+  <div data-bits>
+    <form class="widget-campos">
+      <label class="widget-campo">Datos de usuario (solo 0 y 1)
+        <input name="b" value={grupos(DATOS_PS8)} autocomplete="off" spellcheck="false" style="font-family:ui-monospace,Consolas,monospace;min-width:22ch" />
+      </label>
+    </form>
+    <p class="widget-aviso" data-aviso role="status" hidden></p>
+    <div class="widget-opciones" style="margin:10px 0">
+      <button type="button" data-sig>Siguiente bit</button>
+      <button type="button" data-todo>Todo</button>
+      <button type="button" data-reset>Reiniciar</button>
+    </div>
+    <p style="margin:0;color:var(--suave);font-size:.9rem">Entrada</p>
+    <div class="u-bytes" data-entrada></div>
+    <p style="margin:0;color:var(--suave);font-size:.9rem">Salida (lo que se transmite)</p>
+    <div class="u-bytes" data-salida></div>
+    <p class="widget-resultado" data-res aria-live="polite" style="font-size:1rem"></p>
+  </div>
+  <Fragment slot="estatico">
+    <p>Entrada: <span class="mono">{grupos(DATOS_PS8)}</span></p>
+    <p>Salida ({fin.bits.length} bits): <span class="mono"><b>{grupos(fin.bits)}</b></span></p>
+    <p>Se inserta un 0 después de cada cinco unos seguidos, {fin.insertados.length} veces.</p>
+  </Fragment>
+</Widget>
+<script>
+  import { montar } from '../../../widgets/cliente';
+  import { rellenarBits } from './umts';
+  montar('[data-bits]', (caja) => {
+    const campo = caja.querySelector<HTMLInputElement>('input[name=b]')!;
+    const aviso = caja.querySelector<HTMLElement>('[data-aviso]')!;
+    const ent = caja.querySelector<HTMLElement>('[data-entrada]')!;
+    const sal = caja.querySelector<HTMLElement>('[data-salida]')!;
+    const res = caja.querySelector<HTMLElement>('[data-res]')!;
+    let datos = '', k = 0;
+    const leer = () => {
+      const t = campo.value.replace(/[\s]/g, '');
+      if (!/^[01]*$/.test(t)) { aviso.textContent = 'Escribe solo ceros y unos.'; aviso.hidden = false; return false; }
+      if (t.length > 96) { aviso.textContent = 'Máximo 96 bits.'; aviso.hidden = false; return false; }
+      aviso.hidden = true; datos = t; return true;
+    };
+    const bytes = (cel: string[]) => {
+      const out: string[] = [];
+      for (let i = 0; i < cel.length; i += 8) out.push(`<span class="u-byte">${cel.slice(i, i + 8).join('')}</span>`);
+      return out.join('');
+    };
+    const pintar = () => {
+      ent.innerHTML = bytes([...datos].map((b, i) => `<b class="${i < k ? 'uno5' : ''}" style="${i === k ? 'outline:2px solid var(--resalte);outline-offset:-2px' : ''}">${b}</b>`));
+      const { bits, insertados } = rellenarBits(datos.slice(0, k));
+      sal.innerHTML = bytes([...bits].map((b, i) => `<b class="${insertados.includes(i) ? 'ins' : ''}">${b}</b>`));
+      const total = rellenarBits(datos);
+      res.textContent = k < datos.length ? `Bit ${k} de ${datos.length}. Insertados hasta ahora: ${insertados.length}.`
+        : `Listo: ${datos.length} bits de entrada + ${total.insertados.length} ceros insertados = ${total.bits.length} bits. El receptor, tras cinco unos, quita el cero siguiente.`;
+    };
+    campo.addEventListener('input', () => { if (leer()) { k = 0; pintar(); } });
+    caja.querySelector('[data-sig]')!.addEventListener('click', () => { if (k < datos.length) k++; pintar(); });
+    caja.querySelector('[data-todo]')!.addEventListener('click', () => { k = datos.length; pintar(); });
+    caja.querySelector('[data-reset]')!.addEventListener('click', () => { k = 0; pintar(); });
+    campo.closest('form')!.addEventListener('submit', (e) => e.preventDefault());
+    if (leer()) { k = 0; pintar(); }
+  });
+</script>

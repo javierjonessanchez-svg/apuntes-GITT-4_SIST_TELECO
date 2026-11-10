@@ -1,0 +1,141 @@
+---
+titulo: "PS8 resuelta: Enlace y 3G"
+orden: 12
+bloque: "Datos"
+resumen: "Las tres preguntas de la hoja PS8, rellenas, con el razonamiento"
+saber:
+  - "3G es la generación, UMTS el sistema, R'99 su primera versión y UTRAN su red de acceso radio"
+  - "En HDLC, un receptor que recibe una trama I fuera de secuencia descarta y pide REJ(N(R)) con la trama que espera"
+  - "Con números de secuencia de 3 bits, tras el 7 viene el 0 (módulo 8)"
+  - "Relleno de bits: tras cinco 1 seguidos el transmisor inserta un 0; el receptor lo quita"
+fuentes:
+  - "docs/ps/PS8_enunciado.jpg"
+  - "Cx_Enlace.pdf"
+  - "Cx_3GandBeyond.pdf"
+---
+
+import QuienEsQuien from '../../../src/asignaturas/conmutacion/widgets/QuienEsQuien.astro';
+import HdlcPS8 from '../../../src/asignaturas/conmutacion/widgets/HdlcPS8.astro';
+import RellenoBits from '../../../src/asignaturas/conmutacion/widgets/RellenoBits.astro';
+
+La hoja PS8 tiene tres preguntas: 3G (5 puntos), HDLC con números de secuencia de 3 bits (3 puntos) y relleno de bits (2 puntos).
+
+> **Léelo con cabeza.** Reconstruyo el enunciado a partir de una foto torcida: comprueba que tu hoja dice lo mismo. Las respuestas son **mías**, razonadas con los apuntes de Enlace y de 3G; no son una solución oficial.
+
+## 1. Diferencia entre 3G, UMTS, R'99 y UTRAN (5 p)
+
+<QuienEsQuien />
+
+**Respuesta modelo:**
+
+- **3G**: tercera generación de telefonía móvil (IMT-2000). Es un concepto, con objetivos de velocidad (384 kbps, hasta 2 Mbps con baja movilidad).
+- **UMTS**: la propuesta europea de 3G, definida por el 3GPP. Es un sistema completo (UE, UTRAN y red troncal) con acceso W-CDMA.
+- **R'99**: la primera versión del estándar UMTS: UTRAN nueva más núcleo heredado de GSM-GPRS.
+- **UTRAN**: la red de acceso radio de UMTS: RNS formados por un RNC y varios Nodos B.
+
+Para cerrarlo: UTRAN es una parte de UMTS; UMTS es un sistema 3G; R'99 es una versión de UMTS.
+
+## 2. Secuencia HDLC con números de 3 bits (3 p)
+
+A envía I(5,0), I(6,0) (que se pierde) e I(7,0). Completa los cinco recuadros.
+
+<HdlcPS8 />
+
+| Recuadro | Sentido | Trama | Por qué |
+| --- | --- | --- | --- |
+| 1 | B → A | **REJ(6)** | B espera la 6 y recibe la 7: la descarta y pide reenviar desde la 6 |
+| 2 | A → B | **I(6,0)** | A retransmite desde la 6; N(R) = 0 porque no ha recibido nada de B |
+| 3 | B → A | **I(0,7)** | Primera trama de B (N(S) = 0); N(R) = 7 |
+| 4 | A → B | **I(7,1)** | Retransmite la 7; N(R) = 1 |
+| 5 | A → B | **I(0,1)** | Tras la 7 viene la 0 (módulo 8) |
+
+> **Dónde se pierde la nota.** Poner REJ(7) en vez de REJ(6); seguir con 8 en lugar de 0; olvidar que el N(R) de A pasa a 1.
+
+## 3. Relleno de bits (2 p)
+
+Datos: `0111 1110 0101 0000 0111 1110 0111 1110`.
+
+<RellenoBits />
+
+Tres de los cuatro bytes son la bandera `01111110`, así que se insertan **3 ceros**: 32 + 3 = **35 bits**: `0111 1101 0010 1000 0011 1110 1001 1111 010`. No se añaden banderas: piden solo el campo de datos.
+
+## Cuestiones parecidas que pueden caer
+
+Practica con las variantes: cada una cambia un detalle de la hoja.
+
+<details>
+<summary>Variante 1 · Se pierde la primera trama: A envía I(5,0) (perdida), I(6,0) e I(7,0). ¿Qué hace B y cómo sigue A?</summary>
+
+B espera la 5 y recibe la 6: fuera de secuencia, la descarta y también la 7. Envía **REJ(5)**. A retransmite **I(5,0)**, **I(6,0)** e **I(7,0)**. Cuando B las ha aceptado todas espera la 0 y confirma con **RR(0)**.
+
+</details>
+
+<details>
+<summary>Variante 2 · Con rechazo selectivo: B recibe la I(7) cuando esperaba la 6. ¿Qué cambia respecto a REJ?</summary>
+
+B envía **SREJ(6)**: pide solo la 6. A retransmite únicamente la I(6,0), sin repetir la 7. El receptor debe guardar la 7 mientras espera la 6. Cuando llega, B confirma todo con **RR(0)**, porque ya tiene hasta la 7.
+
+</details>
+
+<details>
+<summary>Variante 3 · Números de secuencia de 7 bits (como LAPD). ¿Qué trama va después de la I(127,·)?</summary>
+
+La **I(0,·)**: con 7 bits hay 2<sup>7</sup> = 128 números (0 a 127) y se repiten. En la hoja eran 3 bits (módulo 8), y LAPDm usa 3 bits.
+
+</details>
+
+<details>
+<summary>Variante 4 · Relleno de bits de <code>1111 1111 0111 1100</code>.</summary>
+
+Tras cada cinco unos seguidos se inserta un 0 y la cuenta se reinicia: `11111` `0` `111` `0` `11111` `0` `00`. Salida: `1111 1011 1011 1110 00`, es decir **111110111011111000** (18 bits: 16 + 2 ceros insertados).
+
+</details>
+
+<details>
+<summary>Variante 5 · Relleno de bits de <code>0111 1100</code>.</summary>
+
+Solo hay cinco unos seguidos, pero el relleno se inserta igualmente: `0` `11111` `0` `00` → **011111000** (9 bits). El receptor ve cinco unos y quita el 0 siguiente, así que recupera `01111100`.
+
+</details>
+
+<details>
+<summary>Variante 6 · El receptor recibe <code>0111110100</code>. ¿Qué datos eran?</summary>
+
+Tras los cinco unos (`11111`) viene un 0 que es de relleno y se elimina: `0` `11111` `[0]` `100` → **011111100** (9 bits). Si lo vuelves a rellenar sale `0111110100`.
+
+</details>
+
+<details>
+<summary>Variante 7 · ¿Cuál es la función del campo N(R) y por qué una trama I lleva a la vez N(S) y N(R)?</summary>
+
+N(S) numera las tramas que envía; N(R) indica la siguiente que espera recibir del otro extremo, y así confirma todas las anteriores. Al llevar las dos, una trama I transporta datos y confirma a la vez (confirmación sobre la marcha, o *piggybacking*).
+
+</details>
+
+<details>
+<summary>Variante 8 · Del 3G: ¿cuál es la interfaz entre dos RNC y cuál entre el Nodo B y el RNC?</summary>
+
+**Iur** entre dos RNC (no existe en GSM) e **Iub** entre el Nodo B y su RNC (equivale a Abis). La radio es **Uu** (en GSM, Um).
+
+</details>
+
+<details>
+<summary>Variante 9 · Del 3G: un servicio de correo, un streaming de radio y una videollamada. ¿Qué clase de QoS tiene cada uno?</summary>
+
+Correo: **diferible** (admite mucho retardo variable). Radio en directo: **afluente** (un solo sentido, retardo constante, con buffering). Videollamada: **conversacional** (tiempo real, dos sentidos, retardo mínimo).
+
+</details>
+
+## Autoevaluación
+
+<details>
+<summary>¿Qué trama envía un receptor HDLC que recibe una I fuera de secuencia?</summary>
+
+Una REJ(N(R)) con el número de la trama que esperaba; descarta las posteriores.
+</details>
+
+<details>
+<summary>Aplica el relleno de bits a 01111110.</summary>
+
+`011111010` (9 bits). El receptor, tras cinco 1, elimina el 0 siguiente.
+</details>

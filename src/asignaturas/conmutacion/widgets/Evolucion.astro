@@ -1,0 +1,41 @@
+---
+// Del núcleo en capas de UMTS a la arquitectura plana de EPS (LTE): menos saltos, menos retardo.
+import Widget from '../../../widgets/Widget.astro';
+import { SISTEMAS } from './umts';
+import './umts.css';
+---
+<Widget titulo="UMTS frente a EPS: cuántos saltos hay hasta Internet" tipo="entender">
+  <div data-evo>
+    <div class="widget-opciones" style="margin-bottom:12px">
+      {SISTEMAS.map((s, i) => <button type="button" data-s={s.id} aria-pressed={i === 0 ? 'true' : 'false'}>{s.nombre}</button>)}
+    </div>
+    {SISTEMAS.map((s, i) => (
+      <div data-sis={s.id} hidden={i !== 0}>
+        <ol style="list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;align-items:center;gap:6px 0">
+          {s.cadena.map((n, j) => (
+            <li style="display:flex;align-items:center">
+              <span class="u-etiqueta nuevo" style="font-size:.9rem;padding:6px 12px">{n}</span>
+              {j < s.cadena.length - 1 && <span aria-hidden="true" style="color:var(--suave);padding:0 6px">→</span>}
+            </li>
+          ))}
+        </ol>
+        <div class="u-panel">
+          <p><b>{s.nodos} tipos de elemento</b> entre el móvil y Internet · latencia {s.latencia}</p>
+          <p>{s.texto}</p>
+          <p class="u-extra">Radio: {s.radio} · Señalización: {s.senal}</p>
+        </div>
+      </div>
+    ))}
+  </div>
+</Widget>
+<script>
+  import { montar } from '../../../widgets/cliente';
+  montar('[data-evo]', (caja) => {
+    const botones = [...caja.querySelectorAll<HTMLButtonElement>('[data-s]')];
+    const vistas = [...caja.querySelectorAll<HTMLElement>('[data-sis]')];
+    for (const b of botones) b.addEventListener('click', () => {
+      for (const o of botones) o.setAttribute('aria-pressed', String(o === b));
+      for (const v of vistas) v.hidden = v.dataset.sis !== b.dataset.s;
+    });
+  });
+</script>
