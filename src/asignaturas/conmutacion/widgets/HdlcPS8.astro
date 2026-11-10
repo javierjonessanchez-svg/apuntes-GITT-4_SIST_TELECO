@@ -1,5 +1,5 @@
 ---
-// PS8, pregunta 2: la secuencia HDLC de la hoja con sus cinco recuadros. Se revelan de uno en uno
+// PS7, pregunta 2: la secuencia HDLC de la hoja con sus cinco recuadros. Se revelan de uno en uno
 // con la razón de cada trama, y a los lados se ve qué número espera cada extremo.
 import Widget from '../../../widgets/Widget.astro';
 import { SECUENCIA_PS8 } from './umts';
@@ -8,7 +8,7 @@ const AX = 110, BX = 410, Y0 = 62, DY = 50;
 const filas = SECUENCIA_PS8.map((f, i) => ({ ...f, i, y: Y0 + i * DY }));
 const respuestas = filas.filter((f) => f.respuesta);
 ---
-<Widget titulo="PS8 · Secuencia HDLC con números de 3 bits" tipo="resolver">
+<Widget titulo="PS7 · Secuencia HDLC con números de 3 bits" tipo="resolver">
   <div data-hdlc>
     <div class="widget-opciones" style="margin-bottom:10px">
       <button type="button" data-sig>Revelar el siguiente recuadro</button>
@@ -44,6 +44,7 @@ const respuestas = filas.filter((f) => f.respuesta);
         })}
       </svg>
     </div>
+    <p class="u-pista-movil">Desliza el dibujo para verlo entero.</p>
     {respuestas.map((f, k) => (
       <div class="u-panel" data-por={f.i} hidden>
         <p><b>Recuadro {k + 1}: {f.respuesta}</b> ({f.de === 'A' ? 'A → B' : 'B → A'})</p><p>{f.porque}</p>
