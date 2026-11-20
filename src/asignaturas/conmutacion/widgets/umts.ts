@@ -15,9 +15,9 @@ export const GENERACIONES: Generacion[] = [
   { id: 'edge', nombre: 'EDGE', gen: '2,75G', kbps: 384, etiqueta: '384 kbps', texto: 'Enhanced GPRS: modulación 8PSK en vez de GMSK, «casi 3G». El 3GPP lo sigue evolucionando para completar la cobertura de 3G y 4G: hasta 1,3 Mbps de bajada y 650 kbps de subida.' },
   { id: 'umts', nombre: "UMTS R'99", gen: '3G', kbps: 384, max: 2000, etiqueta: '384 kbps; hasta 2 Mbps con baja movilidad', texto: 'Primera versión de UMTS: acceso radio nuevo (W-CDMA) y núcleo heredado de GSM-GPRS, con asignación dinámica del ancho de banda a cada servicio.' },
   { id: 'hsdpa', nombre: 'HSDPA R5', gen: '3,5G', kbps: 14400, etiqueta: '14,4 Mbps de bajada (teórico)', texto: 'Canal de bajada compartido de alta velocidad con modulación y codificación adaptativas, HARQ y planificación de paquetes en el Nodo B. En la práctica, menores velocidades y latencias por debajo de 50 ms.' },
-  { id: 'hsupa', nombre: 'HSUPA R6', gen: '3,5G', kbps: 7200, etiqueta: '7,2 Mbps de subida (teórico)', texto: 'La versión de subida: High Speed Uplink Packet Access.' },
+  { id: 'hsupa', nombre: 'HSUPA R6', gen: '3,5G', kbps: 7200, etiqueta: '7,2 Mbps de subida (teórico, según las diapositivas)', texto: 'La versión de subida: High Speed Uplink Packet Access.' },
   { id: 'hspa', nombre: 'HSPA+ R7', gen: '3,75G', kbps: 28800, etiqueta: '28,8 Mbps de bajada y 11 Mbps de subida (teórico)', texto: 'HSDPA evolucionada, con más velocidad en los dos sentidos.' },
-  { id: 'lte', nombre: 'LTE R8', gen: '4G', kbps: 100000, max: 1000000, etiqueta: 'objetivo: 100 Mbps en movimiento y 1 Gbps en reposo', texto: 'Sistema nuevo (EPS), solo de paquetes y todo IP, con latencias del orden de 10 ms frente a los 50 ms de HSPA.' },
+  { id: 'lte', nombre: 'LTE R8', gen: '4G', kbps: 100000, max: 1000000, etiqueta: 'objetivo de las diapositivas: 100 Mbps en movimiento y 1 Gbps en reposo', texto: 'Sistema nuevo (EPS), solo de paquetes y todo IP, con latencias del orden de 10 ms frente a los 50 ms de HSPA.' },
 ];
 /** Ancho de la barra (0 a 100) en escala logarítmica de 100 kbps a 1 Gbps. */
 export const anchoLog = (kbps: number) => Math.max(2, Math.min(100, ((Math.log10(kbps) - 2) / 4) * 100));

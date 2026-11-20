@@ -15,7 +15,7 @@ const POS: Record<string, [number, number, number]> = {
     <div class="widget-opciones" style="margin-bottom:10px">
       <button type="button" data-solo aria-pressed="false">Resaltar solo lo nuevo</button>
     </div>
-    <svg class="u-svg" viewBox="0 0 710 290" role="group" aria-label="Arquitectura de UMTS R'99">
+    <div class="u-scroll"><svg class="u-svg" viewBox="0 0 710 290" role="group" aria-label="Arquitectura de UMTS R'99">
       <g class="enlace nuevo"><path d="M110 153H150" /><path d="M250 153H290" /><path d="M335 130V95Q335 82 350 82H390" stroke-dasharray="4 4" /></g>
       <path class="enlace" d="M390 153H430V63H470" /><path class="enlace" d="M390 153H430V243H470" />
       <path class="enlace" d="M580 63H600" /><path class="enlace" d="M580 243H600" />
@@ -34,7 +34,8 @@ const POS: Record<string, [number, number, number]> = {
           </g>
         );
       })}
-    </svg>
+    </svg></div>
+    <p class="u-pista-movil">Desliza el dibujo para verlo entero.</p>
     {ELEMENTOS_R99.map((e, i) => (
       <div class="u-panel" data-panel={e.id} hidden={i !== 2}>
         <p><b>{e.nombre}</b> <span class={`u-etiqueta ${e.nuevo ? 'nuevo' : ''}`}>{e.nuevo ? 'Nuevo en UMTS' : 'Heredado'}</span></p><p>{e.texto}</p>

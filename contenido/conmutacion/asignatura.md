@@ -4,7 +4,7 @@ corto: Conmutación
 slug: conmutacion
 estado: activa
 orden: 1
-descripcion: "GSM: arquitectura, interfaz aérea, señalización, movilidad y conexiones. GPRS y 3G (UMTS). Ejercicios del bloque 3 y la PS8 resuelta. Tráfico y colas, con problemas guiados."
+descripcion: "GSM: arquitectura, interfaz aérea, señalización, movilidad y conexiones. GPRS y 3G (UMTS). Ejercicios del bloque 3 y la PS7 resuelta. Tráfico y colas, con problemas guiados."
 nota: "SIP/IMS, en preparación."
 # confirmar con Blackboard: fechas de la guía y de PLAN_ESTUDIO.md, aún sin comprobar
 pruebas:
@@ -23,6 +23,10 @@ pruebas:
     peso: "0,15"
     temas: [gprs, umts-3g]
     confirmar: true
+  - fecha: "2026-11-10"
+    nombre: "PS7 · 15:00 (test de 10 min)"
+    peso: "0,15"
+    temas: [capa-enlace, umts-3g, ps7-enlace-3g]
   # Prueba de laboratorio (grupo A2) y PEI: calendario oficial de la EPS
   - fecha: "2026-11-19"
     nombre: "Prueba de laboratorio (A2) · 17:00"

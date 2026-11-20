@@ -97,3 +97,9 @@
 @media (prefers-reduced-motion: reduce) { .u-barra > i, .u-btn, .u-canales i { transition: none; } .u-byte b.ins { animation: none; } }
 .u-svg[data-solo-nuevo] .nodo.viejo, .u-svg[data-solo-nuevo] .enlace:not(.nuevo) { opacity: .25; }
 .u-svg .nodo, .u-svg .enlace { transition: opacity .2s; }
+/* diagramas anchos: en pantallas estrechas se desplazan en vez de encogerse hasta ser ilegibles */
+.u-scroll { overflow-x: auto; }
+.u-scroll > svg { min-width: 560px; }
+.u-seq svg { min-width: 520px; }
+.u-pista-movil { display: none; margin: 4px 0 0; font-size: .85rem; color: var(--suave); }
+@media (max-width: 620px) { .u-pista-movil { display: block; } }

@@ -1,12 +1,12 @@
 ---
-// PS8, pregunta 3: relleno de bits de HDLC, bit a bit. Tras cinco unos seguidos se inserta un cero.
+// PS7, pregunta 3: relleno de bits de HDLC, bit a bit. Tras cinco unos seguidos se inserta un cero.
 import Widget from '../../../widgets/Widget.astro';
 import { DATOS_PS8, rellenarBits } from './umts';
 import './umts.css';
 const fin = rellenarBits(DATOS_PS8);
 const grupos = (s: string) => s.match(/.{1,4}/g)!.join(' ');
 ---
-<Widget titulo="PS8 · Relleno de bits paso a paso" tipo="resolver">
+<Widget titulo="PS7 · Relleno de bits paso a paso" tipo="resolver">
   <div data-bits>
     <form class="widget-campos">
       <label class="widget-campo">Datos de usuario (solo 0 y 1)
