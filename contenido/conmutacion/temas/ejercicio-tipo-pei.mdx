@@ -1,0 +1,145 @@
+---
+titulo: "Ejercicio tipo del PEI"
+orden: 19
+bloque: "Ejercicios resueltos"
+resumen: "Un ejercicio completo al estilo del problema 1 de Red3 pero con terminales distintos por BTS, resuelto paso a paso, con variantes y distinciones clave"
+saber:
+  - "Resolver de principio a fin un problema de lambdas, terminales y pérdidas con terminales distintos en cada BTS"
+  - "Adaptar el procedimiento a las variantes que pueden aparecer: capacidad dada o calculada, otra BTS de referencia, tasas por terminal o totales"
+  - "Distinguir qué es de cada BTS (RACH, SDCCH, TCH) y qué es del área de localización (PCH)"
+  - "Revisar el resultado con una comprobación rápida antes de entregarlo"
+fuentes:
+  - "Cx_EjerciciosRed3.pdf, ejercicio 1 (método) y Cx_EjerciciosRed2.pdf"
+  - "Pistas de compañeros que hicieron el PEI (sin confirmar)"
+---
+
+import EsquemaLambdas from '../../../src/asignaturas/conmutacion/widgets/EsquemaLambdas.astro';
+import EsquemaPerdidas from '../../../src/asignaturas/conmutacion/widgets/EsquemaPerdidas.astro';
+import ErlangB from '../../../src/asignaturas/conmutacion/widgets/ErlangB.astro';
+
+> **Qué es esto.** Según un compañero que hizo el examen, el problema del PEI (el 50 % de la nota) se parece mucho al **ejercicio 1 de la hoja Red3** ([Ejercicios GSM-GPRS](../ejercicios-bloque-3/)), con una diferencia: en el examen **cada BTS tiene un número distinto de terminales**. Este ejercicio **lo he escrito yo** con ese formato y datos inventados, para que practiques el procedimiento. **No es un enunciado real del profesor.** El resumen de las pistas está en [Pistas para el PEI](../pistas-examen/).
+
+## Dónde está cada parte
+
+| Qué buscas | Dónde |
+| --- | --- |
+| El ejercicio 1 de la hoja Red3 (el que sirve de base), con calculadoras | [Ejercicios GSM-GPRS](../ejercicios-bloque-3/) |
+| El método de las lambdas con esquema | [Pistas para el PEI](../pistas-examen/), parte 1 |
+| **Un ejercicio completo con terminales distintos por BTS** | **esta página** |
+| El método del último apartado (pérdidas BTS-BSC) | [Pistas para el PEI](../pistas-examen/), parte 2 |
+
+---
+
+## Enunciado (inventado, al estilo del examen)
+
+> Dos BTS dependientes del mismo BSC forman un área de localización (LA). Se conectan al BSC por un E1 con 15 canales de 64 kbps para tráfico y con 4 canales de tráfico multiplexados en cada uno, compartido por las dos BTS. Cada BTS tiene una asignación según el **perfil de tráfico medio**. La BTS 2 tiene **300 terminales**. El canal PCH tiene el doble de recursos que el AGCH.
+>
+> Se sabe que la ocupación del canal RACH de la BTS 1 es del **0,09 %** y la del canal PCH del **0,60 %**. Cada petición de recursos consume **una ráfaga** del RACH y cada aviso ocupa **4 ráfagas** del CCCH. El tráfico de voz por terminal es de **50 mE** (llamadas de **2 minutos** de media, distribución exponencial). Las llamadas se establecen según la estrategia típica (fase inicial en SDCCH de 6 s y resto de 3 s). Todos los terminales tienen el mismo comportamiento, y las dos BTS reciben la misma tasa de llamadas entrantes por terminal.
+>
+> a) Calcule el número de terminales de la BTS 1.
+>
+> b) Calcule las tasas de llamadas entrantes (λ_e) y salientes (λ_s) **por terminal**.
+>
+> c) Calcule el número **total** de llamadas entrantes y salientes por hora en el sistema.
+>
+> d) Calcule la probabilidad de pérdidas de una llamada entre cada BTS y el BSC (SDCCH, TCH y Abis).
+
+---
+
+## Antes de resolver
+
+| Parte del enunciado | Qué significa | Para qué se usa |
+| --- | --- | --- |
+| **Perfil medio** | 1 comb. IV + 2 comb. VII + 29 comb. I | 51 ranuras RACH, 9 bloques CCCH, 16 SDCCH y 29 TCH/F por BTS |
+| **PCH el doble que el AGCH** | Dos tercios del CCCH son de aviso | PCH = 6 de 9 bloques → 25,49 avisos/s |
+| **Ocupación RACH de la BTS 1: 0,09 %** | El RACH de la BTS 1 está ocupado el 0,09 % del tiempo | Da las peticiones que recibe, y de ahí los terminales |
+| **Ocupación PCH: 0,60 %** | El PCH (que es del LA) está ocupado el 0,60 % | Da los avisos del LA, y de ahí λ_e |
+| **1 ráfaga por petición, 4 por aviso** | Cuánto consume cada petición y cada aviso | Convierten llamadas en ocupación |
+| **50 mE y 2 min** | Tráfico de voz por terminal y duración de llamada | Dan λ_t = a_voz / duración |
+| **Estrategia típica 6 s + 3 s** | 6 s de SDCCH; 3 s de FACCH que ocupan TCH | A_SDCCH = λ · 6; A_TCH = λ · (120 + 3) |
+| **Misma λ_e en las dos BTS** | λ_e es una constante del sistema | Permite sumar terminales de las dos BTS |
+| **Terminales de la BTS 2: 300** | Un dato (no el resultado) | Entra en la suma del PCH |
+
+**Qué hay que saber antes:** Erlang B; la capacidad del CCCH por combinación; que **el RACH es de cada BTS y el PCH es del LA**; la estrategia típica de establecimiento. Todo está en la [guía de ejercicios](../guia-ejercicios/).
+
+<EsquemaLambdas />
+
+---
+
+## Resolución
+
+### a) Terminales de la BTS 1 (desde el RACH)
+
+1. Capacidad del RACH (comb. IV): C_RACH = 51 ranuras / 0,23538 s = **216,67 ranuras/s**.
+2. Peticiones por segundo en la BTS 1: 0,0009 · 216,67 = 0,195 /s = **702 peticiones/hora**. (Una petición = 1 ráfaga, así que 1 ranura.)
+3. λ_t por terminal = a_voz / duración = 0,05 E / (2 min) = 0,025 llamadas/min = **1,5 llamadas/hora**.
+4. Cada terminal pide por RACH en cada llamada, entrante o saliente: N₁ · λ_t = 702 → **N₁ = 702 / 1,5 = 468 terminales**.
+
+### b) λ_e y λ_s por terminal (desde el PCH)
+
+1. Capacidad del PCH: 6 bloques por MF51 / 0,23538 s = 25,49 avisos/s (un aviso = 4 ráfagas = 1 bloque).
+2. Avisos por segundo en el LA: 0,006 · 25,49 = 0,1529 /s = **550,6 avisos/hora**.
+3. **El aviso se emite en las dos BTS**, así que cada PCH soporta los de todos los terminales: (N₁ + N₂) · λ_e = 550,6, con N₁ + N₂ = 468 + 300 = 768.
+4. **λ_e = 550,6 / 768 = 0,717 llamadas/hora por terminal.**
+5. **λ_s = λ_t − λ_e = 1,5 − 0,717 = 0,783 llamadas/hora por terminal.**
+
+### c) Totales del sistema
+
+- Entrantes totales: 768 · 0,717 = **550,6 llamadas/hora** (son los avisos del paso anterior).
+- Salientes totales: 768 · 0,783 = **601,4 llamadas/hora**.
+
+> **Comprobación:** 550,6 + 601,4 = 1.152 = 768 · 1,5. Si no cuadra, algo falla.
+
+### d) Probabilidad de pérdidas BTS → BSC
+
+<EsquemaPerdidas />
+
+La pérdida de una llamada es P_L = 1 − (1 − P_SDCCH)(1 − P_TCH)(1 − P_Abis). Hay tres Erlang B en serie, con los 16 SDCCH, los 29 TCH/F y los 60 circuitos del Abis.
+
+| Tramo | BTS 1 (468 terminales) | BTS 2 (300 terminales) |
+| --- | --- | --- |
+| Llamadas/s: N · 1,5 / 3600 | 0,195 | 0,125 |
+| SDCCH: A = λ · 6 s; 16 canales | 1,17 E → 1,8·10⁻¹³ | 0,75 E → 2,3·10⁻¹⁶ |
+| TCH: A = λ · 123 s; 29 canales | 23,99 E → **5,20 %** | 15,38 E → **0,062 %** |
+
+El Abis se alimenta del tráfico **cursado** por los TCH de las dos BTS: 23,99 · (1 − 0,0520) + 15,38 · (1 − 0,00062) = **38,1 E** sobre 60 circuitos → P_Abis = **2,5·10⁻⁴**.
+
+**Resultados:**
+
+- **BTS 1:** P_L = 1 − (1 − 1,8·10⁻¹³)(1 − 0,0520)(1 − 2,5·10⁻⁴) ≈ **5,23 %**.
+- **BTS 2:** P_L ≈ **0,087 %**.
+
+<ErlangB N={29} A={24} />
+
+---
+
+## Variantes que pueden aparecer
+
+| Si el examen cambia… | Qué haces distinto |
+| --- | --- |
+| **Te dan la capacidad del RACH** (por ejemplo, «C_RACH = 216 peticiones/s») | Te saltas el cálculo de las 51 ranuras: usas ese valor directamente. Es lo que dice tu compañero que suelen hacer. |
+| **Cada petición consume 4 ranuras** en vez de 1 | Divide además entre 4: N₁ = 702 / (1,5 · 4) = **117** terminales (con el mismo 0,09 %). |
+| **Te dan el RACH de la BTS 2 en vez de la BTS 1** | Es el mismo procedimiento con la BTS de referencia al revés: sacas N₂ y el que te dan como dato es N₁. |
+| **Cambian los terminales de la BTS 2** (por ejemplo, 150) | λ_e = 550,6 / (468 + 150) = 0,891 y λ_s = 0,609. Solo cambia el denominador del PCH. |
+| **No te dan a_voz, te dan λ_t o los dos λ** | Te saltas el paso de λ_t; si te dan λ_s y λ_t, λ_e = λ_t − λ_s. |
+| **Te piden las tasas «minúsculas»** (λ_e, λ_s) | Son **por terminal** (como en el apartado b). |
+| **Te piden las «totales» o «de la BTS»** | Multiplica por N de esa BTS, o por N₁ + N₂ para el sistema entero. |
+| **Más tiempo de SDCCH** (por ejemplo, 8 s) | Solo cambia A_SDCCH = λ · tiempo. |
+| **Piden pérdidas solo en Um** | P_Um = 1 − (1 − P_SDCCH)(1 − P_TCH); si piden también Abis, añade el tercer factor. |
+
+---
+
+## Distinciones y cosas a tener en cuenta
+
+1. **RACH = de cada BTS; PCH = del LA.** Las peticiones de la BTS 1 dependen solo de sus terminales; los avisos dependen de los terminales de **todas** las BTS del LA.
+2. **Terminales distintos por BTS** (lo que cambia el examen): no puedes dividir por 2 ni suponer N₁ = N₂. Suma los N reales.
+3. **λ_e es la misma en todas las BTS**, y por tanto λ_s y λ_t. Eso es lo que permite el cálculo.
+4. **Minúsculas = por terminal; mayúsculas o «totales» = multiplicadas por los terminales.** Lee qué te piden.
+5. **Las peticiones del RACH son entrantes más salientes**, no solo salientes: el móvil también pide canal al contestar a un aviso.
+6. **El FACCH de 3 s ocupa TCH; el SDCCH de 6 s no.** El TCH se ocupa conversación + FACCH.
+7. **El Abis se alimenta del tráfico cursado**, no del ofrecido, y se comparte entre las BTS del mismo E1.
+8. **Unidades:** pasa todo a «por segundo» o todo a «por hora»; los errores de factor 3.600 son los más habituales.
+9. **Comprueba con la suma:** entrantes totales + salientes totales = N_total · λ_t.
+10. **Escribe los supuestos** («supongo comb. IV porque es perfil medio», «supongo que el aviso se emite en todo el LA»). Si el profesor entiende otra cosa, el razonamiento sigue siendo válido.
+
+> **Aviso final.** El método viene del ejercicio 1 de Red3 (comprobado: con 0,09 % y 0,76 % reproduce 348,7 y 353,3 llamadas/h y 468 terminales). Cómo será el enunciado real del PEI no está confirmado: es lo que cuenta un compañero. Si consigues una foto del enunciado, lo adapto.
