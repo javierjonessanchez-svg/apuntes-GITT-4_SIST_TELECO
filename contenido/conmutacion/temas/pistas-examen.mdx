@@ -1,0 +1,183 @@
+---
+titulo: "Pistas para el PEI"
+orden: 15
+bloque: "Datos"
+resumen: "Lo que se sabe del examen (problema del 50 %, cadena de lambdas, apartado de pérdidas y teoría preferida) con ejemplos de cada parte"
+saber:
+  - "Resolver la cadena de lambdas: terminales desde el RACH, λ_E desde el PCH y λ_S por diferencia"
+  - "Distinguir tasas por terminal (minúsculas) de tasas totales y manejar terminales distintos en cada BTS"
+  - "Calcular la probabilidad de pérdidas BTS-BSC combinando SDCCH, TCH y Abis"
+  - "Saber qué teoría suele pedir el profesor: HDLC, autenticación, GPRS, UTRAN y recursos espectrales, MSRN"
+fuentes:
+  - "Cx_EjerciciosRed3.pdf y Cx_EjerciciosRed2.pdf (método)"
+  - "Pistas de compañeros que hicieron el PEI y la convocatoria de junio (sin confirmar)"
+---
+
+> **Qué es esto y qué no.** Son pistas que pasaron compañeros que ya hicieron el examen (el PEI y la convocatoria de junio). **No están confirmadas** y no son del profesor. Encajan con el ejercicio 1 de la hoja Red3, así que sirven de guion de estudio. El problema vale **el 50 % del examen**.
+
+## Mapa del examen según las pistas
+
+| Parte | Qué suele ser | Peso |
+| --- | --- | --- |
+| Problema, apartados iniciales | Tasas de llamadas (λ) y número de terminales, como el ejercicio 1 de Red3 | la mayor parte |
+| Problema, último apartado | Probabilidad de pérdidas entre la BTS y el BSC, «exactamente como en clase» | 2 a 2,5 puntos |
+| Teoría | HDLC (ejercicio), autenticación explicada con detalle, GPRS, UTRAN y recursos espectrales, MSRN | resto |
+
+**La trampa del examen:** en clase, «la misma cantidad de tráfico» en las dos BTS significa los mismos terminales. En el examen **cambian los terminales de cada BTS** para que lo pienses. La lambda por terminal sigue siendo la misma, pero ya no puedes dividir entre dos sin más.
+
+---
+
+# Parte 1: la cadena de lambdas
+
+## Vocabulario (esto es lo que más confunde)
+
+| Símbolo | Significa | Unidades típicas |
+| --- | --- | --- |
+| λ_e (minúscula) | llamadas entrantes **por terminal** | llamadas/hora por terminal |
+| λ_s (minúscula) | llamadas salientes **por terminal** | llamadas/hora por terminal |
+| λ_t | totales por terminal: λ_t = λ_e + λ_s | llamadas/hora por terminal |
+| λ_E, λ_S (mayúscula) | entrantes o salientes **de la BTS (o totales)**: multiplican por el número de terminales | llamadas/hora |
+| N_BTS | terminales de esa BTS | terminales |
+| ρ_RACH, ρ_PCH | ocupación del RACH y del PCH (te la dan) | % |
+| C_RACH, C_PCH | capacidad por segundo (tú la calculas, o te la dan) | peticiones/s o avisos/s |
+
+**Si te piden minúsculas, es por terminal. Si te piden las totales, multiplica por N_BTS1 + N_BTS2.** Lee con cuidado qué te piden.
+
+## Las dos ideas que lo resuelven todo
+
+1. **λ_e es igual en las dos BTS, y λ_s también**, así que λ_t también.
+2. **El RACH es propio de cada BTS; el PCH es del LA.** Las peticiones de la BTS_i dependen solo de sus terminales. Los avisos dependen de los terminales de **todas** las BTS del LA, porque el aviso se emite en todas.
+
+## Paso a paso
+
+### Paso 1: λ_t, si no te la dan
+
+El tráfico de voz por terminal es a_voz = λ_t / μ_voz, donde μ_voz = 1 / duración media de la llamada. Entonces **λ_t = a_voz · μ_voz = a_voz / duración**.
+
+**Ejemplo.** a_voz = 50 mE y llamadas de 2 min: λ_t = 0,05 / (2 min) = 0,025 llamadas/min = **1,5 llamadas/hora por terminal**.
+
+### Paso 2: terminales de la BTS de referencia, desde el RACH
+
+Te suelen dar la capacidad del RACH de **una** BTS (o la puedes calcular: comb. IV tiene 51 ranuras por MF51 de 235,38 ms, es decir, C_RACH = 216,67 ranuras/s). La carga del RACH es
+
+ρ_RACH = N_BTS · λ_t · (ranuras por petición) / C_RACH
+
+y de ahí sale **N_BTS**. Cada terminal hace una petición por cada llamada, entrante o saliente (por eso entra λ_t, la suma).
+
+**Ejemplo.** ρ_RACH = 0,09 %, 1 ranura por petición, C_RACH = 216,67 /s:
+
+- peticiones por segundo = 0,0009 · 216,67 = 0,195 /s = 702 peticiones/hora
+- N_BTS = 702 / 1,5 = **468 terminales** (el resultado de Red3)
+
+### Paso 3: λ_e desde el PCH
+
+El PCH soporta los avisos de **todos** los terminales del LA:
+
+λ_PCH (avisos/s) = (N_BTS1 + N_BTS2) · λ_e · (bloques por aviso)
+
+y la ocupación es ρ_PCH = λ_PCH / C_PCH. Con C_PCH (avisos/s) y ρ_PCH conocidos, **despejas λ_e**.
+
+Capacidad del PCH: bloques CCCH por MF51 · fracción dedicada al PCH / 0,23538 s, dividido entre los bloques que gasta un aviso. Con comb. IV (9 bloques) y PCH = 2/3: 6 bloques por MF51 = 25,49 avisos/s (un aviso de 4 ráfagas = 1 bloque).
+
+**Ejemplo (el de clase, dos BTS iguales).** ρ_PCH = 0,76 %:
+
+- avisos por segundo = 0,0076 · 25,49 = 0,1937 /s = 697,4 avisos/hora en el LA
+- hay 2 · 468 terminales: λ_e = 697,4 / 936 = 0,745 /h por terminal
+- por célula: 468 · 0,745 = **348,7 llamadas entrantes/hora** (λ_E de la BTS)
+
+### Paso 4: λ_s por diferencia
+
+**λ_s = λ_t − λ_e.** En el ejemplo: 1,5 − 0,745 = 0,755 /h por terminal, es decir, 468 · 0,755 = **353,3 llamadas salientes/hora** por BTS.
+
+### Paso 5: con terminales distintos en cada BTS (la variación del examen)
+
+**Ejemplo propio (datos inventados, para practicar).** BTS1 con ρ_RACH = 0,09 %, BTS2 con 300 terminales, ρ_PCH = 0,6 %, a_voz = 50 mE, llamadas de 2 min, mismas combinaciones que antes.
+
+1. λ_t = 1,5 llamadas/h por terminal.
+2. RACH de la BTS1: N_BTS1 = 468 (como en el paso 2).
+3. PCH: avisos = 0,006 · 25,49 = 0,1529 /s = 550,6 avisos/hora. Terminales en el LA: 468 + 300 = 768. **λ_e = 550,6 / 768 = 0,717 llamadas/h por terminal.**
+4. λ_s = 1,5 − 0,717 = **0,783 llamadas/h por terminal.**
+5. Totales (si los piden): entrantes = 768 · 0,717 = **550,6 llamadas/h**; salientes = 768 · 0,783 = **601,4 llamadas/h**.
+6. Por BTS: BTS1 recibe 468 · 0,717 = 335,5 entrantes/h y BTS2 300 · 0,717 = 215,1.
+
+> **Cómo se comprueba.** Entrantes totales + salientes totales = 1.152 = 768 · 1,5 llamadas/hora. Si no cuadra, algo está mal.
+
+## Errores típicos de esta parte
+
+- Usar λ_e como tasa de la BTS y no por terminal (o al revés). Mira las unidades.
+- Repartir los avisos entre las BTS: **no**, cada PCH los soporta todos.
+- Olvidar que cada petición de RACH ocupa tantas ranuras como diga el enunciado.
+- Contar en la capacidad del PCH los bloques de AGCH.
+- Mezclar «por hora» y «por segundo» (÷ 3.600).
+
+---
+
+# Parte 2: probabilidad de pérdidas entre la BTS y el BSC
+
+Suele ser **el último apartado** y vale 2 a 2,5 puntos. Se calcula **como en clase**: el bloqueo de cada tramo con Erlang B y se combinan:
+
+**P_L = 1 − (1 − P_SDCCH) · (1 − P_TCH) · (1 − P_Abis)**
+
+para el camino BTS_i → BSC. Se pierde la llamada si falla cualquiera de los tres tramos.
+
+| Tramo | Tráfico ofrecido | Canales |
+| --- | --- | --- |
+| SDCCH | λ_BTS · tiempo en SDCCH (fase inicial, p. ej. 6 s) | los SDCCH de la BTS (perfil medio: 16) |
+| TCH | λ_BTS · (conversación + FACCH) (p. ej. 120 + 3 s) | los TCH de la BTS (perfil medio: 29 TCH/F) |
+| Abis | tráfico **cursado** por los TCH de todas las BTS que comparten el E1 | 60 circuitos por E1 (15 canales por 4 llamadas) |
+
+**Ejemplo (BTS1 del ejemplo propio de arriba: 468 terminales).**
+
+1. λ_BTS1 = 468 · 1,5 = 702 llamadas/h = 0,195 llamadas/s.
+2. SDCCH: A = 0,195 · 6 = 1,17 E sobre 16 canales → P_SDCCH = 1,8·10⁻¹³ (≈ 0).
+3. TCH: A = 0,195 · 123 = 23,99 E sobre 29 canales → P_TCH = 0,0520 (5,2 %).
+4. Abis: BTS2 con 300 terminales ofrece 15,38 E y bloquea 0,06 %; cursado total = 23,99 · (1 − 0,052) + 15,38 · (1 − 0,0006) = 38,1 E sobre 60 circuitos → P_Abis = 2,5·10⁻⁴.
+5. **P_L = 1 − (1 − 1,8·10⁻¹³)(1 − 0,0520)(1 − 2,5·10⁻⁴) = 0,0523 (5,2 %).**
+
+Domina el TCH. Si te piden la pérdida de la BTS2, repites con sus 300 terminales.
+
+> **Cuidado con el Abis.** Se alimenta del tráfico **cursado**, no del ofrecido. Y suele ser casi despreciable, pero hay que calcularlo y escribirlo. Con otros datos (menos circuitos) puede dominar.
+
+Puedes comprobar cada tramo con la calculadora (canales y tráfico → bloqueo):
+
+import ErlangB from '../../../src/asignaturas/conmutacion/widgets/ErlangB.astro';
+
+<ErlangB N={29} A={24} />
+
+---
+
+# Parte 3: la teoría que suele pedir
+
+Según los compañeros, lo pidió en el PEI y lo repitió en junio. Para cada tema, esto es lo que conviene saber decir y dónde repasarlo en la web.
+
+## HDLC (ejercicio)
+
+Es un ejercicio de **secuencias de tramas**: ventana, N(S) y N(R), RR, REJ y SREJ, temporizador y relleno de bits (después de cinco 1 seguidos se inserta un 0). Practica en [Capa de enlace](../capa-enlace/) y [PS7: enlace y 3G](../ps7-enlace-3g/), que trae el relleno de bits en un widget.
+
+## Proceso de autenticación, con detalle
+
+Hay que poder dibujar y explicar los pasos: el MSC pide un triplete al AuC/HLR, el AuC calcula con Ki y RAND la respuesta SRES y la clave Kc (A3 y A8), la red envía RAND, el móvil calcula SRES con su SIM, la red compara y, si coincide, se pasa a modo cifrado con Kc (A5). Todo en [Gestión de la movilidad](../gestion-movilidad/).
+
+## GPRS
+
+Arquitectura (PCU en el BSC, SGSN, GGSN, Gn y Gi), contexto PDP, QoS, estados del móvil y la multitrama de 52 tramas con 12 bloques radio. Repasa [GPRS](../gprs/) y el ejercicio 3 de [Ejercicios GSM-GPRS](../ejercicios-bloque-3/).
+
+## UTRAN y recursos espectrales
+
+La arquitectura UMTS (Nodo B, RNC, Iub, Iur), el ensanchado de espectro (W-CDMA) y cómo se comparten los recursos radio. Está en [UMTS y 3G](../umts-3g/), con el widget del ensanchado.
+
+## MSRN (número de itinerancia)
+
+Qué es, de qué se compone (VCC + VNDC + SN), quién lo asigna (el VLR) y para qué sirve: que el GMSC encamine la llamada hasta el MSC visitado sin revelar el IMSI ni la posición. En [Gestión de conexiones](../gestion-conexiones/).
+
+---
+
+## Plan de estudio sugerido
+
+1. Haz **tres veces** el ejercicio 1 de Red3 con la cadena de lambdas, cambiando los terminales de una BTS cada vez.
+2. Haz el último apartado de pérdidas sin mirar los apuntes.
+3. Repasa HDLC con las secuencias de la PS7.
+4. Explica en voz alta la autenticación y el MSRN, como si lo escribieras en el examen.
+5. Lee las preguntas de las tarjetas de GPRS y UMTS.
+
+Las soluciones de las hojas antiguas están en [Hojas resueltas](../hojas-resueltas/) y el método por tipo en la [Guía de ejercicios](../guia-ejercicios/).

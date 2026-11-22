@@ -35,5 +35,5 @@ pruebas:
   - fecha: "2026-11-24"
     nombre: "PEI · 15:00"
     peso: "0,3"
-    temas: [guia-ejercicios, hojas-resueltas, ejercicios-bloque-3]
+    temas: [pistas-examen, guia-ejercicios, hojas-resueltas, ejercicios-bloque-3]
 ---
