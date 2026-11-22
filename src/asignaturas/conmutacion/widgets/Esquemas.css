@@ -1,0 +1,13 @@
+/* Esquemas estáticos de las pistas del PEI. Solo usan las variables del tema. */
+.esq { margin: 14px 0; overflow-x: auto; }
+.esq svg { display: block; width: 100%; min-width: 560px; height: auto; }
+.esq text { fill: var(--texto); font: 600 13px system-ui, sans-serif; }
+.esq .peq { font-size: 11.5px; font-weight: 500; fill: var(--suave); }
+.esq .caja { fill: var(--superficie); stroke: var(--linea); stroke-width: 1.5; }
+.esq .dato { fill: color-mix(in srgb, var(--primario) 14%, var(--superficie)); stroke: var(--primario); stroke-width: 1.5; }
+.esq .res { fill: color-mix(in srgb, var(--resalte) 30%, var(--superficie)); stroke: var(--resalte); stroke-width: 2.5; }
+.esq .mal { fill: color-mix(in srgb, var(--acento2) 18%, var(--superficie)); stroke: var(--acento2); stroke-width: 1.5; }
+.esq .fl { stroke: var(--suave); stroke-width: 2; fill: none; }
+.esq .flr { stroke: var(--resalte); stroke-width: 3; fill: none; }
+.esq marker path { fill: var(--suave); }
+.esq .grande { font-size: 15px; }

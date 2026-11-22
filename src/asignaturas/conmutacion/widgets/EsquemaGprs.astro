@@ -1,0 +1,24 @@
+---
+// Arquitectura GPRS sobre GSM (estática).
+import './Esquemas.css';
+---
+<figure class="esq">
+  <svg viewBox="0 0 720 300" role="img" aria-label="Arquitectura GPRS: MS, BTS, BSC con PCU, SGSN, GGSN y red de paquetes externa, con las interfaces Um, Abis, Gb, Gn y Gi">
+    <rect class="dato" x="8" y="70" width="70" height="56" rx="10"/><text x="43" y="103" text-anchor="middle">MS</text>
+    <rect class="dato" x="120" y="70" width="70" height="56" rx="10"/><text x="155" y="103" text-anchor="middle">BTS</text>
+    <rect class="res" x="232" y="60" width="110" height="76" rx="10"/><text x="287" y="88" text-anchor="middle">BSC + PCU</text><text x="287" y="108" text-anchor="middle" class="peq">PCU: gestiona</text><text x="287" y="123" text-anchor="middle" class="peq">los paquetes</text>
+    <rect class="res" x="400" y="70" width="90" height="56" rx="10"/><text x="445" y="103" text-anchor="middle">SGSN</text>
+    <rect class="res" x="545" y="70" width="80" height="56" rx="10"/><text x="585" y="103" text-anchor="middle">GGSN</text>
+    <rect class="caja" x="662" y="70" width="50" height="56" rx="10"/><text x="687" y="96" text-anchor="middle" class="peq">Red</text><text x="687" y="111" text-anchor="middle" class="peq">IP</text>
+    <path class="fl" d="M78 98H120M190 98H232M342 98H400M490 98H545M625 98H662"/>
+    <text x="99" y="88" text-anchor="middle" class="peq">Um</text><text x="211" y="88" text-anchor="middle" class="peq">Abis</text><text x="371" y="88" text-anchor="middle" class="peq">Gb</text><text x="517" y="88" text-anchor="middle" class="peq">Gn</text><text x="643" y="88" text-anchor="middle" class="peq">Gi</text>
+
+    <rect class="caja" x="400" y="170" width="90" height="40" rx="8"/><text x="445" y="195" text-anchor="middle" class="peq">HLR</text>
+    <path class="fl" d="M445 126V170"/>
+    <rect class="caja" x="545" y="170" width="80" height="40" rx="8"/><text x="585" y="195" text-anchor="middle" class="peq">DNS</text>
+    <path class="fl" d="M585 126V170"/>
+    <text x="20" y="180" class="peq">SGSN: avisos, control de acceso, localización</text><text x="20" y="196" class="peq">y túneles hasta el GGSN.</text>
+    <text x="20" y="222" class="peq">GGSN: IP del usuario (estática o dinámica), APN</text><text x="20" y="238" class="peq">y puerta de salida a la red externa.</text>
+    <text x="360" y="280" text-anchor="middle" class="peq">Multitrama de 52 tramas: 12 bloques radio de 4 ráfagas (114 bits) y 4 tramas sin datos.</text>
+  </svg>
+</figure>

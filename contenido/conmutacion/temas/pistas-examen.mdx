@@ -13,6 +13,16 @@ fuentes:
   - "Pistas de compañeros que hicieron el PEI y la convocatoria de junio (sin confirmar)"
 ---
 
+import EsquemaLambdas from '../../../src/asignaturas/conmutacion/widgets/EsquemaLambdas.astro';
+import EsquemaPerdidas from '../../../src/asignaturas/conmutacion/widgets/EsquemaPerdidas.astro';
+import EsquemaGprs from '../../../src/asignaturas/conmutacion/widgets/EsquemaGprs.astro';
+import FlujoLlamada from '../../../src/asignaturas/conmutacion/widgets/FlujoLlamada.astro';
+import HdlcPS8 from '../../../src/asignaturas/conmutacion/widgets/HdlcPS8.astro';
+import RellenoBits from '../../../src/asignaturas/conmutacion/widgets/RellenoBits.astro';
+import ArquitecturaR99 from '../../../src/asignaturas/conmutacion/widgets/ArquitecturaR99.astro';
+import Ensanchado from '../../../src/asignaturas/conmutacion/widgets/Ensanchado.astro';
+import ErlangB from '../../../src/asignaturas/conmutacion/widgets/ErlangB.astro';
+
 > **Qué es esto y qué no.** Son pistas que pasaron compañeros que ya hicieron el examen (el PEI y la convocatoria de junio). **No están confirmadas** y no son del profesor. Encajan con el ejercicio 1 de la hoja Red3, así que sirven de guion de estudio. El problema vale **el 50 % del examen**.
 
 ## Mapa del examen según las pistas
@@ -28,6 +38,12 @@ fuentes:
 ---
 
 # Parte 1: la cadena de lambdas
+
+## El mapa de un vistazo
+
+Los recuadros de la izquierda son los datos que te dan; los resaltados en naranja, lo que calculas. El segundo dibujo muestra **qué es de cada BTS y qué es del LA**, que es donde más se falla.
+
+<EsquemaLambdas />
 
 ## Vocabulario (esto es lo que más confunde)
 
@@ -138,9 +154,10 @@ Domina el TCH. Si te piden la pérdida de la BTS2, repites con sus 300 terminale
 
 > **Cuidado con el Abis.** Se alimenta del tráfico **cursado**, no del ofrecido. Y suele ser casi despreciable, pero hay que calcularlo y escribirlo. Con otros datos (menos circuitos) puede dominar.
 
+<EsquemaPerdidas />
+
 Puedes comprobar cada tramo con la calculadora (canales y tráfico → bloqueo):
 
-import ErlangB from '../../../src/asignaturas/conmutacion/widgets/ErlangB.astro';
 
 <ErlangB N={29} A={24} />
 
@@ -152,23 +169,66 @@ Según los compañeros, lo pidió en el PEI y lo repitió en junio. Para cada te
 
 ## HDLC (ejercicio)
 
-Es un ejercicio de **secuencias de tramas**: ventana, N(S) y N(R), RR, REJ y SREJ, temporizador y relleno de bits (después de cinco 1 seguidos se inserta un 0). Practica en [Capa de enlace](../capa-enlace/) y [PS7: enlace y 3G](../ps7-enlace-3g/), que trae el relleno de bits en un widget.
+Es un ejercicio de **secuencias de tramas**: ventana, N(S) y N(R), RR, REJ y SREJ, temporizador y relleno de bits (después de cinco 1 seguidos se inserta un 0). Practica en [Capa de enlace](../capa-enlace/) y [PS7: enlace y 3G](../ps7-enlace-3g/).
+
+**Relleno de bits, con un ejemplo.** Datos a enviar: `0111111011111010` (16 bits). Detrás de cada grupo de cinco 1 seguidos, el emisor mete un 0:
+
+| Paso | Bits |
+| --- | --- |
+| Datos originales | `0 111111 0 11111 0 1 0` |
+| Tras cinco 1, se inserta 0 (dos veces) | `0 11111 [0] 1 0 11111 [0] 0 1 0` |
+| Enviado (18 bits) | `011111010111110010` |
+
+El receptor hace lo contrario: cuando ve cinco 1 seguidos, el 0 que viene detrás lo **descarta**. Así el delimitador `01111110` nunca aparece dentro de los datos. Prueba con tus propios bits:
+
+<RellenoBits />
+
+**Secuencia de tramas con una pérdida (REJ).** Fíjate en cómo el receptor solo procesa en orden y pide reenviar desde N(R):
+
+<FlujoLlamada id="hdlc-rej" />
+
+**Y una secuencia completa de examen** (el ejercicio de la PS7), con sus ventanas y su temporizador:
+
+<HdlcPS8 />
 
 ## Proceso de autenticación, con detalle
 
 Hay que poder dibujar y explicar los pasos: el MSC pide un triplete al AuC/HLR, el AuC calcula con Ki y RAND la respuesta SRES y la clave Kc (A3 y A8), la red envía RAND, el móvil calcula SRES con su SIM, la red compara y, si coincide, se pasa a modo cifrado con Kc (A5). Todo en [Gestión de la movilidad](../gestion-movilidad/).
 
+**Esquema de los intercambios** (recórrelo paso a paso):
+
+<FlujoLlamada id="autenticacion" />
+
+**Chuleta de quién calcula qué:**
+
+| Quién | Qué tiene | Qué calcula |
+| --- | --- | --- |
+| SIM del móvil | Ki (secreta, no sale de la SIM) | SRES con A3 y Kc con A8, a partir de RAND |
+| AuC / HLR | Ki del abonado | el triplete (RAND, SRES, Kc), con los mismos algoritmos |
+| MSC / VLR | el triplete | compara el SRES recibido con el suyo |
+| Radio | Kc (nunca se envía por el aire) | cifra con A5 |
+
 ## GPRS
 
 Arquitectura (PCU en el BSC, SGSN, GGSN, Gn y Gi), contexto PDP, QoS, estados del móvil y la multitrama de 52 tramas con 12 bloques radio. Repasa [GPRS](../gprs/) y el ejercicio 3 de [Ejercicios GSM-GPRS](../ejercicios-bloque-3/).
 
+<EsquemaGprs />
+
 ## UTRAN y recursos espectrales
 
-La arquitectura UMTS (Nodo B, RNC, Iub, Iur), el ensanchado de espectro (W-CDMA) y cómo se comparten los recursos radio. Está en [UMTS y 3G](../umts-3g/), con el widget del ensanchado.
+La arquitectura UMTS (Nodo B, RNC, Iub, Iur), el ensanchado de espectro (W-CDMA) y cómo se comparten los recursos radio. Está en [UMTS y 3G](../umts-3g/).
+
+<ArquitecturaR99 />
+
+El ensanchado de espectro (recursos espectrales), con bits que puedes cambiar:
+
+<Ensanchado />
 
 ## MSRN (número de itinerancia)
 
 Qué es, de qué se compone (VCC + VNDC + SN), quién lo asigna (el VLR) y para qué sirve: que el GMSC encamine la llamada hasta el MSC visitado sin revelar el IMSI ni la posición. En [Gestión de conexiones](../gestion-conexiones/).
+
+<FlujoLlamada id="encaminamiento-msrn" />
 
 ---
 
