@@ -1,0 +1,46 @@
+---
+// Mapa visual de la cadena de lambdas del problema del PEI (estático).
+import './Esquemas.css';
+---
+<figure class="esq">
+  <svg viewBox="0 0 700 470" role="img" aria-label="Cadena de lambdas: de a_voz y la duración sale lambda_t; del RACH salen los terminales; del PCH sale lambda_e; lambda_s es lambda_t menos lambda_e">
+    <defs><marker id="fa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z"/></marker></defs>
+    <text x="20" y="22" class="peq">DATOS QUE TE DAN</text><text x="290" y="22" class="peq">LO QUE SALE</text>
+
+    <rect class="dato" x="20" y="34" width="190" height="52" rx="10"/><text x="115" y="56" text-anchor="middle">a_voz y duración</text><text x="115" y="74" text-anchor="middle" class="peq">p. ej. 50 mE y 2 min</text>
+    <path class="fl" d="M210 60H290" marker-end="url(#fa)"/>
+    <rect class="res" x="290" y="34" width="190" height="52" rx="10"/><text x="385" y="56" text-anchor="middle">λ_t = a_voz / duración</text><text x="385" y="74" text-anchor="middle" class="peq">1,5 llamadas/h por terminal</text>
+
+    <rect class="dato" x="20" y="120" width="190" height="64" rx="10"/><text x="115" y="142" text-anchor="middle">ρ_RACH de la BTS</text><text x="115" y="160" text-anchor="middle" class="peq">y C_RACH (216,67 /s en comb. IV)</text><text x="115" y="176" text-anchor="middle" class="peq">ranuras por petición</text>
+    <path class="fl" d="M210 152H290" marker-end="url(#fa)"/>
+    <path class="fl" d="M385 86V120" marker-end="url(#fa)"/>
+    <rect class="res" x="290" y="120" width="190" height="64" rx="10"/><text x="385" y="144" text-anchor="middle">N_BTS = ρ·C / λ_t</text><text x="385" y="162" text-anchor="middle" class="peq">el RACH es de cada BTS</text><text x="385" y="176" text-anchor="middle" class="peq">468 terminales</text>
+
+    <rect class="dato" x="20" y="218" width="190" height="64" rx="10"/><text x="115" y="240" text-anchor="middle">ρ_PCH y C_PCH</text><text x="115" y="258" text-anchor="middle" class="peq">(25,49 avisos/s con 6 bloques)</text><text x="115" y="274" text-anchor="middle" class="peq">y los terminales de TODO el LA</text>
+    <path class="fl" d="M210 250H290" marker-end="url(#fa)"/>
+    <path class="fl" d="M385 184V218" marker-end="url(#fa)"/>
+    <rect class="res" x="290" y="218" width="190" height="64" rx="10"/><text x="385" y="242" text-anchor="middle">λ_e = ρ·C / (N1 + N2)</text><text x="385" y="260" text-anchor="middle" class="peq">el PCH es del LA entero</text><text x="385" y="274" text-anchor="middle" class="peq">0,745 llamadas/h por terminal</text>
+
+    <path class="fl" d="M385 282V316" marker-end="url(#fa)"/>
+    <rect class="res" x="290" y="316" width="190" height="52" rx="10"/><text x="385" y="338" text-anchor="middle">λ_s = λ_t − λ_e</text><text x="385" y="356" text-anchor="middle" class="peq">0,755 llamadas/h por terminal</text>
+
+    <rect class="caja" x="20" y="400" width="660" height="56" rx="10"/>
+    <text x="34" y="422">Minúsculas = por terminal.  Mayúsculas o totales = × (N_BTS1 + N_BTS2).</text>
+    <text x="34" y="442" class="peq">Comprobación: entrantes totales + salientes totales = (N1 + N2) · λ_t.</text>
+  </svg>
+</figure>
+<figure class="esq">
+  <svg viewBox="0 0 700 250" role="img" aria-label="Cada BTS tiene su propio RACH y comparten el PCH porque están en el mismo área de localización">
+    <defs><marker id="fb" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z"/></marker></defs>
+    <rect class="caja" x="10" y="10" width="680" height="230" rx="16" stroke-dasharray="6 5"/>
+    <text x="26" y="34" class="peq">ÁREA DE LOCALIZACIÓN (LA): las dos BTS emiten los mismos avisos</text>
+    <rect class="dato" x="40" y="60" width="170" height="64" rx="10"/><text x="125" y="86" text-anchor="middle">BTS 1</text><text x="125" y="106" text-anchor="middle" class="peq">N1 terminales</text>
+    <rect class="dato" x="490" y="60" width="170" height="64" rx="10"/><text x="575" y="86" text-anchor="middle">BTS 2</text><text x="575" y="106" text-anchor="middle" class="peq">N2 terminales</text>
+    <rect class="res" x="270" y="60" width="160" height="64" rx="10"/><text x="350" y="86" text-anchor="middle">PCH del LA</text><text x="350" y="106" text-anchor="middle" class="peq">(N1 + N2) · λ_e</text>
+    <path class="flr" d="M270 92H210" marker-end="url(#fb)"/><path class="flr" d="M430 92H490" marker-end="url(#fb)"/>
+    <rect class="mal" x="40" y="160" width="170" height="52" rx="10"/><text x="125" y="182" text-anchor="middle">RACH de la BTS 1</text><text x="125" y="200" text-anchor="middle" class="peq">N1 · λ_t</text>
+    <rect class="mal" x="490" y="160" width="170" height="52" rx="10"/><text x="575" y="182" text-anchor="middle">RACH de la BTS 2</text><text x="575" y="200" text-anchor="middle" class="peq">N2 · λ_t</text>
+    <path class="fl" d="M125 124V160" marker-end="url(#fb)"/><path class="fl" d="M575 124V160" marker-end="url(#fb)"/>
+    <text x="350" y="190" text-anchor="middle" class="peq">RACH: cada BTS el suyo. PCH: compartido.</text>
+  </svg>
+</figure>

@@ -1,0 +1,28 @@
+---
+// Camino BTS -> BSC con los tres tramos que pueden perder la llamada (estático).
+import './Esquemas.css';
+---
+<figure class="esq">
+  <svg viewBox="0 0 720 330" role="img" aria-label="Pérdidas entre la BTS y el BSC: SDCCH, TCH y Abis en serie; P_L es uno menos el producto de los tres éxitos">
+    <defs><marker id="fp" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z"/></marker></defs>
+    <rect class="dato" x="10" y="40" width="80" height="60" rx="10"/><text x="50" y="76" text-anchor="middle" class="grande">BTS</text>
+    <path class="fl" d="M90 70H130" marker-end="url(#fp)"/>
+    <rect class="caja" x="130" y="30" width="150" height="80" rx="10"/><text x="205" y="54" text-anchor="middle">1. SDCCH</text><text x="205" y="73" text-anchor="middle" class="peq">A = λ · 6 s</text><text x="205" y="90" text-anchor="middle" class="peq">16 canales</text>
+    <path class="fl" d="M280 70H310" marker-end="url(#fp)"/>
+    <rect class="caja" x="310" y="30" width="150" height="80" rx="10"/><text x="385" y="54" text-anchor="middle">2. TCH</text><text x="385" y="73" text-anchor="middle" class="peq">A = λ · (120 + 3) s</text><text x="385" y="90" text-anchor="middle" class="peq">29 TCH/F</text>
+    <path class="fl" d="M460 70H490" marker-end="url(#fp)"/>
+    <rect class="caja" x="490" y="30" width="150" height="80" rx="10"/><text x="565" y="54" text-anchor="middle">3. Abis</text><text x="565" y="73" text-anchor="middle" class="peq">A = tráfico CURSADO</text><text x="565" y="90" text-anchor="middle" class="peq">60 circuitos por E1</text>
+    <path class="fl" d="M640 70H660" marker-end="url(#fp)"/>
+    <rect class="dato" x="660" y="40" width="55" height="60" rx="10"/><text x="687" y="76" text-anchor="middle" class="grande">BSC</text>
+
+    <text x="205" y="140" text-anchor="middle" class="peq">Erlang B</text><text x="385" y="140" text-anchor="middle" class="peq">Erlang B</text><text x="565" y="140" text-anchor="middle" class="peq">Erlang B</text>
+    <rect class="mal" x="130" y="150" width="150" height="34" rx="8"/><text x="205" y="172" text-anchor="middle">P_SDCCH = 1,8·10⁻¹³</text>
+    <rect class="res" x="310" y="150" width="150" height="34" rx="8"/><text x="385" y="172" text-anchor="middle">P_TCH = 5,2 %</text>
+    <rect class="mal" x="490" y="150" width="150" height="34" rx="8"/><text x="565" y="172" text-anchor="middle">P_Abis = 2,5·10⁻⁴</text>
+
+    <path class="fl" d="M205 184V222M385 184V222M565 184V222"/><path class="fl" d="M205 222H565" marker-end="url(#fp)"/>
+    <rect class="res" x="110" y="238" width="500" height="70" rx="12"/>
+    <text x="360" y="266" text-anchor="middle" class="grande">P_L = 1 − (1 − P_SDCCH)(1 − P_TCH)(1 − P_Abis)</text>
+    <text x="360" y="290" text-anchor="middle" class="peq">Se pierde la llamada si falla cualquier tramo. Ejemplo: P_L ≈ 5,2 %, domina el TCH.</text>
+  </svg>
+</figure>
