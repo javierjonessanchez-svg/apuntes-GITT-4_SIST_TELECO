@@ -1,0 +1,187 @@
+---
+titulo: "Guía de ejercicios por tipo"
+orden: 13
+bloque: "Datos"
+resumen: "El procedimiento general de cada tipo de ejercicio de GSM-GPRS, con un ejemplo resuelto de cada uno"
+saber:
+  - "Reconocer el tipo de ejercicio por lo que pide el enunciado y aplicar su receta"
+  - "Convertir ranuras y bloques por multitrama en capacidades por segundo"
+  - "Dimensionar SDCCH, TCH y Abis con Erlang B usando la estrategia típica de establecimiento"
+  - "Deducir tasas de llamadas y terminales desde la ocupación del RACH y del PCH"
+  - "Detectar las lecturas ambiguas del enunciado y justificar la elegida"
+fuentes:
+  - "Cx_EjerciciosMultiplex.pdf, Cx_EjerciciosRed1.pdf, Cx_EjerciciosRed2.pdf y Cx_EjerciciosRed3.pdf"
+  - "Cx_Multiplex.pdf, Cx_Enlace.pdf, Cx_Red_Conexiones.pdf y Formulario_RdC.pdf"
+---
+
+import ErlangB from '../../../src/asignaturas/conmutacion/widgets/ErlangB.astro';
+import Dimensionado from '../../../src/asignaturas/conmutacion/widgets/Dimensionado.astro';
+
+Los ejercicios de las hojas se repiten por tipos. Esta página da la **receta de cada tipo** con un ejemplo; los enunciados completos y sus soluciones están en [Hojas resueltas](../hojas-resueltas/) y en [Ejercicios GSM-GPRS](../ejercicios-bloque-3/).
+
+> **Aviso.** Salvo el ejercicio 3 de Red3, las soluciones son mías (comprobadas con código y contrastadas con otro modelo), no las oficiales. Lo que sí es seguro es el **método**.
+
+## Los cinco pasos de casi todos
+
+1. **Qué pide**: ¿una capacidad, una ocupación, una probabilidad de bloqueo o un máximo de usuarios?
+2. **Qué combinación de canales hay**: IV o V (señalización), I o II (tráfico), VII (SDCCH). Eso fija los bloques, ranuras y canales.
+3. **Qué tiempo manda**: multitrama de 26 (120 ms) o de 51 (235,38 ms).
+4. **Qué modelo**: contar ranuras, o Erlang B.
+5. **Comprueba y anota la lectura**: un orden de magnitud y la frase «supongo que…» si el enunciado es ambiguo.
+
+## El problema del PEI (50 % de la nota)
+
+> **Información de compañeros, sin confirmar.** Lo que sigue viene de alumnos que ya hicieron el examen (PEI y la convocatoria de junio). No es oficial, pero encaja con el ejercicio 1 de la hoja Red3, así que úsalo como guion de estudio, no como garantía.
+
+**Estructura probable:** como el ejercicio 1 de [Ejercicios GSM-GPRS](../ejercicios-bloque-3/). Los primeros apartados piden las tasas de llamadas y el número de terminales, y el **último apartado (2 a 2,5 puntos)** pide las probabilidades de pérdidas entre la BTS y el BSC.
+
+**Qué cambia en el examen respecto a clase:** en clase, «carga similar en las dos BTS» lleva a que las dos tengan los mismos terminales. En el examen pueden dar **un número de terminales distinto en cada BTS**. Cuidado con eso.
+
+### Receta de los primeros apartados (la cadena de lambdas)
+
+1. **λ_E (entrantes) es la misma en las dos BTS** y λ_S también; por tanto λ_T = λ_E + λ_S.
+2. Te suelen dar la capacidad del RACH de **una** BTS, C_RACH. Con la ocupación ρ_RACH de la BTS de referencia:
+   ρ_RACH = N_BTS · λ_T · (ranuras por petición) / C_RACH → de ahí sale **el número de terminales N_BTS**.
+3. Con el tráfico de voz por terminal, a_voz = λ_T / μ_voz (λ_T = a_voz · μ_voz, con μ = 1 / duración) sale λ_T cuando no te la dan.
+4. **PCH:** λ_PCH = (N_BTS1 + N_BTS2) · λ_E · (ráfagas por aviso), porque el aviso se emite en todas las BTS del LA. Con C_PCH y la ocupación ρ_PCH sale **λ_E**.
+5. **λ_S = λ_T − λ_E.**
+6. Si te piden las **minúsculas** (λ_e, λ_s) son **por terminal**; si te piden las **totales**, multiplica por N_BTS1 + N_BTS2.
+
+**Ejemplo (Red3, ejercicio 1):** con PCH al 0,76 % y RACH al 0,09 % salen λ_E ≈ 348,7 llamadas/h y λ_S ≈ 353,3 llamadas/h por célula, y N_T = 468 terminales. Cámbiale los terminales a cada BTS en la calculadora para ver cómo se mueve.
+
+### Receta del último apartado (probabilidad de pérdidas BTS → BSC)
+
+Se calcula el bloqueo de cada tramo con Erlang B y se combinan:
+
+P_L = 1 − (1 − P_SDCCH) · (1 − P_TCH) · (1 − P_Abis)
+
+para el camino BTS_i → BSC. Los tres tramos son los de la estrategia típica (SDCCH en la fase inicial, TCH con el resto, y el Abis alimentado con el tráfico cursado). Un ejemplo completo está en [Hojas resueltas](../hojas-resueltas/) (Red2, ejercicio 1b), donde las pérdidas salen de P_TCH y las otras dos son despreciables.
+
+### Teoría que le gusta (según compañeros)
+
+Lo pidió en el PEI y lo repitió en junio:
+
+| Tema | Dónde repasarlo |
+| --- | --- |
+| Ejercicio de HDLC (relleno de bits, secuencias de tramas) | [Capa de enlace](../capa-enlace/) y [PS7](../ps7-enlace-3g/) |
+| Proceso de autenticación, explicado con detalle | [Gestión de la movilidad](../gestion-movilidad/) |
+| GPRS | [GPRS](../gprs/) |
+| UTRAN y recursos espectrales | [UMTS y 3G](../umts-3g/) |
+| MSRN (número de itinerancia, roaming) | [Gestión de conexiones](../gestion-conexiones/) |
+
+## Tabla de recursos por combinación
+
+| Perfil | Combinaciones | SDCCH | TCH |
+| --- | --- | --- | --- |
+| Bajo (1 frecuencia) | 1 comb. V + 7 comb. I o II | 4 | 7 TCH/F o 14 TCH/H |
+| Medio (4 frecuencias) | 1 comb. IV + 2 comb. VII + 29 comb. I o II | 16 | 29 TCH/F o 58 TCH/H |
+
+| Combinación | Bloques CCCH por MF51 | Ranuras RACH por MF51 |
+| --- | --- | --- |
+| IV | 9 (36 ráfagas) | 51 |
+| V | 3 (12 ráfagas) | 27 |
+
+---
+
+## Tipo 1: radio máximo de célula
+
+**Receta.** Deslizamiento = 2d/c (ida y vuelta). Se iguala al tiempo de guarda de la ráfaga de acceso: 68,25 tiempos de bit · 3,692 µs = 252 µs.
+
+**Ejemplo.** d_max = c · 252 µs / 2 = **37,8 km**. El error típico es olvidar el 2 y dar 75,6 km.
+
+## Tipo 2: capacidad de un canal lógico
+
+**Receta.** Ráfagas del canal por multitrama · 114 bits / duración de la multitrama.
+
+**Ejemplo.** TCH/F: 24 ráfagas por MF26 → 24 · 114 / 0,120 = **22,8 kbit/s**. SDCCH: 4 ráfagas por MF51 → 456 / 0,23538 = **1,94 kbit/s**. El SACCH de la comb. VII reparte sus 4 ráfagas en 102 tramas: 456 / 0,47077 = **0,97 kbit/s**. Rendimiento espectral: 270,83 kbit/s / 200 kHz = **1,35 bit/s/Hz**.
+
+> **Cuidado.** 114 bits son los de datos de la ráfaga normal; 148 incluye cola, entrenamiento y banderas. Si el enunciado no dice otra cosa, usa 114.
+
+## Tipo 3: capacidad y ocupación del RACH
+
+**Receta.** Capacidad = ranuras RACH por MF51 / 0,23538 s. Ocupación = (peticiones por segundo · ranuras por petición) / capacidad. Las peticiones son **entrantes más salientes**: el móvil también pide canal por RACH cuando responde a un aviso.
+
+**Ejemplo.** BTS con 750 llamadas/h (comb. IV, 4 ranuras por petición): 750/3600 · 4 / 216,67 = **0,385 %**. Con comb. V sería 114,7 ranuras/s de capacidad, y al 10 % de ocupación, **11,47 peticiones/s**.
+
+## Tipo 4: ocupación del PCH y avisos
+
+**Receta.**
+
+1. Recursos del PCH = fracción del CCCH (la mitad o 2/3, según diga) · ráfagas CCCH por MF51.
+2. Capacidad de avisos por segundo = ráfagas PCH por MF51 / ráfagas por aviso / 0,23538.
+3. **El aviso se emite en todas las células del área de localización**, así que cada PCH soporta los avisos de todo el LA, no solo los de su célula.
+
+**Ejemplo.** Comb. IV, PCH = mitad, aviso = 1 bloque (4 ráfagas): 4,5 avisos/MF51 = 19,12 avisos/s. Con 675 avisos/h en el LA: 0,1875/19,12 = **0,981 %**, igual en las dos BTS.
+
+> **Esto cae mucho.** Si te piden «¿es igual la ocupación en las dos células?», la respuesta es **sí** cuando comparten LA, aunque su tráfico sea distinto.
+
+## Tipo 5: grupos de aviso (DRX)
+
+**Receta.** NPB = (bloques CCCH por MF51 − BS_AG_BLKS_RES) · BS_PA_MFRMS. Avisos por ciclo = ráfagas de PCH / ráfagas por aviso, con ciclo de BS_PA_MFRMS · 235,38 ms.
+
+**Ejemplo.** (9 − 3) · 4 = **24 PB**; 24 · 4 ráfagas / 3 = **32 avisos por ciclo** de 941,5 ms. Ojo: con comb. V solo hay 3 bloques CCCH y el resultado literal sería 0; el enunciado de Red1 es incoherente y conviene decirlo.
+
+## Tipo 6: Erlang B de una célula
+
+**Receta.**
+
+1. Tráfico ofrecido A = λ · h (llamadas por segundo por segundos de duración) y, con N terminales, A = N · a.
+2. Canales: los de tráfico del perfil (7 o 14 en perfil bajo, 29 o 58 en medio).
+3. Bloqueo con la recursión B(n) = A · B(n−1) / (n + A · B(n−1)).
+4. **Máximo de usuarios**: se busca el A que da el bloqueo límite y se divide por el tráfico por usuario.
+
+**Ejemplo.** 300 móviles, 1 llamada cada 90 min de 2 min: A = 6,667 E. Con 7 TCH/F, B = 22,8 %. Con 14 TCH/H, B = 0,5 %.
+
+<ErlangB N={7} A={6.667} />
+
+Prueba aquí tu propio dimensionado (canales para un bloqueo dado):
+
+<Dimensionado />
+
+## Tipo 7: dimensionado completo con la estrategia típica
+
+Es el ejercicio largo: RACH → SDCCH → TCH → Abis. Se hace **en cascada**:
+
+1. **SDCCH**: A = λ_total · t_SDCCH (se usa en entrantes y salientes, en la fase inicial). Erlang B con 4 o 16 canales.
+2. **TCH**: A = λ · (conversación + tiempo de FACCH). Los segundos de FACCH ocupan TCH, los de SDCCH no. Erlang B con los canales de tráfico.
+3. **Abis**: tráfico **cursado** por los TCH de todas las células que comparten el E1; canales = 60 por E1.
+4. **Máximo de terminales**: cada criterio da un N; manda el menor.
+
+**Ejemplo (célula A de Red2, ejercicio 2).** 14 TCH/H, B < 2 % → A_max = 8,200 E. Tráfico por terminal = 0,05 · 125/120 = 0,05208 E. N_A = 8,2 / 0,05208 = **157 terminales**.
+
+> **Dónde se pierde la nota.** Mezclar tiempos: la conversación, el SDCCH y el FACCH no cargan los mismos recursos. Y olvidar que la media ponderada de la duración en el TCH incluye las llamadas fallidas, que ocupan menos tiempo (Red3, ejercicio 2).
+
+## Tipo 8: tasa de medidas por el SACCH
+
+**Receta.**
+
+1. Bits del mensaje: cabecera de capa 3 (TI + PD + Message Type = 16) + IE (8 + 23 + 3 + n · 17).
+2. Octetos = bits / 8 (redondeando hacia arriba). Si caben en 20 octetos de INFO, es **una** trama LAPDm; si no, dos.
+3. Una trama LAPDm = 23 octetos = 184 bits → +44 (fire) → ×2 (convolucional ½) = **456 bits = 4 ráfagas = 1 bloque SACCH**.
+4. El SACCH da 1 ráfaga por MF26: un bloque tarda 4 · 120 = **480 ms**.
+
+**Ejemplo.** n = 6: 16 + 136 = 152 bits = 19 octetos → 1 trama → **1 medida cada 480 ms = 2,083/s**.
+
+## Tipo 9: sectorización
+
+**Receta.** Dividir el círculo en sectores (360º / ángulo). Terminales por sector = densidad · área del sector. Se calcula el bloqueo de SDCCH, TCH y Abis por sector, y se elige el **menor número de sectores que cumple los tres** (más sectores, menos carga por BTS). Detalle y calculadora en [Ejercicios GSM-GPRS](../ejercicios-bloque-3/).
+
+## Tipo 10: GPRS y bloques radio libres
+
+**Receta.** Canales de tráfico disponibles menos la voz cursada (tráfico ofrecido · (1 − bloqueo)); lo que queda se multiplica por los bloques radio por canal. Detalle en [Ejercicios GSM-GPRS](../ejercicios-bloque-3/).
+
+## Tipo 11: HDLC y relleno de bits
+
+**Receta.** Después de cinco 1 seguidos, el emisor inserta un 0. El receptor quita el 0 que sigue a cinco 1. Para contar la longitud transmitida, se cuentan los 1 consecutivos incluso a través de los límites de octeto. Prueba con las secuencias de [Enlace y 3G (PS7)](../ps7-enlace-3g/).
+
+---
+
+## Cómo decir que una lectura es dudosa (y no perder la nota)
+
+Cuando el enunciado admite dos lecturas, escribe:
+
+1. «Supongo que…» con la lectura elegida y el motivo (la pista del enunciado o de las diapositivas).
+2. El resultado con esa lectura, destacado.
+3. Una línea con el resultado de la otra lectura.
+
+Así, si el profesor usa la otra, el razonamiento sigue siendo correcto y solo cambia el número.
