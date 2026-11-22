@@ -4,7 +4,7 @@ corto: Conmutación
 slug: conmutacion
 estado: activa
 orden: 1
-descripcion: "GSM: arquitectura, interfaz aérea, señalización, movilidad y conexiones. GPRS y 3G (UMTS). Ejercicios del bloque 3 y la PS7 resuelta. Tráfico y colas, con problemas guiados."
+descripcion: "GSM: arquitectura, interfaz aérea, señalización, movilidad y conexiones. GPRS y 3G (UMTS). Guía de ejercicios por tipo, hojas Múltiplex, Red1 y Red2 resueltas, ejercicios del bloque 3 y la PS7 resuelta. Tráfico y colas, con problemas guiados."
 nota: "SIP/IMS, en preparación."
 # confirmar con Blackboard: fechas de la guía y de PLAN_ESTUDIO.md, aún sin comprobar
 pruebas:
@@ -35,5 +35,5 @@ pruebas:
   - fecha: "2026-11-24"
     nombre: "PEI · 15:00"
     peso: "0,3"
-    temas: []
+    temas: [guia-ejercicios, hojas-resueltas, ejercicios-bloque-3]
 ---
