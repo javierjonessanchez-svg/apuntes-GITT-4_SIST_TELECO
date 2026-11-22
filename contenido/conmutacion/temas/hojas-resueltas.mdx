@@ -1,26 +1,40 @@
 ---
-titulo: "Hojas de ejercicios resueltas"
+titulo: "Ejercicios resueltos: índice"
 orden: 14
-bloque: "Datos"
-resumen: "Enunciados de Múltiplex, Red1 y Red2 con la resolución paso a paso, resultados y lecturas alternativas"
+bloque: "Ejercicios resueltos"
+resumen: "Dónde está cada hoja resuelta, las constantes de tiempo y combinaciones que se usan en todas, y el grado de contraste de cada resultado"
 saber:
-  - "Calcular el radio máximo de célula, las capacidades de TCH, SDCCH y SACCH y el rendimiento espectral GMSK"
-  - "Contar ranuras RACH y bloques CCCH por multitrama de 51 tramas y convertirlos en peticiones o avisos por segundo"
-  - "Hallar la tasa de medidas por el SACCH y la duración máxima de las llamadas imponiendo Erlang B"
-  - "Calcular el número de bloques de aviso (NPB) con BS_AG_BLKS_RES y BS_PA_MFRMS"
-  - "Encadenar RACH, SDCCH, TCH y Abis en un dimensionado completo y hallar el máximo de terminales"
+  - "Saber en qué página está cada hoja de ejercicios y qué trae cada una"
+  - "Tener a mano las constantes de tiempo, multitrama y combinaciones de canales que se usan en todos los ejercicios"
+  - "Distinguir qué resultados son oficiales, cuáles están contrastados entre modelos y cuáles dependen de una lectura del enunciado"
 fuentes:
-  - "Cx_EjerciciosMultiplex.pdf"
-  - "Cx_EjerciciosRed1.pdf"
-  - "Cx_EjerciciosRed2.pdf"
-  - "Cx_Multiplex.pdf, Cx_Enlace.pdf, Cx_Red_Conexiones.pdf y Formulario_RdC.pdf"
+  - "Cx_EjerciciosMultiplex.pdf, Cx_EjerciciosRed1.pdf, Cx_EjerciciosRed2.pdf y Cx_EjerciciosRed3.pdf"
+  - "Cx_Multiplex.pdf y Formulario_RdC.pdf"
 ---
 
-import ErlangB from '../../../src/asignaturas/conmutacion/widgets/ErlangB.astro';
+Aquí está todo lo resuelto de ejercicios de Conmutación, separado por hoja. En cada página de ejercicio encontrarás, en este orden: el **enunciado tal cual**, **antes de resolver** (qué significa y para qué sirve cada dato, y qué hay que saber) y la **resolución** con resultado, comprobación y lecturas alternativas.
 
-Las tres hojas de problemas anteriores al bloque 3 (la cuarta, Red3, está en [Ejercicios GSM-GPRS](../ejercicios-bloque-3/)). Cada ejercicio trae el **enunciado tal cual**, el procedimiento, el resultado y, cuando el enunciado admite dos lecturas, **las dos**.
+## Dónde está cada cosa
 
-> **Qué es oficial y qué no.** Ninguna de estas soluciones es la del profesor: no hay solución publicada de estas tres hojas. Las he resuelto yo con las convenciones de las diapositivas, **comprobando todos los números con código** (Erlang B por recursión). Una segunda resolución independiente (otro modelo) coincide en lo esencial, y los apuntes manuscritos de un compañero coinciden en el Múltiplex. Eso da confianza, pero **no es una corrección oficial**: si consigues la solución de clase, contrástala y dime las diferencias.
+| Qué | Página | Contenido |
+| --- | --- | --- |
+| Método por tipo de ejercicio | [Guía de ejercicios por tipo](../guia-ejercicios/) | La receta de cada tipo con un ejemplo |
+| Hoja Múltiplex | [Hoja Múltiplex resuelta](../hoja-multiplex/) | Radio máximo, capacidades de canal, RACH y Erlang B |
+| Hoja Red1 | [Hoja Red1 resuelta](../hoja-red1/) | Medidas por el SACCH, duración de llamadas, DRX |
+| Hoja Red2 | [Hoja Red2 resuelta](../hoja-red2/) | RACH, pérdidas Um y Abis, PCH, dos áreas de localización |
+| Hoja Red3 (bloque 3) | [Ejercicios GSM-GPRS](../ejercicios-bloque-3/) | Lambdas, calidad, sectorización y GPRS; el ejercicio 3 tiene solución oficial |
+| PS7 | [PS7: enlace y 3G](../ps7-enlace-3g/) | HDLC, relleno de bits y 3G |
+| Pistas del examen | [Pistas para el PEI](../pistas-examen/) | Estructura probable, cadena de lambdas y teoría preferida |
+
+## Cómo de fiables son los resultados
+
+> **Ninguna de estas soluciones es la del profesor**, salvo el ejercicio 3 de Red3. No hay solución publicada de las demás hojas. Cada resultado se ha calculado con código (Erlang B por recursión) y contrastado de forma independiente entre varios modelos y fuentes externas, y con los apuntes manuscritos de un compañero en el Múltiplex. En cada página marco la **confianza** de cada apartado:
+>
+> - **Alta:** coinciden todas las resoluciones y la norma.
+> - **Media:** depende de una lectura del enunciado, con una alternativa razonable.
+> - **Baja:** el enunciado es inconsistente; doy las lecturas posibles.
+>
+> Si consigues la solución de clase, contrástala y dime las diferencias para corregir la web.
 
 ## Constantes que se usan en todo
 
@@ -32,246 +46,16 @@ Las tres hojas de problemas anteriores al bloque 3 (la cuarta, Red3, está en [E
 | Multitrama de 51 tramas | 51 · 4,615 = 235,38 ms | idem |
 | Ráfaga normal | 148 bits + 8,25 de guarda = 156,25 tiempos de bit; 114 bits de datos | Cx_Multiplex, ráfaga normal |
 | Ráfaga de acceso | 8 + 41 + 36 + 3 + 68,25 = 156,25 bits | Cx_Multiplex, ráfaga de acceso |
+| Tasa de la portadora | 156,25 / 0,577 ms = 270,83 kbit/s en 200 kHz | idem |
 | Bloque CCCH | 4 ráfagas | Cx_Multiplex, combinaciones IV y V |
 | Comb. IV | 9 bloques CCCH (36 ráfagas) y 51 ranuras RACH por MF51 | idem |
 | Comb. V | 3 bloques CCCH (12 ráfagas), 27 ranuras RACH y 4 SDCCH por MF51 | idem |
 | Perfil de tráfico bajo | 1 frecuencia: 1 comb. V + 7 comb. I o II → 4 SDCCH y 7 TCH/F (o 14 TCH/H) | Cx_Multiplex, asignaciones típicas |
 | Perfil de tráfico medio | 4 frecuencias: 1 comb. IV + 2 comb. VII + 29 comb. I o II → 16 SDCCH y 29 TCH/F (o 58 TCH/H) | idem |
-| Abis | 15 canales de 64 kbit/s por E1 × 4 llamadas = 60 circuitos por E1 | enunciados de Red2 y Red3 |
+| Abis | 15 canales de 64 kbit/s por E1 × 4 llamadas = 60 circuitos por E1 | Red2 ejercicio 2 y Red3 (en Red2 ejercicio 1 se extrapola) |
 | Estrategia típica | RACH → AGCH → SDCCH (fase inicial) → FACCH/TCH (resto) | Cx_Red_Conexiones |
 
-Erlang B: B(0) = 1 y B(n) = A · B(n−1) / (n + A · B(n−1)). Para «máximo de usuarios» se busca el A que da el bloqueo límite y se divide por el tráfico de un usuario.
-
----
-
-# Hoja Múltiplex: canales físicos y lógicos
-
-## Ejercicio 1: radio máximo de célula
-
-> Deduzca el valor teórico del radio máximo de célula alcanzable en un sistema GSM, sabiendo que está limitado por el deslizamiento máximo admisible en la ráfaga de acceso aleatorio entre dos móviles situados uno junto a la BTS y el otro en el límite de la célula.
-
-**Idea.** La ráfaga de acceso se envía sin avance temporal, así que no puede deslizarse más que su tiempo de guarda (GI = 68,25 tiempos de bit).
-
-1. El móvil junto a la BTS llega sincronizado. El del límite recibe la referencia con retardo d/c y su ráfaga tarda otro d/c en volver: el deslizamiento es **2d/c** (ida y vuelta).
-2. Condición: 2·d_max/c = GI = 68,25 · 3,692 µs = 252 µs.
-3. d_max = c · GI / 2 = 3·10⁸ · 252·10⁻⁶ / 2.
-
-**Resultado: R_max ≈ 37,8 km.**
-
-> **Comprobación.** GSM real da 35 km porque el avance temporal usa 6 bits (0 a 63 periodos de bit): 63 · 3,692 µs · c / 2 = 34,9 km. Es del mismo orden y algo menor porque el avance está cuantizado. **Error típico:** olvidar el factor 2 y dar 75,6 km.
-
-## Ejercicio 2: capacidades de los canales y rendimiento espectral
-
-> A partir de la estructura de multitrama de las combinaciones I y VII, calcule la capacidad (en bits por segundo) de los canales TCH y SDCCH, así como de sus respectivos canales de señalización asociados lentos SACCH. ¿Cuál es el rendimiento espectral de la modulación GMSK (en bits/Hz/s)?
-
-**Idea.** Contar ráfagas de cada canal por multitrama y multiplicar por los 114 bits de datos de una ráfaga.
-
-| Canal | Ráfagas | Periodo | Cálculo | Resultado |
-| --- | --- | --- | --- | --- |
-| TCH/F (comb. I) | 24 por MF26 | 120 ms | 24 · 114 / 0,120 | **22,8 kbit/s** |
-| SACCH (comb. I) | 1 por MF26 | 120 ms | 114 / 0,120 | **950 bit/s** |
-| SDCCH (comb. VII) | 4 por MF51 | 235,38 ms | 456 / 0,23538 | **1,94 kbit/s** |
-| SACCH (comb. VII) | 4 por 102 tramas | 470,77 ms | 456 / 0,47077 | **0,97 kbit/s** |
-
-En la combinación VII el SACCH tiene la mitad de capacidad que el SDCCH porque sus 4 ráfagas se reparten en **dos** multitramas de 51 (A0-A3 en la primera, A4-A7 en la segunda).
-
-**Rendimiento espectral:** la portadora transmite 156,25 bits cada 0,577 ms = 270,83 kbit/s y ocupa 200 kHz, luego **η = 270,83 / 200 = 1,35 bit/s/Hz**.
-
-> **Comprobación.** 22,8 kbit/s son los 13 kbit/s del códec más la protección contra errores. Y 8 SDCCH + 8 SACCH = 96 ráfagas de 114 bits cada 470,77 ms = 23,25 kbit/s, que cuadra con 8 · 1,937 + 8 · 0,969.
->
-> **Lecturas alternativas.** Si se cuenta la ráfaga entera de 148 bits: TCH 29,6 kbit/s. Para η, con solo 8 · 148 bits por trama sale 1,28 y con solo datos de usuario 0,99. La más probable en examen es 1,35.
-
-## Ejercicio 3: RACH en la combinación V
-
-> A partir de la estructura de multitrama de la combinación V calcule el número máximo de peticiones por segundo que admite el canal RACH y su régimen binario sabiendo que: cada petición sobre el canal RACH utiliza una única ranura (slot); la ocupación del canal RACH no debe superar el 10 % del máximo (para garantizar un bajo retardo en el acceso, canal Aloha ranurado). (Figura 1: multitrama de la combinación V, uplink.)
-
-**Idea.** Contar las ranuras R de la multitrama uplink, pasarlas a peticiones por segundo y aplicar el 10 %.
-
-1. En la comb. V uplink hay **27 ranuras R** por MF51 (51 tramas menos 16 de SDCCH y 8 de SACCH).
-2. Máximo: 27 / 0,23538 s = **114,7 peticiones/s**.
-3. Con el 10 % de ocupación: 0,10 · 114,7 = **11,47 peticiones/s**.
-4. Régimen binario: la ráfaga de acceso lleva 36 bits de datos: 11,47 · 36 = **413 bit/s** (al 100 %, 4.129 bit/s).
-
-> **Dudas.** El régimen depende de los bits que se cuenten por ráfaga: con 8 bits de información útil, 92 bit/s; con 41 + 36 = 77 bits, 883 bit/s; con los 148 bits de la ranura, 1.698 bit/s. Me quedo con 36 bits porque es el dato de la diapositiva de la ráfaga de acceso.
-
-## Ejercicio 4: una célula, una frecuencia
-
-> Vamos a centrarnos en una parte de un sistema GSM formada por una única célula, a la que hemos asignado una única frecuencia según el perfil de tráfico bajo (se utiliza la combinación de tráfico I). Se estima que la célula debe atender a 300 móviles con este comportamiento en hora cargada: un intento de llamada cada 90 minutos; conversaciones de duración media (exponencial) de 2 minutos. ¿Cuál será la probabilidad de bloqueo de llamada resultante?, ¿cuántos móviles podremos atender si no queremos superar una probabilidad de bloqueo del 1 %? ¿Qué ocurriría si utilizamos la combinación de tráfico II en lugar de la I?
-
-**Idea.** Erlang B con los canales de tráfico del perfil bajo.
-
-1. Tráfico ofrecido: A = 300 · 2 / 90 = **6,667 E**.
-2. Perfil bajo con comb. I: **7 TCH/F**. B(7; 6,667) = **22,8 %**.
-3. Para B ≤ 1 % con 7 canales: A_max = 2,501 E, luego N = 2,501 / 0,02222 = 112,5 → **112 móviles** (con 113 ya se pasa: 1,02 %).
-4. Con comb. II: **14 TCH/H**. B(14; 6,667) = **0,50 %**, así que se atiende a los 300. Para el 1 %: A_max = 7,352 E → **330 móviles**.
-
-<ErlangB N={7} A={6.667} />
-
-**Qué ocurre con la combinación II:** el bloqueo baja de 22,8 % a 0,5 %. Con el doble de canales se atiende casi el triple de usuarios (112 → 330) por la ganancia de multiplexación. La contrapartida es la calidad de la voz (half-rate, códec de menor tasa).
-
-> **Lectura alternativa.** Con Engset (300 fuentes) el bloqueo sería 21,96 % y 0,39 %. Como el formulario trae Erlang B, esa es la lectura esperable.
-
----
-
-# Hoja Red1: capa de red (bloque 1)
-
-## Ejercicio 1: medidas por el SACCH y duración de las llamadas
-
-> Se propone estudiar una parte de un sistema GSM compuesta de 16 células contiguas que forman un área de localización, dispuestas en 4 filas de 4 células. Desde las células centrales se escuchan las transmisiones de cualquiera de las estaciones base de las otras células. Cada célula recibe una asignación básica de recursos (una frecuencia: 1 intervalo de señalización V y resto de tráfico I).
->
-> Cada MS (con una conexión activa) monitoriza continuamente la calidad de la información que recibe y la transmite a su BTS mediante el canal SACCH. Cada medida se empaqueta en un mensaje RR (Measurement_Report) con el IE «Measurement_Results», que incluye, además de la calidad en recepción, la potencia de señal de un máximo de 6 BTS vecinas (las mejores). Cada mensaje se transmite independientemente en tramas LAPDm de tipo UI (tantas como se necesiten), de longitud fija L = 23 octetos (se rellenan con 1s si es necesario). El contenido de cada trama se mapea sobre el SACCH una vez añadidos los códigos contra errores (primero un código bloque «fire» que añade 44 bits de redundancia, seguido de un código convolucional de tasa ½ sobre el total resultante).
->
-> Datos de tráfico: el PCH tiene reservados 2/3 de la capacidad CCCH y está cargado al 2 %; el tráfico de llamadas salientes de cada célula es el doble del de entrantes; las llamadas se establecen según la estrategia típica (1.ª fase: 6 s, resto: 3 s).
->
-> a) Calcule la tasa de medidas de calidad a la que puede transmitir una MS activa en una de las células centrales.
->
-> Sabiendo que cada aviso de llamada entrante se transmite en una sola ráfaga y se repite tres veces, y se imponen como criterios de calidad P_B,SDCCH < 1 ‰ y P_B,TCH < 1 %:
->
-> b) Calcule la duración media máxima de las llamadas.
->
-> Formato del mensaje de capa de red: TI (4) · PD (4) · Message Type (8 bits) · IE Measurement_Results. Formato del IE: Identificador (8 bits) · Calidad en Rx (23 bits) · Nº de BTS vecinas (3 bits) · Nivel de señal de vecina «1» (17 bits) … vecina «n» (17 bits). Formato de la trama LAPDm: Dirección (8 bits) · Control (8 bits) · Longitud (8 bits) · INFO (máx. 20 octetos) · Relleno (hasta 23 octetos).
-
-### a) Tasa de medidas
-
-**Idea.** Contar los bits del mensaje, ver cuántas tramas LAPDm hacen falta y cuántas pasan por el SACCH.
-
-1. Cabecera de capa 3: 4 + 4 + 8 = 16 bits.
-2. IE: 8 + 23 + 3 + 6 · 17 = 136 bits (con n = 6 vecinas, el máximo).
-3. Mensaje: 152 bits = **19 octetos**. Cabe en una trama UI (INFO máx. 20 octetos; se rellena 1 octeto).
-4. Una trama LAPDm de 23 octetos = 184 bits; con fire (+44) y convolucional ½: (184 + 44) · 2 = **456 bits = 4 ráfagas = 1 bloque SACCH**.
-5. El SACCH da **1 ráfaga por MF26** (120 ms), así que un bloque de 4 ráfagas tarda 4 · 120 = 480 ms.
-
-**Resultado: 1 medida cada 480 ms = 2,083 medidas/s.** Coincide con el «cada 480 ms» de las diapositivas.
-
-> **Ojo.** Con 7 vecinas el mensaje sería de 22 octetos y no cabría en una trama (la tasa se reduciría a la mitad). Con n = 6 no pasa.
-
-### b) Duración media máxima de las llamadas
-
-**Idea.** El 2 % de carga del PCH fija las llamadas entrantes; con ellas se obtienen las cargas de SDCCH y TCH, y T sale de imponer Erlang B en el TCH.
-
-1. CCCH de la comb. V: 12 ráfagas por MF51. PCH = 2/3 → **8 ráfagas por MF51** = 8 / 0,23538 = 33,99 ráfagas/s.
-2. Cada aviso son 3 ráfagas. **Supuesto clave:** el aviso se emite en las **16 células del LA** (por eso el enunciado habla de un área de 16 células), así que el PCH de cada célula soporta los avisos de las 16: 16 · λ_E · 3 = 0,02 · 33,99.
-3. λ_E = 0,014162 /s = **50,98 llamadas entrantes/h por célula**; λ_S = 2 λ_E = 101,96 /h; total 152,94 /h = 0,042484 /s.
-4. SDCCH (4 canales, 6 s): A = 0,042484 · 6 = 0,255 E → B = 1,4·10⁻⁴ < 10⁻³ ✓ (no limita).
-5. TCH (7 canales, B < 1 %): A_max = 2,501 E.
-6. A_TCH = λ · (T + 3 s), así que T + 3 = 2,501 / 0,042484 = 58,87 s.
-
-**Resultado: T ≈ 55,9 s de conversación** (58,9 s si se cuenta el tiempo total en el TCH incluidos los 3 s de FACCH).
-
-> **Lecturas descartadas.** Si el aviso se emitiera solo en la propia célula, λ_E = 815,7 /h, el SDCCH tendría 4,08 E sobre 4 canales (B = 0,32) y no habría solución razonable. Por eso la lectura del LA completo es la buena. Restar los 3 s de FACCH me parece lo más probable, porque el enunciado da ese dato precisamente para eso.
-
-## Ejercicio 2: recepción discontinua (DRX) y avisos
-
-> Para alargar la vida de las baterías se definió la recepción discontinua (DRX): el móvil solo escanea los canales comunes de la celda cada cierto periodo. Los móviles de cada célula se distribuyen en NPB grupos de recepción (PB, Paging Blocks) que aportan los canales CCCH; cada móvil solo se abre cuando aparece su PB. Los PB pueden tener un periodo de repetición que abarque varias multitramas. Cuatro intervalos consecutivos CCCH forman un «grupo CCCH» que constituye un PB o el canal AGCH. La red distribuye por el BCCH el número de grupos CCCH dedicados al AGCH (BS_AG_BLKS_RES) y el número de multitramas entre el comienzo de un PB y su siguiente aparición (BS_PA_MFRMS).
->
-> El sistema consta de un área de localización de 12 células. Cada célula tiene una frecuencia: un intervalo de señalización comb. V y el resto de tráfico comb. I. BS_AG_BLKS_RES = 3, BS_PA_MFRMS = 4.
->
-> a) Determine el número de PB (NPB) disponibles en el sistema.
->
-> b) Suponiendo que cada aviso ocupa una sola ráfaga y debe transmitirse tres veces, calcule el número de avisos que pueden entregarse a los móviles de cada célula.
-
-**Fórmula:** NPB = (bloques CCCH por MF51 − BS_AG_BLKS_RES) · BS_PA_MFRMS.
-
-> **Este enunciado es inconsistente.** La comb. V solo tiene **3 bloques CCCH** por MF51 y se reservan 3 para el AGCH: la fórmula literal da (3 − 3) · 4 = **0 PB**, y entonces no podría haber avisos. En la norma real, con comb. V, BS_AG_BLKS_RES ≤ 2. Las lecturas posibles son:
-
-| Lectura | NPB | Avisos (ráfagas PCH / 3) |
-| --- | --- | --- |
-| A. Literal, comb. V | (3 − 3) · 4 = **0** | 0 |
-| B. 9 bloques CCCH (como comb. IV): (9 − 3) · 4 | **24** | 24 · 4 = 96 ráfagas → **32 avisos por ciclo** de 4 · 235,38 = 941,5 ms (≈ 34 avisos/s) |
-| C. Comb. V con 3 bloques de AGCH en todo el ciclo de 4 MF: 12 − 3 | **9** | 9 · 4 = 36 ráfagas → **12 avisos por ciclo** (≈ 12,7 avisos/s) |
-
-Mi apuesta es que el profesor quería usar la fórmula estándar con 9 bloques (**NPB = 24**, **32 avisos por ciclo**), aunque eso exigiría comb. IV. Lo prudente en examen: escribir la fórmula, señalar la incoherencia y dar el resultado con la lectura que elijas.
-
-> **«De cada célula».** Los avisos se difunden en las 12 células del LA, así que esa capacidad es la del LA entero y no se suma por célula. Si se repartiera por igual entre las 12, serían 32 / 12 = 2,67 avisos por ciclo por célula (lectura poco probable).
-
----
-
-# Hoja Red2: capa de red (bloque 2)
-
-## Ejercicio 1: dos BTS, RACH, pérdidas y PCH
-
-> El sistema consta de 2 BTS, dependientes del mismo BSC, al que se conectan mediante dos enlaces E1 para tráfico. Las BTS comparten la capacidad disponible del E1. Cada BTS tiene una preasignación de frecuencias según un perfil de tráfico medio. Perfil de tráfico (llamadas de cada BTS):
->
-> | | Nº terminales | λ_e (llam/hora) | λ_s (llam/hora) |
-> | --- | --- | --- | --- |
-> | BTS1 | 500 | 1 | 0,5 |
-> | BTS2 | 350 | 0,5 | 1 |
->
-> Todas las llamadas duran 2 minutos de media (exponencial). Cada solicitud de establecimiento ocupa el SDCCH 8 segundos de media (exponencial) y cada petición consume 4 ranuras RACH.
->
-> a) Calcule la ocupación del canal RACH en la BTS1 ¿y en la BTS2?
->
-> b) Calcule la probabilidad de pérdidas en las interfaces Um y Abis.
->
-> Sabiendo que cada aviso de llamada entrante ocupa 4 ranuras CCCH, que el PCH tiene reservados la mitad de los recursos CCCH del sistema y que ambas BTS comparten área de localización:
->
-> c) Calcule la ocupación del canal PCH en la BTS1, en la BTS2 ¿será igual?
-
-**Lectura de la tabla:** los valores λ son **por terminal** (BTS1: 500 terminales, 1 llamada entrante/h y 0,5 saliente/h cada uno). Si fueran totales, las cargas serían de 0,03 E, absurdas.
-
-| | Entrantes/h | Salientes/h | Total/h |
-| --- | --- | --- | --- |
-| BTS1 | 500 · 1 = 500 | 500 · 0,5 = 250 | **750** |
-| BTS2 | 350 · 0,5 = 175 | 350 · 1 = 350 | **525** |
-
-Perfil medio: comb. IV (51 ranuras RACH, 9 bloques CCCH), 16 SDCCH y 29 TCH/F.
-
-**a) Ocupación del RACH.** Capacidad = 51 / 0,23538 = 216,67 ranuras/s. Cada petición (entrante **o** saliente) usa 4 ranuras.
-
-- BTS1: 750/3600 · 4 / 216,67 = **0,385 %**.
-- BTS2: 525/3600 · 4 / 216,67 = **0,269 %**.
-
-(No son iguales: cada BTS tiene su carga. Si fuera comb. V: 0,727 % y 0,509 %; si solo contaran las salientes: 0,128 % y 0,179 %. Lectura descartada: la entrante también pide canal por RACH tras el paging.)
-
-**b) Pérdidas en Um y Abis.** Cascada de Erlang B.
-
-| Recurso | Tráfico | Canales | Bloqueo BTS1 | Bloqueo BTS2 |
-| --- | --- | --- | --- | --- |
-| SDCCH | λ · 8 s: 1,667 E y 1,167 E | 16 | 3·10⁻¹¹ ≈ 0 | 2·10⁻¹³ ≈ 0 |
-| TCH | λ · 120 s: 25,0 E y 17,5 E | 29 | **6,66 %** | **0,32 %** |
-| Abis | cursado ≈ 40,8 E (los dos) | 2 E1 · 60 = 120 | ≈ 5·10⁻²⁴ ≈ 0 | idem |
-
-**Resultado:** Um: SDCCH ≈ 0 y **TCH 6,66 % (BTS1) y 0,32 % (BTS2)**. Abis ≈ 0 (sobredimensionado: 120 canales para 41 E).
-
-<ErlangB N={29} A={25} />
-
-**c) Ocupación del PCH.** PCH = mitad del CCCH = 4,5 bloques por MF51; un aviso = 1 bloque → 4,5 avisos/MF51 = 19,12 avisos/s. Como ambas BTS comparten LA, **el aviso se emite en las dos**, y cada PCH soporta los avisos de las dos: (500 + 175)/3600 = 0,1875 avisos/s.
-
-**Resultado: ocupación = 0,1875 / 19,12 = 0,981 % en las dos BTS: sí, es igual.**
-
-(Si el aviso no se difundiera a todo el LA saldría 0,727 % y 0,254 %, que suman 0,981 %.)
-
-## Ejercicio 2: cuatro células en dos áreas de localización
-
-> El sistema consta de cuatro células con perfil de tráfico bajo (frecuencia única), divididas en dos áreas de localización A y B, según la figura: **LA-A = (A)** y **LA-B = (B1, B2, B3)**. Dependen de un BSC al que se conectan mediante un E1 con 15 canales bidireccionales de 64 kbit/s para tráfico, con 4 canales de tráfico multiplexados en cada uno.
->
-> En cada célula: un intervalo de señalización comb. V (considere distribución equitativa de los canales CCCH si es necesario) y el resto de tráfico según la comb. II [TCH/H(0,1), FACCH/H(0,1), SACCH/TH(0,1)].
->
-> Condiciones de tráfico: cada área de localización soporta una carga de llamadas entrantes similar; el tráfico de voz por terminal es de 0,05 E (llamadas de duración exponencial de media 2 minutos); las llamadas se establecen sobre canal de señalización dedicado (exponencial de media 10 s) y FACCH (exponencial de media 5 s). Calidad: P_B,TCH < 2 % y P_B,Abis < 1 %.
->
-> a) Suponiendo que cada aviso necesita cuatro ráfagas (tipo normal), calcular, en media, el máximo número de avisos que pueden entregarse a terminales de la célula B1.
->
-> b) Calcule el número máximo de terminales, NT, admisibles en el sistema.
-
-Cada célula: 1 comb. V (3 bloques CCCH, 4 SDCCH) + 7 comb. II = **14 TCH/H**. Abis: 60 circuitos (máximo posible 4 · 14 = 56 < 60).
-
-**a) Avisos en B1.** «Distribución equitativa»: PCH = AGCH = 1,5 bloques = 6 ráfagas por MF51. Un aviso son 4 ráfagas, así que **1,5 avisos por MF51 = 6,37 avisos/s**.
-
-> Esa capacidad es la del PCH de **todo el LA-B** (B1, B2 y B3 emiten los mismos avisos). Con carga igual en las tres células, a B1 le corresponde un tercio: 2,12 avisos/s. La respuesta más probable en examen es 6,37 avisos/s, mencionando que se comparte. Otras lecturas de «equitativa»: 12,75 avisos/s si el PCH tuviera los 3 bloques y 8,5 con 2 bloques de PCH y 1 de AGCH.
-
-**b) Terminales máximos.**
-
-1. Cada LA recibe la misma carga de entrantes, así que **N_A = NT/2** (la célula A sola) y cada B tiene NT/6.
-2. Célula A: 14 TCH/H con B < 2 % → A_max = 8,200 E.
-3. Tráfico por terminal en el TCH = conversación + FACCH = 0,05 · (120 + 5)/120 = **0,05208 E** (el SDCCH de 10 s no usa TCH; el FACCH de 5 s sí).
-4. N_A ≤ 8,200 / 0,05208 = 157,4 → **N_A = 157** (con 158 se pasa del 2 %).
-5. Células B: 157/3 ≈ 52 terminales → 2,73 E → B ≈ 10⁻⁶ ✓. Abis: ≈ 16,2 E sobre 60 canales → 4·10⁻¹⁷ ✓. El PCH no limita (menos de 0,13 llamadas/s frente a 6,37 avisos/s).
-
-**Resultado: NT,max = 314 terminales** (157 en A y 157 repartidos entre B1, B2 y B3). Limita el **TCH de la célula A**.
-
-> **Lecturas alternativas.** Si el profesor solo usa los 0,05 E de conversación: N_A = 164 y **NT = 328**. Si se repartieran a partes iguales entre las 4 células, NT = 628, pero la frase «cada LA soporta una carga de entrantes similar» obliga a N_A = N_B. Me quedo con 314 porque el enunciado da el FACCH de 5 s precisamente para sumarlo al TCH.
-
----
+**Erlang B:** B(0) = 1 y B(n) = A · B(n−1) / (n + A · B(n−1)). Para «máximo de usuarios» se busca el A que da el bloqueo límite y se divide por el tráfico de un usuario.
 
 ## Resumen de resultados
 
@@ -279,16 +63,14 @@ Cada célula: 1 comb. V (3 bloques CCCH, 4 SDCCH) + 7 comb. II = **14 TCH/H**. A
 | --- | --- | --- | --- |
 | Múltiplex | 1 | 37,8 km | alta |
 | Múltiplex | 2 | 22,8 kbit/s, 950 bit/s, 1,94 kbit/s, 0,97 kbit/s; η = 1,35 | alta |
-| Múltiplex | 3 | 114,7 peticiones/s al 100 %, 11,47 al 10 %; 413 bit/s | alta (el régimen depende de los bits por ráfaga) |
+| Múltiplex | 3 | 114,7 peticiones/s al 100 %, 11,47 al 10 %; 413 bit/s | alta / media |
 | Múltiplex | 4 | 22,8 %; 112 móviles; con comb. II: 0,5 % y 330 móviles | alta |
 | Red1 | 1a | 1 medida cada 480 ms (2,083/s) | alta |
-| Red1 | 1b | T ≈ 55,9 s | media (supone aviso en las 16 células) |
-| Red1 | 2a | NPB = 24 (0 literal) | baja (enunciado inconsistente) |
+| Red1 | 1b | T ≈ 55,9 s | media |
+| Red1 | 2a | NPB = 24 (0 literal) | baja |
 | Red1 | 2b | 32 avisos por ciclo de 941,5 ms | baja |
 | Red2 | 1a | 0,385 % y 0,269 % | alta |
 | Red2 | 1b | TCH 6,66 % y 0,32 %; SDCCH y Abis ≈ 0 | alta |
-| Red2 | 1c | 0,981 % en las dos | media-alta |
+| Red2 | 1c | 0,981 % en las dos | alta |
 | Red2 | 2a | 1,5 avisos/MF51 = 6,37 avisos/s | media |
-| Red2 | 2b | NT = 314 (328 sin FACCH) | media |
-
-Para el método general de cada tipo de ejercicio, mira la [guía de ejercicios](../guia-ejercicios/).
+| Red2 | 2b | NT = 314 (316, 328 y 628 según la lectura) | media |

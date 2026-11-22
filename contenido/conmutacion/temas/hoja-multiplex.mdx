@@ -1,0 +1,192 @@
+---
+titulo: "Hoja Múltiplex resuelta"
+orden: 15
+bloque: "Ejercicios resueltos"
+resumen: "Canales físicos y lógicos: radio máximo, capacidades, RACH y Erlang B, con enunciado, conceptos previos y resolución"
+saber:
+  - "Deducir el radio máximo de célula a partir del tiempo de guarda de la ráfaga de acceso"
+  - "Calcular la capacidad de TCH, SDCCH y SACCH contando ráfagas por multitrama, y el rendimiento espectral GMSK"
+  - "Contar las ranuras RACH de la combinación V y convertirlas en peticiones por segundo y régimen binario"
+  - "Dimensionar una célula de una frecuencia con Erlang B según la combinación de tráfico (I o II)"
+fuentes:
+  - "Cx_EjerciciosMultiplex.pdf"
+  - "Cx_Multiplex.pdf (estructura de tramas, ráfagas y combinaciones) y Formulario_RdC.pdf"
+---
+
+import ErlangB from '../../../src/asignaturas/conmutacion/widgets/ErlangB.astro';
+import fig1 from '../../../src/assets/conmutacion/multiplex-figura1.png';
+
+Hoja de problemas **Múltiplex: canales físicos y canales lógicos**. Cada ejercicio tiene tres bloques: **Enunciado** (tal cual), **Antes de resolver** (qué significa y para qué sirve cada dato, y qué hay que saber) y **Resolución**. Las constantes de tiempo y las combinaciones están en el [índice de ejercicios resueltos](../hojas-resueltas/).
+
+> **Esta resolución no es oficial.** No hay solución del profesor de esta hoja. Los números están calculados con código y contrastados entre varios modelos y fuentes; en cada ejercicio indico el **grado de confianza** y las lecturas alternativas del enunciado.
+
+---
+
+## Ejercicio 1: radio máximo de célula
+
+### Enunciado
+
+> Deduzca el valor teórico del radio máximo de célula alcanzable en un sistema GSM, sabiendo que está limitado por el deslizamiento máximo admisible en la ráfaga de acceso aleatorio entre dos móviles situados uno junto a la BTS y el otro en el límite de la célula.
+
+### Antes de resolver
+
+| Parte del enunciado | Qué significa | Para qué se usa |
+| --- | --- | --- |
+| **Radio máximo de célula** | La distancia más lejana a la BTS a la que un móvil puede comunicarse sin pisar el intervalo de otro | Es lo que se pide: d_max |
+| **Ráfaga de acceso aleatorio (RACH)** | La ráfaga corta con la que el móvil pide un canal. Se envía **antes** de conocer su distancia a la BTS, así que no lleva avance temporal | Su estructura fija el margen disponible |
+| **Deslizamiento** | Lo que se retrasa la ráfaga al llegar a la BTS por la propagación: ida (para recibir la referencia de trama) y vuelta (para enviar la ráfaga) | Se calcula como 2d/c |
+| **Móviles junto a la BTS y en el límite** | Los dos casos extremos: retraso cero y retraso máximo | Su diferencia es el deslizamiento máximo |
+
+**Qué hay que saber antes:**
+
+- La ráfaga de acceso es más corta que una normal: 8 + 41 + 36 + 3 bits más un **tiempo de guarda GI de 68,25 bits** (la ranura sigue durando 156,25 bits).
+- Ese GI es el colchón que absorbe el retraso de propagación sin solaparse con el intervalo siguiente.
+- La duración de un bit en GSM: T_bit = 1 / 270,83 kbit/s = 3,692 µs.
+- Velocidad de la luz c = 3·10⁸ m/s.
+
+### Resolución
+
+1. El móvil junto a la BTS llega sincronizado. El del límite recibe la referencia de trama con retardo d/c y su ráfaga tarda otro d/c en volver: el deslizamiento es **2d/c**.
+2. Condición límite: 2·d_max/c = GI = 68,25 · 3,692 µs = 252 µs.
+3. d_max = c · GI / 2 = 3·10⁸ · 252·10⁻⁶ / 2.
+
+**Resultado: R_max ≈ 37,8 km.**
+
+> **Comprobación.** GSM real da 35 km porque el avance temporal usa 6 bits (0 a 63 periodos de bit): 63 · 3,692 µs · c / 2 = 34,9 km. Son dos criterios distintos: 37,8 km sale del tiempo de guarda (lo que pide el enunciado) y 35 km es el límite real del campo de avance temporal de 6 bits. **Error típico:** olvidar el factor 2 (sale 75,6 km). **Confianza: alta.**
+
+---
+
+## Ejercicio 2: capacidades de los canales y rendimiento espectral
+
+### Enunciado
+
+> A partir de la estructura de multitrama de las combinaciones I y VII, calcule la capacidad (en bits por segundo) de los canales TCH y SDCCH, así como de sus respectivos canales de señalización asociados lentos SACCH. ¿Cuál es el rendimiento espectral de la modulación GMSK (en bits/Hz/s)?
+
+### Antes de resolver
+
+| Parte del enunciado | Qué significa | Para qué se usa |
+| --- | --- | --- |
+| **Combinación I** | Un intervalo con TCH/F + FACCH + SACCH: el canal de tráfico (voz) | Da la capacidad del TCH y de su SACCH |
+| **Combinación VII** | Un intervalo con 8 SDCCH + 8 SACCH: los canales de señalización dedicada | Da la capacidad del SDCCH y de su SACCH |
+| **Multitrama** | 26 tramas (120 ms) para tráfico; 51 tramas (235,38 ms) para señalización; la comb. VII usa en realidad **102 tramas** (dos MF51) para el SACCH | Es el periodo en el que se cuentan las ráfagas |
+| **Capacidad (bit/s)** | Bits de datos que lleva el canal por segundo | = ráfagas por multitrama × 114 bits / duración |
+| **Canal asociado lento (SACCH)** | Canal de control que acompaña a cada canal dedicado (medidas, control de potencia) | Hay que calcular también su capacidad |
+| **Rendimiento espectral** | Bits por segundo que se transmiten por cada hercio de ancho de banda | = tasa de la portadora / 200 kHz |
+
+**Qué hay que saber antes:**
+
+- Una ráfaga normal lleva **114 bits de datos** (2 × 57); los otros bits son cola, entrenamiento y banderas.
+- En la MF26 de la comb. I hay **24 tramas de TCH**, 1 de SACCH y 1 libre.
+- En la comb. VII, cada SDCCH tiene 4 ráfagas por MF51, y cada SACCH tiene 4 ráfagas pero repartidas en **dos MF51** (A0-A3 en una, A4-A7 en la otra).
+- La portadora GSM transmite 156,25 bits cada 0,577 ms = 270,83 kbit/s y ocupa 200 kHz.
+
+### Resolución
+
+| Canal | Ráfagas | Periodo | Cálculo | Resultado |
+| --- | --- | --- | --- | --- |
+| TCH/F (comb. I) | 24 por MF26 | 120 ms | 24 · 114 / 0,120 | **22,8 kbit/s** |
+| SACCH (comb. I) | 1 por MF26 | 120 ms | 114 / 0,120 | **950 bit/s** |
+| SDCCH (comb. VII) | 4 por MF51 | 235,38 ms | 456 / 0,23538 | **1,94 kbit/s** |
+| SACCH (comb. VII) | 4 por 102 tramas | 470,77 ms | 456 / 0,47077 | **0,97 kbit/s** |
+
+**Rendimiento espectral:** 156,25 bits / 0,577 ms = 270,83 kbit/s; η = 270,83 / 200 = **1,35 bit/s/Hz**.
+
+> **Comprobación.** 22,8 kbit/s son los 13 kbit/s del códec de voz más la protección contra errores. 8 SDCCH + 8 SACCH = 96 ráfagas de 114 bits en 470,77 ms = 23,25 kbit/s, que cuadra con 8 · 1,937 + 8 · 0,969.
+>
+> **Lecturas alternativas.** Con la ráfaga entera (148 bits): TCH 29,6 kbit/s. Para η: 1,28 si solo se cuentan las 8 ráfagas de 148 bits y 0,99 con solo datos de usuario. **Confianza: alta** (el SACCH de la comb. VII tiene la mitad que el SDCCH por repartirse en 102 tramas: lo confirma la tabla de mapeo de la norma ETSI TS 45.002, con periodicidad 102 y bloques de 4 ráfagas; calcularlo sobre 51 tramas y dar 1,94 es un error).
+
+---
+
+## Ejercicio 3: RACH en la combinación V
+
+### Enunciado
+
+> A partir de la estructura de multitrama de la combinación V calcule el número máximo de peticiones por segundo que admite el canal RACH y su régimen binario sabiendo que:
+>
+> - Cada petición sobre el canal RACH utiliza una única ranura (slot).
+> - La ocupación del canal RACH no debe superar el 10 % del máximo (para garantizar un bajo retardo en el acceso, canal Aloha ranurado).
+
+<img src={fig1.src} alt="Figura 1 del enunciado: multitrama de la combinación V en el sentido ascendente. Cuatro filas de 26 y 25 tramas con las ranuras R de RACH, D0 a D3 de SDCCH y A0 a A3 de SACCH." loading="lazy" style={{ maxWidth: "100%", height: "auto" }} />
+
+*Figura 1. Multitrama de la combinación V (uplink), tal como aparece en el enunciado: dos multitramas de 51 tramas.*
+
+### Antes de resolver
+
+| Parte del enunciado | Qué significa | Para qué se usa |
+| --- | --- | --- |
+| **Combinación V** | Un intervalo con FCCH + SCH + BCCH + CCCH + 4 SDCCH + 4 SACCH | Es la que tiene el RACH de tu célula de poca capacidad |
+| **RACH** | Canal de acceso aleatorio, ascendente: el móvil lo usa para pedir un canal | Se pide su capacidad |
+| **Ranura R** | Una trama de la multitrama reservada al RACH (cada petición usa una) | Se **cuentan** en la figura |
+| **Aloha ranurado** | Protocolo de acceso: los móviles transmiten en el inicio de una ranura y, si chocan, repiten | Explica el 10 %: más allá se producen demasiados choques |
+| **Ocupación máx. 10 %** | Solo se puede usar el 10 % de la capacidad máxima | Reduce el máximo a la décima parte |
+| **Régimen binario** | Bits por segundo que lleva el RACH | Peticiones por segundo × bits por petición |
+
+**Qué hay que saber antes:**
+
+- La multitrama de 51 tramas dura 235,38 ms.
+- La ráfaga de acceso lleva **36 bits de datos** (a 41 de sincronización y 8 de cola de entrada).
+- En la comb. V hay **27 ranuras R por MF51**: 51 tramas menos 16 de SDCCH y 8 de SACCH.
+
+### Resolución
+
+1. Cuenta de R en la figura: 2 + 12 + 11 + 2 = **27 por MF51**.
+2. Máximo: 27 / 0,23538 s = **114,7 peticiones/s**.
+3. Con el 10 %: 0,10 · 114,7 = **11,47 peticiones/s**.
+4. Régimen binario: 11,47 · 36 bits = **413 bit/s** (al 100 %: 4.129 bit/s).
+
+**Resultado: 11,5 peticiones/s (114,7 al 100 %) y ≈ 413 bit/s.**
+
+> **Dudas.** El régimen depende de los bits por ráfaga que se cuenten: 8 bits de información útil → 92 bit/s; 41 + 36 = 77 → 883 bit/s; 88 bits modulados (sin guarda) → 1.009 bit/s; 148 bits → 1.698 bit/s. Me quedo con 36 porque es el dato rotulado en la ráfaga de acceso de las diapositivas: son los bits codificados del canal (8 de información útil + 6 de paridad con el BSIC + 4 de cola, con un código convolucional de tasa 1/2). **Confianza: alta en las peticiones por segundo; media en el régimen binario.**
+
+---
+
+## Ejercicio 4: una célula, una frecuencia
+
+### Enunciado
+
+> Vamos a centrarnos en una parte de un sistema GSM formada por una única célula, a la que hemos asignado una única frecuencia (un par de portadoras, una para uplink y su par para downlink) según el perfil de tráfico bajo (se utiliza la combinación de tráfico I). Se estima que la célula debe atender a 300 móviles que tienen el siguiente comportamiento de tráfico en hora cargada:
+>
+> - Realizan un intento de llamada cada 90 minutos.
+> - Las conversaciones tienen una duración media (exponencial) de 2 minutos.
+>
+> ¿Cuál será la probabilidad de bloqueo de llamada resultante?, ¿cuántos móviles podremos atender si no queremos superar una probabilidad de bloqueo de llamada del 1 %? ¿Qué ocurriría si utilizamos la combinación de tráfico II en lugar de la I?
+
+### Antes de resolver
+
+| Parte del enunciado | Qué significa | Para qué se usa |
+| --- | --- | --- |
+| **Una frecuencia, perfil de tráfico bajo** | Una portadora de 8 intervalos: 1 de señalización (comb. V) + 7 de tráfico | Da el número de canales de tráfico |
+| **Combinación I / II** | I: cada intervalo = 1 TCH/F (voz de tasa completa). II: cada intervalo = 2 TCH/H (media tasa) | I → 7 canales; II → 14 canales |
+| **300 móviles, 1 intento cada 90 min** | Cada móvil genera 1/90 llamadas por minuto | Se usa para el tráfico ofrecido |
+| **Duración media 2 min (exponencial)** | El tiempo que ocupa un canal cada llamada | Se multiplica por la tasa de llamadas |
+| **Probabilidad de bloqueo** | Fracción de llamadas que no encuentran canal libre | Es lo que da Erlang B |
+
+**Qué hay que saber antes:**
+
+- **Erlang B** (llamadas bloqueadas se pierden, sin cola): B(0) = 1 y B(n) = A · B(n−1) / (n + A · B(n−1)), con A = λ · h en Erlang.
+- Para el máximo de usuarios se busca el A que da el bloqueo límite y se divide por el tráfico de un usuario.
+- Ejercicio hecho con la [calculadora de Erlang B](../trafico-colas/) de la web.
+
+### Resolución
+
+1. Tráfico ofrecido: A = 300 · 2 / 90 = **6,667 E**.
+2. Comb. I (7 TCH/F): B(7; 6,667) = **22,8 %**.
+3. Para B ≤ 1 % con 7 canales: A_max = 2,501 E; N = 2,501 / (2/90) = 112,5 → **112 móviles** (con 113 ya se pasa).
+4. Comb. II (14 TCH/H): B(14; 6,667) = **0,50 %**: se atiende a los 300. Para el 1 %: A_max = 7,352 E → **330 móviles**.
+
+<ErlangB N={7} A={6.667} />
+
+**Con la combinación II:** el bloqueo baja de 22,8 % a 0,5 % y se atiende casi el triple de usuarios con el doble de canales (ganancia de multiplexación). La contrapartida es la calidad de voz: half-rate, códec de menor tasa.
+
+> **Lectura alternativa.** Con Engset (300 fuentes) el bloqueo sería 21,96 % y 0,39 %, y los máximos serían 117 y 341 móviles. Como el formulario trae Erlang B, esa es la lectura esperable. **Confianza: alta.**
+
+---
+
+## Resumen de la hoja
+
+| Apartado | Resultado | Confianza |
+| --- | --- | --- |
+| 1 | 37,8 km | alta |
+| 2 | TCH 22,8 kbit/s; SACCH 950 bit/s; SDCCH 1,94 kbit/s; SACCH (VII) 0,97 kbit/s; η = 1,35 bit/s/Hz | alta |
+| 3 | 114,7 peticiones/s al 100 %; 11,47 al 10 %; 413 bit/s | alta / media |
+| 4 | 22,8 %; 112 móviles; con comb. II: 0,5 % y 330 móviles | alta |

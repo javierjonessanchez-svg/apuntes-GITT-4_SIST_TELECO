@@ -1,0 +1,169 @@
+---
+titulo: "Hoja Red1 resuelta"
+orden: 16
+bloque: "Ejercicios resueltos"
+resumen: "Capa de red (bloque 1): medidas por el SACCH, duración máxima de llamadas y recepción discontinua, con enunciado, conceptos previos y resolución"
+saber:
+  - "Calcular el tamaño de un Measurement_Report y la tasa de medidas por el SACCH"
+  - "Obtener la duración media máxima de las llamadas desde la carga del PCH y los criterios de bloqueo"
+  - "Calcular el número de bloques de aviso (NPB) con BS_AG_BLKS_RES y BS_PA_MFRMS y la capacidad de avisos"
+  - "Detectar enunciados inconsistentes y dar el resultado de cada lectura"
+fuentes:
+  - "Cx_EjerciciosRed1.pdf"
+  - "Cx_Multiplex.pdf, Cx_Enlace.pdf, Cx_Red_Conexiones.pdf y Formulario_RdC.pdf"
+---
+
+Hoja de problemas **Capa de red (bloque 1)**. Cada ejercicio tiene **Enunciado** (tal cual), **Antes de resolver** (qué significa y para qué sirve cada dato, y qué hay que saber) y **Resolución**. Las constantes y combinaciones están en el [índice de ejercicios resueltos](../hojas-resueltas/).
+
+> **Esta resolución no es oficial.** No hay solución del profesor. Los números están calculados con código y contrastados entre varios modelos y fuentes. El ejercicio 2 tiene un enunciado inconsistente y doy las lecturas posibles.
+
+---
+
+## Ejercicio 1: medidas por el SACCH y duración de las llamadas
+
+### Enunciado
+
+> Se propone estudiar una parte de un sistema GSM compuesta de 16 células contiguas que forman un área de localización. Por simplicidad vamos a suponer que se disponen en 4 filas de 4 células cada una por lo que cubren una zona aproximadamente cuadrada. Desde las células centrales se escuchan las transmisiones de cualquiera de las estaciones base de las otras células. Cada célula recibe una asignación básica de recursos (una frecuencia: 1 intervalo de señalización V y resto de tráfico I).
+>
+> Cada MS (con una conexión activa) monitoriza continuamente la calidad de la información que recibe y transmite esos valores a su BTS mediante el canal SACCH.
+>
+> - Cada medida se empaqueta en un mensaje RR (Measurement_Report) que transporta como parámetro el IE «Measurement_Results» que incluye, además de la calidad en recepción, la potencia de señal que la MS recibe de un máximo de 6 BTSs vecinas (las mejores).
+> - Cada mensaje se transmite independientemente en tramas LAPDm de tipo UI (tantas como se necesiten). Las tramas LAPDm son de longitud fija, L = 23 octetos (se rellenan con 1s si es necesario).
+> - El contenido de cada trama se mapea sobre la interfaz radio (canal SACCH en la multitrama) una vez que se le han añadido los códigos contra errores (primero un código bloque (fire) que añade 44 bits de redundancia, seguido de un código convolucional de tasa ½ aplicado sobre el total resultante del código bloque).
+>
+> Datos de tráfico:
+>
+> - El canal PCH tiene reservados 2/3 de la capacidad CCCH y se encuentra cargado al 2 %.
+> - El tráfico de llamadas salientes de cada célula es el doble del de llamadas entrantes.
+> - Las llamadas se establecen según la estrategia típica (1.ª fase: 6 s, resto: 3 s).
+>
+> a) Calcule la tasa de medidas de calidad a la que puede transmitir una MS activa en una de las células centrales.
+>
+> Sabiendo que cada aviso de llamada entrante (Paging message) a una MS se transmite en una sola ráfaga y se repite tres veces, y se imponen como criterios de calidad: P_B,SDCCH < 1 ‰ y P_B,TCH < 1 %,
+>
+> b) Calcule la duración media máxima de las llamadas.
+>
+> Formato de mensaje de capa de red: TI (4) · PD (4) · Message Type (8 bits) · IE Measurement_Results.
+>
+> Formato de IE (Measurement_Results): Identificador (8 bits) · Calidad en Rx (23 bits) · Nº de BTSs vecinas (3 bits) · Nivel de señal de vecina «1» (17 bits) … Nivel de señal de vecina «n» (17 bits).
+>
+> Formato de trama LAPDm: Dirección (8 bits) · Control (8 bits) · Longitud (8 bits) · INFO (máx. 20 octetos) · Relleno (hasta 23 octetos).
+
+### Antes de resolver
+
+| Parte del enunciado | Qué significa | Para qué se usa |
+| --- | --- | --- |
+| **16 células en un LA (4 × 4)** | Un área de localización con 16 células. La célula central oye a las otras 15 | Para saber cuántas vecinas oye la MS y **cuántas células emiten el aviso** |
+| **Frecuencia: 1 intervalo V + resto I** | Perfil de tráfico bajo: 1 comb. V (señalización) + 7 comb. I (tráfico) | Da 4 SDCCH, 7 TCH/F y 3 bloques CCCH por MF51 |
+| **Measurement_Report** | Mensaje que la MS envía por el SACCH con calidad y niveles de las vecinas | Se calcula su tamaño en bits |
+| **IE Measurement_Results, máx. 6 vecinas** | Campo del mensaje: 8 + 23 + 3 + 17 bits por vecina | n = 6 → 136 bits |
+| **Trama LAPDm UI de 23 octetos** | Trama de enlace sin numerar; lleva hasta 20 octetos de información + 3 de cabecera | Cuántas tramas hacen falta |
+| **Fire (+44) y convolucional ½** | Código bloque que añade 44 bits y después un código que duplica los bits | (184 + 44) · 2 = 456 bits = 4 ráfagas |
+| **PCH 2/3 del CCCH, cargado al 2 %** | Dos tercios de los recursos CCCH son de aviso; el 2 % está ocupado | Fija la tasa de avisos |
+| **Salientes = 2 × entrantes** | λ_S = 2 · λ_E | Relaciona las dos tasas |
+| **Estrategia típica 6 s + 3 s** | 6 s en SDCCH (fase inicial) y 3 s de FACCH en el TCH (resto) | SDCCH: 6 s por llamada; TCH: conversación + 3 s |
+| **Aviso: 1 ráfaga repetida 3 veces** | Cada aviso consume 3 ráfagas de PCH | Convierte avisos en ráfagas |
+| **P_B,SDCCH < 1 ‰ y P_B,TCH < 1 %** | Criterios de calidad: bloqueo del SDCCH menor que 0,001 y del TCH menor que 0,01 | Se imponen con Erlang B |
+
+**Qué hay que saber antes:**
+
+- El SACCH da **1 ráfaga por MF26** (cada 120 ms); un bloque de 4 ráfagas tarda 480 ms.
+- La comb. V tiene **12 ráfagas CCCH** por MF51 (3 bloques); la IV tiene 36 (9 bloques).
+- La MF51 dura 235,38 ms.
+- Erlang B y el «aviso se emite en todo el LA».
+
+### Resolución del apartado a)
+
+1. Cabecera de capa 3: 4 + 4 + 8 = 16 bits. IE: 8 + 23 + 3 + 6 · 17 = 136 bits. **Mensaje: 152 bits = 19 octetos.**
+2. Cabe en una trama UI (INFO máx. 20 octetos; se rellena 1 octeto).
+3. Una trama de 23 octetos = 184 bits; con fire y convolucional: (184 + 44) · 2 = **456 bits = 4 ráfagas = 1 bloque SACCH**.
+4. Un bloque tarda 4 · 120 ms = 480 ms.
+
+**Resultado: 1 medida cada 480 ms = 2,083 medidas/s.** Coincide con el «cada 480 ms» de las diapositivas. **Confianza: alta.**
+
+> Con 7 vecinas el mensaje sería de 22 octetos y no cabría en una trama (la tasa se reduciría a la mitad). Con n = 6 no pasa.
+
+### Resolución del apartado b)
+
+1. CCCH comb. V: 12 ráfagas por MF51; PCH = 2/3 → **8 ráfagas** por MF51 = 8 / 0,23538 = 33,99 ráfagas/s.
+2. Cada aviso son 3 ráfagas. **Supuesto clave:** el aviso se emite en las **16 células del LA**, así que el PCH de cada célula soporta los avisos de las 16: 16 · λ_E · 3 = 0,02 · 33,99.
+3. λ_E = 0,014162 /s = **50,98 llamadas entrantes/h por célula**; λ_S = 101,96 /h; total 152,94 /h = 0,042484 /s.
+4. SDCCH (4 canales, 6 s): A = 0,042484 · 6 = 0,255 E → B = 1,4·10⁻⁴ < 10⁻³ ✓ (no limita).
+5. TCH (7 canales, B < 1 %): A_max = 2,501 E.
+6. A_TCH = λ · (T + 3 s) → T + 3 = 2,501 / 0,042484 = 58,87 s.
+
+**Resultado: T ≈ 55,9 s de conversación** (58,9 s si se cuenta el tiempo total en el TCH incluidos los 3 s de FACCH). **Confianza: media** (depende de la lectura del aviso en todo el LA).
+
+> **Lecturas descartadas.** Si el aviso se emitiera solo en la propia célula, λ_E = 815,7 /h, el SDCCH tendría 4,08 E sobre 4 canales (B = 0,32) y no habría solución razonable: por eso la lectura del LA completo es la buena. Restar los 3 s de FACCH me parece lo más probable porque el enunciado da ese dato precisamente para eso (la estrategia típica pone la fase inicial en SDCCH y el resto en FACCH/TCH). **Variante:** si «se repite tres veces» se contara como 4 ráfagas por aviso (un bloque), saldría T ≈ 75,5 s.
+
+---
+
+## Ejercicio 2: recepción discontinua (DRX) y avisos
+
+### Enunciado
+
+> Uno de los problemas más importantes en la operación de los móviles GSM tiene que ver con el consumo de batería en modo «idle» (terminal encendido escaneando la interfaz radio para engancharse a la BTS más adecuada y en espera de posibles mensajes de «paging» entrantes). Con objeto de alargar la vida de las baterías se definió el modo de operación con recepción discontinua (DRX): el móvil sólo escanea los canales comunes de la celda cada cierto período de tiempo permaneciendo el resto del tiempo en espera pasiva.
+>
+> Los móviles de cada célula se distribuyen en NPB posibles grupos de recepción (PB, Paging Blocks) que aportan los canales CCCH, de manera que cada móvil sólo se abre (escanea los canales CCCH) cuando aparece su bloque PB, el resto del tiempo permanece cerrado. Cada móvil es capaz de determinar a qué PB pertenece. Los PB no tienen que aparecer en todas las multitramas, sino que pueden tener un período de repetición que abarque varias multitramas consecutivas.
+>
+> Cuatro intervalos (ranuras de tiempo) consecutivos CCCH forman un «grupo CCCH» que se utilizará para constituir un PB o para el canal AGCH.
+>
+> La red distribuye mediante el canal BCCH el número de grupos CCCH que se dedican al canal AGCH (BS_AG_BLKS_RES) y el número de multitramas comprendidas entre el comienzo de un PB y la siguiente aparición del mismo PB (BS_PA_MFRMS).
+>
+> El sistema en estudio consta de un área de localización formada por 12 células. Cada célula tiene asignada una frecuencia con la siguiente asignación de canales lógicos:
+>
+> - Un intervalo para señalización GSM (Comb. V [FCCH, SCH, BCCH, CCCH, SDCCH/4(0,1,2,3), SACCH/4(0,1,2,3)])
+> - Resto de intervalos, de tráfico, GSM (comb. I [TCH/F, FACCH/F, SACCH]).
+> - BS_AG_BLKS_RES = 3, BS_PA_MFRMS = 4
+>
+> Se pide:
+>
+> a) Determine el número de PBs (NPB) disponibles en el sistema.
+>
+> b) Suponiendo que cada mensaje de aviso («paging») ocupa una sola ráfaga y que debe transmitirse tres veces, calcule el número de avisos que pueden entregarse a los móviles de cada célula.
+
+### Antes de resolver
+
+| Parte del enunciado | Qué significa | Para qué se usa |
+| --- | --- | --- |
+| **DRX (recepción discontinua)** | El móvil solo «se abre» a escuchar los avisos en su momento; el resto del tiempo duerme y ahorra batería | Es la razón de dividir los móviles en grupos |
+| **PB (Paging Block)** | Un grupo de 4 ranuras CCCH consecutivas con el que se avisa a un grupo de móviles | NPB es lo que se pide |
+| **Grupo CCCH** | 4 intervalos CCCH consecutivos = 1 bloque; vale para aviso (PB) o para el AGCH | Unidad en la que se cuenta |
+| **BS_AG_BLKS_RES** | Bloques CCCH **reservados al AGCH** (asignación de canal) en cada multitrama; no se usan para avisos | Se resta de los bloques CCCH |
+| **BS_PA_MFRMS** | Multitramas entre dos apariciones del mismo PB (periodo de repetición) | Multiplica: más ciclo, más PB distintos |
+| **LA de 12 células** | Los avisos se difunden en todas | Aclara que la capacidad es del LA |
+| **Aviso: 1 ráfaga, 3 veces** | Cada aviso gasta 3 ráfagas | Capacidad = ráfagas de PCH / 3 |
+
+**Qué hay que saber antes:**
+
+- NPB = (bloques CCCH por MF51 − BS_AG_BLKS_RES) · BS_PA_MFRMS.
+- La comb. V tiene **3 bloques CCCH** por MF51 (12 ráfagas); la comb. IV, 9 bloques (36 ráfagas).
+- Un ciclo de aviso dura BS_PA_MFRMS · 235,38 ms.
+
+### Resolución
+
+> **Este enunciado es inconsistente.** Con comb. V solo hay 3 bloques CCCH por MF51 y se reservan 3 para AGCH: (3 − 3) · 4 = **0 PB** y no habría avisos. En la norma real, con comb. V, BS_AG_BLKS_RES ≤ 2. Hay que elegir una lectura.
+
+| Lectura | NPB | Avisos (ráfagas PCH / 3) |
+| --- | --- | --- |
+| A. Literal, comb. V | (3 − 3) · 4 = **0** | 0 |
+| B. 9 bloques CCCH (como comb. IV): (9 − 3) · 4 | **24** | 96 ráfagas → **32 avisos por ciclo** de 941,5 ms (≈ 34 avisos/s) |
+| C. Comb. V con 3 bloques de AGCH en todo el ciclo de 4 MF: 12 − 3 (**no normativa**: la norma reserva los bloques de AGCH en cada MF51) | **9** | 36 ráfagas → **12 avisos por ciclo** (≈ 12,7 avisos/s) |
+| D. Variante normativa: comb. V con BS_AG_BLKS_RES = 2 (el máximo permitido con CCCH combinado): (3 − 2) · 4 | **4** | 16 ráfagas → **5 avisos por ciclo** |
+
+La fórmula NPB = (bloques CCCH − BS_AG_BLKS_RES) · BS_PA_MFRMS está confirmada en la norma (ETSI TS 45.002, apartado 6.5); con CCCH combinado solo se permiten valores 0, 1 y 2 de BS_AG_BLKS_RES, por eso el 3 del enunciado no es posible con comb. V.
+
+**Lo prudente en examen:** escribir la fórmula, señalar la incoherencia y dar el resultado de la lectura que elijas. Mi apuesta es que el profesor quería la fórmula estándar con 9 bloques (**NPB = 24**, **32 avisos por ciclo**), aunque eso exigiría comb. IV.
+
+> **«De cada célula».** Los avisos se difunden en las 12 células del LA, así que esa capacidad es la del LA entero. Si se repartiera por igual entre las 12, serían 32 / 12 = 2,67 avisos por ciclo por célula (poco probable). Si se cuenta un aviso entero por PB (un aviso de 3 ráfagas no cabe dos veces en 4), saldrían 24 avisos por ciclo. **Confianza: baja** (enunciado inconsistente).
+
+---
+
+## Resumen de la hoja
+
+| Apartado | Resultado | Confianza |
+| --- | --- | --- |
+| 1a | 1 medida cada 480 ms (2,083/s) | alta |
+| 1b | T ≈ 55,9 s | media |
+| 2a | NPB = 24 (0 literal; 9 en la lectura C) | baja |
+| 2b | 32 avisos por ciclo de 941,5 ms | baja |

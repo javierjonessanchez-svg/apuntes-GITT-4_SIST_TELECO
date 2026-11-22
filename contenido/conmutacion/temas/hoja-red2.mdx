@@ -1,0 +1,190 @@
+---
+titulo: "Hoja Red2 resuelta"
+orden: 17
+bloque: "Ejercicios resueltos"
+resumen: "Capa de red (bloque 2): dos BTS con RACH, pérdidas y PCH, y cuatro células en dos áreas de localización, con enunciado, conceptos previos y resolución"
+saber:
+  - "Calcular la ocupación del RACH y del PCH a partir de llamadas por hora y capacidad por multitrama"
+  - "Encadenar Erlang B en SDCCH, TCH y Abis y combinar las pérdidas del camino BTS-BSC"
+  - "Repartir terminales entre áreas de localización con la condición de carga de entrantes similar"
+  - "Hallar el máximo de terminales imponiendo bloqueo del TCH y del Abis"
+fuentes:
+  - "Cx_EjerciciosRed2.pdf"
+  - "Cx_Multiplex.pdf, Cx_Red_Conexiones.pdf, Cx_Red-Movilidad.pdf y Formulario_RdC.pdf"
+---
+
+import ErlangB from '../../../src/asignaturas/conmutacion/widgets/ErlangB.astro';
+import figLA from '../../../src/assets/conmutacion/red2-areas-localizacion.png';
+
+Hoja de problemas **Capa de red (bloque 2)**. Cada ejercicio tiene **Enunciado** (tal cual), **Antes de resolver** (qué significa y para qué sirve cada dato, y qué hay que saber) y **Resolución**. Las constantes y combinaciones están en el [índice de ejercicios resueltos](../hojas-resueltas/). El método general de este tipo de ejercicio, con la cadena de lambdas, está en [Pistas para el PEI](../pistas-examen/).
+
+> **Esta resolución no es oficial.** No hay solución del profesor. Los números están calculados con código y contrastados entre varios modelos y fuentes; en cada apartado indico la confianza y las lecturas alternativas.
+
+---
+
+## Ejercicio 1: dos BTS, RACH, pérdidas y PCH
+
+### Enunciado
+
+> El sistema en estudio consta de 2 BTS, dependientes del mismo BSC, al que se conectan mediante dos enlaces E1 para tráfico. Las BTS están conectadas al BSC de manera que comparten la capacidad disponible del E1. Cada BTS cuenta con una preasignación de frecuencias según un perfil de tráfico medio.
+>
+> La siguiente tabla muestra el perfil de tráfico (llamadas de cada BTS):
+>
+> | | Nº terminales | λ_e (llam/hora) | λ_s (llam/hora) |
+> | --- | --- | --- | --- |
+> | BTS1 | 500 | 1 | 0,5 |
+> | BTS2 | 350 | 0,5 | 1 |
+>
+> Todas las llamadas tienen una duración media de 2 minutos (distribución exponencial).
+>
+> Sabiendo que cada solicitud de establecimiento de llamada ocupa el canal SDCCH durante 8 segundos en media (distribución exponencial) y que cada petición consume 4 ranuras RACH:
+>
+> a) Calcule la ocupación del canal RACH en la BTS1 ¿y en la BTS2?
+>
+> b) Calcule la probabilidad de pérdidas en las interfaces Um y Abis.
+>
+> Sabiendo que cada aviso de llamada entrante ocupa 4 ranuras CCCH, que el canal PCH tiene reservados la mitad de los recursos CCCH del sistema y que ambas BTS comparten área de localización:
+>
+> c) Calcule la ocupación del canal PCH en la BTS1, en la BTS2 ¿será igual?
+
+### Antes de resolver
+
+| Parte del enunciado | Qué significa | Para qué se usa |
+| --- | --- | --- |
+| **2 BTS, mismo BSC, 2 E1 compartidos** | Las dos BTS salen por el mismo enlace Abis, que tiene 2 E1 de 15 canales × 4 llamadas | Fija el tamaño del pool del Abis: **120 circuitos** (el enunciado no dice «15 canales × 4»: es la convención de Red2 ejercicio 2 y de Red3) |
+| **Perfil de tráfico medio** | 4 frecuencias por BTS: 1 comb. IV + 2 comb. VII + 29 comb. I | Da 51 ranuras RACH, 9 bloques CCCH, 16 SDCCH y 29 TCH/F |
+| **Nº terminales, λ_e, λ_s** | Terminales de la BTS y llamadas **por terminal** y hora, entrantes y salientes | Llamadas por hora de cada BTS = terminales · (λ_e + λ_s) |
+| **Duración 2 min, exponencial** | Cada llamada ocupa un TCH 120 s de media | A_TCH = λ · 120 s |
+| **SDCCH 8 s** | Cada solicitud (entrante o saliente) ocupa un SDCCH 8 s | A_SDCCH = λ · 8 s |
+| **Petición = 4 ranuras RACH** | Cada llamada consume 4 ranuras del RACH | Ocupación del RACH |
+| **Um y Abis** | Um = interfaz radio (SDCCH y TCH); Abis = enlace BTS-BSC | Los tres sitios donde se pierden llamadas |
+| **Aviso = 4 ranuras CCCH** | Un aviso ocupa un bloque CCCH | Capacidad del PCH en avisos |
+| **PCH = mitad del CCCH, mismo LA** | La mitad de los bloques CCCH son de aviso; las dos BTS emiten los mismos avisos | PCH idéntico en las dos BTS |
+
+**Qué hay que saber antes:**
+
+- **Los λ de la tabla son por terminal.** Si fueran totales de la BTS, las cargas serían de 0,03 E (absurdo).
+- Comb. IV: 51 ranuras RACH por MF51 → capacidad 216,67 ranuras/s; 9 bloques CCCH.
+- Erlang B, y que el Abis se alimenta del tráfico **cursado** (no del ofrecido).
+- Que el aviso se emite en **todas** las células del LA.
+- Las peticiones del RACH son tanto de entrantes (respuesta al aviso) como de salientes.
+
+### Resolución
+
+| | Entrantes/h | Salientes/h | Total/h |
+| --- | --- | --- | --- |
+| BTS1 | 500 · 1 = 500 | 500 · 0,5 = 250 | **750** |
+| BTS2 | 350 · 0,5 = 175 | 350 · 1 = 350 | **525** |
+
+**a) Ocupación del RACH.** Capacidad = 51 / 0,23538 = 216,67 ranuras/s. Cada petición usa 4 ranuras.
+
+- BTS1: 750/3600 · 4 / 216,67 = **0,385 %**.
+- BTS2: 525/3600 · 4 / 216,67 = **0,269 %**.
+
+No son iguales: cada BTS tiene su carga. *Alternativas descartadas:* con comb. V (27 ranuras) saldría 0,727 % y 0,509 %; si solo contaran las salientes, 0,128 % y 0,179 %. **Confianza: alta** si el perfil medio usa comb. IV.
+
+**b) Pérdidas en Um y Abis.** Cascada de Erlang B.
+
+| Recurso | Tráfico | Canales | Bloqueo BTS1 | Bloqueo BTS2 |
+| --- | --- | --- | --- | --- |
+| SDCCH | λ · 8 s: 1,667 E y 1,167 E | 16 | 3·10⁻¹¹ ≈ 0 | 2·10⁻¹³ ≈ 0 |
+| TCH | λ · 120 s: 25,0 E y 17,5 E | 29 | **6,66 %** | **0,32 %** |
+| Abis | cursado ≈ 40,8 E (las dos) | 2 E1 · 60 = 120 | ≈ 5·10⁻²⁴ ≈ 0 | idem |
+
+Pérdida del camino BTS → BSC, P_L = 1 − (1 − P_SDCCH)(1 − P_TCH)(1 − P_Abis): **BTS1 ≈ 6,66 %** y **BTS2 ≈ 0,32 %**. Domina el TCH.
+
+<ErlangB N={29} A={25} />
+
+**Resultado:** Um: SDCCH ≈ 0 y TCH 6,66 % (BTS1) y 0,32 % (BTS2); Abis ≈ 0 (sobredimensionado: 120 circuitos para 41 E). **Confianza: alta.**
+
+> **Lecturas alternativas.** Con 58 TCH/H (comb. II) las pérdidas del TCH serían del orden de 10⁻⁹ y 10⁻¹⁴. Con un solo E1 de 60 circuitos el Abis daría 0,1 %. La conclusión «Abis despreciable» no cambia con dos E1.
+
+**c) Ocupación del PCH.** PCH = mitad del CCCH = 4,5 bloques por MF51; un aviso = 1 bloque → 4,5 avisos/MF51 = 19,12 avisos/s. Como las BTS comparten LA, **el aviso se emite en las dos**, y cada PCH soporta los avisos de las dos: (500 + 175)/3600 = 0,1875 avisos/s.
+
+**Resultado: ocupación = 0,1875 / 19,12 = 0,981 % en las dos BTS: sí, es igual.** (Si el aviso no se difundiera a todo el LA saldría 0,727 % y 0,254 %, que suman 0,981 %.) **Confianza: alta.** Lo respalda la calibración con Red3 ejercicio 1, donde el 0,76 % de PCH solo sale sumando los avisos de todas las células del LA, y la norma (el aviso se emite en todas las células del área).
+
+---
+
+## Ejercicio 2: cuatro células en dos áreas de localización
+
+### Enunciado
+
+> El sistema en estudio consta de cuatro células con perfil de tráfico bajo (frecuencia única). El conjunto está dividido en dos áreas de localización diferentes A y B, tal como muestra la figura adjunta. Las cuatro células dependen de un BSC al que están conectadas mediante un enlace E1 en el que se dispone de 15 canales bidireccionales de 64 kbps para tráfico. Sobre cada canal del E1 se multiplexan 4 canales de tráfico.
+
+<img src={figLA.src} alt="Figura del enunciado: cuatro células hexagonales. Las células B1, B2 y B3, rayadas, forman el área de localización LA-B. La célula A, blanca, forma el área LA-A." loading="lazy" style={{ maxWidth: "100%", height: "auto" }} />
+
+> En cada célula se han hecho las siguientes asignaciones:
+>
+> - Un intervalo para señalización combinada según la combinación V [FCCH, SCH, BCCH, CCCH, SDCCH(0,1,2,3), SACCH(0,1,2,3)]. Ver distribución adjunta. Considere distribución equitativa de los canales CCCH si es necesario.
+> - Resto de intervalos, de tráfico, según la combinación II [TCH/H(0,1), FACCH/H(0,1), SACCH/TH(0,1)].
+>
+> Las condiciones de tráfico son:
+>
+> - Cada área de localización soporta una carga de llamadas entrantes similar.
+> - El tráfico de voz por terminal es de 0,05 E (llamadas con duración exponencial de media 2 minutos).
+> - Las llamadas se establecen sobre canal de señalización dedicado (exponencial de media 10 segundos) y FACCH (exponencial de media 5 segundos).
+>
+> Los criterios de calidad de servicio impuestos son:
+>
+> - Probabilidad de bloqueo de los canales de tráfico < 2 %.
+> - Probabilidad de bloqueo en la interfaz Abis < 1 %.
+>
+> a) Suponiendo que cada «aviso de llamada entrante» (paging message) necesita cuatro ráfagas (tipo normal) para su transmisión, calcular, en media, el máximo número de avisos que pueden entregarse a terminales de la célula B1.
+>
+> b) Calcule el número máximo de terminales, NT, admisibles en el sistema.
+
+### Antes de resolver
+
+| Parte del enunciado | Qué significa | Para qué se usa |
+| --- | --- | --- |
+| **Perfil de tráfico bajo, frecuencia única** | 1 portadora de 8 intervalos por célula: 1 comb. V + 7 de tráfico | Da 3 bloques CCCH y 4 SDCCH por célula |
+| **Combinación II** | Cada intervalo de tráfico = 2 TCH/H (media tasa) | 7 intervalos → **14 TCH/H por célula** |
+| **Dos LA: A = (A), B = (B1, B2, B3)** | La figura reparte las células: LA-A tiene 1, LA-B tiene 3 | Para repartir terminales y para ver quién comparte avisos |
+| **E1 de 15 canales × 4** | 60 circuitos de tráfico compartidos por las 4 células | Pool del Abis |
+| **Distribución equitativa del CCCH** | Mitad del CCCH para PCH y mitad para AGCH | Capacidad de avisos |
+| **Carga de entrantes similar por LA** | Los dos LA reciben igual número de llamadas entrantes | Obliga a N_A = N_B (en total) |
+| **0,05 E por terminal, 2 min** | Tráfico de voz de cada terminal | A = N · 0,05 (más el FACCH) |
+| **SDCCH 10 s y FACCH 5 s** | El SDCCH no usa TCH; el FACCH de 5 s **sí** ocupa el TCH | Tráfico real del TCH = conversación + 5 s |
+| **P_B,TCH < 2 % y P_B,Abis < 1 %** | Criterios de calidad | Imponen Erlang B |
+| **Aviso = 4 ráfagas** | Un aviso ocupa un bloque CCCH | Capacidad del PCH |
+
+**Qué hay que saber antes:**
+
+- Comb. V: 3 bloques CCCH por MF51 (12 ráfagas), 4 SDCCH, 27 ranuras RACH.
+- Con «distribución equitativa» el PCH tiene la mitad del CCCH.
+- Los avisos se difunden en **todas las células del LA**: la capacidad del PCH es del LA, no de cada célula por separado.
+- Erlang B y la búsqueda del máximo de usuarios.
+
+### Resolución
+
+Cada célula: 1 comb. V + 7 comb. II = **14 TCH/H**. Abis: 60 circuitos (máximo posible 4 · 14 = 56 < 60).
+
+**a) Avisos en B1.** Con «distribución equitativa»: PCH = AGCH = 1,5 bloques = 6 ráfagas por MF51. Un aviso son 4 ráfagas, así que **1,5 avisos por MF51 = 6,37 avisos/s ≈ 22.900 avisos/hora**.
+
+> Esa capacidad es la del PCH de **todo el LA-B** (B1, B2 y B3 emiten los mismos avisos). Con carga igual en las tres células, a B1 le corresponde un tercio: 2,12 avisos/s. La respuesta más probable en examen es 6,37 avisos/s mencionando que se comparte. Los 9 bloques CCCH corresponden a la comb. IV, no a la V: **descartados**. Otras lecturas de «equitativa»: 12,75 avisos/s con todo el CCCH para PCH y 8,5 con 2 bloques de PCH y 1 de AGCH. **Confianza: media.**
+
+**b) Terminales máximos.**
+
+1. Cada LA recibe la misma carga de entrantes, así que **N_A = NT/2** (la célula A sola) y cada B tiene NT/6.
+2. Célula A: 14 TCH/H con B < 2 % → A_max = 8,200 E.
+3. Tráfico por terminal en el TCH = conversación + FACCH = 0,05 · (120 + 5)/120 = **0,05208 E**.
+4. N_A ≤ 8,200 / 0,05208 = 157,4 → **N_A = 157** (con 158 se pasa del 2 %).
+5. Células B: 157/3 ≈ 52 terminales → 2,73 E → B ≈ 10⁻⁶ ✓. Abis: ≈ 16,2 E sobre 60 circuitos → 4·10⁻¹⁷ ✓. El PCH no limita.
+
+<ErlangB N={14} A={8.2} />
+
+**Resultado: NT,max = 314 terminales** (157 en A y 157 repartidos entre B1, B2 y B3). Limita el **TCH de la célula A**. **Confianza: media.**
+
+> **Lecturas alternativas.** Si solo se usan los 0,05 E de conversación: N_A = 164 y **NT = 328**. Si además se descuentan las llamadas bloqueadas en el SDCCH, como hace la solución oficial de Red3 ejercicio 3, N_A = 158 y **NT = 316** (menos probable: esta hoja no impone criterio de SDCCH). Si se repartieran por igual entre las 4 células sin usar la condición de los LA, NT = 628 (656 sin FACCH), pero la frase «cada LA soporta una carga de entrantes similar» obliga a N_A = N_B. Me quedo con 314 porque el enunciado da el FACCH de 5 s precisamente para sumarlo al TCH, y la solución oficial de Red3 ejercicio 3 también cuenta 120 + 3 s de TCH.
+
+---
+
+## Resumen de la hoja
+
+| Apartado | Resultado | Confianza |
+| --- | --- | --- |
+| 1a | RACH: 0,385 % (BTS1) y 0,269 % (BTS2) | alta |
+| 1b | TCH 6,66 % y 0,32 %; SDCCH y Abis ≈ 0; P_L ≈ P_TCH | alta |
+| 1c | PCH 0,981 % en las dos BTS | alta |
+| 2a | 1,5 avisos/MF51 = 6,37 avisos/s | media |
+| 2b | NT = 314 (316, 328 y 628 según la lectura) | media |
