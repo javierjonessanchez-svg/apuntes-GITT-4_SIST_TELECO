@@ -1,0 +1,87 @@
+---
+titulo: "Resumen 6: Gestión de conexiones, MSRN y SMS"
+orden: 27
+bloque: "Resúmenes de examen"
+resumen: "Una cara con la subcapa CM: CC y su señalización, cuándo se asigna el TCH, MOC y MTC, encaminamiento con MSRN y SMS."
+saber:
+  - "Saber que CM tiene tres entidades (CC, SS y SMS) y qué señalización usa CC: Q.931 con el móvil e ISUP-SS7 entre MSC."
+  - "Saber distinguir Non-OACSU, OACSU y VEA: lo único que cambia es cuándo se asigna el TCH."
+  - "Saber enumerar los pasos de una llamada entrante con MSRN, qué es el MSRN y para qué sirve."
+  - "Saber qué diferencia hay entre MT-SM y MO-SM, por qué canal va un SMS y qué hace el SMSC."
+fuentes:
+  - "Apuntes manuscritos de un compañero y la teoría de la web"
+---
+
+import ap08 from '../../../src/assets/conmutacion/apuntes/apuntes-08.jpg';
+import FlujoLlamada from '../../../src/asignaturas/conmutacion/widgets/FlujoLlamada.astro';
+
+> Resumen de una cara para repasar antes del examen, pasado a limpio desde unos apuntes manuscritos. Todo el detalle está en la [teoría completa](../gestion-conexiones/).
+
+<details>
+<summary>Ver los apuntes originales (foto)</summary>
+
+<img src={ap08.src} alt="Apuntes manuscritos: conexiones, MSRN y SMS" style={{ maxWidth: "100%", height: "auto" }} />
+
+</details>
+
+## Subcapa de gestión de conexiones (CM)
+
+Está en el **nivel 3** de la arquitectura de protocolos GSM. Su función es **proporcionar servicios de conexión al usuario final** (entre el MS y el MSC). Se divide en **3 entidades**:
+
+| Entidad | Función |
+| --- | --- |
+| **CC** (Control de Llamadas) | Establecer, mantener y liberar la llamada |
+| **SS** (Servicios Suplementarios) | Desvío, llamada en espera... |
+| **SMS** | Mensajes cortos |
+
+## CC
+
+- Utiliza una **señalización derivada del estándar Q.931 de la RDSI** para la interfaz de abonado entre el MS y el MSC. Único mensaje nuevo: `CALL CONFIRMED` (en MTC).
+- Emplea el protocolo de transporte **ISUP-SS7** para la comunicación entre MSC.
+- La **asignación del recurso radio para el tráfico de voz (TCH)** se realiza mediante tres estrategias. Lo que cambia es **cuándo** se da el TCH:
+
+| Estrategia | Se asigna el TCH... |
+| --- | --- |
+| **Non-OACSU** (Non Off Air Call Set-Up) | Tras el mensaje de establecimiento: `Set-Up` (MOC) o `Call Confirmed` (MTC) |
+| **OACSU** (Off Air Call Set-Up) | Cuando el receptor responde la llamada (`Connect`/ANM) |
+| **VEA** (Very Early Assignment) | Al inicio del proceso |
+
+- Los **procedimientos de señalización varían** según si la llamada es **originada** en la estación móvil (**MOC**) o **terminada** en la estación móvil (**MTC**).
+- En las llamadas **MTC** se requiere un paso de **paging** (aviso por el PCH) antes de establecer la conexión.
+
+## Encaminamiento y número de roaming: MSRN
+
+- Las llamadas dirigidas a un móvil originadas por la red fija **ingresan a la red a través del GMSC**.
+- El GMSC recibe el **número público del abonado (MSISDN)** y debe traducirlo a la **identidad real del móvil (IMSI)** para localizarlo.
+- Se usa el **MSRN** para **proteger y ocultar la localización e identidad real** del llamado.
+- **MSRN**: identidad temporal asignada que permite encaminar llamadas a terminales en su red. Formato E.164: VCC + VNDC + SN.
+
+> **Ojo.** En la foto parece que el GMSC traduce a IMSI; en la teoría lo hace el **HLR** al ser consultado por el GMSC. Manda la teoría.
+
+**Pasos de una llamada entrante con MSRN** (suele caer en el PEI):
+
+1. La llamada entra por el **GMSC** con **ISUP-IAM(MSISDN)**.
+2. El GMSC pregunta al **HLR**.
+3. El HLR traduce a **IMSI** y pide un MSRN al VLR visitado.
+4. El VLR crea el **MSRN** y vuelve al GMSC por el camino inverso.
+5. El GMSC encamina con **ISUP-IAM(MSRN)** al MSC visitado.
+6. El MSC, con el VLR, obtiene el **TMSI y el LAI**.
+7. **Paging** por el PCH y sigue como una MTC.
+
+<FlujoLlamada id="encaminamiento-msrn" />
+
+## SMS
+
+- Permite enviar mensajes de **texto puro, configuración o notificaciones** de hasta **140 caracteres**.
+- Para ello se usa el **SDCCH**, o el **SACCH** si ya existe una llamada activa (con SAPI=3).
+- Mensajes **MT-SM** (hacia la estación móvil) y **MO-SM** (desde la EM).
+- Formato: **periodo de validez**, **marca de tiempo** de llegada al SMSC, **prioridad** y **alertas**.
+- **SMSC** (Short Message Service Center): recibe y guarda los mensajes, comprueba permisos (HLR) y destino (VLR) y, si no está disponible, lo guarda y reintenta.
+
+> **Ojo.** La foto habla de 140 caracteres; en otras fuentes se dice 140 octetos. La teoría de la web dice **140 caracteres alfanuméricos**.
+
+## Lo que más cae
+
+- Qué cambia entre Non-OACSU, OACSU y VEA: **cuándo** se asigna el TCH.
+- Los **pasos de la llamada entrante con MSRN** y para qué sirve (ocultar IMSI y posición).
+- Por qué la MTC necesita **paging**; MT-SM frente a MO-SM y SDCCH o SACCH.

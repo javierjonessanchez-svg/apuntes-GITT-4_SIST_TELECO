@@ -1,0 +1,63 @@
+---
+titulo: "Resúmenes de examen: índice"
+orden: 21
+bloque: "Resúmenes de examen"
+resumen: "Siete resúmenes de una cara basados en los apuntes de un compañero, en orden de estudio, con lo que cubren, lo que les falta y las diferencias con la teoría"
+saber:
+  - "Saber en qué orden estudiar los resúmenes y qué sesión cubre cada uno"
+  - "Saber qué temas del examen NO están en los apuntes del compañero y dónde encontrarlos en la web"
+  - "Conocer las pequeñas diferencias entre los apuntes manuscritos y la teoría para no estudiar un error"
+fuentes:
+  - "Apuntes manuscritos de un compañero (10 hojas) contrastados con la teoría de la web"
+---
+
+> **Qué es esto.** Una versión corta de la teoría: **un resumen por sesión, del tamaño de una cara de folio**, siguiendo el orden y el contenido de los apuntes manuscritos de un compañero. Cada resumen lleva la **foto original desplegable**, los diagramas de la web y, donde la letra no se lee o hay una diferencia, la teoría completa manda y lo marco con «Ojo». Si tienes poco tiempo, estudia estos en lugar de toda la teoría.
+
+## Orden de estudio
+
+| Nº | Resumen | Apuntes | Teoría completa |
+| --- | --- | --- | --- |
+| 1 | [Arquitectura de GSM](../resumen-1-arquitectura/) | 1 hoja | [Arquitectura](../arquitectura-gsm/) |
+| 2 | [Interfaz aérea Um (y problemas de múltiplex)](../resumen-2-interfaz-aerea/) | 2 hojas | [Interfaz aérea](../interfaz-aerea/) y [Hoja Múltiplex](../hoja-multiplex/) |
+| 3 | [Capa de enlace: HDLC, LAPD y LAPDm](../resumen-3-enlace/) | 1 hoja | [Capa de enlace](../capa-enlace/) y [Ejercicio extra de HDLC](../hdlc-extra/) |
+| 4 | [Recursos radio y traspaso](../resumen-4-recursos-radio/) | 1 hoja | [Capa de red: RR](../capa-red-rr/) |
+| 5 | [Movilidad: identidades, autenticación y localización](../resumen-5-movilidad/) | 2 hojas | [Gestión de la movilidad](../gestion-movilidad/) |
+| 6 | [Conexiones: llamadas, MSRN y SMS](../resumen-6-conexiones/) | 1 hoja | [Gestión de conexiones](../gestion-conexiones/) |
+| 7 | [GPRS](../resumen-7-gprs/) | 2 hojas | [GPRS](../gprs/) |
+
+Es el orden de las sesiones del curso. Si estudias por lo que más cae según los compañeros, empieza por el 5 (autenticación), el 7 (GPRS), el 3 (el ejercicio de HDLC) y el 6 (MSRN); son los temas de teoría que según ellos se repiten ([Pistas para el PEI](../pistas-examen/)).
+
+## ¿Qué teoría falta en la web para cubrir esos apuntes?
+
+**Prácticamente nada.** Comparé cada hoja con la teoría de la web y todo lo importante de los apuntes ya está. Lo que no está, o está de otra forma, es esto:
+
+| Hoja | Qué trae el apunte y la teoría no recoge igual |
+| --- | --- |
+| 1 | Llama **RSS** a la parte radio (MS, BTS, BSC); la teoría usa **BSS**. Dice que el OMC «guarda recursos para planificación posterior» |
+| 2 | La agrupación de los canales de señalización en **BCCH (difusión), CCCH (comunes) y DCCH (dedicados)** como esquema; la teoría los lista por separado |
+| 5 | **Por qué se divide el área de un VLR en áreas de localización**: evitar una gestión masiva de recursos; y que también hay gestión de movilidad a nivel de red (SS7) |
+| 7 | El apunte cita el canal **PTCH** y dice que el registro usa «dos asignaciones temporales» (una para llamadas y otra para paquetes); la teoría lo concreta como TMSI y P-TMSI |
+
+## Diferencias entre los apuntes y la teoría (manda la teoría)
+
+| Tema | El apunte | La teoría |
+| --- | --- | --- |
+| Autenticación | Parece que el móvil envía «SRES y Kc» | El móvil solo envía **SRES**. Kc nunca cruza el aire: el MSC/VLR se la da a la BSS |
+| IMSI | CP + CO + nº de abonado | **MCC + MNC + MSIN** (país, operador, abonado) |
+| IMEI | TAC = modelo, FAC = fabricante | FAC = fábrica; el TAC incluye la autoridad homologadora y el modelo |
+| MSRN | El GMSC traduce el MSISDN a la identidad real | El **HLR** la traduce tras la consulta del GMSC |
+| SMS | «140 caracteres» | 140 caracteres alfanuméricos en la teoría de la asignatura |
+| EDGE | 484 kbit/s | Es la cifra de las diapositivas; la cifra correcta sería 473,6 |
+| Tramas S de HDLC | Códigos escritos en orden de transmisión (RR 00, RNR 10, REJ 01, SREJ 11) | Los mismos escritos con el bit menos significativo a la derecha. **Es lo mismo escrito al revés** |
+
+## Lo que NO está en los apuntes y sí cae en el examen
+
+Los apuntes del compañero cubren la teoría de GSM y GPRS, pero **no** estos temas, que necesitas aparte:
+
+| Tema | Dónde está en la web |
+| --- | --- |
+| **UTRAN y recursos espectrales** (3G, W-CDMA) | [UMTS y 3G](../umts-3g/) |
+| **El problema del 50 %** (lambdas, RACH, PCH, Erlang B y pérdidas) | [Pistas para el PEI](../pistas-examen/), [Ejercicio tipo del PEI](../ejercicio-tipo-pei/) y [Guía de ejercicios](../guia-ejercicios/) |
+| **El ejercicio de HDLC** con rechazo simple y selectivo | [Ejercicio extra de HDLC](../hdlc-extra/) |
+| **Tráfico y colas** (Erlang) | [Tráfico y colas](../trafico-colas/) |
+| Hojas resueltas Red1, Red2 y Multiplex | [Ejercicios resueltos](../hojas-resueltas/) |

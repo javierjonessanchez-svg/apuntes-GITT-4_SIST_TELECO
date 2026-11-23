@@ -1,0 +1,101 @@
+---
+titulo: "Resumen 5: Gestión de la movilidad y autenticación"
+orden: 26
+bloque: "Resúmenes de examen"
+resumen: "Identidades, TMSI y áreas de localización, procedimientos de MM, autenticación paso a paso y actualización de posición, en el orden de los apuntes."
+saber:
+  - "Saber distinguir MSISDN, IMSI, IMEI y TMSI: qué identifica cada uno, su estructura y dónde se guarda"
+  - "Saber qué es un LA, por qué la red conoce el LA pero no la célula y qué implica para el paging"
+  - "Saber la autenticación paso a paso: qué cruza el aire (RAND, SRES), qué no (Ki, Kc) y quién entrega Kc"
+  - "Saber cuándo inicia el móvil una actualización de posición y qué cambia (LA, VLR, TMSI, HLR)"
+fuentes:
+  - "Apuntes manuscritos de un compañero y la teoría de la web"
+---
+
+import FlujoLlamada from '../../../src/asignaturas/conmutacion/widgets/FlujoLlamada.astro';
+import ap06 from '../../../src/assets/conmutacion/apuntes/apuntes-06.jpg';
+import ap07 from '../../../src/assets/conmutacion/apuntes/apuntes-07.jpg';
+
+> Resumen de una cara (con dos hojas de apuntes), en el mismo orden que los apuntes manuscritos. Todo el detalle está en la [teoría completa](../gestion-movilidad/).
+
+<details>
+<summary>Ver los apuntes originales (foto 1: identidades)</summary>
+
+<img src={ap06.src} alt="Apuntes manuscritos: identidades" style={{ maxWidth: "100%", height: "auto" }} />
+
+</details>
+
+<details>
+<summary>Ver los apuntes originales (foto 2: autenticación y actualización de posición)</summary>
+
+<img src={ap07.src} alt="Apuntes manuscritos: autenticación y actualización de posición" style={{ maxWidth: "100%", height: "auto" }} />
+
+</details>
+
+## ¿Cómo identificar a los usuarios?
+
+Hay que saber quiénes son, si están en otros sitios (localizarlos), autenticarlos (cifrado) y asignarles identidades temporales. Se hace con los **procesos de gestión de movilidad** (MM): autenticación y actualización de posición. También hay gestión de movilidad entre usuarios a nivel de red (SS7, con MAP).
+
+## Identidad permanente
+
+| Identidad | Qué es | Se guarda en |
+| --- | --- | --- |
+| **MSISDN** | Nº público de abonado: el que los demás marcan para contactar | HLR |
+| **IMSI** | Nº privado de abonado: con el que la red nos reconoce | SIM y HLR |
+| **IMEI** | Nº del terminal donde la SIM está operativa | Móvil (y EIR) |
+
+**MSISDN** (E.164): hasta 15 dígitos, CP + CA + nº de abonado. CP = país (+34); CA + nº abonado = nº nacional (1.ª parte CA, 2.ª parte nº). No está asociado a un operador, lo que permite la **portabilidad**.
+
+**IMSI** (E.202): asociado a un operador concreto. Varios IMSI pueden hacer referencia a un MSISDN. Estructura: CP (país, 214) + CO (operador) + nº de abonado.
+
+> **Ojo (foto y teoría difieren).** Los apuntes llaman al IMSI "CP + CO + nº abonado"; la teoría usa MCC + MNC + MSIN (país + operador + nº del abonado). Es lo mismo con otros nombres: vale lo de la teoría.
+
+**IMEI**: 15 dígitos. La red puede pedirlo en la fase de registro para atender servicios. Estructura: TAC (2+4, modelo), FAC (2, fabricante) y SNR (serie), más un dígito de control.
+
+> **Ojo.** La teoría precisa que en el TAC los dos primeros dígitos son la autoridad que homologa y el resto el modelo, y que el FAC es la fábrica.
+
+## TMSI y áreas de localización
+
+**TMSI**: ligada a la situación geográfica del MS; la asigna el **VLR**. Si cambia de VLR, cambia el nº de TMSI. Es un número de **32 bits** y da privacidad (sustituye al IMSI). Es local al LA.
+
+Para no hacer una gestión de recursos masiva (aumenta con el número de usuarios), se divide el área del VLR en **áreas de localización (LA)**. La red sabe en qué LA está el MS, pero **no en qué célula**. Por eso las células de un LA deben compartir un canal **PCH**: mientras el MS está inactivo, la red no sabe en cuál está, y el aviso (paging) sale en todas las células del LA.
+
+## Procedimientos de gestión de movilidad (MM)
+
+Existen 3 tipos:
+
+- **Generales**: solo necesitan gestión de recursos de radio activa (canal dedicado asignado al MS y conexión LAPD activa). Iniciados por la red: asigna un TMSI, autentica e identifica (IMSI, IMEI). Iniciado por el móvil: desenganche por IMSI (apagado, *detach*).
+- **Especiales**: mutuamente excluyentes entre sí y con conexiones CM (no se hacen con una llamada en curso). Enganche IMSI (encendido), actualización de posición y actualización periódica.
+- **Gestión de conexiones**: da servicio a la subcapa CM (llamada, SMS).
+
+## Procedimiento de autenticación
+
+Intervienen el usuario a través de la SIM y la red con el **AuC**. Cada vez que el usuario pide algo, la red pide que se autentifique. **Ki** es un secreto compartido que no viaja por el aire. El AuC genera un token, un nº aleatorio (**RAND**, 128 bits). El móvil comprueba que su **SRES** es igual que el de la red: si sí, autentica y se cifran los datos con la clave **Kc**. SRES = A3(Ki, RAND) y Kc = A8(Ki, RAND), que calculan la SIM y el AuC por su cuenta.
+
+### Diagrama funcional (señalización)
+
+1. El MS pide algo (RR) por el **RACH** (MS a BSS); el BSS se lo asigna por el **AGCH** (BSS a MS).
+2. El MS solicita servicio (MS a BSS) por un **SDCCH**. Aquí interviene el AuC.
+3. El VLR pide al AuC la autenticación (TMSI o IMSI) y recibe la tripleta: RAND, SRES y Kc.
+4. La red envía el **RAND** por el SDCCH al MS. El MS genera su propio Kc y SRES, y devuelve su **SRES**.
+5. Si los SRES coinciden, se pasa a modo cifrado con Kc.
+
+> **Ojo (foto y teoría difieren).** En los apuntes parece que el MS envía "su SRES y Kc" al BSS y al AuC. Según la teoría, el móvil solo envía SRES: Kc nunca cruza el aire, y es el **MSC/VLR quien entrega Kc al BSS**, que ordena el cifrado.
+
+<FlujoLlamada id="autenticacion" />
+
+## Actualización de posición
+
+La inicia el **MS**: al encender, al cambiar de LA (porque escucha el LAI de la célula por el BCCH) o por temporizador periódico. Actualiza el LA, el VLR, el TMSI o incluso el HLR (que tiene la información de todos los usuarios).
+
+El HLR descarga al VLR todo lo que sabe del MS. Si el VLR no tiene los datos para autenticar al usuario (RAND, SRES, Kc), los solicita: autentica y ya trabaja en **modo cifrado**; por último, el VLR le da un TMSI nuevo al MS. Caso de **encendido**, el más largo:
+
+<FlujoLlamada id="actualizacion-a" />
+
+La teoría añade los otros dos casos: cambio de LA dentro del **mismo VLR** (solo anota el LAI nuevo, no se toca el HLR) y cambio de **VLR** (el nuevo pregunta al anterior el IMSI y avisa al HLR).
+
+## Lo que más cae
+
+- La autenticación mensaje a mensaje: qué cruza el aire (RAND, SRES) y qué no (Ki, Kc).
+- MSISDN, IMSI, IMEI y TMSI: estructura y dónde se guarda cada uno.
+- Por qué la red conoce el LA pero no la célula (paging por el PCH en todo el LA).
