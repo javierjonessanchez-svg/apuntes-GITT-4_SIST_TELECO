@@ -1,0 +1,115 @@
+---
+titulo: "Resumen 3: Capa de enlace, HDLC y LAPDm"
+orden: 24
+bloque: "Resúmenes de examen"
+resumen: "Una cara de folio con la señalización de enlace, HDLC, LAPD y LAPDm, siguiendo los apuntes manuscritos, más los pasos del ejercicio de HDLC del examen."
+saber:
+  - "Saber qué protocolo de enlace va en cada interfaz (LAPDm en Um, LAPD en Abis, MTP/SCCP en A) y que todos salen de HDLC."
+  - "Saber el formato de la trama HDLC, el relleno de bits y qué indican los bits del campo de control en tramas I, S y U."
+  - "Saber qué le quita LAPDm a HDLC: banderas, FCS, TEI, y qué le deja (184 bits, SAPI 0 y 3, solo RR y REJ)."
+  - "Saber resolver el ejercicio de HDLC con pérdidas, con REJ o SREJ y con 3 o 7 bits."
+fuentes:
+  - "Apuntes manuscritos de un compañero y la teoría de la web"
+---
+
+import ap04 from '../../../src/assets/conmutacion/apuntes/apuntes-04.jpg';
+import RellenoBits from '../../../src/asignaturas/conmutacion/widgets/RellenoBits.astro';
+import FlujoLlamada from '../../../src/asignaturas/conmutacion/widgets/FlujoLlamada.astro';
+
+> Resumen de una cara para repasar antes del examen, basado en los apuntes manuscritos de un compañero. Todo el detalle está en la [teoría completa](../capa-enlace/).
+
+<details>
+<summary>Ver los apuntes originales (foto)</summary>
+
+<img src={ap04.src} alt="Apuntes manuscritos: enlace, HDLC, LAPD y LAPDm" style={{ maxWidth: "100%", height: "auto" }} />
+
+</details>
+
+## Señalización (enlace)
+
+Son los protocolos que van en las interfaces: aérea (Um), Abis, A, e interfaces B, D, C...
+
+| Interfaz | Enlace |
+| --- | --- |
+| Um | LAPDm |
+| Abis | LAPD |
+| A | MTP / SCCP |
+
+**LAPDm** tiene tres funciones: transporte de bits sobre los canales lógicos, control de acceso, control de errores (CRC) y cifrado.
+
+## HDLC
+
+Es una **familia de protocolos** derivada de SDLC (IBM). ISO la transforma a HDLC, ITU-T la adopta y la sintetiza en distintas versiones, los protocolos **LAP**, hasta **LAPDm** para GSM.
+
+### Principios básicos
+
+- Protocolo **orientado a bit**. Inicio y final de trama con el patrón `01111110`.
+- **Relleno de bits**: el transmisor mete un 0 tras cinco 1 seguidos. Ejemplo: `01111101` se transmite `011111010`.
+
+<RellenoBits />
+
+- **Tipos de servicio**:
+  - **Fiable**: mediante conexiones, con tramas identificadas por su número de orden dentro de la conexión y mecanismos de solicitud de retransmisión.
+  - **No fiable**: transmisión de tramas individuales, de entrega mejor esfuerzo, sin ningún tipo de control. Descarta las tramas erróneas.
+
+### Formato
+
+| Flag | Dir | Control | Datos | FCS | Flag |
+| --- | --- | --- | --- | --- | --- |
+| `01111110` | 1 a n B | 1 o 2 B | 0 a m B | 2 o 4 B | `01111110` |
+
+- **Direccionamiento: bit EA.** Se mira el bit menos significativo de cada octeto: si es 1, es el último octeto de la dirección; si es 0, la dirección continúa en el siguiente.
+- **Control de errores (FCS):** códigos polinomiales de 16 a 32 bits según el tamaño de la trama. Se implementan en hardware.
+
+### Campo de control
+
+Especifica la función de la trama y proporciona mecanismos de identificación y control de secuencia.
+
+- **I (información):** transporta datos de usuario. Bit menos significativo a 0. Sirve para implementar servicios fiables. Usa contadores de 3 o 7 bits (0 a 7, o 0 a 2 elevado a 7 menos 1). **I(0,0)**: el primero es la trama enviada, N(S); el segundo es la siguiente trama que espero recibir, N(R).
+- **S (supervisión):** controla el intercambio fiable de tramas I. Bit menos significativo a 1 (la foto escribe «10», en orden de transmisión). Los dos bits siguientes dan el tipo:
+
+| Tipo | Código (foto) | Significado |
+| --- | --- | --- |
+| RR | 00 | ACK: **RR(1)** espero la 1, confirmo la 0 |
+| RNR | 10 | ACK con control de flujo: no envíes más por ahora |
+| REJ | 01 | reenvía desde la que falló en adelante |
+| SREJ | 11 | reenvía solo la de fallo |
+
+Ojo: la foto escribe el campo en orden de transmisión (bit menos significativo primero). La web lo escribe del revés: las S acaban en 01 y los códigos son RR 00, RNR 01, REJ 10, SREJ 11. Es lo mismo; manda la web.
+
+- **U (sin numerar):** no numeradas, modo no fiable; establecimiento del modo de operación y liberación de conexiones. Bits menos significativos `11`. En **ABM** pueden iniciar y liberar la conexión cuando lo necesiten.
+  - **SABM:** solicitud de conexión en modo ABM de 3 bits.
+  - **UA:** confirmación de conexión y liberación.
+  - **DM:** rechazo de la conexión, confirmación de cierre de conexión.
+
+<FlujoLlamada id="hdlc-rej" />
+
+## LAP-D
+
+Protocolo derivado de HDLC: número de secuencia de 7 bits, CRC-16, dirección de 16 bits, servicios fiable y no fiable, datos de hasta 260 B.
+
+## LAP-Dm
+
+- Derivado de Q.921. Tamaño **fijo (184 bits)** más control de errores (**456 bits**): 4 ráfagas de tipo normal. **No tiene CRC ni patrón de inicio y fin.**
+- **Dirección:** no identifica al MS. Valores de SAPI: **3** para SMS y **0** para el resto.
+- **Control:** I, S, U, con ns de 3 bits. De supervisión solo **REJ** y **RR**.
+- **Modo de transferencia:** multitrama (canales de tráfico y señalización) y sin confirmación, tipo UI (canales difusivos).
+- La concatenación de tres conexiones, **LAPDm + LAPD + MTP**, permite el intercambio de señalización entre MS y MSC.
+
+## Cómo se resuelve el ejercicio de HDLC del examen
+
+1. I(5,6): A ya envió las tramas 0 a 5. Con 9 en total, quedan tres: 6, 7 y la novena (0 con 3 bits; 8 con 7).
+2. Se pierde I(6,6) y B no lo sabe hasta que llega la siguiente fuera de secuencia.
+3. **Cada trama fuera de secuencia origina un nuevo REJ(6) o SREJ(6)**: el primero se pierde, el segundo llega.
+4. **SREJ**: B guarda y A reenvía solo la 6. **REJ**: B descarta y A reenvía 6, 7 y la novena. Luego RR(1) con 3 bits o RR(9) con 7.
+5. Ejercicio 2: si se pierde ese RR, vence el plazo en A, que sondea con RR(6,P), y B responde con RR(F).
+6. DISC solo con las 9 tramas confirmadas; B responde UA.
+
+Detalle y los ocho casos: [Ejercicio extra de HDLC](../hdlc-extra/).
+
+## Lo que más cae
+
+- El ejercicio de HDLC con REJ o SREJ y 3 o 7 bits (según compañeros, siempre en el PEI; sin confirmar).
+- Relleno de bits sobre una cadena.
+- Significado de I(a,b), RR(x), REJ y SREJ.
+- Diferencias de LAPDm frente a HDLC: 184 bits, sin banderas ni FCS, SAPI 0 y 3.

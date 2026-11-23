@@ -1,0 +1,88 @@
+---
+titulo: "Resumen 1: Arquitectura de GSM"
+orden: 22
+bloque: "Resúmenes de examen"
+resumen: "Una cara con GSM, servicios, subsistemas (RSS, NSS, OSS) y sus elementos, siguiendo los apuntes manuscritos."
+saber:
+  - "Saber qué servicios ofrece GSM: teleservicios, portadores y suplementarios."
+  - "Saber qué hace cada elemento de RSS, NSS y OSS."
+  - "Saber qué guarda la SIM de permanente y de volátil."
+  - "Saber qué registros hay (HLR, VLR, AuC, EIR) y qué interfaces unen los bloques."
+fuentes:
+  - "Apuntes manuscritos de un compañero y la teoría de la web"
+---
+
+import ap01 from '../../../src/assets/conmutacion/apuntes/apuntes-01.jpg';
+import RedGSM from '../../../src/asignaturas/conmutacion/widgets/RedGSM.astro';
+
+> Resumen de una cara, basado en los apuntes manuscritos de un compañero (sesión 1). Para el detalle, la [teoría completa](../arquitectura-gsm/).
+
+<details>
+<summary>Ver los apuntes originales (foto)</summary>
+
+<img src={ap01.src} alt="Apuntes manuscritos: GSM, arquitectura y servicios" style={{ maxWidth: "100%", height: "auto" }} />
+
+</details>
+
+## GSM
+
+Tecnología de **segunda generación**. Sistema global para comunicaciones móviles basado en estándares 3GPP. Opera: radio, móvil, celular, servicios integrados (voz y datos), interoperabilidad con la RTC, etc. Desarrollo europeo. Además aporta mayor calidad, seguridad y variedad de servicios.
+
+## Servicios
+
+- **Teleservicios** (telefonía): telefonía a 13 kbps, SOS, SMS, fax G3.
+- **Servicios portadores** (datos): 9600 bps de datos.
+- **Otros** (suplementarios): desvío, identificación del llamante, llamada en espera, etc.
+
+## Arquitectura
+
+Tres bloques: **RSS** (radio), **NSS** (red) y **OSS** (operación y mantenimiento), unidos por las interfaces **Um** (aire, MS–BTS), **Abis** (BTS–BSC), **A** (BSC–MSC) y **O** (con el OSS).
+
+<RedGSM />
+
+### RSS
+
+- **MS** (Mobile Station): terminal físico más SIM.
+- **BTS** (TR/RX): lado radio de la red.
+- **BSC**: es el nexo de la red radio. Mantiene la información de la parte radio.
+- **TRAU**: entre BTS y BSC en el dibujo (interfaz Abis).
+
+### SIM
+
+- **Información permanente**: identidad (IMSI) y **Ki**.
+- **Información volátil**: **Kc**, localización e información de la célula.
+
+### BTS
+
+Sirve a una o más celdas; incluye (puede incluir) el TRAU. Es el elemento pasivo de transmisión y recepción radio.
+
+### BSC
+
+Responsable de la gestión de los recursos radio de las BTS que controla. Puede incluir el TRAU y sirve a una o más BTS.
+
+### TRAU
+
+Transcodificador de voz y datos (radio a red terrestre). Ojo: la teoría lo sitúa junto a la BTS, la BSC o el MSC, y pasa de 13 kbps a 64 kbps.
+
+## NSS
+
+Se encarga de la localización y verificación/AuC de los móviles y del encaminamiento de los servicios que se les prestan.
+
+- **G-MSC**: control y encaminamiento de llamadas y datos entre usuarios.
+- **Registros de información**: **HLR** (home), con información asociada al sistema, y **VLR** (visitantes), con información de los usuarios activos en un área dependiente de un MSC. También el **AuC**, asociado a un HLR.
+- **Pasarelas**: fija, SMS Gateway.
+- Usa señalización **SS7 + ISUP + MAP**.
+
+## OSS
+
+Operación y mantenimiento de todos los elementos de la red.
+
+- **OMC**: monitoriza y controla elementos de la red; guarda recursos para planificación posterior.
+- **EIR**: registro de identificación de equipos autorizados y no autorizados. Ojo: guarda equipos (IMEI), no abonados.
+
+## Lo que más cae
+
+- Función de cada elemento (BTS, BSC, TRAU, MSC, HLR, VLR, AuC, EIR, OMC) y subsistema al que pertenece.
+- HLR (todos los abonados) frente a VLR (solo los de su área).
+- SIM: permanente (IMSI, Ki) frente a volátil (Kc, localización).
+- Pista sin confirmar: autenticación y MSRN; aquí solo aparecen Ki, Kc y el AuC.
