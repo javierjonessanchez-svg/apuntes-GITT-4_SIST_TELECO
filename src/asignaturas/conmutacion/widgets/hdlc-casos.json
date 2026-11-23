@@ -1,0 +1,1392 @@
+{
+"e1-rej-3": {
+"ventana": 7,
+"filas": [
+{
+"k": "f",
+"d": "BA",
+"txt": "RR(6)",
+"lost": true,
+"tag": "2"
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(6,6)",
+"lost": true,
+"tag": "1"
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(7,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(0,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(1,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "BA",
+"txt": "REJ(6)",
+"lost": false,
+"tag": "3"
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(2,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(3,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(4,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(6,6)",
+"lost": false,
+"tag": "3"
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(7,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(0,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "BA",
+"txt": "RR(7)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(1,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "BA",
+"txt": "RR(0)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(2,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "BA",
+"txt": "RR(1)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(3,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "BA",
+"txt": "RR(2)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(4,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "BA",
+"txt": "RR(3)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(5,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "BA",
+"txt": "RR(4)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(6,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "BA",
+"txt": "RR(5)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "BA",
+"txt": "RR(6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "BA",
+"txt": "RR(7)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "DISC",
+"lost": false,
+"tag": "6"
+},
+{
+"k": "f",
+"d": "BA",
+"txt": "UA",
+"lost": false,
+"tag": "6"
+}
+]
+},
+"e1-rej-7": {
+"ventana": 127,
+"filas": [
+{
+"k": "f",
+"d": "BA",
+"txt": "RR(6)",
+"lost": true,
+"tag": "2"
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(6,6)",
+"lost": true,
+"tag": "1"
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(7,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(8,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(9,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "BA",
+"txt": "REJ(6)",
+"lost": false,
+"tag": "3"
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(10,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(11,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(12,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(13,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(14,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(6,6)",
+"lost": false,
+"tag": "3"
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(7,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(8,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "BA",
+"txt": "RR(7)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(9,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "BA",
+"txt": "RR(8)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(10,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "BA",
+"txt": "RR(9)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(11,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "BA",
+"txt": "RR(10)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(12,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "BA",
+"txt": "RR(11)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(13,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "BA",
+"txt": "RR(12)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(14,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "BA",
+"txt": "RR(13)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "BA",
+"txt": "RR(14)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "BA",
+"txt": "RR(15)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "DISC",
+"lost": false,
+"tag": "6"
+},
+{
+"k": "f",
+"d": "BA",
+"txt": "UA",
+"lost": false,
+"tag": "6"
+}
+]
+},
+"e1-srej-3": {
+"ventana": 4,
+"filas": [
+{
+"k": "f",
+"d": "BA",
+"txt": "RR(6)",
+"lost": true,
+"tag": "2"
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(6,6)",
+"lost": true,
+"tag": "1"
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(7,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(0,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(1,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "BA",
+"txt": "SREJ(6)",
+"lost": false,
+"tag": "3"
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(6,6)",
+"lost": false,
+"tag": "3"
+},
+{
+"k": "f",
+"d": "BA",
+"txt": "RR(2)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(2,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(3,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(4,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "BA",
+"txt": "RR(3)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(5,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "BA",
+"txt": "RR(4)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "BA",
+"txt": "RR(5)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(6,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "BA",
+"txt": "RR(6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "BA",
+"txt": "RR(7)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "DISC",
+"lost": false,
+"tag": "6"
+},
+{
+"k": "f",
+"d": "BA",
+"txt": "UA",
+"lost": false,
+"tag": "6"
+}
+]
+},
+"e1-srej-7": {
+"ventana": 64,
+"filas": [
+{
+"k": "f",
+"d": "BA",
+"txt": "RR(6)",
+"lost": true,
+"tag": "2"
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(6,6)",
+"lost": true,
+"tag": "1"
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(7,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(8,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(9,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "BA",
+"txt": "SREJ(6)",
+"lost": false,
+"tag": "3"
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(10,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(11,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(12,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(13,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(14,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(6,6)",
+"lost": false,
+"tag": "3"
+},
+{
+"k": "f",
+"d": "BA",
+"txt": "RR(15)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "DISC",
+"lost": false,
+"tag": "6"
+},
+{
+"k": "f",
+"d": "BA",
+"txt": "UA",
+"lost": false,
+"tag": "6"
+}
+]
+},
+"e2-rej-3": {
+"ventana": 7,
+"filas": [
+{
+"k": "f",
+"d": "BA",
+"txt": "RR(6)",
+"lost": true,
+"tag": "2"
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(6,6)",
+"lost": true,
+"tag": "1"
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(7,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(0,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(1,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "BA",
+"txt": "REJ(6)",
+"lost": false,
+"tag": "3"
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(2,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(3,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(4,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "nota",
+"txt": "vence T1 en A",
+"tag": "4"
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(6,6)",
+"lost": false,
+"tag": "3"
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(7,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(0,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "BA",
+"txt": "RR(7)",
+"lost": true,
+"tag": "5"
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(1,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "BA",
+"txt": "RR(0)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(2,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "BA",
+"txt": "RR(1)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(3,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "BA",
+"txt": "RR(2)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(4,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "BA",
+"txt": "RR(3)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(5,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "BA",
+"txt": "RR(4)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(6,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "BA",
+"txt": "RR(5)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "BA",
+"txt": "RR(6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "BA",
+"txt": "RR(7)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "DISC",
+"lost": false,
+"tag": "6"
+},
+{
+"k": "f",
+"d": "BA",
+"txt": "UA",
+"lost": false,
+"tag": "6"
+}
+]
+},
+"e2-rej-7": {
+"ventana": 127,
+"filas": [
+{
+"k": "f",
+"d": "BA",
+"txt": "RR(6)",
+"lost": true,
+"tag": "2"
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(6,6)",
+"lost": true,
+"tag": "1"
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(7,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(8,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(9,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "BA",
+"txt": "REJ(6)",
+"lost": false,
+"tag": "3"
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(10,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(11,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(12,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(13,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "nota",
+"txt": "vence T1 en A",
+"tag": "4"
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(14,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(6,6)",
+"lost": false,
+"tag": "3"
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(7,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(8,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "BA",
+"txt": "RR(7)",
+"lost": true,
+"tag": "5"
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(9,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "BA",
+"txt": "RR(8)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(10,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "BA",
+"txt": "RR(9)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(11,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "BA",
+"txt": "RR(10)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(12,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "BA",
+"txt": "RR(11)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(13,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "BA",
+"txt": "RR(12)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(14,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "BA",
+"txt": "RR(13)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "BA",
+"txt": "RR(14)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "BA",
+"txt": "RR(15)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "DISC",
+"lost": false,
+"tag": "6"
+},
+{
+"k": "f",
+"d": "BA",
+"txt": "UA",
+"lost": false,
+"tag": "6"
+}
+]
+},
+"e2-srej-3": {
+"ventana": 4,
+"filas": [
+{
+"k": "f",
+"d": "BA",
+"txt": "RR(6)",
+"lost": true,
+"tag": "2"
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(6,6)",
+"lost": true,
+"tag": "1"
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(7,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(0,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(1,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "BA",
+"txt": "SREJ(6)",
+"lost": false,
+"tag": "3"
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(6,6)",
+"lost": false,
+"tag": "3"
+},
+{
+"k": "nota",
+"txt": "vence T1 en A",
+"tag": "4"
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(6,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "BA",
+"txt": "RR(2)",
+"lost": true,
+"tag": "5"
+},
+{
+"k": "f",
+"d": "BA",
+"txt": "RR(2)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(2,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(3,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(4,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "BA",
+"txt": "RR(3)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(5,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "BA",
+"txt": "RR(4)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "BA",
+"txt": "RR(5)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(6,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "BA",
+"txt": "RR(6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "BA",
+"txt": "RR(7)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "DISC",
+"lost": false,
+"tag": "6"
+},
+{
+"k": "f",
+"d": "BA",
+"txt": "UA",
+"lost": false,
+"tag": "6"
+}
+]
+},
+"e2-srej-7": {
+"ventana": 64,
+"filas": [
+{
+"k": "f",
+"d": "BA",
+"txt": "RR(6)",
+"lost": true,
+"tag": "2"
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(6,6)",
+"lost": true,
+"tag": "1"
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(7,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(8,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(9,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "BA",
+"txt": "SREJ(6)",
+"lost": false,
+"tag": "3"
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(10,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(11,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(12,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(13,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "nota",
+"txt": "vence T1 en A",
+"tag": "4"
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(14,6)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(6,6)",
+"lost": false,
+"tag": "3"
+},
+{
+"k": "f",
+"d": "BA",
+"txt": "RR(15)",
+"lost": true,
+"tag": "5"
+}
+]
+}
+}
