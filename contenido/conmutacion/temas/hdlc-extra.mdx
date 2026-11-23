@@ -2,20 +2,21 @@
 titulo: "Ejercicio extra de HDLC"
 orden: 20
 bloque: "Ejercicios resueltos"
-resumen: "El ejercicio extra de HDLC (Trabajo personal) con su enunciado literal y los ocho casos resueltos en diagramas de escalera, con la teoría que explica cada diferencia"
+resumen: "El ejercicio extra de HDLC (el que cae en el PEI) con su enunciado literal y los ocho casos resueltos en diagramas de escalera, con los dos criterios del profesor"
 saber:
-  - "Dibujar el intercambio de tramas HDLC en modo asíncrono equilibrado con pérdidas, rechazo simple y rechazo selectivo"
-  - "Saber que la ventana máxima es 2^n − 1 con rechazo simple y 2^(n−1) con rechazo selectivo, y que eso cambia el diagrama"
-  - "Distinguir qué hace el receptor con una trama fuera de secuencia (REJ las descarta, SREJ las guarda)"
-  - "Explicar cómo se recupera A cuando se pierde la petición de reenvío o una confirmación (vence T1)"
+  - "Dibujar el intercambio de tramas HDLC con pérdidas en rechazo simple y en rechazo selectivo, con 3 y con 7 bits"
+  - "Aplicar el criterio del profesor: cada trama fuera de secuencia origina un nuevo REJ o SREJ"
+  - "Recuperar una confirmación perdida: vence el plazo en A, sondeo RR(P) y respuesta RR(F)"
+  - "Distinguir qué hace B con una trama fuera de secuencia (REJ las descarta, SREJ las guarda) y qué retransmite A"
 fuentes:
   - "Cx_EjercicioExtraHDLC.pdf (hoja «Extra / Ejercicios HDLC / Trabajo personal»)"
+  - "Soluciones de la hoja aportadas por el alumno, que indican validación del profesor por correo (ver aviso)"
   - "Transparencias Cx_Enlace (HDLC, modos y ejemplos de operación)"
 ---
 
 import EscaleraHdlc from '../../../src/asignaturas/conmutacion/widgets/EscaleraHdlc.astro';
 
-> **Aviso importante.** **Esta solución no es la del profesor.** Está resuelta con la teoría de las transparencias, revisada trama a trama por varios solucionadores independientes y con un comprobador de reglas (ventana, 9 tramas, confirmación final). Algunas frases del enunciado admiten más de una lectura: las dejo marcadas en «Supuestos» y en «Lectura alternativa». Una resolución manuscrita de un compañero para el ejercicio 1 **no se ha usado como solución**: ignora la condición d y los límites de ventana. Según los compañeros, este es el ejercicio de HDLC que **siempre cae en el PEI** ([Pistas para el PEI](../pistas-examen/)).
+> **De dónde sale esta solución.** Las ocho secuencias vienen de un documento de soluciones («HDLC_hoja_Extra_resuelta») que aporta el alumno. Ese documento dice que el profesor las **validó por correo** (ejercicio 1 el 17 de noviembre de 2026, ejercicio 2 el 22 de noviembre de 2026) y que revisó los casos de 3 bits; los de 7 bits son los mismos cambiando I(0,6) por I(8,6) y RR(1) por RR(9). **No he podido comprobar el correo por mi cuenta.** Mi primera versión de esta página usaba otra lectura del enunciado y estaba mal; queda sustituida. Según los compañeros, este es el ejercicio de HDLC que **siempre cae en el PEI** ([Pistas para el PEI](../pistas-examen/)).
 
 ## Enunciado (literal)
 
@@ -43,136 +44,132 @@ import EscaleraHdlc from '../../../src/asignaturas/conmutacion/widgets/EscaleraH
 
 ## Antes de resolver
 
-### Qué hay que saber
+### Los dos criterios del profesor
 
-| Concepto | Qué significa | Para qué sirve aquí |
+1. **Cada trama que llega fuera de secuencia origina un nuevo REJ o SREJ.** B no se queda callado esperando a que venza un plazo.
+2. **Cuando se recibe un RR(x,P) es obligado responder con un RR(y,F).** Es el sondeo con bit P que A usa cuando no recibe confirmación.
+
+### Cómo leer los números
+
+| Notación | Significado |
+| --- | --- |
+| **I(a,b)** | a = número de la trama que se envía; b = la siguiente trama que el emisor espera recibir del otro. Como B no envía datos, en todas las tramas de A **b = 6**. |
+| **RR(x), REJ(x), SREJ(x)** | x = la siguiente trama que espera quien lo envía (la última recibida bien, más uno). |
+| **3 bits** | Numeración 0 a 7 que vuelve a 0. |
+| **7 bits** | Numeración 0 a 127 (no da la vuelta en este ejercicio). |
+
+### Cuántas tramas le quedan a A
+
+I(5,6) significa que A **ya ha enviado las tramas 0 a 5**. El enunciado pide **9 tramas en total**, así que a A le quedan **tres**: la **6**, la **7** y la **novena**.
+
+| | Novena trama | Confirmación final |
 | --- | --- | --- |
-| **Trama I(N(S), N(R))** | N(S) = número de la trama enviada; N(R) = **la próxima que espero recibir** (confirma hasta N(R)−1) | I(5,6): A envía su trama 5 y ya ha recibido hasta la 5 de B. Después A usa N(S) = 6, 7, 0… |
-| **RR(n)** | Trama de supervisión: «he recibido bien hasta n−1, espero n». Confirmación **acumulativa** | B no tiene datos, así que confirma con RR |
-| **REJ(n)** (rechazo simple) | «Falta la n: **reenvíame desde la n**». El receptor **descarta** las que llegan después | Receptor sin memoria: más retransmisiones |
-| **SREJ(n)** (rechazo selectivo) | «Falta solo la n». El receptor **guarda** las siguientes | Solo se retransmite la perdida |
-| **Módulo 8 / 128** | 3 bits → números 0 a 7; 7 bits → 0 a 127 | Fija el tamaño de ventana |
-| **Ventana máxima** | Tramas que A puede tener sin confirmar | **Es lo que distingue los cuatro casos** |
-| **T1** | Plazo de espera de una confirmación. Si vence, A retransmite lo no confirmado | Cómo se recupera A cuando B no contesta |
-| **DISC / UA (o DM)** | Cierre: A manda DISC y B confirma con UA (las transparencias admiten DM como confirmación) | Condición e |
+| **3 bits** | la **0** (la numeración da la vuelta) | **RR(1)** |
+| **7 bits** | la **8** | **RR(9)** |
 
-### La clave: la ventana máxima
+Como solo quedan tres tramas, caben en cualquier ventana: aquí **la ventana no distingue los casos**. Lo que los distingue es rechazo simple frente a selectivo, y el número que lleva la novena trama.
 
-| | Rechazo simple (REJ, «retroceder N») | Rechazo selectivo (SREJ) |
-| --- | --- | --- |
-| **3 bits** (módulo 8) | 2³ − 1 = **7** | 2² = **4** |
-| **7 bits** (módulo 128) | 2⁷ − 1 = **127** | 2⁶ = **64** |
+### Reglas que explican los ocho casos
 
-- Con **REJ**, el receptor solo acepta la trama esperada, así que basta con no repetir todos los números: máximo módulo − 1.
-- Con **SREJ**, el receptor guarda tramas fuera de orden y una trama vieja retransmitida podría confundirse con una nueva si las ventanas se solapan: máximo módulo / 2.
-- A tiene que mandar **9 tramas**. Con 7 bits caben las 9 seguidas en ambos casos. Con 3 bits **no caben**: con REJ A para tras 7, con SREJ tras 4, y tiene que esperar a que se confirmen.
-
-### Supuestos (las lecturas que he elegido)
-
-1. **«9 tramas»** = 9 tramas nuevas después de I(5,6): N(S) = 6, 7, 0, 1, 2, 3, 4, 5, 6 con 3 bits y 6 … 14 con 7 bits. (Si I(5,6) contase como la primera, serían 8 nuevas.)
-2. B no tiene datos, así que A envía I(N(S), 6) todo el rato: N(R) no cambia. Se supone que todo lo anterior a I(6) ya está confirmado.
-3. **c:** se pierde la primera trama de A tras I(5,6), es decir, la de N(S) = 6. Solo esa primera transmisión: sus repeticiones llegan bien.
-4. **d:** se cuentan **todas** las tramas que B transmite a partir de ahí. La primera es la **petición de reenvío (REJ o SREJ)**, que B manda al ver el hueco, y **se pierde**. Por eso A no se entera y **se recupera con el plazo T1**.
-5. **Cómo confirma B:** con RR acumulativo una vez por ráfaga recibida (no uno por trama), y un solo REJ/SREJ por hueco. Las tramas duplicadas las descarta y repite su RR.
-6. **Ejercicio 2:** «la tercera trama de B» se cuenta también con RR y UA. «El plazo vence antes en A» se lee como que **la recuperación la dirige A por T1** (no hay un temporizador de B que se adelante). Al vencer T1, A retransmite lo no confirmado: con REJ, desde la más antigua; con SREJ, solo la más antigua.
+- Una trama errónea **se descarta sin avisar**: el receptor solo se entera cuando llega la siguiente fuera de secuencia.
+- **Rechazo selectivo (SREJ):** B **guarda** lo que llega fuera de secuencia y pide **solo** la que falta. A reenvía solo esa.
+- **Rechazo simple (REJ):** B **descarta** lo que llega fuera de secuencia y pide **desde** la que falta. A reenvía desde esa, en orden.
+- **Ejercicio 1:** si se pierde una trama de B y a A le quedan datos por enviar, la siguiente trama de A llega fuera de secuencia y B **repite el rechazo**. No hace falta plazo ni sondeo.
+- **Ejercicio 2:** si se pierde una trama de B y a A **no le queda nada por enviar**, vence el plazo en A, que **sondea con RR(x,P)**, y B responde con **RR(y,F)**.
+- A solo manda **DISC** cuando tiene **confirmadas sus 9 tramas**. B responde con **UA**.
 
 ### Cómo leer los diagramas
 
-A a la izquierda, B a la derecha, el tiempo baja. La primera trama, I(5,6), es el punto de partida del enunciado. Línea discontinua roja con ✗ = trama perdida. Las marcas entre paréntesis remiten a esta leyenda:
+A a la izquierda, B a la derecha, el tiempo baja. La primera trama, I(5,6), es el punto de partida. Línea discontinua roja con ✗ = trama descartada por errónea. Las marcas entre paréntesis remiten a esta leyenda:
 
 | Marca | Qué pasa |
 | --- | --- |
-| (1) | Se pierde I(6,·), la primera de A tras I(5,6) (condición c). |
-| (2) | Se pierde la primera trama de B, el REJ o SREJ (condición d). |
-| (3) | Retransmisión de A. |
-| (4) | Vence T1 en A: no ha llegado ninguna confirmación. |
-| (5) | Se pierde la tercera trama de B (solo ejercicio 2a). |
-| (6) | A manda DISC cuando todo está confirmado y B responde UA. |
+| (1) | Se descarta I(6,6), la primera trama de A (condición c). B no sabe que le falta. |
+| (2) | Se descarta la primera trama de B, el REJ o SREJ (condición d). |
+| (3) | B repite el rechazo porque le llega otra trama fuera de secuencia; ahora sí llega a A. |
+| (4) | A retransmite lo que le piden. |
+| (5) | Se descarta la tercera trama de B, la confirmación final (solo ejercicio 2a). |
+| (6) | Vence el plazo en A, que sondea con RR(6,P); B responde con RR(F). |
+| (7) | A pide el cierre (DISC) y B lo confirma (UA). |
 
 ---
 
 ## Ejercicio 1
 
-### 3 bits, rechazo simple (ventana 7)
-
-<EscaleraHdlc id="e1-rej-3" titulo="Ej. 1 · 3 bits · REJ" />
-
-**Por qué:** A manda 7 tramas seguidas (6, 7, 0, 1, 2, 3, 4) y se para: es su ventana máxima. B ve I(7) cuando esperaba la 6, **descarta** todo lo posterior y manda un único REJ(6), que se pierde. A no recibe nada y vence T1: **retrocede** y repite desde la 6 (las 7). B las acepta y confirma con RR(5). Quedan dos tramas por enviar (5 y 6), se confirman con RR(7) y se cierra.
-
-### 3 bits, rechazo selectivo (ventana 4)
+### Rechazo selectivo, 3 bits
 
 <EscaleraHdlc id="e1-srej-3" titulo="Ej. 1 · 3 bits · SREJ" />
 
-**Por qué:** la ventana es solo 4, así que A manda 6, 7, 0, 1 y se para. B **guarda** 7, 0, 1 y pide **solo** la 6 con SREJ(6), que se pierde. Vence T1 y A repite únicamente la 6; B ya tiene hasta la 1 y confirma las cuatro con RR(2). Con la ventana libre A manda 2, 3, 4, 5 (RR(6)) y la última, la 6 (RR(7)). Se retransmite **una** trama frente a siete con REJ.
+**Por qué:** I(6,6) se pierde y B no lo sabe. Llega I(7,6) fuera de secuencia: B la **guarda** y pide **solo** la 6 con SREJ(6), que se pierde. A no lo ha recibido y manda su novena trama, I(0,6), que también llega fuera de secuencia: B la guarda y **repite el SREJ(6)**, que ahora sí llega. A retransmite **solo la 6**. B ya tiene la 7 y la 0 guardadas, así que entrega las tres en orden y confirma con **RR(1)**. A tiene sus 9 tramas confirmadas y cierra con DISC/UA.
 
-### 7 bits, rechazo simple (ventana 127)
-
-<EscaleraHdlc id="e1-rej-7" titulo="Ej. 1 · 7 bits · REJ" />
-
-**Por qué:** la ventana de 127 no limita: A manda las 9 seguidas (6 a 14). B descarta de la 7 a la 14; su único REJ(6) se pierde. Vence T1 y A repite las 9 desde la 6. B confirma todo con RR(15). Son las 9 tramas **dos veces**.
-
-### 7 bits, rechazo selectivo (ventana 64)
+### Rechazo selectivo, 7 bits
 
 <EscaleraHdlc id="e1-srej-7" titulo="Ej. 1 · 7 bits · SREJ" />
 
-**Por qué:** las 9 caben en la ventana. B guarda de la 7 a la 14 y su SREJ(6) se pierde. Vence T1 y A repite solo la 6; B entrega de la 6 a la 14 y confirma con un único RR(15). Es el caso más corto.
+**Por qué:** igual que con 3 bits, pero la novena trama es la **8** (no hay vuelta) y la confirmación final es **RR(9)**.
+
+### Rechazo simple, 3 bits
+
+<EscaleraHdlc id="e1-rej-3" titulo="Ej. 1 · 3 bits · REJ" />
+
+**Por qué:** B **descarta** I(7,6) e I(0,6) por llegar fuera de secuencia. El primer REJ(6) se pierde; con I(0,6) B repite el **REJ(6)**, que llega. A **retrocede** y reenvía **desde la 6, en orden**: 6, 7 y 0. Esta vez las tres llegan en secuencia y B confirma con **RR(1)**. Se retransmiten tres tramas, frente a una con SREJ.
+
+### Rechazo simple, 7 bits
+
+<EscaleraHdlc id="e1-rej-7" titulo="Ej. 1 · 7 bits · REJ" />
+
+**Por qué:** igual que con 3 bits, con la novena trama **8** y confirmación **RR(9)**.
 
 ---
 
 ## Ejercicio 2
 
-Además, se pierde la **tercera trama de B** y se tiene en cuenta que el **plazo T1 vence en A**. Hasta la segunda trama de B es idéntico al ejercicio 1.
+Es el ejercicio 1 con la pérdida adicional de la **tercera trama de B** (la confirmación final) y el **plazo que vence en A**. Hasta la retransmisión es idéntico al ejercicio 1.
 
-### 3 bits, rechazo simple (ventana 7)
-
-<EscaleraHdlc id="e2-rej-3" titulo="Ej. 2 · 3 bits · REJ" />
-
-**Por qué:** las tramas de B son REJ(6) (perdida), RR(5) y RR(7): la tercera es el RR(7) que confirma las dos últimas (5 y 6), y se pierde. A no sabe que llegaron, vence T1 y repite la 5 y la 6 (retroceso). B ya las tiene: las **descarta como duplicadas** y repite RR(7).
-
-### 3 bits, rechazo selectivo (ventana 4)
+### Rechazo selectivo, 3 bits
 
 <EscaleraHdlc id="e2-srej-3" titulo="Ej. 2 · 3 bits · SREJ" />
 
-**Por qué:** la tercera trama de B es el RR(6) que confirma 2, 3, 4 y 5, y se pierde. Vence T1 y, con SREJ, A repite **solo la más antigua sin confirmar** (la 2). B la descarta como duplicada y su RR(6) **acumulativo** confirma las cuatro. Después A manda la 6, RR(7) y el cierre.
+**Por qué:** la tercera trama de B es el **RR(1)** que confirmaba las nueve tramas, y se pierde. A no tiene nada más que enviar y no recibe confirmación: **vence el plazo**. A sondea con **RR(6,P)** (el 6 es la trama que A espera de B) y B está **obligado a responder con RR(1,F)**, que vuelve a confirmar todo. Después, DISC/UA.
 
-### 7 bits, rechazo simple (ventana 127)
-
-<EscaleraHdlc id="e2-rej-7" titulo="Ej. 2 · 7 bits · REJ" />
-
-**Por qué:** con 7 bits B solo manda tres tramas: REJ(6) (perdida), RR(15) y la UA. La tercera es la **UA del cierre**. A no la recibe, vence T1 y repite el DISC. B ya está cerrado y confirma otra vez; las transparencias dicen que UA y DM sirven indistintamente, y aquí se usa DM.
-
-### 7 bits, rechazo selectivo (ventana 64)
+### Rechazo selectivo, 7 bits
 
 <EscaleraHdlc id="e2-srej-7" titulo="Ej. 2 · 7 bits · SREJ" />
 
-**Por qué:** igual que el anterior en el cierre: tercera trama de B = UA, se pierde, vence T1, A repite el DISC y B contesta DM. La diferencia con REJ está antes: solo se repitió la trama 6 en lugar de las 9.
+**Por qué:** igual con la novena trama **8**: se pierde **RR(9)**, vence el plazo, A manda **RR(6,P)** y B responde **RR(9,F)**.
+
+### Rechazo simple, 3 bits
+
+<EscaleraHdlc id="e2-rej-3" titulo="Ej. 2 · 3 bits · REJ" />
+
+**Por qué:** A retransmite 6, 7 y 0 como en el ejercicio 1 y la confirmación **RR(1)** (la tercera trama de B) se pierde. Vence el plazo en A, **RR(6,P)** y **RR(1,F)**; luego DISC/UA.
+
+### Rechazo simple, 7 bits
+
+<EscaleraHdlc id="e2-rej-7" titulo="Ej. 2 · 7 bits · REJ" />
+
+**Por qué:** igual con la novena trama **8**: se pierde **RR(9)**, **RR(6,P)** y **RR(9,F)**.
 
 ---
 
 ## Resumen: qué cambia entre los cuatro casos
 
-| | 3 bits REJ | 3 bits SREJ | 7 bits REJ | 7 bits SREJ |
+| | SREJ 3 bits | SREJ 7 bits | REJ 3 bits | REJ 7 bits |
 | --- | --- | --- | --- | --- |
-| Ventana máxima | 7 | 4 | 127 | 64 |
-| ¿A se para a esperar? | sí, tras 7 | sí, tras 4 | no | no |
-| Retransmisión por T1 (ej. 1) | 7 tramas (desde la 6) | solo la 6 | las 9 | solo la 6 |
-| Petición de B | REJ(6) | SREJ(6) | REJ(6) | SREJ(6) |
-| Tercera trama de B (ej. 2) | RR(7) | RR(6) | UA | UA |
+| Novena trama | I(0,6) | I(8,6) | I(0,6) | I(8,6) |
+| Qué hace B con lo fuera de secuencia | lo guarda | lo guarda | lo descarta | lo descarta |
+| Qué retransmite A | solo la 6 | solo la 6 | 6, 7 y 0 | 6, 7 y 8 |
+| Confirmación final | RR(1) | RR(9) | RR(1) | RR(9) |
+| Ej. 2: sondeo y respuesta | RR(6,P) / RR(1,F) | RR(6,P) / RR(9,F) | RR(6,P) / RR(1,F) | RR(6,P) / RR(9,F) |
 
 ## Qué recordar para el examen
 
-1. **Primero la ventana**: 2ⁿ − 1 (REJ) y 2ⁿ⁻¹ (SREJ). Es lo único que hace distintos los cuatro dibujos.
-2. **N(R) es la próxima que espero**, no la última que recibí.
-3. **REJ descarta y se retrocede; SREJ guarda y se repite solo la que falta.**
-4. **Si se pierde la respuesta de B, A se recupera por T1:** repite desde la más antigua sin confirmar (REJ) o solo esa (SREJ).
-5. **Las confirmaciones son acumulativas:** un RR repetido por un duplicado confirma todo lo pendiente.
-6. **El cierre solo se hace cuando todo está confirmado:** DISC y UA (o DM). Si se pierde la UA, A repite el DISC.
-7. **Anota los supuestos** (qué cuenta como «9 tramas», cuál es «la siguiente de B»). Si el profesor entiende otra cosa, el razonamiento sigue valiendo.
+1. **I(5,6) = ya se han enviado las tramas 0 a 5.** Las 9 tramas son en total, así que quedan **tres**.
+2. **Cada trama fuera de secuencia origina un REJ/SREJ nuevo.** Por eso el rechazo perdido se recupera repitiéndose, sin plazo.
+3. **SREJ guarda y se reenvía una trama; REJ descarta y se reenvía desde la que falta.**
+4. **N(R) y los RR llevan «la siguiente que espero»:** el RR final es 1 con 3 bits y 9 con 7 bits.
+5. **Si se pierde la confirmación final** y A no tiene nada más que enviar: vence el plazo, **RR(P)** y respuesta obligada **RR(F)**.
+6. **DISC solo cuando todo está confirmado**; B responde UA.
+7. En 7 bits los números son los mismos cambiando **I(0,6) por I(8,6)** y **RR(1) por RR(9)**.
 
-## Lectura alternativa de la condición d
-
-Otra lectura posible es que B **confirma cada trama correcta con su propio RR** y que «la siguiente trama de B» es el **RR(6)** que confirma I(5,6). Perderlo es inofensivo (los RR son acumulativos), y la recuperación la hace entonces la petición REJ/SREJ de B sin esperar a T1: A retrocede (REJ) o repite solo la 6 (SREJ) en cuanto recibe la petición. Las ventanas, la diferencia REJ/SREJ y el cierre son los mismos. Con esa lectura la condición d casi no tendría efecto, y por eso he elegido la anterior como principal. Si en el examen no está claro, escribe cuál usas.
-
-También son posibles otras variantes: que A pregunte con RR(P=1) al vencer T1 (y B responda RR(F=1)) antes de retransmitir, o que I(5,6) cuente como la primera de las 9 tramas.
-
-> **Confianza.** Media. La mecánica (ventanas, REJ/SREJ, acumulativas, recuperación por T1) viene de la teoría y es firme. Lo que depende de la lectura es la condición d, cómo se cuentan las 9 tramas y qué es «la tercera trama de B». Si ves la solución de clase, dime las diferencias y lo corrijo.
+> **Confianza.** Alta en la mecánica y en las secuencias, que coinciden con el documento de soluciones aportado. Lo único que no he podido comprobar yo es la validación por correo del profesor que ese documento afirma.
