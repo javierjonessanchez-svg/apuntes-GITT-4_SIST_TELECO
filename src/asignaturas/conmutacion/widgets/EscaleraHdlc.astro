@@ -22,7 +22,7 @@ const items = filas.map((f) => {
     </defs>
     <text x={XA} y="20" text-anchor="middle" class="grande">A</text>
     <text x={XB} y="20" text-anchor="middle" class="grande">B</text>
-    <text x="270" y="20" text-anchor="middle" class="peq">{titulo} · ventana máx. {caso.ventana}</text>
+    <text x="270" y="20" text-anchor="middle" class="peq">{titulo}</text>
     <path class="fl" d={`M${XA} 32V${alto - 8}M${XB} 32V${alto - 8}`}/>
     {items.map((f) => {
       if (f.k === 'nota') {
