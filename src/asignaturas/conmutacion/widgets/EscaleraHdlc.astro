@@ -1,0 +1,55 @@
+---
+// Diagrama de escalera de HDLC (A a la izquierda, B a la derecha), generado desde hdlc-casos.json.
+import './Esquemas.css';
+import casos from './hdlc-casos.json';
+interface Props { id: string; titulo: string }
+const { id, titulo } = Astro.props;
+const caso = (casos as Record<string, { ventana: number; filas: any[] }>)[id];
+const H = 22, TOP = 56, XA = 120, XB = 420;
+const filas = caso.filas;
+const alto = TOP + filas.length * H + 20;
+let n = 0;
+const items = filas.map((f) => {
+  const y = TOP + n * H;
+  n++;
+  return { ...f, y };
+});
+---
+<figure class="esq esc">
+  <svg viewBox={`0 0 540 ${alto}`} role="img" aria-label={titulo}>
+    <defs>
+      <marker id={`pt-${id}`} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z"/></marker>
+    </defs>
+    <text x={XA} y="20" text-anchor="middle" class="grande">A</text>
+    <text x={XB} y="20" text-anchor="middle" class="grande">B</text>
+    <text x="270" y="20" text-anchor="middle" class="peq">{titulo} · ventana máx. {caso.ventana}</text>
+    <path class="fl" d={`M${XA} 32V${alto - 8}M${XB} 32V${alto - 8}`}/>
+    {items.map((f) => {
+      if (f.k === 'nota') {
+        return (<g>
+          <rect class="mal" x={XA - 70} y={f.y - 2} width="140" height="18" rx="9"/>
+          <text x={XA} y={f.y + 11} text-anchor="middle" class="peq">{f.txt}</text>
+          <text x="522" y={f.y + 11} text-anchor="end" class="peq">{f.tag ? `(${f.tag})` : ''}</text>
+        </g>);
+      }
+      const ab = f.d === 'AB';
+      const x1 = ab ? XA : XB, x2 = ab ? XB : XA;
+      const y1 = f.y + 2, y2 = f.y + 17;
+      const frac = f.lost ? 0.55 : 1;
+      const xe = x1 + (x2 - x1) * frac;
+      const ye = y1 + (y2 - y1) * frac;
+      const esI = f.txt.startsWith('I(');
+      const cls = f.lost ? 'mal' : esI ? 'dato' : 'caja';
+      return (<g>
+        <line x1={x1} y1={y1} x2={xe} y2={ye} class={f.lost ? 'flr' : 'fl'} stroke-dasharray={f.lost ? '5 4' : undefined} stroke={f.lost ? 'var(--acento2)' : esI ? 'var(--primario)' : 'var(--suave)'} marker-end={f.lost ? undefined : `url(#pt-${id})`}/>
+        {f.lost && <text x={xe} y={ye + 4} text-anchor="middle" fill="var(--acento2)" style="font-weight:800">✗</text>}
+        <text x={(x1 + x2) / 2 + (ab ? -6 : 6)} y={y1 + 4} text-anchor="middle" class={'peq' + (f.lost ? ' perd' : '')} style={`font-weight:${esI ? 700 : 500}`}>{f.txt}</text>
+        <text x={ab ? 528 : 12} y={f.y + 13} text-anchor={ab ? 'end' : 'start'} class="peq">{f.tag ? `(${f.tag})` : ''}</text>
+      </g>);
+    })}
+  </svg>
+</figure>
+<style>
+  .esc svg { min-width: 480px; max-width: 640px; margin: 0 auto; }
+  .esc :global(.perd) { fill: var(--acento2); }
+</style>
