@@ -4,10 +4,10 @@
 "filas": [
 {
 "k": "f",
-"d": "BA",
-"txt": "RR(6)",
-"lost": true,
-"tag": "2"
+"d": "AB",
+"txt": "I(5,6)",
+"lost": false,
+"tag": ""
 },
 {
 "k": "f",
@@ -25,6 +25,13 @@
 },
 {
 "k": "f",
+"d": "BA",
+"txt": "REJ(6)",
+"lost": true,
+"tag": "2"
+},
+{
+"k": "f",
 "d": "AB",
 "txt": "I(0,6)",
 "lost": false,
@@ -36,13 +43,6 @@
 "txt": "I(1,6)",
 "lost": false,
 "tag": ""
-},
-{
-"k": "f",
-"d": "BA",
-"txt": "REJ(6)",
-"lost": false,
-"tag": "3"
 },
 {
 "k": "f",
@@ -64,6 +64,11 @@
 "txt": "I(4,6)",
 "lost": false,
 "tag": ""
+},
+{
+"k": "nota",
+"txt": "vence T1 en A",
+"tag": "4"
 },
 {
 "k": "f",
@@ -88,22 +93,8 @@
 },
 {
 "k": "f",
-"d": "BA",
-"txt": "RR(7)",
-"lost": false,
-"tag": ""
-},
-{
-"k": "f",
 "d": "AB",
 "txt": "I(1,6)",
-"lost": false,
-"tag": ""
-},
-{
-"k": "f",
-"d": "BA",
-"txt": "RR(0)",
 "lost": false,
 "tag": ""
 },
@@ -116,22 +107,8 @@
 },
 {
 "k": "f",
-"d": "BA",
-"txt": "RR(1)",
-"lost": false,
-"tag": ""
-},
-{
-"k": "f",
 "d": "AB",
 "txt": "I(3,6)",
-"lost": false,
-"tag": ""
-},
-{
-"k": "f",
-"d": "BA",
-"txt": "RR(2)",
 "lost": false,
 "tag": ""
 },
@@ -145,7 +122,7 @@
 {
 "k": "f",
 "d": "BA",
-"txt": "RR(3)",
+"txt": "RR(5)",
 "lost": false,
 "tag": ""
 },
@@ -158,29 +135,8 @@
 },
 {
 "k": "f",
-"d": "BA",
-"txt": "RR(4)",
-"lost": false,
-"tag": ""
-},
-{
-"k": "f",
 "d": "AB",
 "txt": "I(6,6)",
-"lost": false,
-"tag": ""
-},
-{
-"k": "f",
-"d": "BA",
-"txt": "RR(5)",
-"lost": false,
-"tag": ""
-},
-{
-"k": "f",
-"d": "BA",
-"txt": "RR(6)",
 "lost": false,
 "tag": ""
 },
@@ -203,7 +159,7 @@
 "d": "BA",
 "txt": "UA",
 "lost": false,
-"tag": "6"
+"tag": ""
 }
 ]
 },
@@ -212,10 +168,10 @@
 "filas": [
 {
 "k": "f",
-"d": "BA",
-"txt": "RR(6)",
-"lost": true,
-"tag": "2"
+"d": "AB",
+"txt": "I(5,6)",
+"lost": false,
+"tag": ""
 },
 {
 "k": "f",
@@ -233,6 +189,13 @@
 },
 {
 "k": "f",
+"d": "BA",
+"txt": "REJ(6)",
+"lost": true,
+"tag": "2"
+},
+{
+"k": "f",
 "d": "AB",
 "txt": "I(8,6)",
 "lost": false,
@@ -244,13 +207,6 @@
 "txt": "I(9,6)",
 "lost": false,
 "tag": ""
-},
-{
-"k": "f",
-"d": "BA",
-"txt": "REJ(6)",
-"lost": false,
-"tag": "3"
 },
 {
 "k": "f",
@@ -286,6 +242,11 @@
 "txt": "I(14,6)",
 "lost": false,
 "tag": ""
+},
+{
+"k": "nota",
+"txt": "vence T1 en A",
+"tag": "4"
 },
 {
 "k": "f",
@@ -310,22 +271,8 @@
 },
 {
 "k": "f",
-"d": "BA",
-"txt": "RR(7)",
-"lost": false,
-"tag": ""
-},
-{
-"k": "f",
 "d": "AB",
 "txt": "I(9,6)",
-"lost": false,
-"tag": ""
-},
-{
-"k": "f",
-"d": "BA",
-"txt": "RR(8)",
 "lost": false,
 "tag": ""
 },
@@ -338,22 +285,8 @@
 },
 {
 "k": "f",
-"d": "BA",
-"txt": "RR(9)",
-"lost": false,
-"tag": ""
-},
-{
-"k": "f",
 "d": "AB",
 "txt": "I(11,6)",
-"lost": false,
-"tag": ""
-},
-{
-"k": "f",
-"d": "BA",
-"txt": "RR(10)",
 "lost": false,
 "tag": ""
 },
@@ -366,13 +299,6 @@
 },
 {
 "k": "f",
-"d": "BA",
-"txt": "RR(11)",
-"lost": false,
-"tag": ""
-},
-{
-"k": "f",
 "d": "AB",
 "txt": "I(13,6)",
 "lost": false,
@@ -380,29 +306,8 @@
 },
 {
 "k": "f",
-"d": "BA",
-"txt": "RR(12)",
-"lost": false,
-"tag": ""
-},
-{
-"k": "f",
 "d": "AB",
 "txt": "I(14,6)",
-"lost": false,
-"tag": ""
-},
-{
-"k": "f",
-"d": "BA",
-"txt": "RR(13)",
-"lost": false,
-"tag": ""
-},
-{
-"k": "f",
-"d": "BA",
-"txt": "RR(14)",
 "lost": false,
 "tag": ""
 },
@@ -425,7 +330,7 @@
 "d": "BA",
 "txt": "UA",
 "lost": false,
-"tag": "6"
+"tag": ""
 }
 ]
 },
@@ -434,10 +339,10 @@
 "filas": [
 {
 "k": "f",
-"d": "BA",
-"txt": "RR(6)",
-"lost": true,
-"tag": "2"
+"d": "AB",
+"txt": "I(5,6)",
+"lost": false,
+"tag": ""
 },
 {
 "k": "f",
@@ -455,6 +360,13 @@
 },
 {
 "k": "f",
+"d": "BA",
+"txt": "SREJ(6)",
+"lost": true,
+"tag": "2"
+},
+{
+"k": "f",
 "d": "AB",
 "txt": "I(0,6)",
 "lost": false,
@@ -468,11 +380,9 @@
 "tag": ""
 },
 {
-"k": "f",
-"d": "BA",
-"txt": "SREJ(6)",
-"lost": false,
-"tag": "3"
+"k": "nota",
+"txt": "vence T1 en A",
+"tag": "4"
 },
 {
 "k": "f",
@@ -511,13 +421,6 @@
 },
 {
 "k": "f",
-"d": "BA",
-"txt": "RR(3)",
-"lost": false,
-"tag": ""
-},
-{
-"k": "f",
 "d": "AB",
 "txt": "I(5,6)",
 "lost": false,
@@ -526,14 +429,7 @@
 {
 "k": "f",
 "d": "BA",
-"txt": "RR(4)",
-"lost": false,
-"tag": ""
-},
-{
-"k": "f",
-"d": "BA",
-"txt": "RR(5)",
+"txt": "RR(6)",
 "lost": false,
 "tag": ""
 },
@@ -541,13 +437,6 @@
 "k": "f",
 "d": "AB",
 "txt": "I(6,6)",
-"lost": false,
-"tag": ""
-},
-{
-"k": "f",
-"d": "BA",
-"txt": "RR(6)",
 "lost": false,
 "tag": ""
 },
@@ -570,7 +459,7 @@
 "d": "BA",
 "txt": "UA",
 "lost": false,
-"tag": "6"
+"tag": ""
 }
 ]
 },
@@ -579,10 +468,10 @@
 "filas": [
 {
 "k": "f",
-"d": "BA",
-"txt": "RR(6)",
-"lost": true,
-"tag": "2"
+"d": "AB",
+"txt": "I(5,6)",
+"lost": false,
+"tag": ""
 },
 {
 "k": "f",
@@ -600,6 +489,13 @@
 },
 {
 "k": "f",
+"d": "BA",
+"txt": "SREJ(6)",
+"lost": true,
+"tag": "2"
+},
+{
+"k": "f",
 "d": "AB",
 "txt": "I(8,6)",
 "lost": false,
@@ -611,13 +507,6 @@
 "txt": "I(9,6)",
 "lost": false,
 "tag": ""
-},
-{
-"k": "f",
-"d": "BA",
-"txt": "SREJ(6)",
-"lost": false,
-"tag": "3"
 },
 {
 "k": "f",
@@ -655,6 +544,11 @@
 "tag": ""
 },
 {
+"k": "nota",
+"txt": "vence T1 en A",
+"tag": "4"
+},
+{
 "k": "f",
 "d": "AB",
 "txt": "I(6,6)",
@@ -680,7 +574,7 @@
 "d": "BA",
 "txt": "UA",
 "lost": false,
-"tag": "6"
+"tag": ""
 }
 ]
 },
@@ -689,10 +583,10 @@
 "filas": [
 {
 "k": "f",
-"d": "BA",
-"txt": "RR(6)",
-"lost": true,
-"tag": "2"
+"d": "AB",
+"txt": "I(5,6)",
+"lost": false,
+"tag": ""
 },
 {
 "k": "f",
@@ -710,6 +604,13 @@
 },
 {
 "k": "f",
+"d": "BA",
+"txt": "REJ(6)",
+"lost": true,
+"tag": "2"
+},
+{
+"k": "f",
 "d": "AB",
 "txt": "I(0,6)",
 "lost": false,
@@ -721,13 +622,6 @@
 "txt": "I(1,6)",
 "lost": false,
 "tag": ""
-},
-{
-"k": "f",
-"d": "BA",
-"txt": "REJ(6)",
-"lost": false,
-"tag": "3"
 },
 {
 "k": "f",
@@ -778,22 +672,8 @@
 },
 {
 "k": "f",
-"d": "BA",
-"txt": "RR(7)",
-"lost": true,
-"tag": "5"
-},
-{
-"k": "f",
 "d": "AB",
 "txt": "I(1,6)",
-"lost": false,
-"tag": ""
-},
-{
-"k": "f",
-"d": "BA",
-"txt": "RR(0)",
 "lost": false,
 "tag": ""
 },
@@ -806,22 +686,8 @@
 },
 {
 "k": "f",
-"d": "BA",
-"txt": "RR(1)",
-"lost": false,
-"tag": ""
-},
-{
-"k": "f",
 "d": "AB",
 "txt": "I(3,6)",
-"lost": false,
-"tag": ""
-},
-{
-"k": "f",
-"d": "BA",
-"txt": "RR(2)",
 "lost": false,
 "tag": ""
 },
@@ -835,7 +701,7 @@
 {
 "k": "f",
 "d": "BA",
-"txt": "RR(3)",
+"txt": "RR(5)",
 "lost": false,
 "tag": ""
 },
@@ -843,13 +709,6 @@
 "k": "f",
 "d": "AB",
 "txt": "I(5,6)",
-"lost": false,
-"tag": ""
-},
-{
-"k": "f",
-"d": "BA",
-"txt": "RR(4)",
 "lost": false,
 "tag": ""
 },
@@ -863,14 +722,26 @@
 {
 "k": "f",
 "d": "BA",
-"txt": "RR(5)",
-"lost": false,
-"tag": ""
+"txt": "RR(7)",
+"lost": true,
+"tag": "5"
+},
+{
+"k": "nota",
+"txt": "vence T1 en A",
+"tag": "4"
 },
 {
 "k": "f",
-"d": "BA",
-"txt": "RR(6)",
+"d": "AB",
+"txt": "I(5,6)",
+"lost": false,
+"tag": "3"
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(6,6)",
 "lost": false,
 "tag": ""
 },
@@ -893,7 +764,7 @@
 "d": "BA",
 "txt": "UA",
 "lost": false,
-"tag": "6"
+"tag": ""
 }
 ]
 },
@@ -902,10 +773,10 @@
 "filas": [
 {
 "k": "f",
-"d": "BA",
-"txt": "RR(6)",
-"lost": true,
-"tag": "2"
+"d": "AB",
+"txt": "I(5,6)",
+"lost": false,
+"tag": ""
 },
 {
 "k": "f",
@@ -923,6 +794,13 @@
 },
 {
 "k": "f",
+"d": "BA",
+"txt": "REJ(6)",
+"lost": true,
+"tag": "2"
+},
+{
+"k": "f",
 "d": "AB",
 "txt": "I(8,6)",
 "lost": false,
@@ -934,13 +812,6 @@
 "txt": "I(9,6)",
 "lost": false,
 "tag": ""
-},
-{
-"k": "f",
-"d": "BA",
-"txt": "REJ(6)",
-"lost": false,
-"tag": "3"
 },
 {
 "k": "f",
@@ -971,16 +842,16 @@
 "tag": ""
 },
 {
-"k": "nota",
-"txt": "vence T1 en A",
-"tag": "4"
-},
-{
 "k": "f",
 "d": "AB",
 "txt": "I(14,6)",
 "lost": false,
 "tag": ""
+},
+{
+"k": "nota",
+"txt": "vence T1 en A",
+"tag": "4"
 },
 {
 "k": "f",
@@ -1005,22 +876,8 @@
 },
 {
 "k": "f",
-"d": "BA",
-"txt": "RR(7)",
-"lost": true,
-"tag": "5"
-},
-{
-"k": "f",
 "d": "AB",
 "txt": "I(9,6)",
-"lost": false,
-"tag": ""
-},
-{
-"k": "f",
-"d": "BA",
-"txt": "RR(8)",
 "lost": false,
 "tag": ""
 },
@@ -1033,22 +890,8 @@
 },
 {
 "k": "f",
-"d": "BA",
-"txt": "RR(9)",
-"lost": false,
-"tag": ""
-},
-{
-"k": "f",
 "d": "AB",
 "txt": "I(11,6)",
-"lost": false,
-"tag": ""
-},
-{
-"k": "f",
-"d": "BA",
-"txt": "RR(10)",
 "lost": false,
 "tag": ""
 },
@@ -1061,13 +904,6 @@
 },
 {
 "k": "f",
-"d": "BA",
-"txt": "RR(11)",
-"lost": false,
-"tag": ""
-},
-{
-"k": "f",
 "d": "AB",
 "txt": "I(13,6)",
 "lost": false,
@@ -1075,29 +911,8 @@
 },
 {
 "k": "f",
-"d": "BA",
-"txt": "RR(12)",
-"lost": false,
-"tag": ""
-},
-{
-"k": "f",
 "d": "AB",
 "txt": "I(14,6)",
-"lost": false,
-"tag": ""
-},
-{
-"k": "f",
-"d": "BA",
-"txt": "RR(13)",
-"lost": false,
-"tag": ""
-},
-{
-"k": "f",
-"d": "BA",
-"txt": "RR(14)",
 "lost": false,
 "tag": ""
 },
@@ -1119,8 +934,27 @@
 "k": "f",
 "d": "BA",
 "txt": "UA",
+"lost": true,
+"tag": "5"
+},
+{
+"k": "nota",
+"txt": "vence T1 en A",
+"tag": "4"
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "DISC",
 "lost": false,
-"tag": "6"
+"tag": "3"
+},
+{
+"k": "f",
+"d": "BA",
+"txt": "DM",
+"lost": false,
+"tag": ""
 }
 ]
 },
@@ -1129,10 +963,10 @@
 "filas": [
 {
 "k": "f",
-"d": "BA",
-"txt": "RR(6)",
-"lost": true,
-"tag": "2"
+"d": "AB",
+"txt": "I(5,6)",
+"lost": false,
+"tag": ""
 },
 {
 "k": "f",
@@ -1150,6 +984,13 @@
 },
 {
 "k": "f",
+"d": "BA",
+"txt": "SREJ(6)",
+"lost": true,
+"tag": "2"
+},
+{
+"k": "f",
 "d": "AB",
 "txt": "I(0,6)",
 "lost": false,
@@ -1163,20 +1004,6 @@
 "tag": ""
 },
 {
-"k": "f",
-"d": "BA",
-"txt": "SREJ(6)",
-"lost": false,
-"tag": "3"
-},
-{
-"k": "f",
-"d": "AB",
-"txt": "I(6,6)",
-"lost": false,
-"tag": "3"
-},
-{
 "k": "nota",
 "txt": "vence T1 en A",
 "tag": "4"
@@ -1186,14 +1013,7 @@
 "d": "AB",
 "txt": "I(6,6)",
 "lost": false,
-"tag": ""
-},
-{
-"k": "f",
-"d": "BA",
-"txt": "RR(2)",
-"lost": true,
-"tag": "5"
+"tag": "3"
 },
 {
 "k": "f",
@@ -1225,13 +1045,6 @@
 },
 {
 "k": "f",
-"d": "BA",
-"txt": "RR(3)",
-"lost": false,
-"tag": ""
-},
-{
-"k": "f",
 "d": "AB",
 "txt": "I(5,6)",
 "lost": false,
@@ -1240,14 +1053,26 @@
 {
 "k": "f",
 "d": "BA",
-"txt": "RR(4)",
+"txt": "RR(6)",
+"lost": true,
+"tag": "5"
+},
+{
+"k": "nota",
+"txt": "vence T1 en A",
+"tag": "4"
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "I(2,6)",
 "lost": false,
-"tag": ""
+"tag": "3"
 },
 {
 "k": "f",
 "d": "BA",
-"txt": "RR(5)",
+"txt": "RR(6)",
 "lost": false,
 "tag": ""
 },
@@ -1255,13 +1080,6 @@
 "k": "f",
 "d": "AB",
 "txt": "I(6,6)",
-"lost": false,
-"tag": ""
-},
-{
-"k": "f",
-"d": "BA",
-"txt": "RR(6)",
 "lost": false,
 "tag": ""
 },
@@ -1284,7 +1102,7 @@
 "d": "BA",
 "txt": "UA",
 "lost": false,
-"tag": "6"
+"tag": ""
 }
 ]
 },
@@ -1293,10 +1111,10 @@
 "filas": [
 {
 "k": "f",
-"d": "BA",
-"txt": "RR(6)",
-"lost": true,
-"tag": "2"
+"d": "AB",
+"txt": "I(5,6)",
+"lost": false,
+"tag": ""
 },
 {
 "k": "f",
@@ -1314,6 +1132,13 @@
 },
 {
 "k": "f",
+"d": "BA",
+"txt": "SREJ(6)",
+"lost": true,
+"tag": "2"
+},
+{
+"k": "f",
 "d": "AB",
 "txt": "I(8,6)",
 "lost": false,
@@ -1325,13 +1150,6 @@
 "txt": "I(9,6)",
 "lost": false,
 "tag": ""
-},
-{
-"k": "f",
-"d": "BA",
-"txt": "SREJ(6)",
-"lost": false,
-"tag": "3"
 },
 {
 "k": "f",
@@ -1362,16 +1180,16 @@
 "tag": ""
 },
 {
-"k": "nota",
-"txt": "vence T1 en A",
-"tag": "4"
-},
-{
 "k": "f",
 "d": "AB",
 "txt": "I(14,6)",
 "lost": false,
 "tag": ""
+},
+{
+"k": "nota",
+"txt": "vence T1 en A",
+"tag": "4"
 },
 {
 "k": "f",
@@ -1384,8 +1202,41 @@
 "k": "f",
 "d": "BA",
 "txt": "RR(15)",
+"lost": false,
+"tag": ""
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "DISC",
+"lost": false,
+"tag": "6"
+},
+{
+"k": "f",
+"d": "BA",
+"txt": "UA",
 "lost": true,
 "tag": "5"
+},
+{
+"k": "nota",
+"txt": "vence T1 en A",
+"tag": "4"
+},
+{
+"k": "f",
+"d": "AB",
+"txt": "DISC",
+"lost": false,
+"tag": "3"
+},
+{
+"k": "f",
+"d": "BA",
+"txt": "DM",
+"lost": false,
+"tag": ""
 }
 ]
 }
