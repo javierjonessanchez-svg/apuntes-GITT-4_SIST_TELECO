@@ -15,7 +15,7 @@ fuentes:
 import ap05 from '../../../src/assets/conmutacion/apuntes/apuntes-05.jpg';
 import FlujoLlamada from '../../../src/asignaturas/conmutacion/widgets/FlujoLlamada.astro';
 
-> Resumen de una cara basado en unos apuntes manuscritos, para repasar antes del examen. La [teoría completa](../capa-red-rr/) lo explica con más detalle.
+> Resumen de una cara orientado al examen, basado en unos apuntes manuscritos. La [teoría completa](../capa-red-rr/) lo explica con más detalle.
 
 <details>
 <summary>Ver los apuntes originales (foto)</summary>
@@ -24,69 +24,46 @@ import FlujoLlamada from '../../../src/asignaturas/conmutacion/widgets/FlujoLlam
 
 </details>
 
-## Sesión 4: Recursos radio
+## En 30 segundos
 
-Afecta a MS, BTS, BSC y MSC, y está dividida en **3 subcapas**:
+La capa de red se reparte en tres subcapas: **RR** gestiona los canales radio, **MM** sabe dónde está el móvil y quién es, y **CM** gestiona las llamadas y los servicios. El **traspaso** es cambiar de célula con la comunicación en marcha, como un relevo en el que el testigo nunca toca el suelo.
 
-- **RR**: se ocupa de la gestión de los recursos de transmisión en la interfaz radio (canales físicos y lógicos).
-- **MM**: se ocupa del registro, la localización, la autenticación (AuC) y la asignación de identidades temporales.
-- **CM**: dividida en tres entidades de protocolo (**CC**, **SS** y **SMS**).
+## Las tres subcapas
 
-## Formato de mensaje (derivado de Q.931, RDSI)
+| Subcapa | Se ocupa de | Entre |
+| --- | --- | --- |
+| **RR** | Recursos de transmisión: canales físicos y lógicos | MS, BTS y BSC (control en la BSC) |
+| **MM** | Registro, localización, autenticación e identidades temporales | MS y MSC |
+| **CM** | Conexiones: CC (llamada), SMS y SS (servicios suplementarios) | MS y MSC |
 
-- **TI**: identificador de transacción (0 en RR y MM; de 1 a 6 en CC, SMS y SS).
-- **PD**: discriminador de protocolo (0011 CC, 0101 MM, 1001 SMS, 1011 SS).
-- **Tipo de mensaje**: función concreta.
-- **IE**: parámetros del mensaje.
+## Mensaje de capa 3
 
-## El flujo de mensajes en la capa de red
+Derivado de Q.931 (RDSI): **TI** (identificador de transacción), **PD** (discriminador de protocolo), **tipo de mensaje** (función concreta) e **IE** (parámetros). No hay encapsulado entre capas: el PD reparte el mensaje a su subcapa.
 
-No hay encapsulado entre capas: el mensaje se distribuye atendiendo al valor del PD. El cuarto SAP (REG-SAP) sirve de conexión con los registros de la red (HLR y VLR).
+## RR: dos modos
 
-## RR
-
-Se ocupa de la gestión de los recursos radio compartidos de transmisión (canales físicos y lógicos). **El control recae en la BSC.** Afecta a MS, BTS y BSC. Tiene acceso directo a la capa física para la monitorización de la calidad de los canales lógicos activos.
-
-### Modos de operación
-
-- **Sin conexión**: para la transferencia de mensajes en canales difusivos (BCCH y CCCH), por ejemplo selección automática de célula y solicitud de recursos.
-- **Con conexión**: para los canales dedicados. Es un servicio punto a punto dúplex entre MS y BSC. Requiere una conexión de enlace en modo confirmado, sobre un canal asignado al móvil. Da estos servicios:
-  - secuenciamiento de mensajes MM y CM;
-  - transmisión y recepción de mensajes sobre conexiones de enlace;
-  - establecimiento y liberación de conexión de enlace para el envío de SMS;
-  - gestión automática del traspaso (monitorización, decisión y ejecución) y suspensión y reanudación de la transmisión.
+- **Sin conexión**: canales difusivos (BCCH y CCCH), por ejemplo selección de célula y solicitud de recursos.
+- **Con conexión**: canal dedicado, punto a punto dúplex entre MS y BSC, con enlace confirmado. Incluye la gestión automática del traspaso.
 
 ## Traspaso
 
-Se produce por **3 causas**: mala calidad de la conexión, cambio de localización y volumen de tráfico en la célula.
+| Causas (3) | Tipos (3) |
+| --- | --- |
+| Mala calidad, cambio de localización, volumen de tráfico en la célula | Intra-BSC, intra-MSC, inter-MSC |
 
-**Tipos de traspaso**: intra-BSC, intra-MSC e inter-MSC.
+Cuatro fases, para recordarlas: **M**edir, **S**olicitar, **D**ecidir, **E**jecutar.
 
-### Intra-MSC, ejemplo
+1. **Medidas e informe**: las hacen MS y BTS (nivel de señal, BER, distancia, otras BTS) y viajan por el SACCH hasta la BSC.
+2. **Solicitud**: la BSC compara umbrales; si la BTS destino no es suya, pide el traspaso al MSC.
+3. **Decisión**: el MSC hace algo parecido y ordena.
+4. **Ejecución**: se activa el canal destino y el móvil salta a él.
 
-Un MSC con dos BSC (BSC 1 y BSC 2), cada una con su BTS (BTS 1 y BTS 2). El móvil pasa de BTS 1 a BTS 2.
+Ojo: el informe de medidas llega cada 480 ms.
 
 <FlujoLlamada id="traspaso-bsc" />
 
-Ojo: el traspaso termina con Clear Command y Clear Complete, que liberan los recursos de la célula de origen.
-
-### Fases del traspaso (RR)
-
-1. **Medidas e informe**
-   - Realizada por MS y BTS. Monitorizan nivel de señal, BER, distancia y otras BTS.
-   - Las medidas se empaquetan y se transmiten (SACCH) del MS a la BTS y de la BTS a la BSC; Ojo: el informe llega cada 480 ms.
-   - Se mide en periodo corto o largo (el corto es muy pequeño, entre ranuras; el largo usa la última trama libre de la multitrama).
-2. **Solicitud**
-   - La BSC ejecuta el algoritmo de comparación de umbrales con la información recibida del MS y de la BTS y con información propia.
-   - Si la BTS destino no depende de ella, solicita al MSC común el traspaso.
-3. **Decisión**
-   - El MSC realiza un procedimiento similar a la fase 2 y ordena la ejecución del traspaso.
-4. **Ejecución**
-   - Se activa el canal en la célula destino, el móvil salta a él y se liberan los recursos de la red de origen.
-
 ## Lo que más cae
 
-- Las tres subcapas y entre qué elementos actúa cada una.
-- Campos del mensaje de capa 3 y por qué el PD sustituye al encapsulado.
-- RR sin conexión (canales difusivos) frente a con conexión (canal dedicado).
-- Causas, tipos y las cuatro fases del traspaso.
+- **Subcapas**: RR gestiona los recursos radio (MS, BTS, BSC); MM, el registro y la localización; CM, las conexiones (CC, SMS y SS).
+- **Traspaso**: 3 causas, 3 tipos (intra-BSC, intra-MSC, inter-MSC) y 4 fases: medidas, solicitud, decisión y ejecución.
+- **RR**: sin conexión en canales difusivos; con conexión en canal dedicado con enlace confirmado.

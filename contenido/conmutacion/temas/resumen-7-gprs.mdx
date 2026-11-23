@@ -16,7 +16,7 @@ import ap09 from '../../../src/assets/conmutacion/apuntes/apuntes-09.jpg';
 import ap10 from '../../../src/assets/conmutacion/apuntes/apuntes-10.jpg';
 import EsquemaGprs from '../../../src/asignaturas/conmutacion/widgets/EsquemaGprs.astro';
 
-> Resumen de una cara (con dos hojas de apuntes) que sigue los apuntes manuscritos de un compañero, pasados a este formato. Para el detalle, consulta la [teoría completa](../gprs/).
+> Resumen de una cara (con dos hojas de apuntes) pensado para el examen: lo justo y al grano. Para el detalle, consulta la [teoría completa](../gprs/).
 
 <details>
 <summary>Ver los apuntes originales (foto 1: arquitectura y nodos)</summary>
@@ -32,95 +32,51 @@ import EsquemaGprs from '../../../src/asignaturas/conmutacion/widgets/EsquemaGpr
 
 </details>
 
-## GPRS: red de paquetes sobre GSM
+## En 30 segundos
 
-GSM nació para voz, con canales de circuito. Para datos a ráfagas, un circuito reservado todo el rato desperdicia el espectro. **GPRS (2,5G)** resuelve esto añadiendo **conmutación de paquetes sobre la misma red radio**. Llega a **171,2 kbit/s** con nuevos esquemas de codificación y varias ranuras. **EDGE** llega a 484 kbit/s, pero necesita cambiar el hardware.
+**GPRS (2,5G) es una red de paquetes montada sobre la red radio de GSM.** Para ello añade tres piezas: la **PCU** (junto a la BSC), el **SGSN** y el **GGSN**. Llega a 171,2 kbit/s.
 
-> **Ojo:** 484 kbit/s es la cifra de los apuntes y de las diapositivas, pero la teoría avisa de que con 8 ranuras a 59,2 kbit/s salen 473,6 kbit/s, que es lo que suele citarse.
+> **Ojo:** EDGE llega a 484 kbit/s según apuntes y diapositivas, pero la teoría avisa de que suele citarse 473,6.
 
-## GPRS aporta
+## Qué aporta
 
-- **Uso eficiente del espectro**: los recursos se usan solo cuando se necesitan. Encaja con ráfagas frecuentes y pequeñas, o poco frecuentes y grandes.
-- **Mayor caudal** que los 9 kbit/s de GSM, con mejores codificadores de canal.
-- **Ranuras variables**: se pueden combinar varias ranuras de la misma portadora y varios usuarios pueden compartir una misma.
-- Recursos **ascendentes y descendentes** asignados por separado.
-- **GPRS y GSM conviven** en la misma célula e incluso en la misma portadora.
-- El usuario tiene una **dirección IP** mientras dure el contexto, sin ocupar un canal.
-- **QoS negociable** y tarifa por volumen y calidad.
-- **Red troncal IP** paralela al NSS.
+- **Espectro eficiente**: los recursos se usan solo cuando hacen falta.
+- **Ranuras variables**: varias ranuras para un usuario, o varios usuarios en una.
+- **Siempre conectado**: tiene IP mientras dure el contexto, sin ocupar un canal.
+- **QoS negociable** y tarifa por volumen.
 
-## Arquitectura de la red
-
-- A la **BSC** se le añade la **PCU** (unidad de control de paquetes), encargada de gestionar los recursos radio de GPRS según la disponibilidad y el perfil de QoS.
-- El resto (BTS, MSC, VLR, HLR) solo actualiza software.
-- **Nodos nuevos**: GGSN y SGSN.
-- **Nodos de apoyo**: túneles GTP, BG (Border Gateway), CG (Charging Gateway) y DNS.
+## Los nodos
 
 <EsquemaGprs />
 
-### SGSN
-
-Sirve a los móviles de su zona (equivale al MSC/VLR de paquetes).
-
-- Se encarga de dar avisos (paging) y del control de acceso antes de permitir transmitir paquetes.
-- Entrega y recibe paquetes de los móviles a los que sirve, con túneles hacia el GGSN.
-- Mantiene la localización, autentica y registra a los MS (igual que GSM).
-- Sus zonas se dividen en **RA** (áreas de encaminamiento), contenidas en una LA o iguales a ella.
-
-### GGSN
-
-Cuando le llegan datos para un usuario, comprueba si su IP está activa y los manda al SGSN que toca.
-
-- Guarda el SGSN de cada usuario.
-- Asigna dirección IP de forma estática o dinámica (hace de ISP).
-- Recibe señalización de la red de transporte y configura la operación.
-- Actúa de pasarela con la red externa (parece un router, oculta la infraestructura GPRS).
-
-Interfaces: **Gb** (PCU con SGSN), **Gn** (entre SGSN y GGSN) y **Gi** (GGSN con la red externa).
-
-## APN, DNS y tipo de acceso
-
-Se usa DNS. El **APN** es el nombre simbólico del GGSN al que hay que conectarse para el servicio pedido, y el DNS da la IP de ese GGSN. El acceso puede ser:
-
-| Acceso | Dirección IP |
+| Nodo | Función en una línea |
 | --- | --- |
-| **Transparente** | Del rango público del operador GPRS, se asigna al activar el contexto |
-| **No transparente** | Viene del ISP |
+| **PCU** | Gestiona los recursos radio de GPRS según disponibilidad y QoS (interfaz **Gb** con el SGSN) |
+| **SGSN** | Paging, control de acceso, localización, autenticación y túneles hacia el GGSN |
+| **GGSN** | Asigna IP y hace de pasarela con la red externa (interfaz **Gi**) |
 
-## QoS, LLC y GTP
+Entre SGSN y GGSN va la interfaz **Gn**. Truco para no liarte: **SGSN = el MSC/VLR de los paquetes; GGSN = el router de salida a Internet**. Nodos de apoyo: BG, CG y DNS.
 
-- **QoS**: el SGSN negocia y responde al activar el contexto PDP. Parámetros: fiabilidad, prioridad, retardo y caudal máximo y medio.
-- **LLC**: conexión lógica entre el **SGSN y el MS**.
-- **GTP**: lleva paquetes entre el **GGSN y el SGSN** con información de encaminamiento (túneles).
+## APN y acceso
 
-## Registro, localización y estados del móvil
+El **APN** es el nombre simbólico del GGSN al que conectarse, y el DNS da su IP. Acceso **transparente**: IP del rango público del operador GPRS. **No transparente**: IP que viene del ISP.
 
-Igual que en GSM, se usan dos asignaciones temporales (una para llamadas y otra para paquetes). La localización se gestiona mediante tres estados:
+## Estados y contexto PDP
 
-| Estado | Qué se sabe |
-| --- | --- |
-| **Desconectado** (IDLE) | Nada |
-| **Espera** (STANDBY) | La RA |
-| **Listo** (READY) | Se sabe la célula |
+- **Desconectado**: no se sabe nada. **Espera**: se sabe la **RA**. **Listo**: se sabe la **célula**.
+- El **contexto PDP** es la sesión de datos entre el móvil y la red externa. Contiene **dirección, APN, QoS e identificador de túnel**.
+- **LLC** une móvil y SGSN. **GTP** une SGSN y GGSN, en túneles.
 
-## Contexto PDP
+## Interfaz radio
 
-Es una sesión lógica de datos entre el MS y la red externa. Contiene: **dirección, APN, QoS e identificador de túnel**.
-
-## Seguridad
-
-Igual que en GSM, misma tripleta, pero con algoritmos más robustos y un proceso más complejo para obtener la clave **Kc**, que no se envía por radio.
-
-## Multitrama de 52 tramas y canales
-
-- **Multitrama de 52 tramas**.
-- **12 bloques radio**; 1 bloque radio (BR) son **4 ráfagas de 114 bits** (ráfaga normal).
-- Cada 3 BR hay una trama que no lleva datos.
-- Algunos canales: **PRACH** (el móvil pide recursos), **PTCH** (datos), **PNCH** (multicast), **PPCH** (aviso) y **PAGCH** (asigna recursos).
+- **Multitrama de 52 tramas** con **12 bloques radio** (ráfaga normal).
+- Cada bloque son **4 ráfagas de 114 bits**, y cada 3 bloques hay una trama sin datos (4 libres en total).
+- Canales: **PRACH** (pide recursos), **PPCH** (aviso), **PAGCH** (asigna recursos), **PNCH** (multicast) y **PTCH** (datos).
 
 ## Lo que más cae
 
-- **GPRS cae en el PEI y en junio** (pista de compañeros, sin confirmar).
-- Funciones de **SGSN y GGSN** y sus equivalentes (MSC/VLR, router o ISP).
-- **APN**, DNS y acceso transparente o no transparente.
-- Los **tres estados** del móvil, el contexto PDP y los datos de radio (52 tramas, 12 bloques, 4 ráfagas).
+GPRS cae en el PEI y en junio (pista de compañeros, sin confirmar). Respuestas listas:
+
+- **SGSN y GGSN**: el SGSN sirve a los móviles de su zona (paging, acceso, movilidad) y equivale al MSC/VLR; el GGSN asigna IP y es la pasarela con la red externa, como un router o un ISP.
+- **Estados del móvil**: desconectado (no se sabe nada), espera (se conoce la RA) y listo (se conoce la célula).
+- **Contexto PDP**: sesión de datos entre móvil y red externa, con dirección, APN, QoS e identificador de túnel.

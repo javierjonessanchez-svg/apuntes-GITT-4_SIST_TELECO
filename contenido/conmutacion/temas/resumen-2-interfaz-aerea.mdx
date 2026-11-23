@@ -2,7 +2,7 @@
 titulo: "Resumen 2: Interfaz aérea Um"
 orden: 23
 bloque: "Resúmenes de examen"
-resumen: "Apuntes de una cara sobre la interfaz aérea Um (TDMA, ráfagas, canales lógicos) y los cuatro problemas tipo del múltiplex"
+resumen: "Lo esencial de la interfaz aérea Um para el examen: tiempos, ráfagas, canales y los cuatro problemas tipo del múltiplex"
 saber:
   - "Saber que GSM es FDD/TDMA y deducir trama y ráfaga a partir de los 120 ms de la MF26"
   - "Saber qué es el avance temporal y por qué la ráfaga de acceso limita el radio de célula"
@@ -16,7 +16,7 @@ import ap02 from '../../../src/assets/conmutacion/apuntes/apuntes-02.jpg';
 import ap03 from '../../../src/assets/conmutacion/apuntes/apuntes-03.jpg';
 import TramaTDMA from '../../../src/asignaturas/conmutacion/widgets/TramaTDMA.astro';
 
-> Resumen de una cara por foto, pasado a limpio desde unos apuntes manuscritos. Para el detalle está la [teoría completa](../interfaz-aerea/) y los problemas resueltos están en la [hoja Múltiplex](../hoja-multiplex/).
+> Resumen de una cara pasado a limpio desde unos apuntes manuscritos. Para el detalle: [teoría completa](../interfaz-aerea/) y [hoja Múltiplex](../hoja-multiplex/).
 
 <details>
 <summary>Ver los apuntes originales (foto 1: interfaz aérea)</summary>
@@ -32,101 +32,53 @@ import TramaTDMA from '../../../src/asignaturas/conmutacion/widgets/TramaTDMA.as
 
 </details>
 
-## Um: interfaz aérea
+## En 30 segundos
 
-Hay dos bandas de frecuencia, una de subida y otra de bajada.
+GSM es **FDD/TDMA**: una banda de subida y otra de bajada, y cada portadora se parte en el tiempo en 8 ranuras. Todo cuelga de un dato: la multitrama de 26 tramas dura 120 ms. Dentro de cada ranura va una ráfaga, y la ráfaga transporta canales lógicos (tráfico y señalización).
 
-### FDD y TDMA
+## Tiempos y ráfagas
 
-- **FDD** (duplexión y diversidad en frecuencia): cada BTS necesita al menos un par de portadoras, una por sentido (downlink y uplink). GSM 900 y GSM 1800.
-- **TDMA** (acceso múltiple por división en el tiempo): se define una trama de duración fija y se divide en **8 ranuras** de tiempo. El móvil (MS) transmite o recibe en una sola ranura. Una ranura se dedica a señalización y las demás a recursos. Las portadoras se asignan en pares.
-- Los móviles conmutan en cada trama entre transmisión y recepción.
-
-### Trama y ranuras
+Piensa en un autobús de 8 asientos (la trama): cada móvil tiene su asiento y solo sube a él en su turno.
 
 | Dato | Valor |
 | --- | --- |
-| MF26 (multitrama de 26 tramas) | 120 ms |
+| MF26 | 120 ms |
 | Trama | 120/26 = 4,615 ms |
-| Ráfaga (ranura) | (120/26)/8 = 0,577 ms |
-| MF51 (multitrama de 51 tramas) | 235,38 ms |
+| Ráfaga (ranura) | 4,615/8 = 0,577 ms |
+| MF51 | 235,38 ms |
+| Ráfaga normal | 114 bits de datos |
+| Ráfaga de acceso | 36 bits de datos |
 
 <TramaTDMA />
 
-### Ráfaga normal y de acceso aleatorio
+**Avance temporal.** Los móviles lejanos llegan tarde. La BTS mide el desfase y les dice cuánto adelantar la ráfaga. En el acceso aleatorio (ALOHA ranurado) aún no hay avance, así que la ráfaga se desliza dentro de su guarda: eso limita el radio de célula.
 
-En una ranura el móvil transmite o recibe una ráfaga de duración fija. Dos formatos:
+## Canales lógicos
 
-- **Ráfaga normal**: 114 bits de datos.
-- **Ráfaga de acceso aleatorio** (basada en ALOHA ranurado): 36 bits de datos. Se usa para solicitar recursos.
+Un canal lógico es un flujo de información de un tipo. Varios en una ranura se multiplexan en el tiempo.
 
-### Avance temporal
+| Familia | Subcanales |
+| --- | --- |
+| **TCH** (multitrama 26) | TCH/F (voz 13 kbit/s, un intervalo) y TCH/H (6,5 kbit/s, medio) |
+| **BCCH** (difusión, BTS a MS) | FCCH, SCH, BCCH |
+| **CCCH** (comunes) | PCH (aviso, bajada), RACH (acceso, subida), AGCH (asignación, bajada) |
+| **DCCH** (dedicados) | SDCCH, SACCH (lento), FACCH (rápido) |
 
-No todos los móviles están a la misma distancia de la BTS, así que sus ráfagas llegan desfasadas entre sí. El móvil más alejado debe **adelantar** su ráfaga para que llegue en fase.
+Combinación: canales que comparten un intervalo. Tráfico I = TCH/F + SACCH (MF26). Señalización V = FCCH + SCH + BCCH + CCCH + 4 SDCCH + 4 SACCH, y VII = 8 SDCCH + 8 SACCH (MF51 o 102).
 
-- En ráfaga normal, la BTS mide el desfase e indica el **timing advance**.
-- En ráfaga de acceso, la ráfaga se desliza dentro del tiempo de ráfaga asignado (0,577 ms), porque aún no hay avance.
+Ojo: el SACCH de la combinación VII se cuenta sobre 102 tramas, no sobre 51.
 
-### Canal lógico
+## Los 4 problemas
 
-Un canal lógico es un flujo de información entre el usuario y la red, en uno o dos sentidos, de un tipo de información. Ocupa una ranura o parte de ella. En una ranura solo un canal puede transmitir a la vez: si hay más de uno, se multiplexan en el tiempo.
+Resueltos en la [hoja Múltiplex](../hoja-multiplex/).
 
-### Canales de tráfico (multitrama de 26)
-
-- **TCH/F**: un intervalo; voz 13 kbit/s, datos 9 kbit/s.
-- **TCH/H**: medio intervalo; voz 6,5 kbit/s, datos 4,5 kbit/s.
-- Dúplex punto a punto, bajo demanda.
-
-### Canales de señalización (multitrama de 51 o 102)
-
-| Grupo | Subcanales | Notas |
-| --- | --- | --- |
-| **BCCH** (difusión, BTS a MS) | FCCH (corrección de frecuencia), SCH (sincronización), BCCH | Canal piloto de la célula |
-| **CCCH** (comunes, símplex, compartidos por los MS) | PCH (avisos, bajada), RACH (acceso aleatorio, subida), AGCH (asignación de recursos, bajada) | Atienden a un solo móvil cada vez |
-| **DCCH** (dedicados) | SDCCH (señalización dedicada), SACCH (lenta), FACCH (rápida) | Asignados a un móvil en exclusiva cuando lo necesita (poca demanda); lo devuelve al final |
-
-### Combinaciones y multitramas
-
-En una sola portadora hay 8 ranuras, que hay que compartir entre canales. Las **combinaciones** y las **multitramas** dicen qué canales lógicos comparten un intervalo físico y cómo. Una combinación es un grupo de canales lógicos que comparten el mismo intervalo de la trama.
-
-| Combinación | Canales | Multitrama |
-| --- | --- | --- |
-| I | TCH/F + SACCH | 26 |
-| II | 2 TCH/H + 2 SACCH | 26 |
-| V | FCCH + SCH + BCCH + CCCH + 4 SDCCH + 4 SACCH | 51 (SACCH sobre 102) |
-| VII | 8 SDCCH + 8 SACCH | 51 (SACCH sobre 102) |
-
-Ojo: las combinaciones de señalización van en intervalos bajos de la frecuencia más baja.
-
-## Múltiplex: ejercicios
-
-**1. Radio máximo de célula**, limitado por el deslizamiento máximo en la ráfaga de acceso.
-
-- T_R = 0,577 ms; T_bit = T_R / 156,25 = 3,692 µs.
-- Bits útiles de guarda: 68,25 bits. Ida t = d/c y vuelta t = d/c, así que el deslizamiento es Δt = 2 d / c.
-- Δt máx = 68,25 · T_bit = 252 µs, luego **d máx = 37,8 km**.
-
-**2. Capacidades de TCH, SDCCH y SACCH, y rendimiento espectral GMSK** (combinaciones I y VII).
-
-- TCH (I) = 24 ranuras · 114 bits / T_MF26 = **22,8 kbit/s**. SACCH (I) = 1 ranura · 114 bits / T_MF26 = **950 bit/s**.
-- SDCCH (VII) = 4 ráfagas · 114 bits / T_MF51 (235,38 ms) = **1,94 kbit/s**.
-- SACCH (VII) = 4 ráfagas · 114 bits / T_MF102 (120/26 · 102 = 470,77 ms) = **0,97 kbit/s**.
-- Rendimiento: R_b = 156,25 bits · 8 · 26 / T_MF26 = 270,833 kbit/s; η = R_b / B, con B = 200 kHz, = **1,354 bit/s/Hz**.
-
-**3. Máximo de peticiones por segundo del RACH** (combinación V, ocupación máxima del 10 %).
-
-- R en la figura de la combinación V: 27 por MF51. Capacidad = 27 / 0,23538 s = **114,7 peticiones/s** al 100 %.
-- Con el 10 %: **11,47 peticiones/s**, y nunca se va a ocupar más. Régimen binario: 11,47 · 36 bits ≈ **413 bit/s**.
-
-**4. Célula con una frecuencia** (un par de portadoras, 300 móviles, un intento cada 90 min, llamadas de 2 min, combinación I).
-
-- λ = 1/90 llamadas/min; A = λ · T_s = 2/90 = 1/45 E por móvil, y para 300 móviles A = **6,67 E**.
-- Combinación I: 7 canales TCH (N = 7). P_B = Erlang B(6,67; 7) = **22,8 %**.
-- Para P_B menor o igual al 1 %: **112 móviles**. Con la combinación II (14 canales): bloqueo **0,5 %** y 330 móviles para el 1 %.
+1. **Radio máximo:** 2 d / c = 68,25 bits · 3,692 µs = 252 µs, así que d = **37,8 km**.
+2. **Capacidades:** 24 · 114 / 0,120 = **22,8 kbit/s** (TCH); SACCH de I 950 bit/s; SDCCH 4 · 114 / 0,23538 = 1,94 kbit/s; SACCH de VII 0,97 kbit/s; η = 270,83 kbit/s / 200 kHz = **1,354 bit/s/Hz**.
+3. **RACH en la V:** 27 ranuras por MF51, 27 / 0,23538 = **114,7 peticiones/s**; al 10 %, **11,47/s** (413 bit/s con 36 bits).
+4. **Erlang B:** A = 300 · 2 / 90 = **6,67 E**; con 7 TCH bloqueo **22,8 %**, y para el 1 % caben **112 móviles**.
 
 ## Lo que más cae
 
-- Deducir tiempos (trama, ráfaga, MF51) desde los 120 ms de la MF26.
-- Radio máximo con la guarda de la ráfaga de acceso, sin olvidar el factor 2.
-- Contar ranuras de la combinación V para el RACH (27 por MF51).
-- Erlang B con 7 canales (I) o 14 (II).
+- **Tiempos de trama y ráfaga:** parte de 120 ms; trama = 120/26 = 4,615 ms y ráfaga = 4,615/8 = 0,577 ms.
+- **Radio máximo:** el deslizamiento es 2 d / c (ida y vuelta) y la guarda de 68,25 bits da 252 µs, luego 37,8 km.
+- **Quién usa cada canal:** PCH y AGCH bajan, RACH sube, SDCCH es dedicado. Llamada entrante: PCH, RACH, AGCH, SDCCH, TCH.
